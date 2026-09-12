@@ -1,26 +1,259 @@
-@import "tailwindcss";
+@import url("https://fonts.cdnfonts.com/css/pp-neue-montreal");
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f3e7cd; /* 페이지 배경 = 바이닐 라벨 크림 */
+  --fg: #4c404a; /* 잉크 */
+  --paper: #ffffff; /* 프리로더 종이. 크림 원이 번지는 걸 보여주려면 배경과 달라야 한다 */
+  --stage: #000000; /* 페이지 전환 중 뒤로 드러나는 무대 */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+::-webkit-scrollbar {
+  display: none;
+}
+
+html {
+  scrollbar-width: none;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "PP Neue Montreal";
+  background-color: var(--stage);
+  color: var(--fg);
+}
+
+img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.navbar {
+  position: fixed;
+  width: 100%;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.9s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.navbar[data-ready="true"] {
+  opacity: 1;
+}
+
+.navbar-items {
+  display: flex;
+  gap: clamp(1rem, 4vw, 2rem);
+}
+
+.navbar-item {
+  padding: 1.5rem;
+}
+
+.navbar-item a {
+  text-decoration: none;
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.home {
+  width: 100%;
+  height: 100svh;
+  background-color: var(--bg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  position: relative;
+}
+
+.home h1 {
+  width: 100%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-transform: uppercase;
+  color: var(--fg);
+  font-size: 20vw;
+  font-weight: bolder;
+  line-height: 1;
+  visibility: hidden; /* SSR 단계에서 숨김 → GSAP 이 split 후 드러냄 */
+}
+
+.projects {
+  width: 100%;
+  height: 100svh;
+  overflow-y: auto;
+}
+
+.projects-container {
+  width: 100%;
+  min-height: 100svh;
+  background-color: var(--bg);
+  padding: 15rem 2rem;
+}
+
+.images {
+  width: 30%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.info {
+  width: 100%;
+  height: 100%;
+  min-height: 100svh;
+  background-color: var(--bg);
+  display: flex;
+}
+
+.col {
+  flex: 1;
+}
+
+.col:nth-child(2) {
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.col p {
+  font-weight: 500;
+  font-size: 2rem;
+  color: var(--fg);
+}
+
+.info p {
+  visibility: hidden;
+}
+
+.char,
+.line {
+  position: relative;
+  will-change: transform;
+}
+
+/* ── 프리로더 ───────────────────────────────── */
+
+body.intro-locked {
+  overflow: hidden;
+}
+
+.preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-color: var(--paper);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+
+.preloader-disc {
+  /* [수정] width 만 주고 height:auto 로 두면 레이아웃 확정 전에
+     GSAP 이 CTM 을 재면서 기준점이 어긋난다. 한 변을 고정한다. */
+  --disc: min(300px, 62vmin);
+  display: block;
+  flex: none;
+  width: var(--disc);
+  height: var(--disc);
+  /* 줌인할 때 라벨 원이 svg 박스를 넘어가야 하므로 필수 */
+  overflow: visible;
+}
+
+.preloader-disc circle {
+  fill: none;
+  stroke: var(--fg);
+  stroke-linecap: round;
+}
+
+/* 가운데 크림 원. 이 원이 그대로 홈 배경이 된다 */
+.preloader-disc circle.preloader-label {
+  fill: var(--bg);
+  stroke: none;
+}
+
+.preloader-disc circle.preloader-spindle {
+  fill: var(--fg);
+  stroke: none;
+}
+
+/* ── 페이지 전환 ─────────────────────────────── */
+
+::view-transition-group(navbar) {
+  animation: none;
+  z-index: 100;
+}
+
+::view-transition-old(.page-exit) {
+  animation: 1600ms cubic-bezier(0.65, 0, 0.35, 1) both page-out;
+}
+
+::view-transition-new(.page-enter) {
+  animation: 1500ms cubic-bezier(0.65, 0, 0.35, 1) both page-in;
+  animation-delay: 0.25s;
+}
+
+@keyframes page-out {
+  0% {
+    transform: translateX(0%) translateY(0%) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  40% {
+    transform: translateX(0%) translateY(0%) rotate(0deg) scale(0.8);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateX(-50%) translateY(20%) rotate(-10deg) scale(0.65);
+    opacity: 0.25;
+  }
+}
+
+@keyframes page-in {
+  from {
+    transform: translateX(100%) translateY(20%);
+    clip-path: polygon(50% 50%, 100% 50%, 100% 100%, 50% 100%);
+  }
+  to {
+    transform: translateX(0%) translateY(0%);
+    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+  }
+}
+
+@media (max-width: 1000px) {
+  .images {
+    width: calc(100% - 1rem);
+  }
+
+  .info {
+    flex-direction: column;
+  }
+
+  .info p {
+    font-size: 1.25rem;
+  }
+
+  .col:nth-child(2) {
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }
