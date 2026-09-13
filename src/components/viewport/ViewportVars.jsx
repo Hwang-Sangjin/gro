@@ -16,6 +16,7 @@ export default function ViewportVars() {
 
       root.style.setProperty("--sq-x", `${xPct}%`);
       root.style.setProperty("--sq-y", `${yPct}%`);
+      root.style.setProperty("--sq", `${side}px`);
 
       console.log("inset %:", xPct.toFixed(2), yPct.toFixed(2));
     };
