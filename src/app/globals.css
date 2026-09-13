@@ -6,6 +6,9 @@
   --paper: #ffffff; /* 프리로더 종이. 크림 원이 번지는 걸 보여주려면 배경과 달라야 한다 */
 
   --stage: #2a222a;
+
+  --sq-x: 0%;
+  --sq-y: 0%;
 }
 
 * {
@@ -211,18 +214,20 @@ body.intro-locked {
 @keyframes page-out {
   0% {
     transform: translateX(0%) translateY(0%) rotate(0deg) scale(1);
+    clip-path: inset(0px 0px 0px 0px);
     opacity: 1;
   }
   40% {
     transform: translateX(0%) translateY(0%) rotate(0deg) scale(0.75);
+    clip-path: inset(var(--sq-y) var(--sq-x) var(--sq-y) var(--sq-x));
     opacity: 0.75;
   }
   100% {
     transform: translateX(-50%) translateY(20%) rotate(-10deg) scale(0.55);
+    clip-path: inset(var(--sq-y) var(--sq-x) var(--sq-y) var(--sq-x));
     opacity: 0.5;
   }
 }
-
 @keyframes page-in {
   from {
     transform: translateX(100%) translateY(20%);
