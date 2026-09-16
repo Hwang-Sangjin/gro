@@ -1,54 +1,35 @@
 "use client";
 import { useRef } from "react";
 
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
-import { SplitText } from "gsap/SplitText";
+import PageShell from "@/components/layout/PageShell";
+import useWireProgress from "@/components/home/useWireProgress";
 
-import { useIntro } from "@/components/intro/intro-context";
-
-gsap.registerPlugin(useGSAP, SplitText);
-
-// 인트로 착지 직후의 짧은 숨. 페이지 전환으로 들어올 땐 page-in 애니메이션에 맞춘 1.125s.
-const DELAY_AFTER_INTRO = 0.15;
-const DELAY_AFTER_TRANSITION = 1.125;
+import HeroSection from "@/components/home/HeroSection";
+import NewVinylsSection from "@/components/home/NewVinylsSection";
+import NewsSection from "@/components/home/NewsSection";
 
 export default function Home() {
-  const container = useRef();
-  const titleRef = useRef();
+  const veilInRef = useRef();
+  const veilOutRef = useRef();
 
-  const { done } = useIntro();
-  // 마운트 시점에 이미 done이면 = 인트로가 아니라 페이지 전환으로 들어온 것
-  const viaTransition = useRef(done);
-
-  useGSAP(
-    () => {
-      if (!done) return; // 인트로 중에는 숨긴 채로 대기
-
-      const heroText = new SplitText(titleRef.current, {
-        type: "chars",
-        mask: "chars",
-      });
-
-      gsap.set(heroText.chars, { yPercent: 100 });
-      gsap.set(titleRef.current, { visibility: "visible" });
-
-      gsap.to(heroText.chars, {
-        yPercent: 0,
-        duration: 1,
-        stagger: 0.075,
-        ease: "power3.out",
-        delay: viaTransition.current
-          ? DELAY_AFTER_TRANSITION
-          : DELAY_AFTER_INTRO,
-      });
-    },
-    { scope: container, dependencies: [done] },
-  );
+  useWireProgress({ inRef: veilInRef, outRef: veilOutRef });
 
   return (
-    <div className="home" ref={container}>
-      <h1 ref={titleRef}>Kaelon</h1>
-    </div>
+    <PageShell className="home">
+      {/* 01 — Hero (크림) */}
+      <HeroSection />
+
+      {/* 크림 → 잉크 */}
+      <div className="home-veil" ref={veilInRef} aria-hidden="true" />
+
+      {/* 02 — New vinyls (잉크) */}
+      <NewVinylsSection />
+
+      {/* 잉크 → 크림 */}
+      <div className="home-veil" ref={veilOutRef} aria-hidden="true" />
+
+      {/* 03 — News (크림) */}
+      <NewsSection />
+    </PageShell>
   );
 }

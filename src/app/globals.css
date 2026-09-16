@@ -1,8 +1,21 @@
 @import url("https://fonts.cdnfonts.com/css/pp-neue-montreal");
 
+/* 등록해야 <number> 로 타입이 잡히고 calc / color-mix 안에서 동작한다 */
+@property --wire-t {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
 :root {
-  --bg: #f3e7cd; /* 페이지 배경 = 바이닐 라벨 크림 */
-  --fg: #4c404a; /* 잉크 */
+  /* ── 팔레트 원색 ── */
+  --cream: #f4e7cd;
+  --ink: #4c404a;
+  --frame: #bbcbda;
+
+  /* 고정 토큰. 프리로더와 타 페이지가 쓰므로 절대 보간하지 않는다 */
+  --bg: var(--cream);
+  --fg: var(--ink);
   --paper: #ffffff; /* 프리로더 종이. 크림 원이 번지는 걸 보여주려면 배경과 달라야 한다 */
 
   --stage: #2a222a;
@@ -14,6 +27,21 @@
   --disc-left: 60vw;
 
   --disc-label: #2f5a72;
+
+  /* ── 스크롤 배경 전환 ──
+     0 = 크림, 1 = 잉크. useWireProgress 가 매 프레임 덮어쓴다.
+     홈에서만 쓰이고, 다른 페이지에서는 0 이라 크림/잉크 기본값과 같다 */
+  --wire-t: 0;
+  --page-bg: color-mix(
+    in oklab,
+    var(--ink) calc(var(--wire-t) * 100%),
+    var(--cream)
+  );
+  --page-fg: color-mix(
+    in oklab,
+    var(--cream) calc(var(--wire-t) * 100%),
+    var(--ink)
+  );
 }
 
 * {
@@ -42,15 +70,18 @@ img {
   object-fit: cover;
 }
 
+/* ── 헤더 ───────────────────────────────────── */
+
 .navbar {
   position: fixed;
   width: 100%;
   padding: 1rem;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   z-index: 2;
   opacity: 0;
+  color: var(--page-fg);
   transition: opacity 0.9s cubic-bezier(0.65, 0, 0.35, 1);
 }
 
@@ -58,9 +89,20 @@ img {
   opacity: 1;
 }
 
+.navbar-mark {
+  padding: 1.5rem;
+  text-decoration: none;
+  color: var(--page-fg);
+  font-weight: bolder;
+  font-size: 1.1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .navbar-items {
   display: flex;
-  gap: clamp(1rem, 4vw, 2rem);
+  align-items: center;
+  gap: clamp(0.5rem, 2vw, 1rem);
 }
 
 .navbar-item {
@@ -69,14 +111,225 @@ img {
 
 .navbar-item a {
   text-decoration: none;
-  color: var(--fg);
+  color: var(--page-fg);
   font-weight: 500;
 }
 
-.home {
+/* ── 페이지 공통 ────────────────────────────── */
+
+/* 페이지 루트는 반드시 100svh 로 고정. 스크롤은 안쪽에서 일어난다 —
+   루트가 길어지면 view transition 스냅샷 박스가 같이 길어져서
+   ::view-transition-old 의 inset(%) 정사각형 클립이 깨진다 */
+.page {
   width: 100%;
   height: 100svh;
+  overflow-y: auto; /* Lenis 실패 시에도 네이티브로 스크롤되게 */
+  overflow-x: hidden;
+  position: relative;
   background-color: var(--bg);
+  color: var(--fg);
+}
+
+/* Lenis 가 transform 으로 밀어 올리는 대상 */
+.page-content {
+  width: 100%;
+  min-height: 100svh;
+  padding: 12rem 2rem 6rem;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2rem, 5vw, 4rem);
+}
+
+/* 홈만 스크롤에 따라 배경이 보간되고, 패딩은 섹션이 직접 갖는다 */
+.page.home {
+  background-color: var(--page-bg);
+  color: var(--page-fg);
+}
+
+.page.home .page-content {
+  padding: 0;
+  gap: 0;
+}
+
+/* 인트로 중에는 스크롤을 잠근다 (body.intro-locked 는 body 만 잠근다) */
+body.intro-locked .page {
+  overflow: hidden;
+}
+
+.page-head {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--frame);
+}
+
+.page-label {
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.page-title {
+  font-size: clamp(2.5rem, 7vw, 6rem);
+  font-weight: bolder;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.page-desc {
+  font-size: 1rem;
+  opacity: 0.75;
+}
+
+.page-desc a {
+  color: inherit;
+}
+
+.page-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.page-toolbar-group {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.chip {
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--frame);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.chip[data-active="true"] {
+  background-color: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+}
+
+.page-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.card-cover {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--frame);
+  margin-bottom: 0.5rem;
+}
+
+.card-meta {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.page-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-row {
+  display: grid;
+  grid-template-columns: 4rem 1fr auto;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--frame);
+  font-size: 1.25rem;
+}
+
+.page-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+/* ── 앨범 상세 ──────────────────────────────── */
+
+.album {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(2rem, 6vw, 6rem);
+  align-items: center;
+  flex: 1;
+}
+
+.album-cover {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--frame);
+}
+
+.album-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+/* ── 로그인 / 회원가입 ──────────────────────── */
+
+.auth {
+  flex: 1;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.field {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--frame);
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.field::placeholder {
+  color: inherit;
+  opacity: 0.45;
+}
+
+/* ── 홈 ─────────────────────────────────────── */
+
+.home-hero {
+  width: 100%;
+  height: 100svh;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -84,68 +337,183 @@ img {
   position: relative;
 }
 
-.home h1 {
+.home-hero h1 {
   width: 100%;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   text-transform: uppercase;
-  color: var(--fg);
+  color: var(--page-fg);
   font-size: 20vw;
   font-weight: bolder;
   line-height: 1;
   visibility: hidden; /* SSR 단계에서 숨김 → GSAP 이 split 후 드러냄 */
 }
 
-.projects {
-  width: 100%;
-  height: 100svh;
-  overflow-y: auto;
+.home-scroll {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.6;
 }
 
-.projects-container {
+/* 색이 보간되는 구간. 내용 없이 높이만 담당한다 */
+.home-veil {
   width: 100%;
-  min-height: 100svh;
-  background-color: var(--bg);
-  padding: 15rem 2rem;
+  height: 55svh;
+  pointer-events: none;
 }
 
-.images {
-  width: 30%;
-  margin: 0 auto;
+.home-panel {
+  width: 100%;
+  min-height: 140svh;
+  padding: clamp(3rem, 8vw, 7rem) 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2rem, 5vw, 4rem);
+}
+
+/* News 는 아웃트로·푸터까지 품으므로 높이를 풀어준다 */
+.home-panel-last {
+  min-height: auto;
+  padding-bottom: 0;
+}
+
+.home-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--page-fg) 30%, transparent);
+}
+
+.home-label {
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.home-panel h2 {
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 500;
+  line-height: 1.05;
+  max-width: 18ch;
+}
+
+.home-blocks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.home-block {
+  min-height: 240px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid color-mix(in oklab, var(--page-fg) 35%, transparent);
+}
+
+.home-block strong {
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.home-block span {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+/* New vinyls 진열대 자리표시자 */
+.home-shelf {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.home-sleeve {
+  width: clamp(80px, 12vw, 200px);
+  aspect-ratio: 1;
+  border: 1px solid color-mix(in oklab, var(--page-fg) 35%, transparent);
+}
+
+.home-sleeve:nth-child(1),
+.home-sleeve:nth-child(5) {
+  transform: scale(0.72);
+  opacity: 0.55;
+}
+
+.home-sleeve:nth-child(2),
+.home-sleeve:nth-child(4) {
+  transform: scale(0.86);
+  opacity: 0.8;
+}
+
+.home-meta {
+  text-align: center;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.home-outro {
+  width: 100%;
+  min-height: 60svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  text-align: center;
+}
+
+.home-outro p {
+  font-size: clamp(1.5rem, 4vw, 3rem);
+  font-weight: 500;
+  max-width: 16ch;
+}
+
+.home-cta {
+  padding: 0.9rem 2rem;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  color: var(--page-bg);
+  background-color: var(--page-fg);
+}
+
+.home-footer {
+  width: 100%;
+  padding: 4rem 2rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
 }
 
-.info {
-  width: 100%;
-  height: 100%;
-  min-height: 100svh;
-  background-color: var(--bg);
+.home-footer h3 {
+  font-size: 14vw;
+  font-weight: bolder;
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+.home-footer-bar {
   display: flex;
-}
-
-.col {
-  flex: 1;
-}
-
-.col:nth-child(2) {
-  padding: 2rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.col p {
-  font-weight: 500;
-  font-size: 2rem;
-  color: var(--fg);
-}
-
-.info p {
-  visibility: hidden;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in oklab, var(--page-fg) 30%, transparent);
 }
 
 .char,
@@ -218,7 +586,7 @@ body.intro-locked {
 
   background:
     /* 스핀들 홀 */
-    radial-gradient(circle at 50% 50%, #f3e7cd 0 0.9%, transparent 0.9%),
+    radial-gradient(circle at 50% 50%, var(--cream) 0 0.9%, transparent 0.9%),
     /* 라벨 */
     radial-gradient(circle at 50% 50%, var(--disc-label) 0 17%, transparent 17%),
     /* 라벨 안쪽 링 */
@@ -342,20 +710,29 @@ body.intro-locked {
 }
 
 @media (max-width: 1000px) {
-  .images {
-    width: calc(100% - 1rem);
+  .page-content {
+    padding: 9rem 1.25rem 4rem;
   }
 
-  .info {
-    flex-direction: column;
+  .page-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  .info p {
-    font-size: 1.25rem;
+  .page-row {
+    grid-template-columns: 3rem 1fr;
+    font-size: 1rem;
   }
 
-  .col:nth-child(2) {
-    align-items: flex-start;
+  .album {
+    grid-template-columns: 1fr;
+  }
+
+  .home-blocks {
+    grid-template-columns: 1fr;
+  }
+
+  .home-shelf {
+    gap: 0.75rem;
   }
 }
 
