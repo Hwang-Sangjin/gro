@@ -13,6 +13,10 @@
   --ink: #4c404a;
   --frame: #bbcbda;
 
+  /* Hero 워드마크가 착지하는 자리 = navbar 워드마크와 같은 좌측 기준선 */
+  --gutter: 2.5rem;
+  --navbar-h: 8.5rem;
+
   /* 고정 토큰. 프리로더와 타 페이지가 쓰므로 절대 보간하지 않는다 */
   --bg: var(--cream);
   --fg: var(--ink);
@@ -330,20 +334,42 @@ body.intro-locked .page {
 .home-hero {
   width: 100%;
   height: 100svh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
   position: relative;
 }
 
-.home-hero h1 {
+/* 3D 무대. 워드마크 착지 자리 아래를 채우고 화면 하단까지 열려 있다 */
+.home-stage {
+  position: absolute;
+  top: calc(var(--navbar-h) + 10vw);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.home-stage canvas {
+  display: block;
   width: 100%;
+  height: 100%;
+}
+
+/* 최종(착지) 상태를 CSS 로 고정한다. 시작 상태는 GSAP 이 transform 으로만 만든다 —
+   끝값이 계산 결과가 아니라 실제 레이아웃이라 리사이즈에 안 틀어진다 */
+.home-hero h1 {
+  position: absolute;
+  top: var(--navbar-h);
+  left: var(--gutter);
+  z-index: 1;
+  white-space: nowrap;
   text-transform: uppercase;
   color: var(--page-fg);
-  font-size: 20vw;
+  font-size: 10vw;
   font-weight: bolder;
   line-height: 1;
+  transform-origin: 0 0;
+  will-change: transform;
   visibility: hidden; /* SSR 단계에서 숨김 → GSAP 이 split 후 드러냄 */
 }
 
@@ -355,7 +381,7 @@ body.intro-locked .page {
   font-size: 0.8rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  opacity: 0.6;
+  opacity: 0;
 }
 
 /* 색이 보간되는 구간. 내용 없이 높이만 담당한다 */
