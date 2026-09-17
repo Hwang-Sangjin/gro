@@ -6,6 +6,7 @@ import useWireProgress from "@/components/home/useWireProgress";
 
 import HeroSection from "@/components/home/HeroSection";
 import NewVinylsSection from "@/components/home/NewVinylsSection";
+import CategorySection from "@/components/home/CategorySection";
 import NewsSection from "@/components/home/NewsSection";
 
 export default function Home() {
@@ -25,10 +26,13 @@ export default function Home() {
       {/* 02 — New vinyls (잉크) */}
       <NewVinylsSection />
 
+      {/* 03 — Category (잉크) */}
+      <CategorySection />
+
       {/* 잉크 → 크림 */}
       <div className="home-veil" ref={veilOutRef} aria-hidden="true" />
 
-      {/* 03 — News (크림) */}
+      {/* 04 — News (크림) */}
       <NewsSection />
     </PageShell>
   );

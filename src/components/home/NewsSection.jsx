@@ -10,7 +10,7 @@ export default function NewsSection() {
   return (
     <section className="home-panel home-panel-last">
       <div className="home-panel-head">
-        <span className="home-label">03 — News</span>
+        <span className="home-label">04 — News</span>
         <span className="home-label">All news →</span>
       </div>
 
