@@ -8,42 +8,47 @@ import { Canvas } from "@react-three/fiber";
 
 import { useIntro } from "@/components/intro/intro-context";
 import HeroScene from "./HeroScene";
+import PaperFadePass from "./PaperFadePass";
+import VinylMark from "./VinylMark";
+import useInViewport from "./useInViewport";
 
 gsap.registerPlugin(useGSAP, SplitText);
 
-// 인트로 착지 직후의 짧은 숨. 페이지 전환으로 들어올 땐 page-in 애니메이션에 맞춘 1.125s.
 const DELAY_AFTER_INTRO = 0.15;
 const DELAY_AFTER_TRANSITION = 1.125;
 
-// 중앙에 떠 있을 때의 배율. CSS 최종 크기(10vw)의 2배 = 20vw
-const HERO_SCALE = 2;
+// 11vw 세리프는 2배면 화면을 넘는다 → 1.6배
+const HERO_SCALE = 1.6;
 
-// 워드마크 이동과 같은 길이·같은 이징 — 두 움직임이 한 동작으로 읽히게
 const MOVE_DURATION = 1.4;
 const MOVE_EASE = "power3.inOut";
+
+// 직접 튜닝했던 값이 있으면 여기로 옮기세요
+const STAGE_DELAY = 0.5;
+const STAGE_FADE = 1.4;
 
 export default function HeroSection() {
   const section = useRef();
   const titleRef = useRef();
+  const markRef = useRef();
+  const ruleRef = useRef();
   const scrollRef = useRef();
   const stageRef = useRef();
+  const hoverRef = useRef(false); // state 아님 — 리렌더 없이 셰이더로만 전달
 
   const { done } = useIntro();
-  // 마운트 시점에 이미 done이면 = 인트로가 아니라 페이지 전환으로 들어온 것
   const viaTransition = useRef(done);
+
+  // 화면 밖으로 나가면 렌더 루프를 끈다. New vinyls 구간에서 GPU 를 비워준다
+  const heroVisible = useInViewport(stageRef);
 
   useGSAP(
     () => {
-      if (!done) return; // 인트로 중에는 숨긴 채로 대기
+      if (!done) return;
 
       const title = titleRef.current;
+      const heroText = new SplitText(title, { type: "chars", mask: "chars" });
 
-      const heroText = new SplitText(title, {
-        type: "chars",
-        mask: "chars",
-      });
-
-      // 최종 위치에서 잰 박스. 여기서 "중앙 + 확대" 로 가는 델타를 역산한다
       const rect = title.getBoundingClientRect();
       const toCenter = {
         x: (window.innerWidth - rect.width * HERO_SCALE) / 2 - rect.left,
@@ -57,9 +62,8 @@ export default function HeroSection() {
         visibility: "visible",
       });
       gsap.set(heroText.chars, { yPercent: 100 });
-
-      // 3D 는 화면 아래에 대기. yPercent 라 뷰포트 높이에 안 묶인다
-      gsap.set(stageRef.current, { yPercent: 80, opacity: 0 });
+      gsap.set(stageRef.current, { yPercent: 60, opacity: 0 });
+      gsap.set(markRef.current, { opacity: 0, scale: 0.8, rotate: -20 });
 
       const tl = gsap.timeline({
         delay: viaTransition.current
@@ -67,7 +71,7 @@ export default function HeroSection() {
           : DELAY_AFTER_INTRO,
       });
 
-      // ① 중앙에서 글자가 마스크 밖으로 올라온다
+      // ① 중앙에서 글자 리빌
       tl.to(heroText.chars, {
         yPercent: 0,
         duration: 1,
@@ -75,37 +79,43 @@ export default function HeroSection() {
         ease: "power3.out",
       });
 
-      // ② 잠깐 머문 뒤 좌상단 제자리로 축소 이동
+      // ② 좌상단으로 착지 — 이후 트윈은 전부 이 라벨 기준
+      tl.addLabel("land", "+=0.45");
       tl.to(
         title,
-        {
-          x: 0,
-          y: 0,
-          scale: 1,
-          duration: MOVE_DURATION,
-          ease: MOVE_EASE,
-        },
-        "+=0.45",
+        { x: 0, y: 0, scale: 1, duration: MOVE_DURATION, ease: MOVE_EASE },
+        "land",
       );
 
-      // ③ 같은 시점·같은 이징으로 3D 가 아래에서 올라온다.
-      //    opacity 는 더 짧게 끝내서 "떠오르는" 느낌만 남기고 이동은 계속되게
+      // ③ 3D 가 아래에서 올라온다
       tl.to(
         stageRef.current,
         { yPercent: 0, duration: MOVE_DURATION, ease: MOVE_EASE },
-        "<0.5",
+        `land+=${STAGE_DELAY}`,
       );
       tl.to(
         stageRef.current,
-        { opacity: 1, duration: MOVE_DURATION * 1.6, ease: "power2.out" },
-        "<",
+        { opacity: 1, duration: STAGE_FADE, ease: "power2.out" },
+        `land+=${STAGE_DELAY}`,
       );
 
-      // ④ 착지 끝물에 스크롤 힌트
+      // ④ 착지 끝물에 밑줄이 좌→우로 그어지고, 그 끝에서 바이닐 마크가 돌아 들어온다
+      tl.to(
+        ruleRef.current,
+        { scaleX: 1, duration: 1.1, ease: "power3.inOut" },
+        `land+=${MOVE_DURATION - 0.5}`,
+      );
+      tl.to(
+        markRef.current,
+        { opacity: 1, scale: 1, rotate: 0, duration: 0.9, ease: "power3.out" },
+        "<0.35",
+      );
+
+      // ⑤ 스크롤 힌트
       tl.to(
         scrollRef.current,
         { opacity: 0.6, duration: 0.6, ease: "power2.out" },
-        "-=0.5",
+        "-=0.4",
       );
 
       return () => heroText.revert();
@@ -115,17 +125,35 @@ export default function HeroSection() {
 
   return (
     <section className="home-hero" ref={section}>
-      <div className="home-stage" ref={stageRef} aria-hidden="true">
+      <div
+        className="home-stage"
+        ref={stageRef}
+        aria-hidden="true"
+        onPointerEnter={() => (hoverRef.current = true)}
+        onPointerLeave={() => (hoverRef.current = false)}
+      >
+        {/* flat: 톤매핑을 꺼야 #bbcbda 가 정확히 그 색으로 나온다 */}
         <Canvas
+          flat
+          frameloop={heroVisible ? "always" : "never"}
           camera={{ position: [0, 0.6, 6], fov: 42 }}
           gl={{ alpha: true, antialias: true }}
-          dpr={[1, 2]}
+          dpr={[1, 1.75]}
         >
           <HeroScene />
+          <PaperFadePass hoverRef={hoverRef} />
         </Canvas>
       </div>
 
-      <h1 ref={titleRef}>Grooves</h1>
+      <div className="home-title">
+        <div className="home-title-row">
+          <h1 className="ink-grain" ref={titleRef}>
+            Grooves
+          </h1>
+          <VinylMark className="home-title-mark ink-grain" ref={markRef} />
+        </div>
+        <span className="home-title-rule ink-grain" ref={ruleRef} />
+      </div>
 
       <span className="home-scroll" ref={scrollRef}>
         scroll ↓

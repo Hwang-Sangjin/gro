@@ -1,10 +1,19 @@
-@import url("https://fonts.cdnfonts.com/css/pp-neue-montreal");
-
+@import "tailwindcss";
 /* 등록해야 <number> 로 타입이 잡히고 calc / color-mix 안에서 동작한다 */
 @property --wire-t {
   syntax: "<number>";
   inherits: true;
   initial-value: 0;
+}
+
+@theme {
+  --animate-marquee: marquee 26s linear infinite;
+
+  @keyframes marquee {
+    to {
+      transform: translateX(-50%);
+    }
+  }
 }
 
 :root {
@@ -46,6 +55,14 @@
     var(--cream) calc(var(--wire-t) * 100%),
     var(--ink)
   );
+
+  /* ── Hero ── */
+  --accent-rust: #c4573a;
+  --accent-blue: #7fa3c7;
+  --hero-title-size: 11vw;
+
+  /* 인쇄 잉크 빠짐 마스크. 마지막 숫자(6.6)를 올리면 구멍이 줄고, 내리면 늘어난다 */
+  --ink-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -9 0 0 0 6.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 
 * {
@@ -337,13 +354,69 @@ body.intro-locked .page {
   position: relative;
 }
 
-/* 3D 무대. 워드마크 착지 자리 아래를 채우고 화면 하단까지 열려 있다 */
+/* 재사용 유틸: 텍스트·선에 인쇄 grain */
+.ink-grain {
+  -webkit-mask-image: var(--ink-grain);
+  mask-image: var(--ink-grain);
+  -webkit-mask-size: 220px 220px;
+  mask-size: 220px 220px;
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+}
+
+/* 타이틀 묶음: [GROOVES + vinyl mark] + underline */
+.home-title {
+  position: absolute;
+  top: var(--navbar-h);
+  left: var(--gutter);
+  right: var(--gutter);
+  z-index: 1;
+  pointer-events: none; /* 3D hover 를 막지 않게 */
+}
+
+.home-title-row {
+  display: flex;
+  align-items: center;
+  gap: 2vw;
+}
+
+/* 최종(착지) 상태는 여전히 CSS 레이아웃. GSAP 은 transform 만 건드린다 */
+.home-hero h1 {
+  position: relative;
+  white-space: nowrap;
+  text-transform: uppercase;
+  color: var(--page-fg);
+  font-size: var(--hero-title-size);
+  font-weight: 900;
+  line-height: 1;
+  transform-origin: 0 0;
+  will-change: transform;
+  visibility: hidden; /* SSR 단계에서 숨김 → GSAP 이 split 후 드러냄 */
+}
+
+.home-title-mark {
+  flex: none;
+  height: calc(var(--hero-title-size) * 0.72);
+  width: auto;
+  opacity: 0;
+}
+
+.home-title-rule {
+  display: block;
+  height: 3px;
+  margin-top: 0.8vw;
+  background: var(--page-fg);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
+/* 3D 무대: 밑줄 아래부터, 좌우 gutter 안쪽, 하단은 scroll 힌트 자리만 남김 */
 .home-stage {
   position: absolute;
-  top: calc(var(--navbar-h) + 10vw);
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: calc(var(--navbar-h) + var(--hero-title-size) + 2.8vw);
+  left: var(--gutter);
+  right: var(--gutter);
+  bottom: 4.5rem;
   z-index: 0;
   opacity: 0;
   will-change: transform, opacity;
@@ -353,24 +426,6 @@ body.intro-locked .page {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-/* 최종(착지) 상태를 CSS 로 고정한다. 시작 상태는 GSAP 이 transform 으로만 만든다 —
-   끝값이 계산 결과가 아니라 실제 레이아웃이라 리사이즈에 안 틀어진다 */
-.home-hero h1 {
-  position: absolute;
-  top: var(--navbar-h);
-  left: var(--gutter);
-  z-index: 1;
-  white-space: nowrap;
-  text-transform: uppercase;
-  color: var(--page-fg);
-  font-size: 10vw;
-  font-weight: bolder;
-  line-height: 1;
-  transform-origin: 0 0;
-  will-change: transform;
-  visibility: hidden; /* SSR 단계에서 숨김 → GSAP 이 split 후 드러냄 */
 }
 
 .home-scroll {

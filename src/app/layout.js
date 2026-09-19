@@ -11,6 +11,12 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.cdnfonts.com/css/pp-neue-montreal"
+        />
+      </head>
       <body>
         <div className="disc" aria-hidden="true" />
         <ViewportVars />
