@@ -1,0 +1,114 @@
+@font-face {
+  font-family: "Grooves Vinyl Bodoni";
+  src: url("/fonts/bodoni-moda-latin-900-normal.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+.section {
+  position: relative;
+  width: 100%;
+  height: 100svh;
+  min-height: 620px;
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--page-fg, #f4e7cd);
+  background: transparent;
+  margin-bottom: 55svh;
+  flex-shrink: 0;
+}
+.heading {
+  position: absolute;
+  top: clamp(90px, 12svh, 150px);
+  left: var(--gutter, 40px);
+  z-index: 2;
+  pointer-events: none;
+}
+.title {
+  margin: 0;
+  font-family: "Grooves Vinyl Bodoni", Georgia, serif;
+  font-weight: 900;
+  font-size: clamp(4rem, 7.6vw, 8.5rem);
+  line-height: 0.9;
+  letter-spacing: -0.055em;
+  text-transform: uppercase;
+}
+.title span {
+  display: flex;
+  align-items: center;
+  gap: 0.16em;
+}
+.title svg {
+  width: 0.43em;
+  height: 0.43em;
+  color: #bbcbda;
+  flex: none;
+}
+.stage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.footer {
+  position: absolute;
+  bottom: 26px;
+  left: var(--gutter, 40px);
+  right: var(--gutter, 40px);
+  z-index: 2;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  pointer-events: none;
+}
+.counter {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  opacity: 0.7;
+}
+.album {
+  display: block;
+  font-family: Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 400;
+  margin-top: 5px;
+}
+.artist {
+  display: block;
+  opacity: 0.65;
+  font-size: 0.8rem;
+  margin-top: 3px;
+}
+.hint {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  white-space: nowrap;
+  font-size: 0.65rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+@media (max-width: 600px) {
+  .section {
+    min-height: 560px;
+    --gutter: 20px;
+  }
+  .heading {
+    top: 100px;
+  }
+  .title {
+    font-size: clamp(3.3rem, 14vw, 5rem);
+  }
+  .hint {
+    position: static;
+    transform: none;
+    font-size: 0.55rem;
+    letter-spacing: 0.1em;
+  }
+  .album {
+    font-size: 1.1rem;
+  }
+}
