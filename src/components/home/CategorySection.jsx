@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
+import styles from "./CategorySection.module.css";
 
-// lib/genres 로 빠질 예정. covers 는 /public/images/covers/*.jpg 기준
 const GENRES = [
   { name: "K-indie", covers: ["k-indie-1", "k-indie-2", "k-indie-3"] },
   { name: "Indie", covers: ["indie-1", "indie-2", "indie-3"] },
@@ -17,106 +17,95 @@ const GENRES = [
   { name: "OST", covers: ["ost-1", "ost-2", "ost-3"] },
   { name: "기타", covers: ["etc-1", "etc-2", "etc-3"] },
 ];
+const toSlug = name => name.toLowerCase().replace(/&/g,"and").replace(/[^a-z0-9가-힣]+/g,"-");
 
-const toSlug = (name) =>
-  name
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9가-힣]+/g, "-");
-
-// 이름 → 커버 → 이름 → 커버 … 한 세트. 트랙은 이걸 두 번 이어 붙인다
-function MarqueeSet({ genre }) {
+function Cover({ id }) {
+  const [failed, setFailed] = useState(false);
   return (
-    <div className="flex shrink-0 items-center gap-[clamp(1.5rem,4vw,4rem)] pr-[clamp(1.5rem,4vw,4rem)]">
-      {genre.covers.map((cover, i) => (
-        <div
-          key={`${cover}-${i}`}
-          className="flex shrink-0 items-center gap-[clamp(1.5rem,4vw,4rem)]"
-        >
-          <span className="text-[clamp(1.75rem,4.2vw,3.5rem)] leading-none font-medium lowercase">
-            {genre.name}
-          </span>
-          {/* 커버가 없으면 이 img 대신 빈 사각형이 보인다 */}
-          <img
-            src={`/images/covers/${cover}.jpg`}
-            alt=""
-            aria-hidden="true"
-            loading="lazy"
-            className="h-[clamp(3rem,7vh,5.5rem)] w-[clamp(3rem,7vh,5.5rem)] shrink-0 object-cover"
-            onError={(e) => {
-              e.currentTarget.style.visibility = "hidden";
-            }}
-          />
-        </div>
+    <span className={styles.cover}>
+      {failed ? <span className={styles.record} /> : (
+        // Fixed dimensions preserve the loop length while images load or fail.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={`/images/covers/${id}.jpg`} alt="" width="80" height="80"
+          loading="lazy" onError={() => setFailed(true)} />
+      )}
+    </span>
+  );
+}
+function Seed({ genre, measureRef }) {
+  return (
+    <div className={styles.seed} ref={measureRef}>
+      {genre.covers.map(id => (
+        <span className={styles.unit} key={id}>
+          <span>{genre.name}</span><Cover id={id} />
+        </span>
       ))}
     </div>
   );
 }
-
+function Marquee({ genre }) {
+  const viewport = useRef(null);
+  const seed = useRef(null);
+  const [layout, setLayout] = useState({ count: 1, duration: 20, ready: false });
+  useLayoutEffect(() => {
+    let frame = 0;
+    let disposed = false;
+    const measure = () => {
+      if (disposed) return;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const w = viewport.current?.getBoundingClientRect().width ?? 0;
+        const unit = seed.current?.getBoundingClientRect().width ?? 0;
+        if (!w || !unit) return;
+        // Each half is wider than the viewport, with an extra seed as resize buffer.
+        const count = Math.ceil(w / unit) + 1;
+        const duration = count * unit / 60;
+        setLayout(prev => prev.ready && prev.count === count && Math.abs(prev.duration-duration)<.01
+          ? prev : { count, duration, ready: true });
+      });
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport.current);
+    observer.observe(seed.current);
+    document.fonts.ready.then(measure);
+    measure();
+    return () => { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); };
+  }, []);
+  return (
+    <div className={styles.marquee} ref={viewport} aria-hidden="true" data-ready={layout.ready}>
+      <div className={styles.measure}><Seed genre={genre} measureRef={seed} /></div>
+      {!layout.ready && <span className={styles.loadingLabel}>{genre.name}</span>}
+      <div className={styles.track} style={{ "--marquee-duration": `${layout.duration}s` }}>
+        {[0,1].map(copy => (
+          <div className={styles.group} key={copy}>
+            {Array.from({ length: layout.count }, (_,i) => <Seed genre={genre} key={i} />)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 export default function CategorySection() {
   const [hovered, setHovered] = useState(null);
-
+  const [focused, setFocused] = useState(null);
+  const active = focused ?? hovered;
   return (
-    <section className="relative flex h-[100svh] w-full flex-col overflow-hidden">
-      <span className="absolute top-[calc(var(--navbar-h)*0.42)] left-[var(--gutter)] z-10 text-[0.72rem] tracking-[0.22em] uppercase opacity-55">
-        Explore by genre
-      </span>
-
-      <ol
-        className="flex flex-1 flex-col pt-[var(--navbar-h)] pb-14"
-        onMouseLeave={() => setHovered(null)}
-      >
-        {GENRES.map((genre, i) => {
-          const active = hovered === i;
-
-          return (
-            <li
-              key={genre.name}
-              onMouseEnter={() => setHovered(i)}
-              className={[
-                "group relative flex flex-1 items-center overflow-hidden",
-                "border-t border-current/12 last:border-b",
-                "transition-colors duration-500 ease-out",
-                active
-                  ? "bg-[var(--frame)] text-[var(--ink)]"
-                  : "bg-transparent",
-              ].join(" ")}
-            >
-              <Link
-                href={`/digging?genre=${toSlug(genre.name)}`}
-                className="absolute inset-0 z-10"
-                aria-label={`${genre.name} 장르 보기`}
-              />
-
-              {/* 평상시 — 가운데 이름 하나 */}
-              <span
-                className={[
-                  "w-full text-center text-[clamp(1.75rem,4.2vw,3.5rem)] leading-none font-medium lowercase",
-                  "transition-opacity duration-300 ease-out",
-                  active ? "opacity-0" : "opacity-100",
-                ].join(" ")}
-              >
-                {genre.name}
-              </span>
-
-              {/* hover — 이 줄만 마운트되어 흐른다 */}
-              {active && (
-                <div className="pointer-events-none absolute inset-0 flex items-center">
-                  <div className="flex w-max animate-marquee will-change-transform">
-                    <MarqueeSet genre={genre} />
-                    <MarqueeSet genre={genre} />
-                  </div>
-                </div>
-              )}
-            </li>
-          );
-        })}
+    <section className={styles.section} aria-labelledby="genre-heading">
+      <header className={styles.header}><h2 id="genre-heading">Explore by genre</h2></header>
+      <ol className={styles.list} onMouseLeave={() => setHovered(null)}>
+        {GENRES.map((genre,i) => (
+          <li key={genre.name} className={styles.row} data-active={active === i}
+            onMouseEnter={() => setHovered(i)}>
+            <Link className={styles.link} href={`/digging?genre=${toSlug(genre.name)}`}
+              aria-label={`${genre.name} 장르 보기`}
+              onFocus={() => setFocused(i)} onBlur={() => setFocused(null)}>
+              <span className={styles.label} aria-hidden="true">{genre.name}</span>
+              {active === i && <Marquee genre={genre} />}
+            </Link>
+          </li>
+        ))}
       </ol>
-
-      <div className="pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center gap-1 text-[0.7rem] tracking-[0.22em] uppercase opacity-50">
-        <span aria-hidden="true">⌄</span>
-        <span>Scroll</span>
-      </div>
+      <div className={styles.scroll} aria-hidden="true">⌄<br />Scroll</div>
     </section>
   );
 }

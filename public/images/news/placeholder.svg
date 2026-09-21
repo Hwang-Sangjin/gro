@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="720" viewBox="0 0 960 720">
+  <rect width="960" height="720" fill="#e8ddc7"/>
+  <path d="M0 600L960 120M0 650L960 170" stroke="#bbcbda" stroke-width="1" opacity=".6"/>
+  <rect x="230" y="160" width="350" height="400" fill="#f4e7cd" stroke="#4c404a" stroke-opacity=".15" transform="rotate(-8 405 360)"/>
+  <circle cx="530" cy="350" r="205" fill="#bbcbda"/>
+  <g fill="none" stroke="#4c404a" stroke-opacity=".2">
+    <circle cx="530" cy="350" r="190"/><circle cx="530" cy="350" r="178"/>
+    <circle cx="530" cy="350" r="166"/><circle cx="530" cy="350" r="154"/>
+    <circle cx="530" cy="350" r="142"/><circle cx="530" cy="350" r="130"/>
+    <circle cx="530" cy="350" r="118"/><circle cx="530" cy="350" r="106"/>
+  </g>
+  <circle cx="530" cy="350" r="66" fill="#c4573a"/>
+  <circle cx="530" cy="350" r="9" fill="#f4e7cd"/>
+  <path d="M210 220Q210 260 250 260Q210 260 210 300Q210 260 170 260Q210 260 210 220" fill="#c4573a"/>
+  <text x="480" y="640" text-anchor="middle" font-family="Georgia,serif" font-size="24" letter-spacing="7" fill="#4c404a">GROOVES JOURNAL</text>
+</svg>
