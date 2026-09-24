@@ -6,11 +6,9 @@
 //   secret: string (ADMIN_SECRET)
 
 import { createClient } from "@supabase/supabase-js";
-import sharp from "sharp";
+import { processCover } from "@/lib/admin/cover";
 
 export const runtime = "nodejs";
-
-const BUCKET = "album-covers";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,52 +23,36 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9가-힣]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-const toHex = ({ r, g, b }: { r: number; g: number; b: number }) =>
-  "#" +
-  [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
-
 // side 로 disc 추정: A,B -> 1 / C,D -> 2 / E,F -> 3 ...
 const discFromSide = (side: string) =>
   Math.floor((side.charCodeAt(0) - 65) / 2) + 1;
 
-async function processCover(file: File, slug: string) {
-  const buf = Buffer.from(await file.arrayBuffer());
+const YT_ID = /^[A-Za-z0-9_-]+$/;
 
-  const [cover, thumb, lqip, stats] = await Promise.all([
-    sharp(buf)
-      .resize(1200, 1200, { fit: "cover" })
-      .webp({ quality: 88 })
-      .toBuffer(),
-    sharp(buf)
-      .resize(400, 400, { fit: "cover" })
-      .webp({ quality: 80 })
-      .toBuffer(),
-    sharp(buf)
-      .resize(16, 16, { fit: "cover" })
-      .webp({ quality: 40 })
-      .toBuffer(),
-    sharp(buf).stats(),
-  ]);
-
-  const coverPath = `${slug}/cover.webp`;
-  const thumbPath = `${slug}/thumb.webp`;
-
-  for (const [p, body] of [
-    [coverPath, cover],
-    [thumbPath, thumb],
-  ] as const) {
-    const { error } = await supabase.storage
-      .from(BUCKET)
-      .upload(p, body, { contentType: "image/webp", upsert: true });
-    if (error) throw new Error(`커버 업로드 실패: ${error.message}`);
+// 플레이리스트 링크를 넣어도 list= 값만 뽑아낸다
+// https://www.youtube.com/watch?v=xxx&list=OLAK5uy_...&index=2 → OLAK5uy_...
+function toPlaylistId(value?: string | null) {
+  if (!value) return null;
+  const v = value.trim();
+  try {
+    return new URL(v).searchParams.get("list");
+  } catch {
+    return YT_ID.test(v) ? v : null;
   }
+}
 
-  return {
-    cover_path: coverPath,
-    thumb_path: thumbPath,
-    cover_color: toHex(stats.dominant),
-    cover_lqip: `data:image/webp;base64,${lqip.toString("base64")}`,
-  };
+// 영상 링크를 넣어도 영상 ID만 뽑아낸다
+// https://www.youtube.com/watch?v=xxx / https://youtu.be/xxx → xxx
+function toVideoId(value?: string | null) {
+  if (!value) return null;
+  const v = value.trim();
+  try {
+    const url = new URL(v);
+    if (url.hostname === "youtu.be") return url.pathname.slice(1) || null;
+    return url.searchParams.get("v");
+  } catch {
+    return YT_ID.test(v) ? v : null;
+  }
 }
 
 async function upsertArtist(name: string) {
@@ -121,7 +103,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const image = await processCover(cover, payload.slug);
+    // 링크 형태가 잘못됐으면 커버를 올리기 전에 막는다
+    const playlistId = toPlaylistId(payload.youtubePlaylistId);
+    if (payload.youtubePlaylistId && !playlistId) {
+      return Response.json(
+        { error: "YouTube 플레이리스트 링크 또는 ID를 확인해주세요." },
+        { status: 400 },
+      );
+    }
+
+    const image = await processCover(supabase, cover, payload.slug);
 
     const { data: row, error } = await supabase
       .from("albums")
@@ -137,7 +128,7 @@ export async function POST(req: Request) {
           catalog_no: payload.catalogNo || null,
           is_reissue: !!payload.isReissue,
           description: payload.description || null,
-          youtube_playlist_id: payload.youtubePlaylistId || null,
+          youtube_playlist_id: playlistId,
           status: payload.status || "published",
           ...image,
         },
@@ -155,15 +146,13 @@ export async function POST(req: Request) {
       artistIds.push(await upsertArtist(name));
 
     await supabase.from("album_artists").delete().eq("album_id", albumId);
-    await supabase
-      .from("album_artists")
-      .insert(
-        artistIds.map((id, i) => ({
-          album_id: albumId,
-          artist_id: id,
-          position: i,
-        })),
-      );
+    await supabase.from("album_artists").insert(
+      artistIds.map((id, i) => ({
+        album_id: albumId,
+        artist_id: id,
+        position: i,
+      })),
+    );
 
     // 장르
     await supabase.from("album_genres").delete().eq("album_id", albumId);
@@ -194,7 +183,7 @@ export async function POST(req: Request) {
           side_position: counter[key],
           title: t.title,
           duration_sec: t.duration ?? null,
-          youtube_video_id: t.youtubeId || null,
+          youtube_video_id: toVideoId(t.youtubeId),
         };
       });
       const { error: tErr } = await supabase.from("tracks").insert(rows);
