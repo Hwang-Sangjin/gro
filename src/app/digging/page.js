@@ -1,11 +1,31 @@
-"use client";
+// src/app/digging/page.js
+// 서버 컴포넌트. 첫 24개를 서버에서 가져와 HTML 에 포함시킨다
+
 import Link from "next/link";
 
 import PageShell from "@/components/layout/PageShell";
+import DiggingGrid from "@/components/digging/DiggingGrid";
+import { createClient } from "@/utils/supabase/server";
+import { fetchDiggingPage } from "@/lib/albums";
+import { GENRES } from "@/lib/genres";
 
-const PLACEHOLDER = Array.from({ length: 12 }, (_, i) => i + 1);
+export default async function Digging({ searchParams }) {
+  const { genre = null } = await searchParams;
+  const supabase = await createClient();
 
-export default function Digging() {
+  // ?genre=jazz → genre_id
+  let genreId = null;
+  if (genre) {
+    const { data } = await supabase
+      .from("genres")
+      .select("id")
+      .eq("slug", genre)
+      .maybeSingle();
+    genreId = data?.id ?? null;
+  }
+
+  const initial = await fetchDiggingPage(supabase, { genreId });
+
   return (
     <PageShell>
       <header className="page-head">
@@ -16,10 +36,10 @@ export default function Digging() {
 
       <div className="page-toolbar">
         <div className="page-toolbar-group">
-          <button type="button" className="chip" data-active="true">
+          <button type="button" className="chip opacity-40" disabled>
             3D view
           </button>
-          <button type="button" className="chip">
+          <button type="button" className="chip" data-active="true">
             Image view
           </button>
         </div>
@@ -28,15 +48,30 @@ export default function Digging() {
         </button>
       </div>
 
-      <div className="page-grid">
-        {PLACEHOLDER.map((id) => (
-          <Link className="card" href={`/album/${id}`} key={id}>
-            <span className="card-cover" />
-            <strong>Album {id}</strong>
-            <span className="card-meta">Artist — 2025</span>
+      <nav className="flex flex-wrap gap-2" aria-label="장르 필터">
+        <Link
+          href="/digging"
+          scroll={false}
+          className="chip"
+          data-active={!genre}
+        >
+          All
+        </Link>
+        {GENRES.map((g) => (
+          <Link
+            key={g.slug}
+            href={`/digging?genre=${g.slug}`}
+            scroll={false}
+            className="chip"
+            data-active={genre === g.slug}
+          >
+            {g.name}
           </Link>
         ))}
-      </div>
+      </nav>
+
+      {/* 장르가 바뀌면 key 가 바뀌어 목록 상태가 초기화된다 */}
+      <DiggingGrid key={genre ?? "all"} initial={initial} genreId={genreId} />
     </PageShell>
   );
 }

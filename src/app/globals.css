@@ -65,10 +65,22 @@
   --ink-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -9 0 0 0 6.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* ── 리셋 ───────────────────────────────────────
+   반드시 @layer base 안에 둔다.
+   레이어 밖에 두면 Tailwind 유틸리티(@layer utilities)보다 우선해서
+   px-6, mt-4, w-32 같은 클래스가 전부 무시된다. */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -83,12 +95,6 @@ body {
   font-family: "PP Neue Montreal";
   background-color: var(--stage);
   color: var(--fg);
-}
-
-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 /* ── 헤더 ───────────────────────────────────── */
@@ -886,7 +892,7 @@ body.intro-locked {
 }
 .home-hero {
   --hero-title-size: clamp(3rem, 12vw, 12rem);
-  --hero-paper-grain: .035;
+  --hero-paper-grain: 0.035;
   --hero-ink-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -6 0 0 0 5.0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   isolation: isolate;
   overflow: hidden;
@@ -912,11 +918,14 @@ body.intro-locked {
   font-family: "Grooves Bodoni", "Bodoni MT", Georgia, serif;
   font-weight: 900;
   font-size: var(--hero-title-size);
-  letter-spacing: -.055em;
+  letter-spacing: -0.055em;
   line-height: 1.06;
   flex: 0 1 auto;
 }
-.home-hero .home-title-row { gap: clamp(12px, 2vw, 32px); align-items: center; }
+.home-hero .home-title-row {
+  gap: clamp(12px, 2vw, 32px);
+  align-items: center;
+}
 .home-hero .home-title-mark {
   display: block;
   position: relative;
@@ -926,14 +935,29 @@ body.intro-locked {
   flex: 0 0 auto;
   transform-origin: center;
 }
-.home-title-mark img { object-fit: contain; }
-.home-hero .home-title-rule { height: 1px; margin-top: .7vw; }
+.home-title-mark img {
+  object-fit: contain;
+}
+.home-hero .home-title-rule {
+  height: 1px;
+  margin-top: 0.7vw;
+}
 .home-hero .home-stage {
   top: calc(var(--navbar-h) + var(--hero-title-size) * 1.06 + 2.8vw);
 }
 @media (max-width: 600px) {
-  .home-hero { --gutter: 20px; --navbar-h: 110px; --hero-title-size: 12vw; }
-  .home-hero .home-title-row { gap: 10px; }
-  .home-hero .home-title-mark { width: 21vw; }
-  .home-hero .home-stage { bottom: 4rem; }
+  .home-hero {
+    --gutter: 20px;
+    --navbar-h: 110px;
+    --hero-title-size: 12vw;
+  }
+  .home-hero .home-title-row {
+    gap: 10px;
+  }
+  .home-hero .home-title-mark {
+    width: 21vw;
+  }
+  .home-hero .home-stage {
+    bottom: 4rem;
+  }
 }
