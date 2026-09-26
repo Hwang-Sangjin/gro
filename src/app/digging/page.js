@@ -14,7 +14,7 @@ export default async function Digging({ searchParams }) {
   }
   const initial = await fetchDiggingPage(supabase, { genreId });
   return (
-    <PageShell className={styles.page}>
+    <PageShell className={`${styles.page} paper-textured`}>
       <DiggingCatalog key={genre ?? "all"} initial={initial} genreId={genreId} genre={genre} />
     </PageShell>
   );

@@ -1,45 +1,36 @@
 "use client";
-import { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useMemo } from "react";
+import { useThree } from "@react-three/fiber";
+import { useTexture } from "@react-three/drei";
+import { SRGBColorSpace } from "three";
 
-// 임시 씬. 머티리얼은 "실제 웜톤 색" 으로 둔다 — 모노톤은 PaperFadePass 가 입힌다
+const ROOM_IMAGE = "/images/grooves/listening-room.webp";
+
+// Temporary room artwork. Keep the Canvas and PaperFadePass so the existing
+// paper edges and pointer-driven colour reveal also work with this image.
 export default function HeroScene() {
-  const disc = useRef();
-  const box = useRef();
+  const source = useTexture(ROOM_IMAGE);
+  const { width, height } = useThree((state) => state.size);
+  // Clone the cached texture: crop settings belong to this scene only.
+  const texture = useMemo(() => {
+    const copy = source.clone();
+    copy.colorSpace = SRGBColorSpace;
+    copy.needsUpdate = true;
+    return copy;
+  }, [source]);
 
-  useFrame((state, delta) => {
-    if (disc.current) disc.current.rotation.y += delta * 0.4;
-    if (box.current) {
-      box.current.rotation.x += delta * 0.2;
-      box.current.rotation.y += delta * 0.3;
-    }
-  });
+  useLayoutEffect(() => {
+    const imageAspect = source.image.width / source.image.height;
+    const stageAspect = width / Math.max(1, height);
+    // Centred object-fit: cover, without stretching on mobile or desktop.
+    const repeatX = Math.min(1, stageAspect / imageAspect);
+    const repeatY = Math.min(1, imageAspect / stageAspect);
+    texture.repeat.set(repeatX, repeatY);
+    texture.offset.set((1 - repeatX) / 2, (1 - repeatY) / 2);
+    texture.updateMatrix();
+  }, [source, texture, width, height]);
 
-  return (
-    <>
-      <color attach="background" args={["#e6cfa8"]} />
+  useEffect(() => () => texture.dispose(), [texture]);
 
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[3, 5, 4]} intensity={1.8} />
-
-      <mesh ref={disc} position={[-1.6, 0, 0]} rotation={[Math.PI / 2.6, 0, 0]}>
-        <cylinderGeometry args={[1.4, 1.4, 0.06, 64]} />
-        <meshStandardMaterial
-          color="#2a2326"
-          roughness={0.45}
-          metalness={0.1}
-        />
-      </mesh>
-
-      <mesh ref={box} position={[1.7, -0.2, 0]}>
-        <boxGeometry args={[1.8, 1.8, 0.18]} />
-        <meshStandardMaterial color="#c4573a" roughness={0.7} />
-      </mesh>
-
-      <mesh position={[0, -1.6, -1]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[30, 14]} />
-        <meshStandardMaterial color="#7a5236" roughness={0.9} />
-      </mesh>
-    </>
-  );
+  return <primitive object={texture} attach="background" />;
 }

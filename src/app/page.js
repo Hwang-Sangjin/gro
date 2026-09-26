@@ -16,7 +16,7 @@ export default function Home() {
   useWireProgress({ inRef: veilInRef, outRef: veilOutRef });
 
   return (
-    <PageShell className="home">
+    <PageShell className="home paper-textured">
       {/* 01 — Hero (크림) */}
       <HeroSection />
 

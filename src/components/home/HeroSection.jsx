@@ -1,5 +1,5 @@
 "use client";
-import { useRef } from "react";
+import { Suspense, useRef } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -75,7 +75,9 @@ export default function HeroSection() {
         <Canvas flat frameloop={heroVisible ? "always" : "never"}
           camera={{ position: [0, .6, 6], fov: 42 }}
           gl={{ alpha: true, antialias: true }} dpr={[1, 1.75]}>
-          <HeroScene />
+          <Suspense fallback={null}>
+            <HeroScene />
+          </Suspense>
           <PaperFadePass hoverRef={hoverRef} />
         </Canvas>
       </div>
