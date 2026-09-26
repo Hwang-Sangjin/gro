@@ -1,0 +1,360 @@
+.page {
+  background: #f3e7cd;
+  color: #4c404a;
+}
+.page :global(.page-content) {
+  position: relative;
+  isolation: isolate;
+  padding: clamp(8rem, 12vw, 11rem) clamp(22px, 4vw, 72px) 3rem;
+  gap: 0;
+}
+.page :global(.page-content)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
+}
+.header {
+  padding-bottom: 1.5rem;
+}
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.title {
+  font-family: "Grooves Bodoni", Georgia, serif;
+  font-weight: 900;
+  font-size: clamp(4rem, 12.5vw, 12rem);
+  line-height: 1.05;
+  letter-spacing: -0.065em;
+  margin: 0;
+}
+.mark {
+  width: clamp(100px, 20vw, 290px);
+  height: auto;
+  object-fit: contain;
+  margin-left: -0.5rem;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.75rem;
+  min-height: 44px;
+}
+.request {
+  color: #b45137;
+  font:
+    1.15rem Georgia,
+    serif;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0.6rem;
+}
+.separator {
+  width: 1px;
+  height: 25px;
+  background: #4c404a66;
+}
+.search {
+  display: flex;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 30px;
+  padding: 2px;
+  transition: border-color 0.25s;
+}
+.search[data-open="true"] {
+  border-color: #4c404a77;
+}
+.iconButton {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 24px;
+}
+.iconButton svg {
+  width: 25px;
+  height: 25px;
+}
+.searchField {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  width: 0;
+  visibility: hidden;
+  transition:
+    width 0.3s,
+    visibility 0.3s;
+}
+.search[data-open="true"] .searchField {
+  width: clamp(160px, 22vw, 290px);
+  visibility: visible;
+}
+.searchField input {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  color: inherit;
+  border: 0;
+  padding: 0.5rem;
+  font: inherit;
+  font-size: 0.85rem;
+  outline-offset: -2px;
+}
+.filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0;
+  border-block: 1px solid #4c404a80;
+  padding: 0.8rem 0;
+  margin-bottom: 2.3rem;
+}
+.filters a,
+.filters button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0.3rem clamp(0.65rem, 1.5vw, 1.6rem);
+  color: inherit;
+  background: none;
+  border: 0;
+  font:
+    0.85rem Georgia,
+    serif;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+}
+.filters > a + a,
+.filters > button {
+  border-left: 1px solid #4c404a40;
+}
+.filters a[aria-current="page"],
+.filters button[data-active="true"] {
+  background: #bbcbda;
+  border-radius: 24px;
+}
+.filters a:hover,
+.filters button:hover {
+  color: #a24730;
+}
+.more {
+  flex-basis: 100%;
+  border-top: 1px solid #4c404a25;
+  padding-top: 0.5rem;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem clamp(20px, 3vw, 48px);
+}
+.card {
+  display: block;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+.hitArea {
+  display: block;
+  aspect-ratio: 1;
+  perspective: 900px;
+  position: relative;
+}
+.art {
+  --rx: 0deg;
+  --ry: 0deg;
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform: rotateX(var(--rx)) rotateY(var(--ry));
+  transition:
+    transform 0.18s ease-out,
+    box-shadow 0.25s;
+}
+.art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.art::before,
+.art::after {
+  content: "";
+  position: absolute;
+  width: clamp(24px, 3vw, 42px);
+  height: clamp(24px, 3vw, 42px);
+  border: solid #bbcbda;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.art::before {
+  top: -10px;
+  left: -10px;
+  border-width: 7px 0 0 7px;
+}
+.art::after {
+  bottom: -10px;
+  right: -10px;
+  border-width: 0 7px 7px 0;
+}
+.caption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-height: 4.5rem;
+  padding-top: 1rem;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.caption strong {
+  font:
+    600 clamp(1rem, 1.5vw, 1.35rem) Georgia,
+    serif;
+  overflow-wrap: anywhere;
+}
+.caption > span {
+  font-size: 0.82rem;
+  opacity: 0.65;
+}
+.card:focus-visible {
+  outline: 2px solid #4c404a;
+  outline-offset: 14px;
+}
+.card:focus-visible .caption,
+.card:focus-visible .art::before,
+.card:focus-visible .art::after {
+  opacity: 1;
+  transform: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .art {
+    box-shadow: 0 12px 24px #30262c26;
+  }
+  .card:hover .art::before,
+  .card:hover .art::after,
+  .card:hover .caption {
+    opacity: 1;
+  }
+  .card:hover .caption {
+    transform: none;
+  }
+}
+.placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font:
+    900 5rem "Grooves Bodoni",
+    Georgia,
+    serif;
+  opacity: 0.6;
+}
+.status {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+.empty {
+  text-align: center;
+  padding: 3rem 0;
+}
+.dialog {
+  margin: auto;
+  max-width: min(90vw, 460px);
+  padding: 2rem;
+  background: #f3e7cd;
+  color: #4c404a;
+  border: 1px solid #4c404a77;
+}
+.dialog::backdrop {
+  background: #4c404a66;
+}
+.dialog h2 {
+  font:
+    1.8rem Georgia,
+    serif;
+  margin-bottom: 1rem;
+}
+.dialog p {
+  line-height: 1.7;
+  margin-bottom: 1rem;
+}
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .page :global(.page-content) {
+    padding-top: 7rem;
+  }
+  .title {
+    font-size: 15vw;
+  }
+  .mark {
+    width: 25vw;
+    min-width: 0;
+  }
+  .actions {
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+  .request {
+    font-size: 1rem;
+  }
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 22px;
+  }
+  .filters a,
+  .filters button {
+    font-size: 0.75rem;
+  }
+  .art::before,
+  .art::after {
+    border-width: 5px 0 0 5px;
+  }
+  .art::after {
+    border-width: 0 5px 5px 0;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .caption {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .art {
+    transform: none;
+  }
+  .art,
+  .art::before,
+  .art::after,
+  .caption,
+  .searchField {
+    transition: none;
+  }
+}

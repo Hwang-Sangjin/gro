@@ -1,5 +1,5 @@
 "use client";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import VinylFan from "./VinylFan";
 import useInViewport from "./useInViewport";
@@ -10,6 +10,22 @@ export default function VinylShelf({ items, onActiveChange }) {
   const scroll = useRef({ target: 0, current: 0 });
   const drag = useRef(null);
   const visible = useInViewport(wrap);
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    const element = wrap.current;
+    if (!element) return;
+    if (!("IntersectionObserver" in window)) {
+      setEntered(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setEntered(true);
+      observer.disconnect();
+    }, { root: element.closest(".page"), threshold: .25 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const max = Math.max(0, items.length - 1);
   const onPointerDown = (e) => {
     if (e.button !== 0 || !e.isPrimary || drag.current) return;
@@ -51,7 +67,7 @@ export default function VinylShelf({ items, onActiveChange }) {
       <Canvas orthographic flat frameloop={visible ? "always" : "never"}
         camera={{ position: [0,0,20], near: .1, far: 100 }}
         gl={{ alpha: true, antialias: true }} dpr={[1,1.75]}>
-        <VinylFan items={items} scrollRef={scroll} onActiveChange={onActiveChange} />
+        <VinylFan entered={entered} items={items} scrollRef={scroll} onActiveChange={onActiveChange} />
       </Canvas>
     </div>
   );

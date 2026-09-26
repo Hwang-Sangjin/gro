@@ -5,39 +5,49 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
+import styles from "./Digging.module.css";
 
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl, fetchDiggingPage } from "@/lib/albums";
 
-function Cover({ album }) {
-  const [loaded, setLoaded] = useState(false);
+function AlbumCard({ album }) {
+  const transition = useAlbumTransition();
+  function open(event) {
+    if (!transition || event.defaultPrevented || event.button !== 0 ||
+      event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    transition.openAlbum({ slug: album.slug, color: album.cover_color,
+      imageUrl: failed ? null : src, source: art.current });
+  }
+  const [failed, setFailed] = useState(false);
   const src = coverUrl(album.thumb_path);
-
+  const art = useRef(null);
+  function move(event) {
+    if (event.pointerType === "touch" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    const x = Math.max(-1, Math.min(1, (event.clientX - box.left) / box.width * 2 - 1));
+    const y = Math.max(-1, Math.min(1, (event.clientY - box.top) / box.height * 2 - 1));
+    art.current?.style.setProperty("--rx", `${-y * 7}deg`);
+    art.current?.style.setProperty("--ry", `${x * 7}deg`);
+  }
+  function reset() {
+    art.current?.style.setProperty("--rx", "0deg");
+    art.current?.style.setProperty("--ry", "0deg");
+  }
   return (
-    // 이미지가 오기 전에는 대표색으로 칸을 채워둔다
-    <span
-      className="card-cover relative overflow-hidden"
-      style={{ backgroundColor: album.cover_color ?? undefined }}
-    >
-      {src && (
-        // 썸네일은 이미 400px webp 로 최적화돼 있어서 next/image 를 거치지 않는다
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src}
-          alt={`${album.title} 커버`}
-          loading="lazy"
-          decoding="async"
-          onLoad={() => setLoaded(true)}
-          className={`absolute inset-0 transition-opacity duration-500 ${
-            loaded ? "opacity-100" : "opacity-0"
-          }`}
-        />
-      )}
-    </span>
+    <Link onClick={open} className={styles.card} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
+      <span className={styles.hitArea} onPointerMove={move} onPointerLeave={reset} onPointerCancel={reset}>
+        <span ref={art} className={styles.art} style={{ backgroundColor: album.cover_color || "#bbcbda" }}>
+          {src && !failed ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} /> : <span className={styles.placeholder} aria-hidden="true">G</span>}
+        </span>
+      </span>
+      <span className={styles.caption}><strong>{album.title}</strong><span>{album.artist_names}</span></span>
+    </Link>
   );
 }
 
-export default function DiggingGrid({ initial, genreId = null }) {
+export default function DiggingGrid({ initial, genreId = null, query = "" }) {
   const supabase = useMemo(() => createClient(), []);
 
   const [items, setItems] = useState(initial.items);
@@ -81,6 +91,15 @@ export default function DiggingGrid({ initial, genreId = null }) {
     return () => io.disconnect();
   }, [loadMore, hasMore, error]);
 
+  // The existing RPC has no search argument. For an active search, traverse
+  // every page in the selected genre before reporting a definitive no-result.
+  const term = query.trim().toLocaleLowerCase();
+  useEffect(() => {
+    if (term && hasMore && !loading && !error) loadMore();
+  }, [term, hasMore, loading, error, loadMore]);
+  const filtered = items.filter(album => !term ||
+    `${album.title} ${album.artist_names}`.toLocaleLowerCase().includes(term));
+
   if (items.length === 0) {
     return (
       <div className="page-empty">
@@ -91,21 +110,15 @@ export default function DiggingGrid({ initial, genreId = null }) {
 
   return (
     <>
-      <div className="page-grid">
-        {items.map((album) => (
-          <Link className="card" href={`/album/${album.slug}`} key={album.id}>
-            <Cover album={album} />
-            <strong>{album.title}</strong>
-            <span className="card-meta">
-              {album.artist_names} — {album.release_year}
-            </span>
-          </Link>
-        ))}
+      <div className={styles.grid} aria-busy={loading}>
+        {filtered.map(album => <AlbumCard key={album.id} album={album} />)}
       </div>
+      {filtered.length === 0 && <p className={styles.empty} role="status">{error ? "검색을 완료하지 못했어요. 다시 시도해 주세요." : hasMore ? "검색 중…" : "검색한 앨범이 없어요."}</p>}
 
       <div
         ref={sentinelRef}
-        className="flex h-16 items-center justify-center text-sm opacity-60"
+        className={styles.status}
+        role="status"
       >
         {loading && "불러오는 중…"}
         {error && (

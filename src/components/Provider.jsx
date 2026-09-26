@@ -6,6 +6,7 @@ import { ReactLenis } from "lenis/react";
 import { IntroProvider, useIntro } from "./intro/intro-context";
 import Preloader from "./intro/Preloader";
 import Navbar from "./Navbar";
+import AlbumTransitionProvider from "./album/AlbumTransitionProvider";
 
 // 인트로가 끝날 때까지 Lenis와 네이티브 스크롤을 모두 잠근다.
 function ScrollLock({ lenisRef }) {
@@ -36,8 +37,10 @@ export default function Providers({ children }) {
       <ReactLenis root ref={lenisRef} />
       <ScrollLock lenisRef={lenisRef} />
       <Preloader />
-      <Navbar />
-      {children}
+      <AlbumTransitionProvider>
+        <Navbar />
+        {children}
+      </AlbumTransitionProvider>
     </IntroProvider>
   );
 }

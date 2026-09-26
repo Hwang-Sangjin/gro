@@ -33,7 +33,7 @@
   letter-spacing: -0.055em;
   text-transform: uppercase;
 }
-.title span {
+.title .revealLine {
   display: flex;
   align-items: center;
   gap: 0.16em;
@@ -110,5 +110,32 @@
   }
   .album {
     font-size: 1.1rem;
+  }
+}
+
+/* Two fixed title lines reveal once when the heading enters PageShell. */
+.title .revealMask {
+  display: block;
+  overflow: hidden;
+  padding: .09em .04em;
+  margin: -.09em -.04em;
+}
+.revealLine {
+  transform: translateY(115%);
+  opacity: 0;
+  transition: transform 1.05s cubic-bezier(.22, 1, .36, 1), opacity .65s ease;
+}
+.revealMask + .revealMask .revealLine {
+  transition-delay: .14s;
+}
+.heading[data-revealed="true"] .revealLine {
+  transform: translateY(0);
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .revealLine {
+    transform: none;
+    opacity: 1;
+    transition: none;
   }
 }

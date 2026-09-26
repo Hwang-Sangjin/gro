@@ -961,3 +961,12 @@ body.intro-locked {
     bottom: 4rem;
   }
 }
+
+/* The persistent overlay handles only album-card navigation. */
+html[data-album-transition="true"]::view-transition { display: none !important; }
+.album-flight { position: fixed; inset: 0; z-index: 2147483000; pointer-events: auto; }
+.album-flight-bg { position: absolute; inset: 0; }
+.album-flight-cover { position: fixed; overflow: hidden; }
+.album-flight-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.album-detail-page .page-content { padding: 0; gap: 0; }
+.album-detail-surface { min-height: 100svh; padding: clamp(130px, 15vh, 180px) clamp(24px, 6vw, 100px) 80px; }
