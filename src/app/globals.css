@@ -1008,3 +1008,42 @@ body:has(.album-detail-page) .navbar, body:has(.album-detail-page) .navbar a { c
 }
 
 .album-detail-title { font-family:"Grooves Bodoni", "Bodoni MT", Georgia, serif; font-weight:900; letter-spacing:-.045em; }
+
+/* Shared content bounds: full-width backgrounds, centered editorial content. */
+:root {
+  --content-wide: 1920px;
+  --content-reading: 1600px;
+  --content-pad: clamp(20px, 3vw, 48px);
+  --wide-inset: max(var(--content-pad), calc((100% - var(--content-wide)) / 2));
+}
+.navbar {
+  padding: 24px var(--content-pad);
+  min-height: 88px;
+  gap: 20px;
+}
+.navbar-mark, .navbar-item { padding: 8px 0; }
+.navbar-items { gap: clamp(16px, 2.5vw, 40px); }
+.home-hero {
+  --hero-title-size: min(12vw, 160px);
+  --navbar-h: 112px;
+  min-height: 660px;
+}
+.home-hero .home-title, .home-hero .home-stage {
+  left: var(--wide-inset);
+  right: var(--wide-inset);
+}
+.home-hero .home-title-row { gap: clamp(12px, 2vw, 28px); }
+.home-hero .home-title-mark { width: min(19vw, 240px); }
+.home-hero .home-title-rule { margin-top: 20px; }
+.home-hero .home-stage {
+  top: calc(var(--navbar-h) + var(--hero-title-size) * 1.06 + 48px);
+  bottom: 64px;
+}
+@media(max-width:600px) {
+  .navbar { padding-block: 16px; gap: 12px; flex-wrap: wrap; }
+  .navbar-mark { font-size: .9rem; }
+  .navbar-items { gap: 14px; }
+  .navbar-item a { font-size: .75rem; }
+  .home-hero { --navbar-h: 112px; min-height: 600px; }
+  .home-hero .home-title-mark { width: 19vw; }
+}

@@ -42,8 +42,34 @@ function AlbumArtwork({ album }) {
   );
 }
 
-export default function VinylFan({ items, scrollRef, onActiveChange, entered = false }) {
+export default function VinylFan({ items, scrollRef, onActiveChange, onActivate, activationRef, interactionRef, entered = false }) {
   const groups = useRef([]);
+  const hovered = useRef(null);
+  const gl = useThree(state => state.gl);
+  function hover(index) {
+    if (interactionRef.current.dragging) return;
+    hovered.current = index;
+    gl.domElement.style.cursor = index == null ? "" : "pointer";
+  }
+  function activate(index) {
+    const group = groups.current[index];
+    if (!group || !entered || interactionRef.current.suppressClick) return;
+    group.updateWorldMatrix(true, false);
+    const canvas = gl.domElement.getBoundingClientRect();
+    const corners = [-1, 1].flatMap(x => [-1, 1].map(y => {
+      const point = new THREE.Vector3(x * SLEEVE / 2, y * SLEEVE / 2, DEPTH / 2)
+        .applyMatrix4(group.matrixWorld).project(camera);
+      return { x: canvas.left + (point.x + 1) * canvas.width / 2,
+        y: canvas.top + (1 - point.y) * canvas.height / 2 };
+    }));
+    const left = Math.min(...corners.map(p => p.x)), top = Math.min(...corners.map(p => p.y));
+    onActivate(index, { left, top, width: Math.max(...corners.map(p => p.x)) - left,
+      height: Math.max(...corners.map(p => p.y)) - top });
+  }
+  useEffect(() => {
+    activationRef.current = activate;
+    return () => { activationRef.current = null; gl.domElement.style.cursor = ""; };
+  });
   const enterTime = useRef(0);
   const reducedMotion = useRef(false);
   useEffect(() => {
@@ -68,17 +94,17 @@ export default function VinylFan({ items, scrollRef, onActiveChange, entered = f
     ).applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(
       new THREE.Euler(TILT_X, TILT_Y, 0, "XYZ"),
     ));
-    const cardWidth = bounds.max.x - bounds.min.x;
-    const cardHeight = bounds.max.y - bounds.min.y;
+    const cardWidth = Math.max(SLEEVE, bounds.max.x - bounds.min.x) + 1.6;
+    const cardHeight = Math.max(SLEEVE, bounds.max.y - bounds.min.y);
     const rowWidth = cardWidth + (count - 1) * STEP_X;
     const rowHeight = cardHeight + (count - 1) * STEP_Y;
     const sidePadding = mobile ? 24 : Math.max(32, size.width * .035);
-    const topPadding = mobile ? Math.min(250, size.height * .4) : Math.min(120, size.height * .18);
-    const bottomPadding = Math.min(110, size.height * .18);
+    const topPadding = Math.min(24, size.height * .06);
+    const bottomPadding = Math.min(24, size.height * .06);
     const availableHeight = Math.max(1, size.height - topPadding - bottomPadding);
     const preferredPixels = mobile
-      ? Math.min(size.height * .36, size.width * .48)
-      : Math.min(size.height * .45, Math.max(140, size.width * .22));
+      ? Math.min(size.height * .7, size.width * .65)
+      : Math.min(size.height * .65, Math.max(140, size.width * .22));
     const zoom = Math.min(
       preferredPixels / SLEEVE,
       availableHeight / rowHeight,
@@ -92,7 +118,7 @@ export default function VinylFan({ items, scrollRef, onActiveChange, entered = f
     const fittedWidth = rowWidth * zoom;
     const left = mobile ? sidePadding : Math.max(sidePadding, (size.width - fittedWidth) / 2);
     layout.current = {
-      x: -worldWidth / 2 + left / zoom - bounds.min.x,
+      x: -worldWidth / 2 + left / zoom - bounds.min.x + .8,
       y: (bottomPadding - topPadding) / (2 * zoom) -
         ((count - 1) * STEP_Y + bounds.max.y + bounds.min.y) / 2,
       worldHeight,
@@ -107,6 +133,8 @@ export default function VinylFan({ items, scrollRef, onActiveChange, entered = f
     );
     const s = scrollRef.current;
     s.current = THREE.MathUtils.damp(s.current, s.target, 7, Math.min(dt,.05));
+    if (interactionRef.current.dragging) { hovered.current = null; gl.domElement.style.cursor = ""; }
+    const focus = interactionRef.current.dragging ? null : hovered.current;
     items.forEach((item,i) => {
       const g = groups.current[i];
       if (!g) return;
@@ -118,13 +146,18 @@ export default function VinylFan({ items, scrollRef, onActiveChange, entered = f
       const drop = layout.current.worldHeight / 2 + Math.abs(layout.current.y) +
         SLEEVE + Math.max(0, items.length - 1) * STEP_Y;
       g.visible = entered && progress > 0;
-      g.position.set(layout.current.x+offset*STEP_X,
+      const targetSpread = focus == null ? 0 : i < focus ? -.8 : i > focus ? .8 : 0;
+      g.userData.spread = reducedMotion.current ? targetSpread : THREE.MathUtils.damp(g.userData.spread || 0, targetSpread, 9, Math.min(dt, .05));
+      g.position.set(layout.current.x+offset*STEP_X+g.userData.spread,
         layout.current.y+offset*STEP_Y - (1 - eased) * drop,offset*STEP_Z);
       // XYZ order slopes the top edge down-right, keeping the sleeves upright.
-      g.rotation.set(TILT_X,TILT_Y,0,"XYZ");
+      const front = focus === i;
+      const amount = reducedMotion.current ? 1 : 1 - Math.exp(-9 * Math.min(dt, .05));
+      g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, front ? 0 : TILT_X, amount);
+      g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, front ? 0 : TILT_Y, amount);
       g.scale.setScalar(1);
     });
-    const active = THREE.MathUtils.clamp(Math.round(s.current),0,items.length-1);
+    const active = focus ?? THREE.MathUtils.clamp(Math.round(s.current),0,items.length-1);
     if (active !== lastActive.current) {
       lastActive.current = active;
       onActiveChange?.(active);
@@ -134,7 +167,10 @@ export default function VinylFan({ items, scrollRef, onActiveChange, entered = f
   return (
     <>
       {items.map((item,i) => (
-        <group visible={false} key={item.id} ref={el => { groups.current[i] = el; }}>
+        <group visible={false} rotation={[TILT_X, TILT_Y, 0]} key={item.id} ref={el => { groups.current[i] = el; }}
+          onPointerOver={event => { event.stopPropagation(); if (event.pointerType !== "touch") hover(i); }}
+          onPointerOut={() => { if (hovered.current === i) hover(null); }}
+          onClick={event => { event.stopPropagation(); if (event.delta <= 6) activate(i); }}>
           <mesh>
             <boxGeometry args={[SLEEVE,SLEEVE,DEPTH]} />
             <meshBasicMaterial color={item.cover_color || "#bbcbda"} toneMapped={false} />

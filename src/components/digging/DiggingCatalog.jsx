@@ -3,9 +3,12 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { GENRES } from "@/lib/genres";
 import DiggingGrid from "./DiggingGrid";
+import useReveal from "./useReveal";
 import styles from "./Digging.module.css";
 
 export default function DiggingCatalog({ initial, genreId, genre }) {
+  const [titleRef, titleRevealed] = useReveal();
+  const [filtersRef, filtersRevealed] = useReveal();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [more, setMore] = useState(false);
@@ -16,8 +19,8 @@ export default function DiggingCatalog({ initial, genreId, genre }) {
   return (
     <>
       <header className={styles.header}>
-        <div className={styles.titleRow}>
-          <h1 className={styles.title}>DIGGING</h1>
+        <div ref={titleRef} className={`${styles.titleRow} ${styles.titleReveal}`} data-revealed={titleRevealed}>
+          <span className={styles.titleMask}><h1 className={styles.title}>DIGGING</h1></span>
           {/* Existing transparent brand asset; no new artwork dependency. */}
           <img className={styles.mark} src="/images/grooves/vinyl-mark.png" alt="" />
         </div>
@@ -35,10 +38,10 @@ export default function DiggingCatalog({ initial, genreId, genre }) {
           </div>
         </div>
       </header>
-      <nav className={styles.filters} aria-label="장르 필터">
+      <nav ref={filtersRef} className={`${styles.filters} ${styles.filterReveal}`} data-revealed={filtersRevealed} aria-label="장르 필터">
         <Link href="/digging" scroll={false} aria-current={!genre ? "page" : undefined}>All</Link>
-        {GENRES.slice(0, 8).map(g => <Link key={g.slug} href={`/digging?genre=${g.slug}`} scroll={false} aria-current={genre === g.slug ? "page" : undefined}>{g.name}</Link>)}
-        <button type="button" aria-expanded={more} aria-controls="digging-more" data-active={GENRES.slice(8).some(g => g.slug === genre)} onClick={() => setMore(!more)}>More {more ? "−" : "+"}</button>
+        {GENRES.slice(0, 8).map((g, i) => <Link style={{ "--reveal-order": i + 1 }} key={g.slug} href={`/digging?genre=${g.slug}`} scroll={false} aria-current={genre === g.slug ? "page" : undefined}>{g.name}</Link>)}
+        <button style={{ "--reveal-order": 9 }} type="button" aria-expanded={more} aria-controls="digging-more" data-active={GENRES.slice(8).some(g => g.slug === genre)} onClick={() => setMore(!more)}>More {more ? "−" : "+"}</button>
         <div id="digging-more" className={styles.more} hidden={!more}>
           {GENRES.slice(8).map(g => <Link key={g.slug} href={`/digging?genre=${g.slug}`} scroll={false} aria-current={genre === g.slug ? "page" : undefined}>{g.name}</Link>)}
         </div>

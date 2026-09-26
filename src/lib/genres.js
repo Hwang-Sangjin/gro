@@ -26,7 +26,7 @@ export const GENRES = [
     covers: ["classical-1", "classical-2", "classical-3"],
   },
   { slug: "ost", name: "OST", covers: ["ost-1", "ost-2", "ost-3"] },
-  { slug: "etc", name: "기타", covers: ["etc-1", "etc-2", "etc-3"] },
+  { slug: "etc", name: "etc", covers: ["etc-1", "etc-2", "etc-3"] },
 ];
 
 export const GENRE_BY_SLUG = Object.fromEntries(GENRES.map((g) => [g.slug, g]));

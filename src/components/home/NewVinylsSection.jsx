@@ -74,7 +74,7 @@ export default function NewVinylsSection() {
           <strong className={styles.album}>{item.title}</strong>
           <span className={styles.artist}>{item.artist_names || "아티스트 미등록"}</span>
         </div>
-        <span className={styles.hint}>Drag to explore ↔</span>
+        <span className={styles.hint}>Hover to preview · Click to listen</span>
       </footer>}
     </section>
   );

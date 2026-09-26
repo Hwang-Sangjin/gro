@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
+import useReveal from "./useReveal";
 import styles from "./Digging.module.css";
 
 import { createClient } from "@/utils/supabase/client";
@@ -23,6 +24,30 @@ function AlbumCard({ album }) {
   const [failed, setFailed] = useState(false);
   const src = coverUrl(album.thumb_path);
   const art = useRef(null);
+  const [loaded, setLoaded] = useState(false);
+  const imageRef = useRef(null);
+  // A server-rendered cached image may finish before React attaches onLoad.
+  useEffect(() => {
+    const image = imageRef.current;
+    if (!image || !src) return;
+    let cancelled = false;
+    const complete = () => {
+      if (cancelled) return;
+      if (image.naturalWidth > 0) setLoaded(true);
+      else setFailed(true);
+    };
+    const error = () => { if (!cancelled) setFailed(true); };
+    image.addEventListener("load", complete);
+    image.addEventListener("error", error);
+    if (image.complete) complete();
+    return () => {
+      cancelled = true;
+      image.removeEventListener("load", complete);
+      image.removeEventListener("error", error);
+    };
+  }, [src]);
+  // Expand the color panel even while the network is still loading the image.
+  const [revealRef, revealed] = useReveal({ randomDelay: true });
   function move(event) {
     if (event.pointerType === "touch" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const box = event.currentTarget.getBoundingClientRect();
@@ -37,9 +62,11 @@ function AlbumCard({ album }) {
   }
   return (
     <Link onClick={open} className={styles.card} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
-      <span className={styles.hitArea} onPointerMove={move} onPointerLeave={reset} onPointerCancel={reset}>
-        <span ref={art} className={styles.art} style={{ backgroundColor: album.cover_color || "#bbcbda" }}>
-          {src && !failed ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} /> : <span className={styles.placeholder} aria-hidden="true">G</span>}
+      <span ref={revealRef} className={styles.hitArea} data-revealed={revealed} onPointerMove={move} onPointerLeave={reset} onPointerCancel={reset}>
+        <span ref={art} className={styles.art}>
+          <span className={styles.revealPanel} data-image-ready={loaded || failed || !src} style={{ backgroundColor: album.cover_color || "#bbcbda" }}>
+          {src && !failed ? <img ref={imageRef} src={src} alt="" loading="lazy" decoding="async" /> : <span className={styles.placeholder} aria-hidden="true">G</span>}
+          </span>
         </span>
       </span>
       <span className={styles.caption}><strong>{album.title}</strong><span>{album.artist_names}</span></span>

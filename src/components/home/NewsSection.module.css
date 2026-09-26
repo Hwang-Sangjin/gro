@@ -39,3 +39,6 @@
 @media(prefers-reduced-motion:reduce) { .image img { transition: none; }.story:hover .image img, .story:focus-visible .image img { transform: none; } }
 .placeholder { z-index: 0; }
 .photo { z-index: 1; }
+
+.section { padding-inline: var(--content-pad); }
+.container { max-width: var(--content-reading); }

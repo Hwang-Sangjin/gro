@@ -139,3 +139,45 @@
     transition: none;
   }
 }
+
+/* Reserve distinct title, scene and caption areas inside one centered width. */
+.section {
+  --shelf-title-size: clamp(52px, 6vw, 88px);
+  --shelf-title-top: 112px;
+  min-height: 760px;
+}
+.heading { top: var(--shelf-title-top); left: var(--wide-inset); }
+.title { font-size: var(--shelf-title-size); }
+.stage {
+  inset: calc(var(--shelf-title-top) + var(--shelf-title-size) * 1.95 + 24px) var(--wide-inset) 120px;
+}
+.footer { left: var(--wide-inset); right: var(--wide-inset); bottom: 32px; }
+.footer > div { max-width: 45%; }
+.album, .artist { overflow-wrap: anywhere; }
+@media(max-width:600px) {
+  .section { --shelf-title-top: 112px; --shelf-title-size: 52px; min-height: 720px; }
+  .footer { gap: 16px; }
+  .footer > div { max-width: 60%; }
+  .hint { max-width: 35%; white-space: normal; line-height: 1.6; text-align: right; }
+}
+
+/* Center the active record information; keep the browsing hint on its own line. */
+.footer {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+.footer > div { width: 100%; max-width: 720px; }
+.hint {
+  position: static;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.6;
+  text-align: center;
+}
+.stage { bottom: 160px; }

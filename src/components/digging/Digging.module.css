@@ -358,3 +358,51 @@
     transition: none;
   }
 }
+
+/* Match the 1920px home content boundary while retaining the full page texture. */
+.page :global(.page-content) {
+  padding-inline: var(--wide-inset);
+}
+
+/* Title and genre controls enter independently when their section is visible. */
+.titleMask { display: block; overflow: hidden; padding-bottom: .08em; }
+.titleReveal .title { transform: translateY(115%); transition: transform .85s cubic-bezier(.22,1,.36,1); }
+.titleReveal .mark { opacity: 0; transform: translateY(20px); transition: opacity .65s .12s, transform .85s .12s; }
+.titleReveal[data-revealed="true"] .title,
+.titleReveal[data-revealed="true"] .mark { transform: none; opacity: 1; }
+.filterReveal > a, .filterReveal > button {
+  opacity: 0;
+  transform: translateY(24px);
+  clip-path: inset(100% 0 0 0);
+}
+.filterReveal[data-revealed="true"] > a,
+.filterReveal[data-revealed="true"] > button {
+  animation: genre-enter .7s cubic-bezier(.22,1,.36,1) both;
+  animation-delay: calc(80ms + var(--reveal-order, 0) * 65ms);
+}
+.filterReveal > a:focus-visible, .filterReveal > button:focus-visible {
+  opacity: 1; transform: none; clip-path: none; animation: none;
+}
+@keyframes genre-enter {
+  from { opacity: 0; transform: translateY(24px); clip-path: inset(100% 0 0 0); }
+  to { opacity: 1; transform: translateY(0); clip-path: inset(0); }
+}
+/* Preserve square layout and hover tilt; only the inner artwork is clipped. */
+.revealPanel {
+  display: block; position: absolute; inset: 0;
+  clip-path: inset(0 calc(50% - 2px) 0 calc(50% - 2px));
+  transition: clip-path .65s cubic-bezier(.22,1,.36,1);
+}
+.revealPanel img, .revealPanel .placeholder { opacity: 0; transition: opacity .4s ease; }
+.hitArea[data-revealed="true"] .revealPanel,
+.card:focus-visible .revealPanel { clip-path: inset(0); }
+.hitArea[data-revealed="true"] .revealPanel[data-image-ready="true"] img,
+.hitArea[data-revealed="true"] .revealPanel .placeholder,
+.card:focus-visible .revealPanel img,
+.card:focus-visible .revealPanel .placeholder { opacity: 1; transition-delay: .7s; }
+@media(prefers-reduced-motion:reduce) {
+  .titleReveal .title, .titleReveal .mark,
+  .filterReveal > a, .filterReveal > button { opacity: 1; transform: none; clip-path: none; transition: none; animation: none !important; }
+  .revealPanel { clip-path: inset(0); transition: none; }
+  .revealPanel img, .revealPanel .placeholder { opacity: 1; transition: none; }
+}
