@@ -970,3 +970,41 @@ html[data-album-transition="true"]::view-transition { display: none !important; 
 .album-flight-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .album-detail-page .page-content { padding: 0; gap: 0; }
 .album-detail-surface { min-height: 100svh; padding: clamp(130px, 15vh, 180px) clamp(24px, 6vw, 100px) 80px; }
+
+/* Cover and record share one bounded stage, including on ultrawide screens. */
+.album-listening-stage { display:flex; align-items:center; width:100%; max-width:1000px; margin-inline:auto; }
+.album-listening-cover { flex:0 0 54%; z-index:1; }
+.album-record { position:relative; flex:0 0 49%; aspect-ratio:1; margin-left:-1%; border-radius:50%;
+  background: repeating-radial-gradient(circle, transparent 0 3px, #ffffff0c 3px 4px, transparent 4px 6px), conic-gradient(#101010,#292929 18%,#080808 32%,#222 50%,#080808 68%,#282828 85%,#101010);
+  border:2px solid #191919; box-shadow:0 14px 30px #0005, inset 0 0 0 8px #111;
+  animation:album-record-spin 1.8s linear infinite; animation-play-state:paused; }
+.album-record[data-playing="true"] { animation-play-state:running; }
+.album-record-label { position:absolute; inset:33%; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9%; padding:10%; text-align:center; overflow:hidden; box-shadow:0 0 0 2px #111,0 0 0 4px #ffffff20; }
+.album-record-label span { font-size:clamp(5px,.65vw,9px); letter-spacing:.08em; }
+.album-record-label strong { font-size:clamp(7px,1vw,14px); line-height:1.1; max-width:100%; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.album-record-spindle { position:absolute; left:50%; top:50%; width:2%; aspect-ratio:1; transform:translate(-50%,-50%); border-radius:50%; background:#ded5c9; box-shadow:0 0 0 2px #111; }
+.album-youtube-frame { width:100%; aspect-ratio:16/9; min-height:220px; background:#111; }
+.album-youtube-frame iframe { display:block; width:100%; height:100%; min-height:220px; border:0; }
+body:has(.album-detail-page) .navbar, body:has(.album-detail-page) .navbar a { color:var(--album-detail-ink, #fff); }
+@keyframes album-record-spin { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .album-record { animation:none; } }
+
+/* Translation and playback rotation live on separate elements. */
+.album-listening-stage { isolation:isolate; }
+.album-record-slide { flex:0 0 54%; width:54%; min-width:0; aspect-ratio:1 / 1; margin-left:-8%; position:relative; z-index:0;
+  transform:translateX(-85.185185%); visibility:visible;
+  transition:transform 1.15s cubic-bezier(.22,1,.36,1); }
+.album-record-slide[data-ready="true"] { transform:translateX(0); visibility:visible; }
+.album-record-slide .album-record {
+  position:absolute; inset:0; display:block; width:100%; height:100%;
+  box-sizing:border-box; margin:0; flex:none; aspect-ratio:1 / 1;
+}
+.album-cover-tilt { transform:perspective(1000px) rotateX(var(--cover-rx,0deg)) rotateY(var(--cover-ry,0deg));
+  transition:transform .2s ease-out; }
+@media(hover:none), (pointer:coarse) { .album-cover-tilt { transform:none; } }
+@media(prefers-reduced-motion:reduce) {
+  .album-record-slide { transition:none; }
+  .album-cover-tilt { transform:none; transition:none; }
+}
+
+.album-detail-title { font-family:"Grooves Bodoni", "Bodoni MT", Georgia, serif; font-weight:900; letter-spacing:-.045em; }
