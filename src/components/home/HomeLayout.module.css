@@ -1,0 +1,6 @@
+/* Preserve the original home content dimensions. */
+.home {
+  --content-wide: 1920px;
+  --content-reading: 1600px;
+  --wide-inset: max(var(--content-pad), calc((100% - var(--content-wide)) / 2));
+}

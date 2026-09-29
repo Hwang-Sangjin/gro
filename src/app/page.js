@@ -1,5 +1,6 @@
 "use client";
 import { useRef } from "react";
+import homeStyles from "@/components/home/HomeLayout.module.css";
 
 import PageShell from "@/components/layout/PageShell";
 import useWireProgress from "@/components/home/useWireProgress";
@@ -16,7 +17,7 @@ export default function Home() {
   useWireProgress({ inRef: veilInRef, outRef: veilOutRef });
 
   return (
-    <PageShell className="home paper-textured">
+    <PageShell className={`home paper-textured ${homeStyles.home}`}>
       {/* 01 — Hero (크림) */}
       <HeroSection />
 

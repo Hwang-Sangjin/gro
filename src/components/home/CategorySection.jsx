@@ -1,4 +1,5 @@
 "use client";
+import HomeDecoration from "./HomeDecoration";
 import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import styles from "./CategorySection.module.css";
@@ -118,8 +119,10 @@ export default function CategorySection() {
   const active = focused ?? hovered;
   return (
     <section className={styles.section} aria-labelledby="genre-heading">
+      <HomeDecoration name="gramophone" side="left" layout="outside" top="52%" />
       <header className={styles.header}>
         <h2 id="genre-heading">Explore by genre</h2>
+
       </header>
       <ol className={styles.list} onMouseLeave={() => setHovered(null)}>
         {GENRES.map((genre, i) => (

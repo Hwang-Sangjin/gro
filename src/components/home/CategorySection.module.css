@@ -62,3 +62,9 @@
 }
 .header { padding-inline: 0; }
 .list { grid-template-rows: repeat(var(--genre-count), minmax(48px, var(--genre-row-height))); }
+
+/* Anchor the side illustration to this section. */
+.section { position: relative; }
+
+/* Keep the short introduction inside the existing header row. */
+.header { flex-direction: column; align-items: flex-start; justify-content: flex-end; }

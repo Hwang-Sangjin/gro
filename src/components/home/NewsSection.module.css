@@ -42,3 +42,6 @@
 
 .section { padding-inline: var(--content-pad); }
 .container { max-width: var(--content-reading); }
+
+/* Anchor the side illustration to this section. */
+.section { position: relative; }

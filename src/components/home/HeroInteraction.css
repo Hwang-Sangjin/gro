@@ -1,0 +1,9 @@
+.home-hero .home-stage { top: calc(var(--navbar-h) + var(--hero-title-size) * 1.06 + 48px); }
+.grooves-scene-open { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; border: 0; background: transparent; cursor: zoom-in; color: var(--page-fg, #4c404a); font: inherit; }
+.grooves-scene-open span { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 10px 16px; border-radius: 30px; background: #f4e7cde6; font-size: 13px; white-space: nowrap; }
+.grooves-scene-open:focus-visible { outline: 2px solid #4c404a; outline-offset: -12px; }
+.grooves-room-dialog { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: #e6d6bd; color: #4c404a; overflow: hidden; }
+.grooves-room-dialog::backdrop { background: #2a222a; }
+.grooves-room-close { position: absolute; top: max(20px, env(safe-area-inset-top)); right: max(20px, env(safe-area-inset-right)); z-index: 2; display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid #4c404a55; border-radius: 50%; background: #f4e7cd; color: #4c404a; font: 32px/1 Arial, sans-serif; cursor: pointer; }
+.grooves-room-close:focus-visible { outline: 3px solid #4c404a; outline-offset: 4px; }
+.grooves-room-help { position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); margin: 0; padding: 10px 16px; border-radius: 24px; background: #f4e7cddd; font: 13px/1.5 Arial, sans-serif; text-align: center; pointer-events: none; }

@@ -1,0 +1,38 @@
+.decoration {
+  --decor-size: clamp(300px, 24vw, 480px);
+  --decor-edge: clamp(12px, 1.2vw, 32px);
+  position: absolute;
+  z-index: 3;
+  display: none;
+  width: var(--decor-size);
+  aspect-ratio: 1;
+  pointer-events: none;
+  user-select: none;
+  transform: translateY(-50%);
+}
+
+.decoration img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.decoration.left { left: var(--decor-edge); }
+.decoration.right { right: var(--decor-edge); }
+.decoration.wide { --decor-edge: clamp(12px, 1.2vw, 32px); }
+.decoration.reading { --decor-edge: clamp(12px, 1.2vw, 32px); }
+.decoration.outside.left {
+  left: calc((100% - 100vw) / 2 + var(--decor-edge));
+}
+
+@media (min-width: 3008px) {
+  .decoration.wide { display: block; }
+}
+
+@media (min-width: 2688px) {
+  .decoration.reading { display: block; }
+  .decoration.outside { display: block; }
+}
+
+.decoration[hidden] { display: none; }

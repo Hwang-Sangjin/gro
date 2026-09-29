@@ -1,4 +1,5 @@
 "use client";
+import HomeDecoration from "./HomeDecoration";
 import { useState } from "react";
 import Link from "next/link";
 import VinylMark from "./VinylMark";
@@ -33,14 +34,17 @@ function NewsImage({ src }) {
 export default function NewsSection() {
   return (
     <section className={styles.section} aria-labelledby="news-heading">
+      <HomeDecoration name="vinyl-player" side="right" layout="reading" top="36%" />
       <div className={styles.container}>
         <div className={styles.topline}>
-          <span>04 — Journal</span><Link href="/news">All news ↗</Link>
+          <span>Journal</span><Link href="/news">All news ↗</Link>
         </div>
         <div className={styles.heading}>
-          <h2 id="news-heading" className="ink-grain">News &amp; Stories</h2>
+          <div>
+            <h2 id="news-heading" className="ink-grain">News &amp; Stories</h2>
+
+          </div>
           <ul className={styles.meta}>{META.map(line => <li key={line}>{line}</li>)}</ul>
-          <p className={styles.motto}>Good<br />Music Lives<br />Longer.</p>
         </div>
         <div className={styles.grid}>
           {POSTS.map(post => (

@@ -1,4 +1,5 @@
 "use client";
+import HomeDecoration from "./HomeDecoration";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { fetchRecentVinyls } from "@/lib/recent-vinyls";
@@ -52,11 +53,13 @@ export default function NewVinylsSection() {
   const item = items[active] ?? items[0];
   return (
     <section className={styles.section} aria-labelledby="new-vinyls-title">
+      <HomeDecoration name="vinyl-albums" side="right" top="59%" />
       <header ref={headingRef} className={styles.heading} data-revealed={titleVisible}>
         <h2 id="new-vinyls-title" className={styles.title}>
           <span className={styles.revealMask}><span className={styles.revealLine}>New <svg viewBox="-16 -16 32 32" aria-hidden="true"><path d="M0-15C1.5-4 4-1.5 15 0 4 1.5 1.5 4 0 15-1.5 4-4 1.5-15 0-4-1.5-1.5-4 0-15Z" fill="currentColor" /></svg></span></span>
           <span className={styles.revealMask}><span className={styles.revealLine}>Vinyls</span></span>
         </h2>
+
       </header>
       <div className={styles.stage} aria-busy={status === "loading"}>
         {status === "ready" && items.length > 0 ? (

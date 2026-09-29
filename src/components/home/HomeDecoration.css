@@ -1,0 +1,80 @@
+.grooves-home-decoration {
+  --decor-size: clamp(360px, 26vw, 560px);
+  --decor-edge: clamp(12px, 1.2vw, 32px);
+  position: absolute;
+  top: var(--decor-top, 56%);
+  z-index: 3;
+  display: none;
+  width: var(--decor-size);
+  margin: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  color: inherit;
+}
+.grooves-home-decoration-art { display: block; width: 100%; aspect-ratio: 1; opacity: 0; }
+.grooves-home-decoration img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.grooves-home-decoration.grooves-home-left { left: var(--decor-edge); }
+.grooves-home-decoration.grooves-home-right { right: var(--decor-edge); }
+.grooves-home-decoration.grooves-home-outside.grooves-home-left {
+  left: calc((100% - 100vw) / 2 + var(--decor-edge));
+}
+.grooves-home-decoration-caption {
+  overflow: hidden;
+  margin-top: 4px;
+  padding: 0 12px;
+  text-align: center;
+  font-family: "PP Neue Montreal", Arial, sans-serif;
+  font-size: clamp(18px, 1.15vw, 24px);
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: .025em;
+}
+.grooves-home-decoration-caption span { display: block; opacity: 0; transform: translateY(110%); }
+.grooves-home-decoration[data-reveal="scroll"] .grooves-home-decoration-art { transition: opacity 450ms ease-out; }
+.grooves-home-decoration[data-reveal="scroll"] .grooves-home-decoration-caption span {
+  transition: opacity 650ms ease 550ms, transform 650ms cubic-bezier(.22,1,.36,1) 550ms;
+}
+.grooves-home-decoration[data-reveal="scroll"][data-revealed="true"] .grooves-home-decoration-art { opacity: 1; }
+.grooves-home-decoration[data-reveal="scroll"][data-revealed="true"] .grooves-home-decoration-caption span { opacity: .9; transform: translateY(0); }
+/* Full image box + outer inset + clearance on both sides. */
+@media (min-width: 3168px) { .grooves-home-decoration.grooves-home-wide { display: block; } }
+@media (min-width: 2848px) {
+  .grooves-home-decoration.grooves-home-reading, .grooves-home-decoration.grooves-home-outside { display: block; }
+}
+.grooves-home-decoration[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .grooves-home-decoration[data-reveal="scroll"] .grooves-home-decoration-art,
+  .grooves-home-decoration[data-reveal="scroll"] .grooves-home-decoration-caption span { transition: none; }
+}
+
+/* Keep illustrations visible below each section when side gutters are narrow.
+   Reserve space in document flow so the next section cannot overlap them. */
+@media (min-width: 768px) and (max-width: 3167px) {
+  .grooves-home-decoration.grooves-home-wide {
+    display: block;
+    width: clamp(280px, 30vw, 400px);
+    top: 100%; left: 50%; right: auto;
+    transform: translateX(-50%);
+    margin-top: 24px;
+  }
+  section:has(> .grooves-home-decoration.grooves-home-wide) {
+    overflow: visible;
+    margin-bottom: max(55svh, 520px);
+  }
+}
+@media (min-width: 768px) and (max-width: 2847px) {
+  .grooves-home-decoration.grooves-home-reading,
+  .grooves-home-decoration.grooves-home-outside.grooves-home-left {
+    display: block;
+    width: clamp(280px, 30vw, 400px);
+    top: 100%; left: 50%; right: auto;
+    transform: translateX(-50%);
+    margin-top: 24px;
+  }
+  section:has(> .grooves-home-decoration.grooves-home-reading),
+  section:has(> .grooves-home-decoration.grooves-home-outside) {
+    overflow: visible;
+    margin-bottom: 520px;
+  }
+}
+.grooves-home-decoration[hidden] { display: none; }

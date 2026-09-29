@@ -1,0 +1,24 @@
+.grooves-home-tagline {
+  margin: 14px 0 0;
+  color: inherit;
+  font-family: "PP Neue Montreal", Arial, sans-serif;
+  font-size: clamp(16px, 1.15vw, 22px);
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: .035em;
+  text-transform: none;
+  opacity: .9;
+}
+.grooves-home-tagline--hero { margin-top: 12px; font-size: clamp(20px, 1.2vw, 26px); opacity: 0; }
+.grooves-home-tagline--new { transition: opacity 600ms ease; }
+[data-revealed="false"] .grooves-home-tagline--new { opacity: 0; }
+.grooves-home-tagline--category { margin-top: 8px; }
+.grooves-home-tagline--news { margin-top: 10px; }
+@media (prefers-reduced-motion: reduce) {
+  .grooves-home-tagline--new { transition: none; }
+}
+
+/* Reserve room for the now-readable Hero caption above the scene. */
+.home-hero .home-stage {
+  top: calc(var(--navbar-h) + var(--hero-title-size) * 1.06 + 84px);
+}
