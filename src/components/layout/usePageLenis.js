@@ -25,6 +25,12 @@ export default function usePageLenis({
       smoothWheel: true,
     });
 
+    const stop = () => lenis.stop();
+    const start = () => lenis.start();
+    window.addEventListener("crate:start", stop);
+    window.addEventListener("crate:end", start);
+    if (document.documentElement.dataset.crateTransition === "true") stop();
+
     let raf = 0;
     const tick = (time) => {
       lenis.raf(time);
@@ -34,6 +40,8 @@ export default function usePageLenis({
 
     return () => {
       cancelAnimationFrame(raf);
+      window.removeEventListener("crate:start", stop);
+      window.removeEventListener("crate:end", start);
       lenis.destroy();
     };
   }, [wrapperRef, contentRef, enabled]);

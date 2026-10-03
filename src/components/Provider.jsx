@@ -5,7 +5,8 @@ import { ReactLenis } from "lenis/react";
 
 import { IntroProvider, useIntro } from "./intro/intro-context";
 import Preloader from "./intro/Preloader";
-import Navbar from "./Navbar";
+import CrateProvider from "./crate/CrateProvider";
+import CrateStage from "./crate/CrateStage";
 import AlbumTransitionProvider from "./album/AlbumTransitionProvider";
 
 // 인트로가 끝날 때까지 Lenis와 네이티브 스크롤을 모두 잠근다.
@@ -37,10 +38,12 @@ export default function Providers({ children }) {
       <ReactLenis root ref={lenisRef} />
       <ScrollLock lenisRef={lenisRef} />
       <Preloader />
+      <CrateProvider>
       <AlbumTransitionProvider>
-        <Navbar />
-        {children}
+        {/* 헤더는 CratePage 안에서 페이지마다 렌더된다 (페이지와 함께 플립) */}
+        <CrateStage>{children}</CrateStage>
       </AlbumTransitionProvider>
+      </CrateProvider>
     </IntroProvider>
   );
 }

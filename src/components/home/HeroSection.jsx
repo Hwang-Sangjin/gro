@@ -12,6 +12,7 @@ import FullscreenRoom from "./FullscreenRoom";
 import "./HeroInteraction.css";
 import PaperFadePass from "./PaperFadePass";
 import useInViewport from "./useInViewport";
+import { useLeavingPage } from "@/components/crate/pageContext";
 
 gsap.registerPlugin(useGSAP, SplitText);
 
@@ -30,6 +31,7 @@ export default function HeroSection() {
   const { done } = useIntro();
   const viaTransition = useRef(done);
   const heroVisible = useInViewport(stageRef);
+  const leaving = useLeavingPage(); // 떠나는 페이지면 WebGL 렌더를 멈춘다
 
   useGSAP(() => {
     if (!done) return;
@@ -86,7 +88,7 @@ export default function HeroSection() {
         onPointerEnter={() => (hoverRef.current = true)}
         onPointerLeave={() => (hoverRef.current = false)}
         onPointerCancel={() => (hoverRef.current = false)}>
-        <Canvas flat frameloop={heroVisible && !expanded ? "always" : "never"}
+        <Canvas flat frameloop={heroVisible && !expanded && !leaving ? "always" : "never"}
           camera={{ position: [0, .6, 6], fov: 42 }}
           gl={{ alpha: true, antialias: true }} dpr={[1, 1.75]}>
           <Suspense fallback={null}>

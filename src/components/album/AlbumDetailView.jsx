@@ -20,13 +20,13 @@ export default function AlbumDetailView({ album }) {
     const check = () => {
       cancelAnimationFrame(frame);
       cancelAnimationFrame(settleFrame);
-      if (document.documentElement.dataset.albumTransition === "true") return;
+      if (document.documentElement.dataset.crateTransition === "true") return;
       frame = requestAnimationFrame(() => {
         settleFrame = requestAnimationFrame(() => setDiscReady(true));
       });
     };
     const observer = new MutationObserver(check);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-album-transition"] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-crate-transition"] });
     check();
     return () => { cancelAnimationFrame(frame); cancelAnimationFrame(settleFrame); observer.disconnect(); };
   }, [done, album.slug]);

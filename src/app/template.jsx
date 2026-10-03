@@ -1,11 +1,2 @@
-"use client";
-
-import { ViewTransition } from "react";
-
-export default function Template({ children }) {
-  return (
-    <ViewTransition enter="page-enter" exit="page-exit" default="none">
-      {children}
-    </ViewTransition>
-  );
-}
+// Route animation lives in persistent CrateStage; intro remains in Preloader.
+export default function Template({ children }) { return children; }

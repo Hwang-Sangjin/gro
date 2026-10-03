@@ -8,9 +8,9 @@ export default function Signup() {
     <PageShell>
       <div className="auth">
         <span className="page-label">Sign up</span>
-        <h1 className="page-title">판을 모을 준비</h1>
+        <h1 className="page-title ct-reveal">판을 모을 준비</h1>
 
-        <div className="auth-form">
+        <div className="auth-form ct-reveal">
           <input className="field" type="text" placeholder="Nickname" />
           <input className="field" type="email" placeholder="Email" />
           <input className="field" type="password" placeholder="Password" />
@@ -19,7 +19,7 @@ export default function Signup() {
           </button>
         </div>
 
-        <p className="page-desc">
+        <p className="page-desc ct-reveal">
           이미 계정이 있나요? <Link href="/login">로그인</Link>
         </p>
       </div>

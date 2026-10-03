@@ -11,7 +11,7 @@ const POSTS = [
 export default function News() {
   return (
     <PageShell>
-      <header className="page-head">
+      <header className="page-head ct-reveal">
         <span className="page-label">03 — News</span>
         <h1 className="page-title">소식과 관리법</h1>
         <p className="page-desc">신보·재발매 소식과 판을 오래 쓰는 방법.</p>
@@ -19,7 +19,7 @@ export default function News() {
 
       <ul className="page-list">
         {POSTS.map((post) => (
-          <li className="page-row" key={post.no}>
+          <li className="page-row ct-reveal" key={post.no}>
             <span className="page-label">{post.no}</span>
             <strong>{post.title}</strong>
             <span className="page-label">{post.date}</span>

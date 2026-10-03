@@ -35,13 +35,20 @@ export default function useWireProgress({ inRef, outRef, enabled = true }) {
     let last = -1;
 
     const tick = () => {
+      // 크레이트 전환 중에는 위치를 읽지 않는다 (매 프레임 강제 레이아웃 방지)
+      if (document.documentElement.dataset.crateTransition === "true") {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       const next =
         Math.round(clamp01(band(inRef.current) - band(outRef.current)) * 1000) /
         1000;
 
       if (next !== last) {
         last = next;
-        root.style.setProperty("--wire-t", String(next));
+        const page = inRef.current?.closest('.page');
+        (page || root).style.setProperty("--wire-t", String(next));
+        if (document.documentElement.dataset.crateTransition !== 'true') root.style.setProperty("--wire-t", String(next));
       }
 
       raf = requestAnimationFrame(tick);

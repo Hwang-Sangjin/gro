@@ -6,6 +6,7 @@ import { coverUrl } from "@/lib/albums";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
 import VinylFan from "./VinylFan";
 import useInViewport from "./useInViewport";
+import { useLeavingPage } from "@/components/crate/pageContext";
 import { AXIS_X, AXIS_Y, clamp, dragTarget, releaseTarget } from "./vinyl-layout.mjs";
 
 export default function VinylShelf({ items, onActiveChange }) {
@@ -28,6 +29,7 @@ export default function VinylShelf({ items, onActiveChange }) {
   const scroll = useRef({ target: 0, current: 0 });
   const drag = useRef(null);
   const visible = useInViewport(wrap);
+  const leaving = useLeavingPage(); // 떠나는 페이지면 WebGL 렌더를 멈춘다
   const [entered, setEntered] = useState(false);
   useEffect(() => {
     const element = wrap.current;
@@ -94,7 +96,7 @@ export default function VinylShelf({ items, onActiveChange }) {
           clamp(Math.round(scroll.current.target)+(e.key === "ArrowRight" ? 1 : -1),max);
       }}>
       <span ref={source} aria-hidden="true" className="pointer-events-none absolute" />
-      <Canvas orthographic flat frameloop={visible ? "always" : "never"}
+      <Canvas orthographic flat frameloop={visible && !leaving ? "always" : "never"}
         camera={{ position: [0,0,20], near: .1, far: 100 }}
         gl={{ alpha: true, antialias: true }} dpr={[1,1.75]}>
         <VinylFan entered={entered} items={items} scrollRef={scroll} onActiveChange={onActiveChange} onActivate={activate} activationRef={activationRef} interactionRef={interaction} />

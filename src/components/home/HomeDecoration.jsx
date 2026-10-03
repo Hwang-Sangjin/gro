@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import "./HomeDecoration.css";
+import DoodleSprite from "../doodle/DoodleSprite";
 
 /** Decorative GIFs stay outside the reading column and never capture input. */
 export default function HomeDecoration({ name, side = "left", layout = "wide", top = "56%", visible = true, reveal = "scroll", delay = 600, elementRef, captionRef }) {
@@ -40,10 +41,7 @@ export default function HomeDecoration({ name, side = "left", layout = "wide", t
       className={`grooves-home-decoration grooves-home-${side} grooves-home-${layout}`}
       style={{ "--decor-top": top }} hidden={!visible}>
       <picture ref={elementRef} className="grooves-home-decoration-art" aria-hidden="true">
-        <source media="(prefers-reduced-motion: reduce)" srcSet={`/images/grooves/decorations/${name}.png`} />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/images/grooves/decorations/${name}.gif`} alt="" width="512" height="512"
-          loading={name === "vinyl-disk" ? "eager" : "lazy"} decoding="async" draggable={false} />
+        <DoodleSprite id={{"vinyl-disk":"01","vinyl-albums":"02","vinyl-player":"03",gramophone:"04"}[name] || "01"} />
       </picture>
       <figcaption className="grooves-home-decoration-caption">
         <span ref={captionRef}>{captions[name]}</span>

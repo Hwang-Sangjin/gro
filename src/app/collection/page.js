@@ -9,7 +9,7 @@ export default function Collection() {
 
   return (
     <PageShell>
-      <header className="page-head">
+      <header className="page-head ct-reveal">
         <span className="page-label">02 — Collection</span>
         <h1 className="page-title">내가 가진 판</h1>
         <p className="page-desc">소장 중인 바이닐을 한자리에.</p>
@@ -18,7 +18,7 @@ export default function Collection() {
       {signedIn ? (
         <div className="page-grid" />
       ) : (
-        <div className="page-empty">
+        <div className="page-empty ct-reveal">
           <p>컬렉션은 로그인 후에 볼 수 있습니다.</p>
           <Link className="home-cta" href="/login">
             Login
