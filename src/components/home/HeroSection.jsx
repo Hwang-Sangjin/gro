@@ -1,4 +1,5 @@
 "use client";
+import { useCrate } from "@/components/crate/CrateProvider";
 import HomeDecoration from "./HomeDecoration";
 import { Suspense, useRef, useState } from "react";
 import Image from "next/image";
@@ -12,11 +13,11 @@ import FullscreenRoom from "./FullscreenRoom";
 import "./HeroInteraction.css";
 import PaperFadePass from "./PaperFadePass";
 import useInViewport from "./useInViewport";
-import { useLeavingPage } from "@/components/crate/pageContext";
 
 gsap.registerPlugin(useGSAP, SplitText);
 
 export default function HeroSection() {
+  const { busy } = useCrate();
   const [expanded, setExpanded] = useState(false);
   const openButtonRef = useRef(null);
   const section = useRef();
@@ -31,7 +32,6 @@ export default function HeroSection() {
   const { done } = useIntro();
   const viaTransition = useRef(done);
   const heroVisible = useInViewport(stageRef);
-  const leaving = useLeavingPage(); // 떠나는 페이지면 WebGL 렌더를 멈춘다
 
   useGSAP(() => {
     if (!done) return;
@@ -88,7 +88,7 @@ export default function HeroSection() {
         onPointerEnter={() => (hoverRef.current = true)}
         onPointerLeave={() => (hoverRef.current = false)}
         onPointerCancel={() => (hoverRef.current = false)}>
-        <Canvas flat frameloop={heroVisible && !expanded && !leaving ? "always" : "never"}
+        <Canvas flat resize={{ offsetSize: true }} frameloop={busy ? "demand" : heroVisible && !expanded ? "always" : "never"}
           camera={{ position: [0, .6, 6], fov: 42 }}
           gl={{ alpha: true, antialias: true }} dpr={[1, 1.75]}>
           <Suspense fallback={null}>

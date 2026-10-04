@@ -53,9 +53,14 @@ export default function AlbumDetailView({ album }) {
   const color = theme.background;
   const ink = theme.foreground;
   useEffect(() => {
-    document.documentElement.style.setProperty("--album-detail-ink", ink);
-    return () => document.documentElement.style.removeProperty("--album-detail-ink");
-  }, [ink]);
+    const layer = art.current?.closest(".ct-page");
+    layer?.style.setProperty("--ct-header-bg", color);
+    layer?.style.setProperty("--ct-header-fg", ink);
+    return () => {
+      layer?.style.removeProperty("--ct-header-bg");
+      layer?.style.removeProperty("--ct-header-fg");
+    };
+  }, [ink, color]);
   return (
     <PageShell className="album-detail-page">
       <div className="album-detail-surface" style={{ backgroundColor: color, color: ink, "--album-muted": theme.muted }}> 

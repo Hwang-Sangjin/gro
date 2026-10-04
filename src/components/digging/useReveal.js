@@ -11,29 +11,21 @@ export default function useReveal({ ready = true, randomDelay = false } = {}) {
   const [pageReady, setPageReady] = useState(false);
   useEffect(() => {
     if (!done) return;
-    // 전환 중에는 매 프레임 polling 대신 crate:end 이벤트를 기다린다.
-    let frame = 0;
-    let cancelled = false;
+    let frame;
     const start = performance.now();
-    const onEnd = () => { if (!cancelled) frame = requestAnimationFrame(check); };
     const check = () => {
-      if (cancelled) return;
-      if (document.documentElement.dataset.crateTransition === "true") {
-        window.addEventListener("crate:end", onEnd, { once: true });
-        return;
-      }
-      if (performance.now() - start < 120 || document.querySelector(".preloader")) {
+      // Native page snapshots can otherwise cover the whole reveal animation.
+      const transitioning = (document.getAnimations?.() || []).some(animation =>
+        animation.playState !== "finished" && animation.playState !== "idle" &&
+        (/^(page-in|page-out|disc-out)$/.test(animation.animationName || "") ||
+          String(animation.effect?.pseudoElement || "").includes("view-transition")));
+      if (performance.now() - start < 120 || transitioning || document.querySelector(".preloader") ||
+          document.documentElement.dataset.albumTransition === "true" || document.documentElement.dataset.crateTransition === "true") {
         frame = requestAnimationFrame(check);
-        return;
-      }
-      setPageReady(true);
+      } else setPageReady(true);
     };
     frame = requestAnimationFrame(check);
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(frame);
-      window.removeEventListener("crate:end", onEnd);
-    };
+    return () => cancelAnimationFrame(frame);
   }, [done]);
   useEffect(() => {
     const element = ref.current;

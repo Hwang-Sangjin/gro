@@ -1,72 +1,77 @@
-# Grooves — Crate Flip
+# Grooves — Full-page Crate Flip
 
-첨부된 `public.zip`의 실제 프로젝트에 Claude의 크레이트 플립 전환을 통합한 전체 소스입니다. 원본의 `src/`, `public/` 파일은 모두 포함되어 있습니다.
+2026-10-04 수정본. 제공된 원본 프로젝트 전체에 크레이트 플립을 통합했습니다. 최신 동작은 **헤더와 본문이 하나의 페이지로 함께 넘어가는 전환**입니다.
 
 ## 실행
 
 ```bash
 npm ci
 cp .env.example .env.local
-# .env.local에 기존 프로젝트의 Supabase 값을 입력
+# 기존 Supabase 환경변수를 .env.local에 입력
 npm run dev
 ```
-
-프로덕션:
 
 ```bash
 npm run build
 npm start
 ```
 
-원본 ZIP에는 package.json, lockfile, Next.js/TypeScript/PostCSS 설정이 없어서 실행 가능한 설정을 추가했습니다. 이 배포본은 **Next.js 16.3.8, React 19.2.4, Tailwind 4** 조합으로 검증했습니다. 기존 저장소에 적용할 때는 기존 환경변수를 유지하고 의존성을 비교하세요. `.env.example`에는 값이나 비밀키가 없습니다.
+원본 ZIP에는 루트 설정 파일이 없어 실행용 설정을 추가했습니다. Next.js 16.3.8 / React 19.2.4 / Tailwind 4 조합입니다. 기존 프로젝트에 옮길 때 환경변수를 유지하세요. 비밀키와 테스트 DB 설정은 포함하지 않았습니다.
 
-## 적용 범위
+## 헤더와 배경
 
-- 최초 로딩 및 intro → 첫 페이지: 기존 연출 유지. `src/components/intro/`의 세 파일은 원본과 바이트 단위로 동일합니다.
-- intro 완료 후 모든 App Router 경로 변경: 공통 CrateStage에서 처리합니다.
-- Home / Digging / Collection / News, Login / Signup, 앨범 상세 및 기존 부가 경로를 포함합니다. 명세의 앨범 상세 제외 규칙보다 사용자의 “intro 외 모든 전환” 요청을 우선했습니다.
-- 같은 경로의 검색 조건/쿼리 변경과 페이지 내 앵커는 페이지 플립을 실행하지 않습니다.
-- 외부 링크, 새 창, 다운로드, Ctrl/Cmd 클릭은 브라우저 기본 동작입니다.
+- Navbar는 전역 Provider가 아닌 각 `CratePage` 안에 있습니다. 스크롤할 때는 페이지 위쪽에 머무르고, 라우트 전환 때는 본문과 동일한 transform·opacity·조명을 받습니다.
+- 떠나는 페이지와 들어오는 페이지가 각각 자신의 헤더·활성 메뉴·배경색을 유지합니다. 새 pathname 때문에 기존 브라운색 헤더가 크림색으로 먼저 바뀌지 않습니다.
+- 홈은 해당 페이지 레이어의 `--wire-t`로 헤더와 본문 색상을 함께 계산합니다. 문서 전체 색상 변수를 변경하지 않습니다.
+- 종이 텍스처가 적용된 Home/Digging은 헤더에도 같은 이미지·크기·블렌딩·불투명도를 사용합니다. 홈에서는 스크롤에 따라 패턴 위치도 맞춥니다.
+- 앨범 상세의 헤더는 해당 앨범 배경색과 대비 글자색을 사용합니다. 기본 페이지들은 기존 크림색을 사용합니다.
+- 활성 메뉴 표시선은 각 헤더에 속합니다. 이전의 화면에 고정된 헤더와 이동 인디케이터는 제거했습니다.
 
-## 동작
+## 전환 범위
 
-앞의 판이 기울어 떨어지고 뒤의 판이 일어섭니다. 명세의 perspective 2400px, origin 50% -25%, 1300ms, 역방향 t=1→0, shade/cast/spec, 슬리브 3장을 적용했습니다. 하나의 `renderCrate(t)`가 자동 전환과 수동 드래그를 계산합니다.
+intro 완료 후 App Router 경로 변경에 적용합니다. Home/Digging/Collection/News/Login/Signup/앨범 상세 및 기존 부가 경로를 포함합니다. 최초 로딩과 intro → 첫 화면은 기존 연출을 유지하며 `src/components/intro/` 파일들은 수정하지 않았습니다.
 
-헤더는 고정되고 활성 메뉴 인디케이터만 이동합니다. 같은 doodle은 GIF에서 추출한 6개의 WebP 프레임과 공유 타이머로 동기화됩니다. 효과음은 페이지를 처음 열 때 꺼져 있고 Sound 버튼으로 켤 수 있습니다.
+같은 경로의 쿼리 변경·페이지 내 앵커, 외부 링크, 새 창, 다운로드는 기존 동작을 유지합니다.
 
-- 전환 중 여러 메뉴 클릭: 마지막 목적지를 예약하여 현재 전환 후 이동.
-- 아래쪽 **Flip the crate** 핸들: 아래로 끌면 다음, 위로 끌면 이전 메뉴.
-- 10px부터 드래그를 시작하고 진행률 30% 또는 속도 0.55px/ms 기준으로 확정. 미달하면 복귀.
-- 페이지 스크롤을 보존하기 위해 모바일 드래그는 핸들에서만 시작합니다. 마우스는 스크롤 경계의 비인터랙티브 배경에서도 가능합니다.
-- 헤더 또는 핸들에 포커스한 상태에서 방향키/PageUp/PageDown 이동. 본문에서 키를 누르면 기본 스크롤을 유지합니다.
-- 전환 중 페이지 입력을 잠그고 완료 후 제목에 포커스를 옮깁니다. 모션 감소 설정에서는 짧은 페이드와 정지 doodle을 사용합니다.
+전환 수식은 기존 명세의 perspective 2400px, origin 50% -25%, 기본 1300ms, 역방향 t=1→0, shade/cast/spec 및 슬리브 3장을 유지합니다. 전환 중 페이지와 헤더 입력을 함께 잠급니다. 프로그램으로 들어온 후속 이동 요청은 마지막 목적지를 예약합니다.
 
-수동 드래그는 실제 라우트를 먼저 요청하고 취소 시 `router.replace()`로 원래 주소를 복원합니다. 이 방식은 명세와 동일하며, 취소 직후 브라우저 히스토리에 동일한 출발 주소가 연속으로 남을 수 있습니다.
+하단 핸들에서 아래로 끌면 다음 메뉴, 위로 끌면 이전 메뉴입니다. 진행률 30% 또는 속도 0.55px/ms 기준으로 확정하며, 미달하면 복귀합니다. 헤더 또는 핸들에서 방향키/PageUp/PageDown도 지원합니다. 전환이 끝나면 제목으로 포커스를 옮깁니다. 모션 감소 설정에서는 짧은 페이드와 정지 doodle을 사용합니다.
 
-## 구현 파일
+드래그 취소는 기존 명세처럼 router.replace로 출발 주소를 복원합니다. 취소 직후 브라우저 기록에 같은 출발 주소가 연속으로 남을 수 있습니다.
 
-- `src/components/crate/CrateStage.jsx`: 라우팅, 두 페이지 수명 관리, RAF, 큐, 드래그, 접근성.
-- `src/components/crate/render.js`: 명세의 전환 수식. 속도는 CrateStage의 `1300`, 최소 시간은 `260`에서 조절.
-- `src/components/crate/FrozenRouter.jsx`: 떠나는 페이지의 라우터 컨텍스트 보존.
-- `src/components/crate/CratePage.jsx`: 페이지 표면과 세 가지 조명 오버레이.
-- `src/components/crate/routes.js`: 메뉴 및 전환 방향 순서.
-- `src/components/crate/CrateProvider.jsx`, `sfx.js`: 공통 컨트롤과 효과음.
-- `src/components/doodle/`: 공유 애니메이션 타이머와 이미지 컴포넌트.
-- `public/doodles/01..04/`: 원본 GIF에서 추출한 WebP 프레임.
-- `Provider.jsx`, `Navbar.jsx`, `app/template.jsx`: 전역 연결. 이전 React ViewTransition과 앨범 커버 비행을 공통 전환으로 교체.
-- `globals.css` 마지막 `CRATE FLIP` 블록: 전환 CSS.
+## 버벅임 개선
 
-React 트리를 그대로 유지하며 DOM 복제/스크린샷 전환은 사용하지 않습니다. 홈의 WebGL Canvas도 떠나는 애니메이션이 끝날 때까지 유지됩니다. FrozenRouter는 Next 내부 컨텍스트를 사용하므로 Next 버전을 올릴 때 재검증해야 합니다.
+- 매 프레임 메뉴의 getBoundingClientRect를 읽고 인디케이터 위치를 다시 계산하던 작업을 제거했습니다. 프레임 렌더러는 transform·opacity를 쓰는 작업만 합니다.
+- 홈 배경색 계산은 상시 RAF 폴링 대신 scroll/resize/콘텐츠 크기 변경 시에만 실행합니다. 플립 중에는 색상과 패턴 위치를 유지합니다.
+- 전환 중 홈의 Canvas는 demand 모드로 전환하여 반복 렌더링을 줄입니다. 기존 WebGL/React 인스턴스를 제거하거나 DOM으로 복제하지 않습니다. 완료·취소 후 기존 가시성 기반 재생을 복원합니다.
+- 전환 중 doodle 프레임 구독을 쉬게 하여 반복 React 업데이트를 줄입니다.
+- inert·z-index·정적 스타일은 전환 준비 단계에서 한 번 설정합니다. 전환 시계는 첫 RAF 콜백에서 시작합니다.
+- 페이지 표면에 layout/paint containment를 적용합니다.
 
-기존 intro와 홈의 치수를 유지하기 위해 전체 뷰포트 페이지 위에 불투명 고정 헤더를 두었습니다. 기존 폰트·색상·본문 레이아웃을 유지하고 전환용 토큰은 `--ct-*`로 분리했습니다. 기존 GSAP이 제어하는 요소 대신 `ct-reveal`을 붙인 제목/본문만 전환의 순차 등장 대상으로 사용합니다. 기존 홈·Digging·앨범 상세의 고유 등장 효과는 유지합니다.
+Canvas가 축소된 채 남는 이전 오류 수정도 유지합니다. Hero와 New Vinyls 모두 `resize={{ offsetSize: true }}`로 변형 전 레이아웃 크기를 측정합니다.
 
-## 검증
+## 주요 파일
 
-- production 빌드 및 TypeScript 검사 성공 (Supabase 환경변수는 로컬 테스트 값 사용).
-- Chromium에서 일반/역방향 전환, 브라우저 뒤로가기, 실제 드래그 시작과 취소, 마지막 클릭 예약, Login→Signup 전환 확인.
-- 홈 Canvas가 이전 페이지 레이어에 유지되는 것 확인.
-- 모션 감소 모드, 390px 모바일 헤더 너비, 효과음 토글, 메뉴 인디케이터 위치 확인.
-- 검증한 이동에서 브라우저 JavaScript 오류 없음.
-- intro 원본 파일의 바이트 일치 확인.
+- `src/components/crate/CratePage.jsx`: 헤더 + 콘텐츠 + 조명 오버레이.
+- `src/components/crate/CrateStage.jsx`: 라우트 수명, RAF, 드래그/취소, 포커스.
+- `src/components/crate/render.js`: 전환 준비 및 순수 진행도 수식.
+- `src/components/crate/FrozenRouter.jsx`: 떠나는 페이지의 React 트리 유지.
+- `src/components/crate/routes.js`: 메뉴와 전환 방향 순서.
+- `src/components/Navbar.jsx`: 페이지별 메뉴. 경로는 해당 레이어의 props로 받습니다.
+- `src/components/home/useWireProgress.js`: 페이지별 스크롤 색상/패턴 위치.
+- `src/components/home/HeroSection.jsx`, `VinylShelf.jsx`: Canvas 측정 및 전환 중 재생 정책.
+- `src/components/doodle/`: 공유 WebP 프레임 타이머.
+- `src/app/globals.css`: 마지막 Crate Flip 및 Full-page 스타일.
 
-실제 Supabase 프로젝트의 데이터 조회·인증·관리자 저장과 앨범 상세 실데이터 동작은 별도 계정/환경변수가 없어 검증하지 않았습니다. 기존의 미구현 로그인/컬렉션 기능이나 부가 페이지의 원본 콘텐츠는 그대로 두었습니다.
+FrozenRouter는 Next 내부 컨텍스트를 사용하므로 Next 버전을 올릴 때 다시 검증해야 합니다.
+
+## 검증 범위
+
+- Chromium에서 브라운색 홈 → Collection 전환의 각 샘플을 확인: 기존 헤더 색상/활성 메뉴 유지, 서로 다른 헤더 2개가 각 페이지에 귀속, 헤더 좌표가 페이지와 함께 이동.
+- 실행 중 앱에서 헤더 레이아웃을 반복 측정하지 않는 것 확인.
+- 헤더와 본문 텍스처 이미지 일치 확인.
+- 뒤로가기, 드래그 취소 후 단일 헤더 복원, 모션 감소, 390px 모바일, 브라우저 JavaScript 오류 없음.
+- 실제 DB 대신 로컬 테스트 앨범 7개 사용. 실제 인증·DB 쓰기는 수행하지 않았습니다.
+- Production 빌드와 TypeScript 검사 통과.
+
+테스트 환경의 소프트웨어 GPU 프레임 속도는 실제 사용자 기기의 성능 보장 수치로 사용하지 않았습니다. 기존 미구현 로그인/컬렉션 기능과 원본 부가 페이지 콘텐츠는 그대로입니다.

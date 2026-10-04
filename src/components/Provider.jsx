@@ -40,7 +40,6 @@ export default function Providers({ children }) {
       <Preloader />
       <CrateProvider>
       <AlbumTransitionProvider>
-        {/* 헤더는 CratePage 안에서 페이지마다 렌더된다 (페이지와 함께 플립) */}
         <CrateStage>{children}</CrateStage>
       </AlbumTransitionProvider>
       </CrateProvider>

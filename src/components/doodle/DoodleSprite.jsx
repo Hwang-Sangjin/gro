@@ -1,10 +1,12 @@
 'use client';
 import {useCallback,useEffect,useState,useSyncExternalStore} from 'react';
+import {useCrate} from '../crate/CrateProvider';
 import {subscribe,frame} from './doodleClock';
 export default function DoodleSprite({id,className='',...props}){
+  const busy=useCrate()?.busy;
   const [reduced,setReduced]=useState(false);
   useEffect(()=>{const q=matchMedia('(prefers-reduced-motion: reduce)'),update=()=>setReduced(q.matches);update();q.addEventListener('change',update);return()=>q.removeEventListener('change',update);},[]);
-  const sub=useCallback(fn=>reduced?()=>{}:subscribe(id,fn),[id,reduced]);
+  const sub=useCallback(fn=>reduced||busy?()=>{}:subscribe(id,fn),[id,reduced,busy]);
   const get=useCallback(()=>frame(id),[id]);
   const index=useSyncExternalStore(sub,get,()=>0);
   useEffect(()=>{for(let i=0;i<6;i++){const img=new Image();img.src=`/doodles/${id}/${i}.webp`;}},[id]);

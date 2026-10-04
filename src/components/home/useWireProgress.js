@@ -2,64 +2,66 @@
 
 import { useEffect } from "react";
 
-const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
-
-const smootherstep = (x) => {
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const smootherstep = x => {
   const t = clamp01(x);
   return t * t * t * (t * (6 * t - 15) + 10);
 };
 
-// veil 상단이 화면 하단에 닿는 순간 0, 완전히 지나간 순간 1
-const band = (el) => {
-  if (!el) return 0;
-  const r = el.getBoundingClientRect();
-  const h = window.innerHeight;
-  return smootherstep((h - r.top) / (h + r.height));
-};
+// Layout offsets ignore the crate's rotate/scale transform. The scroll viewport
+// is PageShell, not window; transient projected bounds must not change the theme.
+function band(element, page) {
+  if (!element || !page) return 0;
+  let top = 0;
+  for (let node = element; node && node !== page; node = node.offsetParent) {
+    top += node.offsetTop;
+  }
+  return smootherstep(
+    (page.clientHeight - (top - page.scrollTop)) /
+    (page.clientHeight + element.offsetHeight),
+  );
+}
 
-/**
- * --wire-t (0=크림 1=잉크) 를 :root 에 매 프레임 기록한다.
- * Lenis 든 네이티브 스크롤이든 getBoundingClientRect 기준이라 동일하게 동작.
- * 값이 바뀔 때만 써서 스타일 무효화를 최소화한다.
- */
 export default function useWireProgress({ inRef, outRef, enabled = true }) {
   useEffect(() => {
-    const root = document.documentElement;
-
-    if (!enabled) {
-      root.style.setProperty("--wire-t", "0");
-      return;
-    }
-
+    const page = inRef.current?.closest(".page");
+    const layer = page?.closest(".ct-page");
+    if (!page || !layer) return;
     let raf = 0;
-    let last = -1;
-
-    const tick = () => {
-      // 크레이트 전환 중에는 위치를 읽지 않는다 (매 프레임 강제 레이아웃 방지)
-      if (document.documentElement.dataset.crateTransition === "true") {
-        raf = requestAnimationFrame(tick);
-        return;
+    let paused = false;
+    const sync = () => {
+      raf = 0;
+      if (paused) return;
+      const progress = enabled
+        ? Math.round(clamp01(band(inRef.current, page) - band(outRef.current, page)) * 1000) / 1000
+        : 0;
+      const value = String(progress);
+      // Color belongs to this page, never to the document or destination route.
+      if (layer.style.getPropertyValue("--wire-t") !== value) {
+        layer.style.setProperty("--wire-t", value);
       }
-      const next =
-        Math.round(clamp01(band(inRef.current) - band(outRef.current)) * 1000) /
-        1000;
-
-      if (next !== last) {
-        last = next;
-        const page = inRef.current?.closest('.page');
-        (page || root).style.setProperty("--wire-t", String(next));
-        if (document.documentElement.dataset.crateTransition !== 'true') root.style.setProperty("--wire-t", String(next));
-      }
-
-      raf = requestAnimationFrame(tick);
+      layer.style.setProperty("--paper-header-y", `${-page.scrollTop}px`);
     };
-
-    raf = requestAnimationFrame(tick);
-
+    const schedule = () => { if (!paused && !raf) raf = requestAnimationFrame(sync); };
+    const stop = () => { sync(); paused = true; cancelAnimationFrame(raf); raf = 0; };
+    const resume = () => { paused = false; schedule(); };
+    sync();
+    paused = document.documentElement.dataset.crateTransition === "true";
+    page.addEventListener("scroll", schedule, {passive:true});
+    window.addEventListener("resize", schedule);
+    window.addEventListener("crate:start", stop);
+    window.addEventListener("crate:end", resume);
+    const observer = new ResizeObserver(schedule);
+    [page, page.querySelector(".page-content"), inRef.current, outRef.current].filter(Boolean).forEach(el => observer.observe(el));
     return () => {
       cancelAnimationFrame(raf);
-      // 홈을 벗어나면 제거 → 다른 페이지와 navbar 는 자동으로 크림/잉크 기본값
-      root.style.removeProperty("--wire-t");
+      observer.disconnect();
+      page.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("crate:start", stop);
+      window.removeEventListener("crate:end", resume);
+      layer.style.removeProperty("--wire-t");
+      layer.style.removeProperty("--paper-header-y");
     };
   }, [inRef, outRef, enabled]);
 }

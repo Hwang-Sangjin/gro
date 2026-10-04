@@ -5,22 +5,13 @@ import { LayoutRouterContext } from './FrozenRouter';
 import CratePage from './CratePage';
 import { useCrate } from './CrateProvider';
 import { useIntro } from '../intro/intro-context';
-import { cl, cleanPage, cleanSleeves, measurePage, preparePages, renderCrate } from './render';
+import { cl, cleanPage, measurePage, prepareCrate, renderCrate } from './render';
 import { NAV, rank, labelFor } from './routes';
-
-// 프레임 하나가 진행시킬 수 있는 최대 시간. 평소 프레임 간격(이동 평균)의 2.5배, 최소 50ms.
-// 마운트·GC 같은 일시적 끊김만 잘라내서 t가 건너뛰지 않게 하고, 꾸준히 느린 기기는 늦추지 않는다.
-const SPIKE_RATIO = 2.5, MIN_CAP = 50;
-// 착지 직후의 무거운 작업(이전 페이지 언마운트, crate:end 후속 작업)을 다음 유휴 시간으로 미룬다.
-const defer = fn => (typeof window !== 'undefined' && window.requestIdleCallback)
-  ? window.requestIdleCallback(fn, { timeout: 150 })
-  : setTimeout(fn, 60);
 
 export default function CrateStage({children}) {
   const pathname=usePathname(), context=useContext(LayoutRouterContext), router=useRouter(), {done}=useIntro();
-  const {bridge,indicators,sfx,setBusy}=useCrate();
+  const {bridge,sfx,setBusy}=useCrate();
   const [entries,setEntries]=useState(()=>[{key:0,path:pathname,node:children,context}]);
-  const [leavingKey,setLeavingKey]=useState(null);
   const [announcement,setAnnouncement]=useState('');
   const nodes=useRef(new Map()), stage=useRef(null), serial=useRef(0), sleeves=useRef([]);
   const current=useRef({path:pathname,href:pathname,key:0}), lastPath=useRef(pathname);
@@ -31,51 +22,29 @@ export default function CrateStage({children}) {
   function lock(value){setBusy(value);document.documentElement.dataset.crateTransition=String(value);window.dispatchEvent(new Event(value?'crate:start':'crate:end'));}
   function clearWaiting(){clearTimeout(timeout.current);awaiting.current=null;}
   function draw(){if(T.current)renderCrate(T.current.t,T.current);}
-  function cleanAll(){for(const node of nodes.current.values())cleanPage(measurePage(node));cleanSleeves(sleeves.current);}
+  function cleanAll(){for(const node of nodes.current.values())cleanPage(measurePage(node));sleeves.current.forEach(el=>{if(el){el.style.opacity='0';el.style.transform='';}});}
   function focusPage(key,path){requestAnimationFrame(()=>{const node=nodes.current.get(key),head=node?.querySelector('h1,h2');if(head){head.setAttribute('tabindex','-1');head.focus({preventScroll:true});}setAnnouncement(`${labelFor(path)} 페이지`);});}
   function flush(){const next=pending.current;pending.current=null;if(next)queueMicrotask(()=>functions.current.go(next));}
-
   function finish(success){
-    const tr=T.current;if(!tr)return;cancelAnimationFrame(raf.current);
-    T.current=null;drag.current=null;clearWaiting();
-    const keep=success?tr.newEntry:tr.oldEntry, drop=success?tr.oldEntry:tr.newEntry;
-    cleanAll();
-    // 사라질 페이지는 즉시 숨기고, 실제 언마운트(R3F·GSAP 정리)는 착지 프레임이 지난 뒤에 한다.
-    const dropEl=nodes.current.get(drop.key);if(dropEl){dropEl.style.visibility='hidden';dropEl.inert=true;}
-    setLeavingKey(drop.key);
+    const tr=T.current;if(!tr)return;cancelAnimationFrame(raf.current);cleanAll();T.current=null;drag.current=null;clearWaiting();
+    const keep=success?tr.newEntry:tr.oldEntry;
     current.current={path:keep.path,key:keep.key,href:success?location.pathname+location.search:tr.fromHref};
-    indicators.current.get(keep.key)?.(keep.path,keep.path,1);
-    const removeDrop=()=>{setEntries(old=>old.filter(e=>e.key!==drop.key));setLeavingKey(k=>k===drop.key?null:k);};
-    if(success){
-      focusPage(keep.key,keep.path);
-      defer(()=>{removeDrop();lock(false);flush();});
-    } else {
-      cancelPath.current=tr.oldEntry.path;
-      defer(removeDrop);
+    if(success){setEntries([keep]);lock(false);focusPage(keep.key,keep.path);flush();}
+    else {
+      cancelPath.current=tr.oldEntry.path;setEntries([tr.oldEntry]);
       router.replace(tr.fromHref,{scroll:false});
+      
     }
   }
-
-  function animate(tv,delayStart=false){
+  function animate(tv){
     const tr=T.current;if(!tr)return;cancelAnimationFrame(raf.current);
-    const t0=tr.t,duration=tr.reduced?180:Math.max(260,1300*Math.abs(tv-t0));
-    const success=(tr.dir==='fwd')===(tv===1);
-    let elapsed=0,last=null,hit=false,avg=1000/60;
-    const step=now=>{
-      if(T.current!==tr)return;
-      const raw=last==null?0:now-last;last=now;
-      const dt=Math.min(raw,Math.max(MIN_CAP,avg*SPIKE_RATIO));
-      if(raw)avg=avg*.8+Math.min(raw,100)*.2;
-      elapsed+=dt;
-      const u=cl(elapsed/duration);tr.t=t0+(tv-t0)*u;draw();
+    let start=null;const t0=tr.t,duration=tr.reduced?180:Math.max(260,1300*Math.abs(tv-t0));let hit=false;
+    const step=now=>{if(T.current!==tr)return;if(start===null)start=now;const u=cl((now-start)/duration);tr.t=t0+(tv-t0)*u;draw();
+      const success=(tr.dir==='fwd')===(tv===1);
       if(success&&!hit&&(tr.dir==='fwd'?tr.t>.86:tr.t<.12)){hit=true;sfx.current?.play('thup');}
       if(u<1)raf.current=requestAnimationFrame(step);else finish(success);
-    };
-    // 자동 재생은 새 페이지 마운트 직후의 무거운 프레임을 2프레임 흘려보낸 뒤 시작한다.
-    if(delayStart)raf.current=requestAnimationFrame(()=>{if(T.current===tr)raf.current=requestAnimationFrame(step);});
-    else raf.current=requestAnimationFrame(step);
+    };raf.current=requestAnimationFrame(step);
   }
-
   function go(href,manual=false){
     const url=new URL(href,location.href);if(url.origin!==location.origin)return;
     if(T.current||awaiting.current){if(!drag.current)pending.current=url.pathname+url.search+url.hash;return;}
@@ -114,14 +83,9 @@ export default function CrateStage({children}) {
       t:manual&&drag.current?drag.current.t:(dir==='fwd'?0:1),
       front:measurePage(dir==='fwd'?oldEl:newEl),back:measurePage(dir==='fwd'?newEl:oldEl),
       sleeves:sleeves.current.filter(Boolean),reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,
-      // 인디케이터는 들어오는 페이지의 헤더에 그린다 (이전 메뉴 위치 → 새 메뉴 위치)
-      indicator:(...args)=>indicators.current.get(newEntry.key)?.(...args),manual};
-    // 전환당 1회: 입력 잠금, 레이어 승격, 인디케이터 좌표 측정. 프레임 루프 안에서는 DOM을 읽지 않는다.
-    preparePages([T.current.front,T.current.back],T.current.sleeves);
-    indicators.current.get(newEntry.key)?.measure?.();
-    setLeavingKey(oldEntry.key);
-    lock(true);draw();sfx.current?.play('slide');
-    if(!manual)animate(dir==='fwd'?1:0,true);else if(drag.current?.release!=null)animate(drag.current.release);
+      manual};
+    lock(true);prepareCrate(T.current);draw();sfx.current?.play('slide');
+    if(!manual)animate(dir==='fwd'?1:0);else if(drag.current?.release!=null)animate(drag.current.release);
   },[entries]);
 
   useEffect(()=>{
@@ -176,7 +140,7 @@ export default function CrateStage({children}) {
   return <>
     <main ref={stage} className="ct-stage" data-crate-stage onPointerDown={down} onPointerMove={move} onPointerUp={release} onPointerCancel={release}>
       {[0,1,2].map(i=><div key={i} ref={el=>sleeves.current[i]=el} className="ct-sleeve" aria-hidden="true" />)}
-      {entries.map(entry=><CratePage key={entry.key} entry={entry} leaving={entry.key===leavingKey} ref={el=>{if(el)nodes.current.set(entry.key,el);else nodes.current.delete(entry.key);}} />)}
+      {entries.map(entry=><CratePage key={entry.key} entry={entry} ref={el=>{if(el)nodes.current.set(entry.key,el);else nodes.current.delete(entry.key);}} />)}
       {done&&<button type="button" data-crate-handle className="ct-handle" aria-label="페이지 넘기기: 아래로 끌면 다음, 위로 끌면 이전. 방향키 사용 가능.">↕ <span>Flip the crate</span></button>}
     </main>
     <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
