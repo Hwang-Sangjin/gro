@@ -14,13 +14,8 @@ export default function useReveal({ ready = true, randomDelay = false } = {}) {
     let frame;
     const start = performance.now();
     const check = () => {
-      // Native page snapshots can otherwise cover the whole reveal animation.
-      const transitioning = (document.getAnimations?.() || []).some(animation =>
-        animation.playState !== "finished" && animation.playState !== "idle" &&
-        (/^(page-in|page-out|disc-out)$/.test(animation.animationName || "") ||
-          String(animation.effect?.pseudoElement || "").includes("view-transition")));
-      if (performance.now() - start < 120 || transitioning || document.querySelector(".preloader") ||
-          document.documentElement.dataset.albumTransition === "true" || document.documentElement.dataset.crateTransition === "true") {
+      if (performance.now() - start < 120 || document.querySelector(".preloader") ||
+          document.documentElement.dataset.crateTransition === "true") {
         frame = requestAnimationFrame(check);
       } else setPageReady(true);
     };

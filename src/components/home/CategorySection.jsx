@@ -5,12 +5,6 @@ import Link from "next/link";
 import styles from "./CategorySection.module.css";
 import { GENRES } from "@/lib/genres";
 
-const toSlug = (name) =>
-  name
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9가-힣]+/g, "-");
-
 function Cover({ id }) {
   const [failed, setFailed] = useState(false);
   return (

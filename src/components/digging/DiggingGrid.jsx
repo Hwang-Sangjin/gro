@@ -61,9 +61,9 @@ function AlbumCard({ album }) {
     art.current?.style.setProperty("--ry", "0deg");
   }
   return (
-    <Link onClick={open} className={styles.card} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
+    <Link data-crate-skip data-album-slug={album.slug} data-album-color={album.cover_color || "#bbcbda"} data-album-image={failed ? undefined : src} onClick={open} className={styles.card} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
       <span ref={revealRef} className={styles.hitArea} data-revealed={revealed} onPointerMove={move} onPointerLeave={reset} onPointerCancel={reset}>
-        <span ref={art} className={styles.art}>
+        <span ref={art} data-album-source className={styles.art}>
           <span className={styles.revealPanel} data-image-ready={loaded || failed || !src} style={{ backgroundColor: album.cover_color || "#bbcbda" }}>
           {src && !failed ? <img ref={imageRef} src={src} alt="" loading="lazy" decoding="async" /> : <span className={styles.placeholder} aria-hidden="true">G</span>}
           </span>

@@ -33,14 +33,6 @@
 
   --stage: #2a222a;
 
-  --sq-x: 0%;
-  --sq-y: 0%;
-
-  /* 바이닐 시작 위치. 작을수록 이동 거리가 짧아진다 */
-  --disc-left: 60vw;
-
-  --disc-label: #2f5a72;
-
   /* ── 스크롤 배경 전환 ──
      0 = 크림, 1 = 잉크. useWireProgress 가 매 프레임 덮어쓴다.
      홈에서만 쓰이고, 다른 페이지에서는 0 이라 크림/잉크 기본값과 같다 */
@@ -703,147 +695,6 @@ body.intro-locked {
   stroke: none;
 }
 
-/* ── 페이지 전환 ─────────────────────────────── */
-
-/* 바이닐. 세로 중앙은 margin-top 으로 잡는다 — transform 은 키프레임이 쓰므로.
-   평상시엔 z-index: -1 로 페이지 콘텐츠 뒤에 숨어 있다 */
-.disc {
-  position: fixed;
-  top: 50%;
-  left: var(--disc-left);
-  z-index: -1;
-  width: var(--sq);
-  height: var(--sq);
-  margin-top: calc(var(--sq) / -2);
-  border-radius: 50%;
-  pointer-events: none;
-  view-transition-name: disc;
-
-  background:
-    /* 스핀들 홀 */
-    radial-gradient(circle at 50% 50%, var(--cream) 0 0.9%, transparent 0.9%),
-    /* 라벨 */
-    radial-gradient(circle at 50% 50%, var(--disc-label) 0 17%, transparent 17%),
-    /* 라벨 안쪽 링 */
-    radial-gradient(
-        circle at 50% 50%,
-        transparent 0 12.5%,
-        rgba(255, 255, 255, 0.14) 12.5% 12.8%,
-        transparent 12.8%
-      ),
-    /* 데드왁스(라벨 바깥 매끈한 띠) */
-    radial-gradient(circle at 50% 50%, #14161a 17% 22%, transparent 22%),
-    /* 광택 — 4방향으로 번지는 하이라이트 */
-    conic-gradient(
-        from 0deg at 50% 50%,
-        rgba(255, 255, 255, 0.26) 0deg,
-        rgba(255, 255, 255, 0) 26deg,
-        rgba(255, 255, 255, 0) 64deg,
-        rgba(214, 196, 150, 0.2) 90deg,
-        rgba(255, 255, 255, 0) 116deg,
-        rgba(255, 255, 255, 0) 154deg,
-        rgba(255, 255, 255, 0.26) 180deg,
-        rgba(255, 255, 255, 0) 206deg,
-        rgba(255, 255, 255, 0) 244deg,
-        rgba(214, 196, 150, 0.2) 270deg,
-        rgba(255, 255, 255, 0) 296deg,
-        rgba(255, 255, 255, 0) 334deg,
-        rgba(255, 255, 255, 0.26) 360deg
-      ),
-    /* 홈(groove) — 촘촘한 동심원 */
-    repeating-radial-gradient(
-        circle at 50% 50%,
-        #0b0d10 0 0.42%,
-        #171a1f 0.42% 0.84%
-      ),
-    #0b0d10;
-
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 0 0 1px rgba(0, 0, 0, 0.4);
-}
-
-::view-transition-group(navbar) {
-  animation: none;
-  z-index: 100;
-}
-
-/* 쌓임 순서: 다음 페이지 > 이전 페이지 > 바이닐 */
-::view-transition-group(.page-enter) {
-  z-index: 2;
-}
-
-::view-transition-group(.page-exit) {
-  z-index: 1;
-}
-
-/* group 에는 z-index 만. transform 을 건드리면 스냅샷 위치가 날아간다 */
-::view-transition-group(disc) {
-  z-index: 0;
-}
-
-::view-transition-old(.page-exit) {
-  animation: 1600ms cubic-bezier(0.65, 0, 0.35, 1) both page-out;
-}
-
-::view-transition-old(disc),
-::view-transition-new(disc) {
-  animation: 1600ms cubic-bezier(0.65, 0, 0.35, 1) both disc-out;
-}
-
-::view-transition-new(.page-enter) {
-  animation: 1500ms cubic-bezier(0.65, 0, 0.35, 1) both page-in;
-  animation-delay: 0.25s;
-}
-
-@keyframes page-out {
-  0% {
-    transform: translateX(0%) translateY(0%) rotate(0deg) scale(1);
-    clip-path: inset(0px 0px 0px 0px);
-    opacity: 1;
-  }
-  40% {
-    transform: translateX(0%) translateY(0%) rotate(0deg) scale(0.75);
-    clip-path: inset(var(--sq-y) var(--sq-x) var(--sq-y) var(--sq-x));
-    opacity: 0.9;
-  }
-  100% {
-    transform: translateX(-50%) translateY(20%) rotate(-10deg) scale(0.55);
-    clip-path: inset(var(--sq-y) var(--sq-x) var(--sq-y) var(--sq-x));
-    opacity: 0.9;
-  }
-}
-
-/* 10% 출발 → 40% 도킹(커버 축소 완료 시점) → 커버와 함께 퇴장.
-   퇴장 이동량은 page-out 의 -50%/20% 를 vw/vh 로 환산한 값이다 —
-   스냅샷 크기가 서로 달라 % 를 그대로 쓰면 어긋난다.
-   함수 목록은 모든 키프레임에서 동일하게 유지해야 개별 보간된다 */
-@keyframes disc-out {
-  0%,
-  10% {
-    transform: translateX(0) translate(0, 0) rotate(0deg) scale(0.72);
-  }
-  40% {
-    transform: translateX(calc(50vw - var(--disc-left) - var(--sq) / 2))
-      translate(0, 0) rotate(0deg) scale(0.72);
-  }
-  100% {
-    transform: translateX(calc(50vw - var(--disc-left) - var(--sq) / 2))
-      translate(-50vw, 20vh) rotate(-10deg) scale(0.528);
-  }
-}
-
-@keyframes page-in {
-  from {
-    transform: translateX(100%) translateY(20%);
-    clip-path: polygon(50% 50%, 100% 50%, 100% 100%, 50% 100%);
-  }
-  to {
-    transform: translateX(0%) translateY(0%);
-    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
-  }
-}
-
 @media (max-width: 1000px) {
   .page-content {
     padding: 9rem 1.25rem 4rem;
@@ -875,12 +726,6 @@ body.intro-locked {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
-  }
-}
 
 /* HERO PAPER FADE — scoped overrides; other sections retain their styles. */
 @font-face {
@@ -952,12 +797,6 @@ body.intro-locked {
   }
 }
 
-/* The persistent overlay handles only album-card navigation. */
-html[data-album-transition="true"]::view-transition { display: none !important; }
-.album-flight { position: fixed; inset: 0; z-index: 2147483000; pointer-events: auto; }
-.album-flight-bg { position: absolute; inset: 0; }
-.album-flight-cover { position: fixed; overflow: hidden; }
-.album-flight-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .album-detail-page .page-content { padding: 0; gap: 0; }
 .album-detail-surface { min-height: 100svh; padding: clamp(130px, 15vh, 180px) clamp(24px, 6vw, 100px) 80px; }
 
@@ -1133,3 +972,9 @@ body:has(.album-detail-page) .ct-navbar,body:has(.album-detail-page) .ct-navbar 
 .ct-nav-link[aria-current="page"]{opacity:1}
 .ct-nav-link[aria-current="page"]::after{content:"";position:absolute;bottom:3px;left:2px;right:2px;height:2px;border-radius:2px;background:currentColor}
 html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
+
+/* Digging cover flight: body portal stays outside CrateStage transforms. */
+.album-flight { position: fixed; inset: 0; z-index: 2147483000; pointer-events: auto; }
+.album-flight-bg { position: absolute; inset: 0; }
+.album-flight-cover { position: fixed; overflow: hidden; will-change: left, top, width, height; }
+.album-flight-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }

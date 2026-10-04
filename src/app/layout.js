@@ -1,6 +1,5 @@
 import Providers from "@/components/Provider";
 import "./globals.css";
-import ViewportVars from "@/components/viewport/ViewportVars";
 
 
 export const metadata = {
@@ -18,7 +17,6 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
-        <ViewportVars />
         {/* ReactLenis / Navbar / Preloader 는 전부 Providers 안으로 이동 */}
         <Providers>{children}</Providers>
       </body>

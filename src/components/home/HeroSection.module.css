@@ -1,0 +1,19 @@
+.section {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100svh;
+  padding: calc(var(--navbar-h, 8.5rem) + 2rem) var(--wide-inset, 24px) 4rem;
+  color: inherit;
+}
+
+.title {
+  margin: 0;
+  font-family: "Grooves Bodoni", Georgia, serif;
+  font-size: clamp(64px, 15vw, 240px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -.055em;
+  visibility: visible;
+}

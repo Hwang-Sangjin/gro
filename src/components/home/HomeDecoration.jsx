@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import "./HomeDecoration.css";
 import DoodleSprite from "../doodle/DoodleSprite";
 
-/** Decorative GIFs stay outside the reading column and never capture input. */
+/** Decorative WebP sprites stay outside the reading column and never capture input. */
 export default function HomeDecoration({ name, side = "left", layout = "wide", top = "56%", visible = true, reveal = "scroll", delay = 600, elementRef, captionRef }) {
   const localRef = useRef(null);
   const pictureRef = localRef;

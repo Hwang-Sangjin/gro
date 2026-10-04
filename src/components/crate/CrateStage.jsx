@@ -6,7 +6,7 @@ import CratePage from './CratePage';
 import { useCrate } from './CrateProvider';
 import { useIntro } from '../intro/intro-context';
 import { cl, cleanPage, measurePage, prepareCrate, renderCrate } from './render';
-import { NAV, rank, labelFor } from './routes';
+import { NAV, rank, labelFor, isAlbumCoverTransition } from './routes';
 
 export default function CrateStage({children}) {
   const pathname=usePathname(), context=useContext(LayoutRouterContext), router=useRouter(), {done}=useIntro();
@@ -46,7 +46,11 @@ export default function CrateStage({children}) {
     };raf.current=requestAnimationFrame(step);
   }
   function go(href,manual=false){
+    if(document.documentElement.dataset.albumTransition==='true')return;
     const url=new URL(href,location.href);if(url.origin!==location.origin)return;
+    if(isAlbumCoverTransition(current.current.path,url.pathname)&&bridge.current.openAlbum){
+      bridge.current.openAlbum({slug:decodeURIComponent(url.pathname.replace(/\/+$/,'').split('/').at(-1))});return;
+    }
     if(T.current||awaiting.current){if(!drag.current)pending.current=url.pathname+url.search+url.hash;return;}
     if(url.pathname===current.current.path){router.push(href,{scroll:false});return;}
     awaiting.current={href:url.pathname+url.search,manual,fromHref:location.pathname+location.search};
@@ -69,6 +73,11 @@ export default function CrateStage({children}) {
       cancelAnimationFrame(raf.current);cleanAll();const keep=T.current.newEntry;current.current={path:keep.path,key:keep.key,href:keep.path};T.current=null;
     }
     const next={key:++serial.current,path:pathname,node:children,context};
+    if(isAlbumCoverTransition(current.current.path,pathname)){
+      clearWaiting();drag.current=null;
+      current.current={path:pathname,key:next.key,href:pathname};
+      setEntries([next]);return;
+    }
     if(!done){current.current={path:pathname,key:next.key,href:pathname};setEntries([next]);clearWaiting();lock(false);return;}
     setEntries(old=>[old.find(e=>e.key===current.current.key)||old.at(-1),next]);
   },[pathname,children,context,done]);
@@ -91,7 +100,21 @@ export default function CrateStage({children}) {
   useEffect(()=>{
     const click=e=>{
       if(ignoreClick.current){e.preventDefault();e.stopPropagation();return;}
-      const a=e.target.closest?.('a[href]');if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.altKey||e.shiftKey||a.download||a.target&&a.target!=='_self'||a.hasAttribute('data-crate-skip'))return;
+      const a=e.target.closest?.('a[href]');if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.altKey||e.shiftKey||a.download||a.target&&a.target!=='_self')return;
+      const albumUrl=new URL(a.href,location.href);
+      if(albumUrl.origin===location.origin&&isAlbumCoverTransition(current.current.path,albumUrl.pathname)){
+        // Choose the album animation before the generic capture handler can flip.
+        if(bridge.current.openAlbum){
+          e.preventDefault();e.stopPropagation();
+          const source=a.querySelector('[data-album-source]')||a.querySelector('img');
+          bridge.current.openAlbum({
+            slug:a.dataset.albumSlug||decodeURIComponent(albumUrl.pathname.replace(/\/+$/,'').split('/').at(-1)),
+            color:a.dataset.albumColor,imageUrl:a.dataset.albumImage||source?.querySelector('img')?.currentSrc||source?.currentSrc,source,
+          });
+        }
+        return;
+      }
+      if(a.hasAttribute('data-crate-skip'))return;
       const u=new URL(a.href,location.href);if(u.origin!==location.origin||u.pathname===location.pathname)return;
       e.preventDefault();e.stopPropagation();functions.current.go(u.pathname+u.search+u.hash);
     };
@@ -105,10 +128,19 @@ export default function CrateStage({children}) {
     document.addEventListener('click',click,true);document.addEventListener('keydown',key);
     return()=>{document.removeEventListener('click',click,true);document.removeEventListener('keydown',key);};
   },[]);
-  useEffect(()=>()=>{cancelAnimationFrame(raf.current);clearTimeout(timeout.current);delete document.documentElement.dataset.crateTransition;bridge.current={};},[]);
+  useEffect(()=>{
+    const navigate=(...args)=>functions.current.go(...args);
+    bridge.current.go=navigate;
+    return()=>{
+      cancelAnimationFrame(raf.current);clearTimeout(timeout.current);
+      delete document.documentElement.dataset.crateTransition;
+      // This component owns only go; do not erase the album provider's bridge.
+      if(bridge.current.go===navigate)delete bridge.current.go;
+    };
+  },[bridge]);
 
   function down(e){
-    if(!done||T.current||awaiting.current||e.button!==0)return;
+    if(!done||T.current||awaiting.current||document.documentElement.dataset.albumTransition==='true'||e.button!==0)return;
     const handle=e.target.closest('[data-crate-handle]');
     if(!handle&&(e.pointerType==='touch'||e.target.closest('a,button,input,textarea,select,canvas,video,[role=dialog]')))return;
     drag.current={id:e.pointerId,armed:true,on:false,y:e.clientY,lastY:e.clientY,lastTime:performance.now(),v:0,handle:!!handle,release:null};

@@ -13,3 +13,12 @@ export function rank(path) {
   return i < 0 ? 20 : 4 + i;
 }
 export const labelFor = path => NAV.find(p => p.href === path)?.label || (path.startsWith('/album/') ? 'Album' : path.split('/').filter(Boolean).at(-1) || 'Home');
+
+// Route policy must not depend on an animation flag surviving route commits.
+export function normalizedPath(path) {
+  const pathname = path.split(/[?#]/)[0].replace(/\/+$/, '') || '/';
+  try { return decodeURIComponent(pathname); } catch { return pathname; }
+}
+export function isAlbumCoverTransition(from, to) {
+  return ['/', '/digging'].includes(normalizedPath(from)) && /^\/album\/[^/]+$/.test(normalizedPath(to));
+}
