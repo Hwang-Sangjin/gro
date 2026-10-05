@@ -63,3 +63,23 @@ Digging → Album Detail은 커버 이동 전환을 사용합니다. 다른 페�
 ## 최신 Home 수정
 
 Home New Vinyls에도 앨범 커버 이동 전환 적용. Hero는 정적인 Grooves 텍스트만 표시합니다. `docs/HOME-HERO-UPDATE.md`가 이전 Home 설명보다 우선합니다.
+
+## 최신 Hero 1단계
+
+전체 화면 투명 R3F Canvas와 중앙의 큰 Grooves 타이틀을 구성했습니다. 모델은 아직 없으며 `HeroVinylScene.jsx`에 연결할 예정입니다. `docs/HERO-STEP-1.md` 참고.
+
+## 최신 Hero 2단계
+
+사용자 vinyl.glb와 Claude의 절차적 grooves 셰이더를 연결했습니다. 모델은 정지 상태로 표시됩니다. `docs/HERO-STEP-2.md`와 `docs/previews/`를 참고하세요.
+
+## 최신 Hero 3단계
+
+직교 카메라와 대각선 타원 구도, 화면 비율에 따른 모델 크기를 조정했습니다. 최신 내용은 `docs/HERO-STEP-3.md`, 미리보기는 `docs/previews/vinyl-step3-*.png`를 참고하세요. 4단계 손그림 재질은 아직 미적용입니다.
+
+## 최신 Hero 4단계
+
+크림색·푸른 잉크의 절차적 해칭, 끊긴 원형 grooves, 약한 하프톤 재질을 Hero에 적용했습니다. `docs/HERO-STEP-4.md`가 이전 단계의 재질 설명보다 우선합니다. 외곽선·바닥 그림자는 5단계에서 진행합니다.
+
+## 최신 Hero: Claude 잉크 스타일
+
+제공된 InkVinyl/inkShaders 기반의 투명 잉크 드로잉 재질로 교체했습니다. 종이 배경, 방사형 동심원 잉크선, 블루 라벨, 외곽선과 스케치 그림자를 사용합니다. 최신 내용은 `docs/HERO-CLAUDE-INK.md`를 참고하세요.

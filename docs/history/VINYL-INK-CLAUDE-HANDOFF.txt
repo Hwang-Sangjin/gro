@@ -1,0 +1,852 @@
+Vinyl grooves 셰이더 핸드오프
+2026년 10월 5일 · @jin
+요청 사항
+Blender에서 만든 LP 모델의 grooves(홈)를 Three.js 셰이더로 재구현했고, 동작 확인까지 끝났습니다. 이 문서를 받은 당신은 아래 코드를 기준으로 Next.js 프로젝트 통합과 마무리를 도와주세요.
+• 스택: Next.js (App Router), React Three Fiber, drei, TypeScript, Tailwind
+• 스타일은 순수 CSS 대신 Tailwind로 작성
+• 셰이더 로직(특히 이방성 오버라이드)은 검증된 상태이므로, 구조를 바꾸기 전에 이유를 먼저 설명해 주세요
+• three 버전은 r169 기준으로 테스트했습니다. 다른 버전이면 셰이더 청크 이름(#include <...>)이 달라졌는지 확인이 필요합니다
+배경
+glTF는 Blender의 절차적 셰이더 노드를 내보내지 못하므로, grooves는 Three.js 셰이더로 다시 만들었습니다.
+Blender에서는 Wave Texture(Rings), Color Ramp, Mix Color, Bump 노드로 홈을 표현했습니다. glTF exporter는 Principled BSDF와 직접 연결된 Image Texture만 인식하기 때문에, export 결과 grooves 면이 흰색(baseColor 기본값)으로 나왔습니다.
+두 가지 방법을 검토했습니다.
+방법
+내용
+한계
+선택
+A. Bake
+Cycles로 Base Color와 Normal을 이미지로 구워 export
+해상도 한계, 줌 시 뭉개짐, 모아레
+아니오
+B. 런타임 셰이더
+glTF는 지오메트리만, grooves는 onBeforeCompile로 절차적 생성
+three 버전 의존
+예
+모델 구조 (vinyl.glb)
+노드는 Circle.001 하나이고, 머티리얼별로 프리미티브 3개로 나뉩니다. 디스크 반지름은 1, 두께는 약 0.0215(Y 방향)이며 Y-up 기준으로 디스크는 XZ 평면에 놓입니다.
+머티리얼
+역할
+반지름
+비고
+Material.001
+라벨(빨강)
+0.025–0.330
+가운데 구멍 포함
+Material.002
+grooves
+0.443–0.977
+윗면·아랫면 외에 옆면도 포함 → 셰이더에서 로컬 노멀 Y로 마스크
+Material.003
+런아웃 영역 + 테두리(진한 회색)
+0.330–1.000
+
+• 파일은 Draco(KHR_draco_mesh_compression)로 압축돼 있습니다. drei의 useGLTF가 자동 처리합니다
+• 프로젝트 경로는 /public/models/vinyl.glb를 가정합니다
+• Blender에서 Apply Scale 후 export해야 반지름 기반 파라미터가 맞습니다
+구현 개요
+MeshPhysicalMaterial을 onBeforeCompile로 세 군데 패치하고, Material.002 메시의 머티리얼만 교체합니다. vertex 셰이더는 로컬 위치, 로컬 노멀 Y, 디스크 X/Z축의 뷰 공간 방향을 varying으로 넘깁니다.
+1. roughnessmap_fragment 뒤: 반지름 r로 홈 영역 마스크(윗면·아랫면, innerR–outerR, 트랙 사이 gap 제외)를 계산합니다. gap은 roughness를 낮춰 광택을 내고, 홈에는 미세한 명암을 넣습니다.
+2. normal_fragment_maps 뒤: cos(r × freq)만큼 반지름 방향으로 노멀을 기울여 홈을 표현합니다. fwidth로 픽셀보다 촘촘해지면 페이드해서 모아레를 막습니다.
+3. lights_physical_fragment 뒤: 이방성 tangent를 반지름 방향으로 강제합니다. 멀리서 홈이 안 보여도 LP 특유의 방사형 빛줄기가 남고, 디스크가 회전해도 빛줄기는 제자리에 머묭니다.
+파라미터
+기본값
+의미
+grooveFreq
+700
+홈 주파수(rad/unit). Blender Wave Rings scale 35 × 20
+grooveDepth
+0.35
+노멀 기울기 강도
+trackCount
+5
+트랙 수
+gapWidth
+0.005
+트랙 사이 매끈한 띠 폭(모델 단위)
+innerR / outerR
+0.46 / 0.965
+홈이 새겨지는 반지름 구간
+gapRoughness
+0.12
+gap의 roughness
+anisotropy
+0.85
+방사형 빛줄기 강도(머티리얼 속성)
+rpm
+33.333
+회전 속도. 0, 33.333, 45
+조명은 환경맵(studio 또는 RoomEnvironment, intensity 0.55)과 키라이트(directional 2.2, 위치 -1.5, 3, 1.2)를 씁니다. 이방성 빛줄기는 조명이 없으면 거의 보이지 않습니다.
+진행 이력
+최근 변경은 트랙 사이 gap을 좁힌 것이고, 아래 코드에 모두 반영돼 있습니다.
+단계
+내용
+4
+gap 기본 폭 0.012 → 0.005. 경계 페이드를 고정 0.002에서 gap 폭에 비례(0.5×–0.75×)하도록 변경. 프리뷰에 트랙 간격 슬라이더 추가
+3
+R3F 컴포넌트(VinylRecord)로 포장. props 변경 시 uniform만 갱신(리컴파일 없음)
+2
+onBeforeCompile 셰이더 구현, 헤드리스 크롬에서 원거리·근거리 렌더 확인
+1
+glTF export에서 grooves가 흰색으로 나오는 원인 파악, 런타임 셰이더 방식 선택
+동작 확인용 프리뷰: Vinyl groove shader
+코드
+세 파일을 같은 폴더(예: components/vinyl/)에 둡니다.
+grooveMaterial.ts
+import * as THREE from 'three'
+
+export type GrooveParams = {
+  /** 홈 주파수 (rad/unit). Blender Wave(Rings) scale 35 → 20 × 35 = 700 */
+  grooveFreq: number
+  /** 노멀 기울기 강도 */
+  grooveDepth: number
+  /** 트랙 수 (트랙 사이 매끈한 gap 생성) */
+  trackCount: number
+  /** gap 폭 (모델 단위) */
+  gapWidth: number
+  /** 홈이 시작/끝나는 반지름 (모델 단위, 디스크 반지름 = 1) */
+  innerR: number
+  outerR: number
+  /** gap 부분 roughness (더 광택) */
+  gapRoughness: number
+}
+
+export const defaultGrooveParams: GrooveParams = {
+  grooveFreq: 700,
+  grooveDepth: 0.35,
+  trackCount: 5,
+  gapWidth: 0.005,
+  innerR: 0.46,
+  outerR: 0.965,
+  gapRoughness: 0.12,
+}
+
+export type GrooveUniforms = {
+  uGrooveFreq: THREE.IUniform<number>
+  uGrooveDepth: THREE.IUniform<number>
+  uTrackCount: THREE.IUniform<number>
+  uGapWidth: THREE.IUniform<number>
+  uInnerR: THREE.IUniform<number>
+  uOuterR: THREE.IUniform<number>
+  uGapRoughness: THREE.IUniform<number>
+}
+
+/**
+ * MeshPhysicalMaterial에 절차적 grooves를 패치합니다.
+ * - 반지름 방향 노멀 perturbation (가까이서 보이는 홈)
+ * - 이방성 방향을 반지름 방향으로 고정 (멀리서 보이는 방사형 빛줄기)
+ * 반환된 uniforms 값을 바꾸면 리컴파일 없이 즉시 반영됩니다.
+ */
+export function createGrooveMaterial(
+  params: GrooveParams = defaultGrooveParams,
+  options: THREE.MeshPhysicalMaterialParameters = {},
+) {
+  const material = new THREE.MeshPhysicalMaterial({
+    color: 0x0c0c0c,
+    roughness: 0.3,
+    metalness: 0,
+    anisotropy: 0.85, // 0이면 USE_ANISOTROPY define이 빠지므로 끌 때도 0.001 같은 작은 값 사용
+    side: THREE.DoubleSide,
+    ...options,
+  })
+
+  const uniforms: GrooveUniforms = {
+    uGrooveFreq: { value: params.grooveFreq },
+    uGrooveDepth: { value: params.grooveDepth },
+    uTrackCount: { value: params.trackCount },
+    uGapWidth: { value: params.gapWidth },
+    uInnerR: { value: params.innerR },
+    uOuterR: { value: params.outerR },
+    uGapRoughness: { value: params.gapRoughness },
+  }
+
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, uniforms)
+
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', /* glsl */ `#include <common>
+        varying vec3 vLocalPos;
+        varying float vLocalNormalY;
+        varying vec3 vAxisX;
+        varying vec3 vAxisZ;`)
+      .replace('#include <begin_vertex>', /* glsl */ `#include <begin_vertex>
+        vLocalPos = position;
+        vLocalNormalY = normal.y;
+        vAxisX = normalize(normalMatrix * vec3(1.0, 0.0, 0.0));
+        vAxisZ = normalize(normalMatrix * vec3(0.0, 0.0, 1.0));`);
+
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', /* glsl */ `#include <common>
+        varying vec3 vLocalPos;
+        varying float vLocalNormalY;
+        varying vec3 vAxisX;
+        varying vec3 vAxisZ;
+        uniform float uGrooveFreq;
+        uniform float uGrooveDepth;
+        uniform float uTrackCount;
+        uniform float uGapWidth;
+        uniform float uInnerR;
+        uniform float uOuterR;
+        uniform float uGapRoughness;`)
+
+      // 1) 홈 영역 마스크 + 거칠기 (normal 계산 전에 실행됨)
+      .replace('#include <roughnessmap_fragment>', /* glsl */ `#include <roughnessmap_fragment>
+        vec2 gP = vLocalPos.xz;                       // glTF Y-up → 디스크는 XZ 평면
+        float gR = length(gP);
+        vec2 gDir = gP / max(gR, 1e-5);
+
+        // 윗면/아랫면만 (옆면 제외)
+        float gFace = smoothstep(0.5, 0.9, abs(vLocalNormalY));
+
+        // 홈이 새겨진 반지름 구간 (안쪽 run-out, 바깥 테두리는 매끈하게)
+        float gBand = smoothstep(uInnerR, uInnerR + 0.004, gR)
+                    * (1.0 - smoothstep(uOuterR - 0.004, uOuterR, gR));
+
+        // 트랙 사이 매끈한 띠(gap)
+        float gSpan = (uOuterR - uInnerR) / uTrackCount;
+        float gT = (gR - uInnerR) / gSpan;            // 0..trackCount
+        float gDist = abs(fract(gT + 0.5) - 0.5) * gSpan;
+        float gInterior = step(0.5, gT) * step(gT, uTrackCount - 0.5);
+        float gGap = gInterior * (1.0 - smoothstep(uGapWidth * 0.5, uGapWidth * 0.75, gDist));
+
+        float gMask = gFace * gBand * (1.0 - gGap);
+
+        // 홈 위상 + 안티앨리어싱(픽셀당 위상 변화가 크면 페이드)
+        float gPhase = gR * uGrooveFreq;
+        float gAA = 1.0 - smoothstep(0.6, 2.2, fwidth(gPhase));
+
+        // 트랙 사이 gap은 더 매끈하게(광택)
+        roughnessFactor = mix(roughnessFactor, uGapRoughness, gFace * gBand * gGap);
+
+        // 가까이서 볼 때 미세한 명암
+        diffuseColor.rgb *= 1.0 + 0.25 * sin(gPhase) * gAA * gMask;`)
+
+      // 2) 반지름 방향으로 노멀 기울이기
+      .replace('#include <normal_fragment_maps>', /* glsl */ `#include <normal_fragment_maps>
+        vec3 gRadialView = normalize(gDir.x * vAxisX + gDir.y * vAxisZ);
+        gRadialView = normalize(gRadialView - normal * dot(normal, gRadialView));
+        float gSlope = cos(gPhase) * uGrooveDepth * gAA * gMask;
+        normal = normalize(normal - gRadialView * gSlope);`)
+
+      // 3) 이방성 방향을 반지름 방향으로 → LP 특유의 방사형 빛줄기
+      .replace('#include <lights_physical_fragment>', /* glsl */ `#include <lights_physical_fragment>
+        #ifdef USE_ANISOTROPY
+          vec3 gT3 = normalize(gRadialView - normal * dot(normal, gRadialView));
+          material.anisotropyT = gT3;
+          material.anisotropyB = normalize(cross(normal, gT3));
+          material.anisotropy *= gMask;
+          material.alphaT = mix(pow2(material.roughness), 1.0, pow2(material.anisotropy));
+        #endif`);
+  }
+
+  return { material, uniforms }
+}
+VinylRecord.tsx
+'use client'
+
+import { useGLTF } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
+import { useEffect, useMemo, useRef } from 'react'
+import * as THREE from 'three'
+import {
+  createGrooveMaterial,
+  defaultGrooveParams,
+  type GrooveParams,
+} from './grooveMaterial'
+
+type VinylRecordProps = Partial<GrooveParams> & {
+  /** 33.333 | 45 | 0 */
+  rpm?: number
+  /** 0–1, 방사형 빛줄기 강도 */
+  anisotropy?: number
+  url?: string
+} & JSX.IntrinsicElements['group']
+
+export function VinylRecord({
+  rpm = 33.333,
+  anisotropy = 0.85,
+  url = '/models/vinyl.glb',
+  grooveFreq = defaultGrooveParams.grooveFreq,
+  grooveDepth = defaultGrooveParams.grooveDepth,
+  trackCount = defaultGrooveParams.trackCount,
+  gapWidth = defaultGrooveParams.gapWidth,
+  innerR = defaultGrooveParams.innerR,
+  outerR = defaultGrooveParams.outerR,
+  gapRoughness = defaultGrooveParams.gapRoughness,
+  ...groupProps
+}: VinylRecordProps) {
+  // drei의 useGLTF는 Draco를 자동 처리 → Blender export한 압축 glb 그대로 사용 가능
+  const { scene } = useGLTF(url)
+  const discRef = useRef<THREE.Group>(null)
+
+  const { material, uniforms } = useMemo(() => createGrooveMaterial(), [])
+
+  // 같은 glb를 여러 번 쓸 수 있도록 clone 후 Material.002만 교체
+  const model = useMemo(() => {
+    const cloned = scene.clone(true)
+    cloned.traverse((obj) => {
+      const mesh = obj as THREE.Mesh
+      if (mesh.isMesh && (mesh.material as THREE.Material)?.name === 'Material.002') {
+        mesh.material = material
+      }
+    })
+    return cloned
+  }, [scene, material])
+
+  // props → uniforms (리컴파일 없음)
+  useEffect(() => {
+    uniforms.uGrooveFreq.value = grooveFreq
+    uniforms.uGrooveDepth.value = grooveDepth
+    uniforms.uTrackCount.value = trackCount
+    uniforms.uGapWidth.value = gapWidth
+    uniforms.uInnerR.value = innerR
+    uniforms.uOuterR.value = outerR
+    uniforms.uGapRoughness.value = gapRoughness
+    material.anisotropy = Math.max(anisotropy, 0.001)
+  }, [uniforms, material, grooveFreq, grooveDepth, trackCount, gapWidth, innerR, outerR, gapRoughness, anisotropy])
+
+  useEffect(() => () => material.dispose(), [material])
+
+  useFrame((_, delta) => {
+    if (!discRef.current || rpm === 0) return
+    discRef.current.rotation.y -= (rpm / 60) * Math.PI * 2 * delta
+  })
+
+  return (
+    <group {...groupProps}>
+      <group ref={discRef}>
+        <primitive object={model} />
+      </group>
+    </group>
+  )
+}
+
+useGLTF.preload('/models/vinyl.glb')
+VinylScene.example.tsx
+'use client'
+
+import { Environment, OrbitControls } from '@react-three/drei'
+import { Canvas } from '@react-three/fiber'
+import * as THREE from 'three'
+import { VinylRecord } from './VinylRecord'
+
+export default function VinylScene() {
+  return (
+    <div className="h-dvh w-full bg-neutral-900">
+      <Canvas
+        camera={{ position: [0, 2.1, 2.9], fov: 35, near: 0.01 }}
+        gl={{ toneMapping: THREE.ACESFilmicToneMapping }}
+        dpr={[1, 2]}
+      >
+        {/* 이방성 빛줄기는 환경맵 + 강한 키라이트가 있어야 잘 보임 */}
+        <Environment preset="studio" environmentIntensity={0.55} />
+        <directionalLight position={[-1.5, 3, 1.2]} intensity={2.2} />
+        <VinylRecord rpm={33.333} />
+        <OrbitControls enableDamping zoomToCursor minDistance={0.08} maxDistance={8} />
+      </Canvas>
+    </div>
+  )
+}
+주의사항과 남은 작업
+통합 시 먼저 확인할 것:
+• anisotropy를 정확히 0으로 두면 USE_ANISOTROPY define이 빠져 리컴파일되고, 3단계 패치가 비활성화됩니다. 끌 때도 0.001을 씁니다(컴포넌트에 반영됨)
+• .replace('#include <...>')는 매칭이 없으면 조용히 실패합니다. three를 업그레이드하면 청크 이름과 material.anisotropyT/B, alphaT 필드가 그대로인지 확인해야 합니다
+• React 19 타입에서는 전역 JSX 네임스페이스가 없습니다. JSX.IntrinsicElements['group']에서 에러가 나면 ThreeElements['group'](@react-three/fiber)로 바꿉니다
+• drei Environment preset은 외부 CDN에서 HDR을 받습니다. 배포 환경에 따라 로컬 HDR(files prop)이나 RoomEnvironment로 바꿀 수 있습니다
+• 젏더는 MeshStandardMaterial이 아닌 MeshPhysicalMaterial이어야 합니다(이방성은 Physical 전용)
+남은 작업 아이디어:
+[ ] Next.js 페이지에 VinylScene을 dynamic(..., { ssr: false })로 넣기
+[ ] 트랙별 길이를 배열로 받아 gap 위치를 비균등하게(실제 앨범 트랙리스트 반영)
+[ ] 라벨(Material.001)에 앨범 아트워크 텍스처 적용
+[ ] 호버/드래그로 회전 속도를 바꾸는 인터랙션
+잉크 드로잉 스타일
+디스크를 크림 종이 위 파란 잉크 인그레이빙 일러스트처럼 렌더하는 버전을 추가로 만들었고, R3F 컴포넌트(InkVinyl)로 렌더링까지 확인했습니다. 위의 PBR 버전(VinylRecord)을 대체하는 것이 아니라, 홈 히어로용 별도 룩입니다.
+동작 확인용 프리뷰: Grooves · Ink vinyl prototype (커서를 움직이면 빛 방향이 바뀌고, 우하단 패널에서 파라미터 조절)
+목표 룩
+• 배경은 종이 그 자체(크림 #f4e7cd). 디스크는 잉크만 있고 면 색이 없음
+• grooves는 가는 동심원 스트로크. 빛줄기가 있는 곳에서 선이 굵고 촘촘해지며 끝이 불꽃처럼 끊김
+• 라벨은 더스티 블루(#bbcbda) 면 + 동심원 몇 줄, 테두리는 외곽선 + 옆면 세로 해칭
+• 바닥에 동심원과 사선 냙서로 그린 그림자
+구현 원리
+1. 하나의 ShaderMaterial을 glb의 세 프리미티브 모두에 적용합니다. 영역(라벨, 런아웃, grooves, 테두리, 옆면)은 픽셀의 로컬 반지름 r과 노멀로 구분합니다.
+2. 빛줄기 = 잉크 밀도. Kajiya-Kay 조명(홈 방향 = 원주 방향)으로 방사형 빛줄기를 계산하고, 밝을수록 동심원 선을 굵게 그립니다. 조명은 모델 로컬 공간에서 계산하므로, 매 프레임 카메라 위치와 빛 방향을 로컬로 변환해 uniform으로 넣습니다.
+3. 손그림 느낌. r 방향으로 빠르고 θ 방향으로 느린 노이즈로 밀도를 흔들어 불꽃 모양 스트로크를 만들고, 반지름을 살짝 흔들어 손떨림을 넣습니다.
+4. 모아레 방지. fwidth로 선 주기가 약 3px보다 작아지면 선 대신 평균 톤으로 바꿉니다(hatch() 함수).
+5. 투명 출력. 종이 부분은 alpha 0, 잉크만 premultiplied로 출력합니다. 캔버스는 투명하게 두고 CSS 종이 배경과 텍스처가 비치게 합니다.
+6. Depth 프리패스. 디스크 depth를 색 없이 먼저 기록(renderOrder 0) → 바닥 그림자(1) → 잉크 패스(2) 순서로 그립니다. 이게 없으면 뒷면과 그림자가 투명한 종이 부분으로 비칩니다.
+7. 그림자는 실제 그림자 계산 없이 바닥 평면 셰이더로 그립니다.
+파라미터
+prop
+기본값
+의미
+lineFreq
+75
+선 밀도(반지름 1당 줄 수)
+streak
+1.1
+빛줄기 강도
+sharp
+60
+빛줄기 선명도. 클수록 가늘고 날카로움
+base
+0.1
+빛이 없는 곳에도 남는 기본 홈선
+rough
+0.85
+스트로크 끝 거칠기
+wobble
+0.0012
+손떨림
+shadow
+0.45
+바닥 그림자 농도
+ink / label
+#4f6d93 / #bbcbda
+잉크 선 색 / 라벨 면 색 (sRGB hex)
+rpm
+8
+회전. 빛줄기는 제자리에 머물고 노이즈만 돌아 끝이 살짝 일렁임
+followPointer
+true
+커서 위치로 빛 방향 이동
+thickness
+1.8
+모델 Y 스케일. 테두리를 일러스트처럼 두껍게
+주의사항
+• glb에서 보이는 윗면의 노멀이 -Y로 뒤집혀 있습니다. 셰이더가 항상 카메라 쪽으로 노멀을 뒤집어 대응하지만, Blender에서 Recalculate Outside로 고치는 것이 좋습니다
+• ShaderMaterial은 색 공간 변환을 하지 않으므로, 색은 THREE.Color를 거치지 말고 hexToRgb()로 sRGB 값을 그대로 넘깁니다
+• 캔버스 배경을 넣지 말고 투명하게 유지해야 합니다(gl={{ alpha: true }}, <color attach="background"> 금지)
+• 다크 모드에서는 ink/label prop만 바꾸면 됩니다(프리뷰 기준: 배경 #2a222a, ink #a9c1db, label #4d5f74)
+잉크 스타일 코드
+세 파일을 같은 폴더(예: components/vinyl/)에 둡니다. three r169, @react-three/fiber 9, @react-three/drei 10 기준으로 타입 체크와 렌더링을 확인했습니다.
+inkShaders.ts
+// 잉크 드로잉(인그레이빙) 스타일 바이닐 셰이더
+// 모든 색은 sRGB 값을 그대로 vec3(0..1)로 넘긴다 (ShaderMaterial은 colorspace 변환을 하지 않음).
+
+export const NOISE = /* glsl */`
+float hash3(vec3 p){ p = fract(p*0.3183099 + 0.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+float noise3(vec3 x){
+  vec3 i = floor(x); vec3 f = fract(x); f = f*f*(3.0-2.0*f);
+  return mix(mix(mix(hash3(i+vec3(0,0,0)),hash3(i+vec3(1,0,0)),f.x),
+                 mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),
+                 mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);
+}
+// 화면 픽셀 기준 두께의 링(선)
+float ring(float v, float c, float px){
+  float d = abs(v - c) / max(fwidth(v), 1e-6);
+  return 1.0 - smoothstep(px - 0.6, px + 0.6, d);
+}
+// 주기 패턴 위 선: 밀도(0..1)만큼 굵어지고, 너무 촘촘하면 평균 톤으로 페이드(모아레 방지)
+float hatch(float coord, float density){
+  float fw = fwidth(coord);
+  float d = abs(fract(coord) - 0.5);
+  float halfW = 0.5 * density;
+  float line = 1.0 - smoothstep(halfW - fw, halfW + fw, d);
+  line *= step(0.001, density);
+  return mix(line, density * 0.8, smoothstep(0.38, 0.8, fw));
+}
+`
+
+export const discVert = /* glsl */`
+varying vec3 vLocal;
+varying vec3 vLocalN;
+void main(){
+  vLocal = position;
+  vLocalN = normal;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  gl_Position = projectionMatrix * mv;
+}`
+
+export const discFrag = /* glsl */`
+precision highp float;
+varying vec3 vLocal;
+varying vec3 vLocalN;
+uniform vec3 uInk, uLabel;
+uniform vec3 uCamLocal, uLightLocal;
+uniform float uLineFreq, uStreak, uSharp, uRough, uWobble, uBase;
+uniform float uTrackCount, uGapWidth, uInnerR, uOuterR, uLabelR, uHoleR, uTopY, uBotY;
+${NOISE}
+
+vec4 over(vec4 top, vec4 bottom){ // premultiplied over
+  return top + bottom * (1.0 - top.a);
+}
+
+void main(){
+  vec3 p = vLocal;
+  float r = length(p.xz);
+  vec2 cs = p.xz / max(r, 1e-5);
+  float isSide = 1.0 - smoothstep(0.3, 0.7, abs(vLocalN.y));
+
+  // 손떨림: 반지름을 θ 방향 노이즈로 살짝 흔듦
+  float rr = r + (noise3(vec3(cs * 3.0, r * 4.0)) - 0.5) * uWobble;
+
+  // ---- 조명: Kajiya-Kay (홈 방향 = 원주 방향) ----
+  vec3 V = normalize(uCamLocal - p);
+  // 보이는 면이 항상 카메라를 향하도록 (모델 노멀 방향과 무관)
+  vec3 N = isSide > 0.5 ? faceforward(normalize(vLocalN), -V, normalize(vLocalN)) : vec3(0.0, V.y >= 0.0 ? 1.0 : -1.0, 0.0);
+  vec3 L = normalize(uLightLocal);
+  vec3 T = vec3(-cs.y, 0.0, cs.x);
+  vec3 H = normalize(L + V);
+  float th = dot(T, H);
+  float kk = sqrt(max(0.0, 1.0 - th * th));
+  float spec = pow(kk, uSharp) + 0.35 * pow(kk, uSharp * 0.12);
+  spec *= smoothstep(0.0, 0.15, dot(N, V)) * smoothstep(-0.1, 0.25, dot(N, L));
+
+  vec4 col = vec4(0.0);
+
+  if (isSide > 0.5) {
+    // ---- 옆면: 세로 해칭 + 위/아래 모서리 선 ----
+    float a = atan(p.z, p.x) / 6.2831853;
+    float shade = 0.35 + 0.45 * (1.0 - max(dot(N, L), 0.0));
+    float n = noise3(vec3(cs * 6.0, p.y * 40.0));
+    float v = hatch(a * 720.0, clamp(shade + (n - 0.5) * 0.3, 0.0, 1.0) * 0.55);
+    float edge = max(ring(p.y, uTopY, 1.1), ring(p.y, uBotY, 1.3));
+    float ink = max(v, edge);
+    // 홈 영역 경계의 작은 턱은 그냥 선 한 줄처럼
+    if (r < uOuterR + 0.01) ink = max(ink, 0.85);
+    col = vec4(uInk * ink, ink);
+  } else {
+    float ink = 0.0;
+    vec4 fill = vec4(0.0);
+
+    if (r < uLabelR) {
+      // ---- 라벨: 옅은 블루 면 + 동심원 몇 줄 + 테두리 ----
+      fill = vec4(uLabel, 1.0) * 0.9;
+      float rings = max(ring(rr, uLabelR * 0.91, 0.6), ring(rr, uLabelR * 0.84, 0.5));
+      rings = max(rings, ring(rr, uLabelR * 0.42, 0.5));
+      rings = max(rings, ring(rr, uLabelR * 0.30, 0.5));
+      ink = max(rings * 0.75, ring(r, uLabelR, 1.2));
+      ink = max(ink, ring(r, uHoleR, 1.2));
+      ink = max(ink, spec * uStreak * 0.12 * hatch(rr * uLineFreq * 0.6, 0.3));
+    } else if (r < uInnerR) {
+      // ---- 런아웃: 아주 성긴 선 ----
+      float n = noise3(vec3(cs * 2.5, r * 70.0));
+      float d = clamp(uBase * 0.6 + spec * uStreak * 0.5 + (n - 0.5) * 0.4 * uRough, 0.0, 1.0);
+      ink = hatch(rr * uLineFreq * 0.35, d * 0.5) * 0.8;
+      ink = max(ink, ring(r, uInnerR, 0.8));
+    } else if (r < uOuterR) {
+      // ---- grooves: 빛줄기 = 잉크 밀도 ----
+      float n = noise3(vec3(cs * 2.2, r * 85.0));          // r로 빠르게, θ로 느리게 → 불꽃 모양 스트로크
+      float n2 = noise3(vec3(cs * 9.0, r * 300.0));
+      float d = uBase + spec * uStreak;
+      d += (n - 0.5) * 0.9 * uRough + (n2 - 0.5) * 0.25 * uRough;
+      d = smoothstep(0.08, 0.95, d);
+
+      // 트랙 사이 gap: 해칭 없음 + 경계선
+      float span = (uOuterR - uInnerR) / uTrackCount;
+      float t = (r - uInnerR) / span;
+      float dist = abs(fract(t + 0.5) - 0.5) * span;
+      float interior = step(0.5, t) * step(t, uTrackCount - 0.5);
+      float gap = interior * (1.0 - smoothstep(uGapWidth * 0.5, uGapWidth * 0.5 + 0.002, dist));
+      ink = hatch(rr * uLineFreq, d) * (1.0 - gap);
+      float k = floor(t + 0.5);
+      if (interior > 0.5) ink = max(ink, ring(r, uInnerR + k * span, 0.7) * 0.9);
+    } else {
+      // ---- 바깥 테두리 ----
+      ink = max(ring(r, uOuterR, 0.7) * 0.8, ring(r, 0.997, 1.4));
+    }
+    col = over(vec4(uInk * ink, ink), fill);
+  }
+
+  gl_FragColor = col;   // premultiplied, 종이 부분은 투명
+}`
+
+export const shadowVert = /* glsl */`
+varying vec2 vXZ;
+void main(){
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vXZ = wp.xz;
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}`
+
+export const shadowFrag = /* glsl */`
+precision highp float;
+varying vec2 vXZ;
+uniform vec3 uInk;
+uniform vec2 uCenter;
+uniform vec2 uRadius;
+uniform float uShadow, uRough;
+${NOISE}
+void main(){
+  vec2 q = (vXZ - uCenter) / uRadius;
+  float len = length(q);
+  vec2 cs = q / max(len, 1e-5);
+  float n = noise3(vec3(cs * 2.0, len * 14.0));
+  float n2 = noise3(vec3(q * 9.0, 3.0));
+  float body = 1.0 - smoothstep(0.35, 1.05 + (n - 0.5) * 0.25, len);
+  float d = clamp(body * uShadow * 0.75 + (n2 - 0.5) * 0.35 * uRough * body, 0.0, 1.0);
+  float scrib = hatch(dot(q, vec2(0.8, 0.6)) * 34.0 + (n2 - 0.5) * 1.6, d * 0.55);
+  float lines = max(hatch(len * 16.0 + (n - 0.5) * 1.2, d * 0.4), scrib * smoothstep(0.55, 0.75, n) * body);
+  // 바깥으로 퍼지는 몇 줄의 스케치 링
+  float halo = 0.0;
+  for (int i = 0; i < 3; i++) {
+    float R = 1.05 + float(i) * 0.09 + (noise3(vec3(cs * 1.5, float(i))) - 0.5) * 0.06;
+    halo = max(halo, ring(len, R, 0.5) * (0.55 - float(i) * 0.15));
+  }
+  float ink = max(lines, halo * uShadow);
+  ink *= 1.0 - smoothstep(1.2, 1.45, len);
+  gl_FragColor = vec4(uInk * ink, ink) * 0.45;
+}`
+
+export const inkDefaults = {
+  lineFreq: 75,      // 선 밀도 (반지름 1당 줄 수)
+  streak: 1.1,       // 빛줄기 강도
+  sharp: 60,         // 빛줄기 선명도 (클수록 가늘고 날카로움)
+  base: 0.1,         // 빛이 없는 곳에도 남는 기본 홈선
+  rough: 0.85,       // 스트로크 끝 거칠기 (노이즈 양)
+  wobble: 0.0012,    // 손떨림 (반지름 흔들림)
+  shadow: 0.45,      // 바닥 그림자 농도
+  trackCount: 5,
+  gapWidth: 0.006,
+  innerR: 0.46,
+  outerR: 0.965,
+  labelR: 0.3303,
+  holeR: 0.0254,
+  topY: 0.0,
+  botY: -0.0215,
+}
+
+export const hexToRgb = (hex: string): [number, number, number] => {
+  const h = hex.trim().replace('#', '')
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  const n = parseInt(full, 16)
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
+}
+InkVinyl.tsx
+'use client'
+
+import { useGLTF } from '@react-three/drei'
+import { useFrame, useThree, type ThreeElements } from '@react-three/fiber'
+import { useEffect, useMemo, useRef } from 'react'
+import * as THREE from 'three'
+import {
+  discFrag,
+  discVert,
+  hexToRgb,
+  inkDefaults,
+  shadowFrag,
+  shadowVert,
+} from './inkShaders'
+
+type InkParams = typeof inkDefaults
+
+type InkVinylProps = Partial<InkParams> & {
+  url?: string
+  /** 잉크 선 색 (sRGB hex) */
+  ink?: string
+  /** 라벨 면 색 (sRGB hex) */
+  label?: string
+  /** 회전 속도. 0 = 정지 */
+  rpm?: number
+  /** 커서 위치로 빛 방향을 움직일지 */
+  followPointer?: boolean
+  /** 테두리를 일러스트처럼 두껍게 (모델 Y 스케일) */
+  thickness?: number
+} & ThreeElements['group']
+
+const LIGHT_BASE = new THREE.Vector3(-0.55, 1.0, 0.35).normalize()
+const UP = new THREE.Vector3(0, 1, 0)
+
+export function InkVinyl({
+  url = '/models/vinyl.glb',
+  ink = '#4f6d93',
+  label = '#bbcbda',
+  rpm = 8,
+  followPointer = true,
+  thickness = 1.8,
+  ...rest
+}: InkVinylProps) {
+  // props를 셰이더 파라미터와 group props로 분리
+  const params = { ...inkDefaults }
+  const groupProps: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(rest)) {
+    if (k in inkDefaults) (params as Record<string, number>)[k] = v as number
+    else groupProps[k] = v
+  }
+
+  const { scene } = useGLTF(url)
+  const { camera, pointer } = useThree()
+  const spinRef = useRef<THREE.Group>(null)
+  const discRef = useRef<THREE.Object3D | null>(null)
+
+  const uniforms = useMemo(
+    () => ({
+      uInk: { value: new THREE.Vector3() },
+      uLabel: { value: new THREE.Vector3() },
+      uCamLocal: { value: new THREE.Vector3() },
+      uLightLocal: { value: new THREE.Vector3() },
+      uLineFreq: { value: inkDefaults.lineFreq },
+      uStreak: { value: inkDefaults.streak },
+      uSharp: { value: inkDefaults.sharp },
+      uRough: { value: inkDefaults.rough },
+      uWobble: { value: inkDefaults.wobble },
+      uBase: { value: inkDefaults.base },
+      uTrackCount: { value: inkDefaults.trackCount },
+      uGapWidth: { value: inkDefaults.gapWidth },
+      uInnerR: { value: inkDefaults.innerR },
+      uOuterR: { value: inkDefaults.outerR },
+      uLabelR: { value: inkDefaults.labelR },
+      uHoleR: { value: inkDefaults.holeR },
+      uTopY: { value: inkDefaults.topY },
+      uBotY: { value: inkDefaults.botY },
+    }),
+    [],
+  )
+
+  const shadowUniforms = useMemo(
+    () => ({
+      uInk: uniforms.uInk, // 디스크와 같은 잉크 색 공유
+      uRough: uniforms.uRough,
+      uCenter: { value: new THREE.Vector2(0.12, 0.1) },
+      uRadius: { value: new THREE.Vector2(1.12, 0.92) },
+      uShadow: { value: inkDefaults.shadow },
+    }),
+    [uniforms],
+  )
+
+  const { inkMat, depthMat, shadowMat } = useMemo(() => {
+    const inkMat = new THREE.ShaderMaterial({
+      vertexShader: discVert,
+      fragmentShader: discFrag,
+      uniforms,
+      transparent: true,
+      premultipliedAlpha: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    })
+    // 디스크를 "불투명한 종이"로: 색은 안 쓰고 depth만 먼저 기록
+    const depthMat = new THREE.MeshBasicMaterial({
+      colorWrite: false,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    })
+    const shadowMat = new THREE.ShaderMaterial({
+      vertexShader: shadowVert,
+      fragmentShader: shadowFrag,
+      uniforms: shadowUniforms,
+      transparent: true,
+      premultipliedAlpha: true,
+      depthWrite: false,
+    })
+    return { inkMat, depthMat, shadowMat }
+  }, [uniforms, shadowUniforms])
+
+  // 모델 복제 → 메시마다 depth 프리패스 + 잉크 패스
+  const model = useMemo(() => {
+    const cloned = scene.clone(true)
+    cloned.scale.set(1, thickness, 1)
+    const meshes: THREE.Mesh[] = []
+    cloned.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh)
+    })
+    for (const m of meshes) {
+      const pre = new THREE.Mesh(m.geometry, depthMat)
+      pre.renderOrder = 0
+      m.parent?.add(pre)
+      m.material = inkMat
+      m.renderOrder = 2
+    }
+    discRef.current = meshes[0] ?? null
+    return cloned
+  }, [scene, inkMat, depthMat, thickness])
+
+  // props → uniforms
+  useEffect(() => {
+    uniforms.uInk.value.set(...hexToRgb(ink))
+    uniforms.uLabel.value.set(...hexToRgb(label))
+    uniforms.uLineFreq.value = params.lineFreq
+    uniforms.uStreak.value = params.streak
+    uniforms.uSharp.value = params.sharp
+    uniforms.uRough.value = params.rough
+    uniforms.uWobble.value = params.wobble
+    uniforms.uBase.value = params.base
+    uniforms.uTrackCount.value = params.trackCount
+    uniforms.uGapWidth.value = params.gapWidth
+    shadowUniforms.uShadow.value = params.shadow
+  })
+
+  useEffect(
+    () => () => {
+      inkMat.dispose()
+      depthMat.dispose()
+      shadowMat.dispose()
+    },
+    [inkMat, depthMat, shadowMat],
+  )
+
+  const inv = useMemo(() => new THREE.Matrix4(), [])
+  const tmp = useMemo(() => new THREE.Vector3(), [])
+  const lightDir = useMemo(() => LIGHT_BASE.clone(), [])
+  const smooth = useMemo(() => new THREE.Vector2(), [])
+  const zero = useMemo(() => new THREE.Vector2(), [])
+
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.05)
+    if (spinRef.current && rpm !== 0) {
+      spinRef.current.rotation.y -= (rpm / 60) * Math.PI * 2 * dt
+    }
+
+    // 커서 → 빛 방위각 (R3F pointer는 y가 위로 +)
+    smooth.lerp(followPointer ? pointer : zero, 1 - Math.exp(-dt * 3))
+    lightDir.copy(LIGHT_BASE).applyAxisAngle(UP, -smooth.x * 1.1)
+    lightDir.y = LIGHT_BASE.y - smooth.y * 0.35
+    lightDir.normalize()
+
+    // 셰이더는 모델 로컬 공간에서 조명 계산 → 카메라·빛을 로컬로 변환
+    const disc = discRef.current
+    if (disc) {
+      disc.updateWorldMatrix(true, false)
+      inv.copy(disc.matrixWorld).invert()
+      uniforms.uCamLocal.value.copy(tmp.copy(camera.position).applyMatrix4(inv))
+      uniforms.uLightLocal.value.copy(tmp.copy(lightDir).transformDirection(inv))
+    }
+  })
+
+  return (
+    <group {...(groupProps as ThreeElements['group'])}>
+      {/* 바닥 그림자: 디스크 depth 뒤에 그려져야 하므로 renderOrder 1 */}
+      <mesh position-y={-0.42} rotation-x={-Math.PI / 2} renderOrder={1} material={shadowMat}>
+        <planeGeometry args={[6, 6]} />
+      </mesh>
+      <group position={[0, 0.12, 0]} rotation={[0.2, 0, 0.17]}>
+        <group ref={spinRef}>
+          <primitive object={model} />
+        </group>
+      </group>
+    </group>
+  )
+}
+
+useGLTF.preload('/models/vinyl.glb')
+InkVinylScene.example.tsx
+'use client'
+
+import { OrbitControls } from '@react-three/drei'
+import { Canvas } from '@react-three/fiber'
+import { InkVinyl } from './InkVinyl'
+
+// 캔버스는 투명 → 뒤의 종이 배경/텍스처(CSS)가 그대로 보임
+export default function InkVinylScene() {
+  return (
+    <div className="relative h-dvh w-full bg-[#f4e7cd]">
+      <Canvas
+        className="absolute inset-0"
+        dpr={[1, 2]}
+        gl={{ alpha: true, antialias: true }}
+        camera={{ position: [0, 2.15, 4.6], fov: 30, near: 0.05, far: 50 }}
+      >
+        <InkVinyl ink="#4f6d93" label="#bbcbda" rpm={8} />
+        <OrbitControls
+          target={[0, 0.05, 0]}
+          enableDamping
+          enablePan={false}
+          minDistance={1.2}
+          maxDistance={9}
+          maxPolarAngle={Math.PI * 0.47}
+        />
+      </Canvas>
+    </div>
+  )
+}
