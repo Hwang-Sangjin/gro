@@ -56,7 +56,8 @@ Home은 한 화면(100svh)에서 섹션을 바꿉니다. 문서 스크롤은 쓰
 
 - 서체: Playfair Display → `Grooves Bodoni`, Inter → 사이트 본문 서체(PP Neue Montreal), 한글은 시스템 서체.
 - 프로토타입의 조정 패널, 자체 헤더·Flip the crate 버튼, ↺ Play it again 버튼은 뺐습니다. 사이트 공용 내비게이션과 핸들을 씁니다. News 푸터 가운데는 핸들 자리로 비워 두었습니다.
-- 상단 여백은 사이트 헤더 높이(`--ct-header-h`) 기준으로 맞췄고, 세로 화면의 다이얼은 핸들과 겹치지 않게 조금 올렸습니다.
+- 스테이지(3D·섹션 내용)는 사이트 헤더 바로 아래에서 시작합니다. 엔진이 `.ct-navbar` 높이를 재서 맞추므로 헤더가 장면을 가리지 않습니다. 세로 화면의 다이얼은 핸들과 겹치지 않게 조금 올렸습니다.
+- 크기: Hero 판은 바깥 타이포 링까지 화면에 들어오게 `HERO_COMPOSITION`, New Vinyls는 `LANDED_COMPOSITION`, 다이얼은 `layoutDial()`의 `geo.R`, News·장르 패널 글자·커버는 HomeStage의 `clamp()` 값으로 조정합니다.
 - 인트로(프리로더)가 덮고 있는 동안은 3D를 그리지 않고, 끝나면 회전이 출발합니다.
 
 ## 이제 Home에서 쓰지 않는 파일

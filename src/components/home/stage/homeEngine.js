@@ -222,7 +222,9 @@ export async function createHomeEngine(opts) {
   const HERO_COMPOSITION = {
     tilt: (40 * Math.PI) / 180,
     roll: (33 * Math.PI) / 180,
-    widthFraction: 0.74, compactWidthFraction: 0.9, heightFraction: 0.86,
+    // 판 지름이 스테이지에서 차지하는 비율. 바깥 타이포 링(판의 약 1.3배)까지 화면 안에 들어오게
+    widthFraction: 0.58, compactWidthFraction: 0.74, heightFraction: 0.68,
+    reservePx: 72,                // 아래 'Flip the crate' 핸들 자리
   };
   function getHeroRecordScale(width, height, pixelHeight) {
     const { tilt, roll, widthFraction, compactWidthFraction, heightFraction } = HERO_COMPOSITION;
@@ -232,7 +234,7 @@ export async function createHomeEngine(opts) {
     const projectedHeight = 2 * Math.hypot(s, shortAxis * c) + thickness * Math.abs(c);
     const portraitBlend = Math.min(1, Math.max(0, (1.25 - width / height) / 0.5));
     const targetWidth = widthFraction + (compactWidthFraction - widthFraction) * portraitBlend;
-    const safeHeightFraction = Math.min(heightFraction, Math.max(0.1, 1 - 208 / pixelHeight));
+    const safeHeightFraction = Math.min(heightFraction, Math.max(0.1, 1 - HERO_COMPOSITION.reservePx / pixelHeight));
     return Math.min((width * targetWidth) / projectedWidth, (height * safeHeightFraction) / projectedHeight);
   }
 
@@ -241,9 +243,9 @@ export async function createHomeEngine(opts) {
   const LANDED_COMPOSITION = {
     tilt: (19 * Math.PI) / 180,   // 단축/장축 ≈ 0.33 → 넓게 누운 타원
     roll: 0,
-    widthFraction: 0.66,          // 판(반지름 1) 지름이 화면 폭 기준 비율
-    heightFraction: 0.64,
-    centerY: -0.1,                // 화면 높이 대비 중심 위치 (+ = 위). 앨범이 주인공이라 판은 아래로
+    widthFraction: 0.52,          // 판(반지름 1) 지름이 화면 폭 기준 비율
+    heightFraction: 0.46,
+    centerY: -0.03,               // 화면 높이 대비 중심 위치 (+ = 위). 앨범이 주인공이라 판은 아래로
   };
   function getLandedRecordScale(width, height) {
     const { tilt, widthFraction, heightFraction } = LANDED_COMPOSITION;
@@ -1572,7 +1574,14 @@ export async function createHomeEngine(opts) {
 
   /* ================= 리사이즈 ================= */
   let heroScale = 1, landedScale = 1, viewH = 10;
+  // 스테이지는 사이트 헤더 아래에서 시작 (헤더가 장면을 가리지 않게)
+  const navbar = layer.querySelector?.('.ct-navbar');
+  const placeStage = () => {
+    const top = navbar ? Math.round(navbar.offsetTop + navbar.offsetHeight) : 0;
+    host.style.top = `${top}px`;
+  };
   const resize = () => {
+    placeStage();
     const w = canvas.clientWidth, h = canvas.clientHeight;
     renderer.setSize(w, h, false);
     dustMat.uniforms.uPixelRatio.value = renderer.getPixelRatio();
@@ -1584,6 +1593,10 @@ export async function createHomeEngine(opts) {
     viewH = h / ZOOM;
   };
   on(window, 'resize', resize); resize();
+  // 헤더 높이가 바뀌어도(폰트 로딩·반응형) 다시 맞춤
+  const headerObserver = navbar ? new ResizeObserver(() => { if (ready) { resize(); layoutDial(); } }) : null;
+  headerObserver?.observe(navbar);
+  cleanups.push(() => headerObserver?.disconnect());
 
   /* ================= 회전 출발 ================= */
   // 인트로(로딩)가 끝난 뒤부터 대기·출발
@@ -1906,7 +1919,7 @@ export async function createHomeEngine(opts) {
     } else spawnTrain(false);
   }
   function updateWaves(dt, show) {
-    const W = innerWidth, H = innerHeight;
+    const W = host.clientWidth, H = host.clientHeight;
     updateBeat(dt);
     if (reduceMotion) { waveRenderer.clear(); return; }
     if (section === 2 && catP > 0.9) {
@@ -1984,7 +1997,7 @@ export async function createHomeEngine(opts) {
   });
 
   function layoutDial() {
-    const W = innerWidth, H = innerHeight;
+    const W = host.clientWidth, H = host.clientHeight;
     geo.portrait = W / H < 0.9;
     if (geo.portrait) {
       // 세로 화면: 아래쪽에 반쯤 걸치고 바늘은 위(12시)
@@ -1994,8 +2007,8 @@ export async function createHomeEngine(opts) {
       geo.needle = -Math.PI / 2;
     } else {
       // 가로 화면: 왼쪽에 반쯤 걸치고 바늘은 오른쪽(3시)
-      geo.R = Math.min(H * 0.46, W * 0.34);
-      geo.cx = W * 0.06; geo.cy = H * 0.54;
+      geo.R = Math.min(H * 0.64, W * 0.33);
+      geo.cx = W * 0.05; geo.cy = H * 0.52;
       geo.needle = 0;
     }
     const { cx, cy, R, needle } = geo;
@@ -2006,12 +2019,12 @@ export async function createHomeEngine(opts) {
     void needle;
     // 정보 패널 위치
     if (geo.portrait) {
-      Object.assign($gdPanel.style, { left: '1.5rem', top: 'calc(var(--ct-header-h, 106px) + 0.75rem)', bottom: '', transform: '' });
+      Object.assign($gdPanel.style, { left: '1.5rem', top: '1rem', bottom: '', transform: '' });
     } else {
-      const left = Math.max(cx + R * 1.28, W * 0.48);
+      const left = Math.max(cx + R * 1.22, W * 0.46);
       Object.assign($gdPanel.style, { left: `${left}px`, top: '50%', transform: 'translateY(-50%)' });
     }
-    const fs = Math.max(15, Math.min(30, R * 0.07));
+    const fs = Math.max(15, Math.min(44, R * 0.075));
     genreButtons.forEach((b) => { b.style.fontSize = `${fs}px`; });
   }
 
@@ -2023,7 +2036,7 @@ export async function createHomeEngine(opts) {
     covers.replaceChildren(...[0, 1, 2].map((n) => {
       const c = list?.[n];
       const el = document.createElement(c?.url ? 'img' : 'span');
-      el.className = `block aspect-square h-full w-auto shrink-0 rounded-[2px] object-cover shadow-[0_10px_24px_rgba(0,0,0,0.28)] ${n ? '-ml-6' : ''}`;
+      el.className = `block aspect-square h-full w-auto shrink-0 rounded-[2px] object-cover shadow-[0_14px_32px_rgba(0,0,0,0.3)] ${n ? '-ml-[clamp(1.5rem,2.6vw,3.5rem)]' : ''}`;
       el.style.cssText = coverTilt(n) + `;background-color:${c?.color || (n === 1 ? g.label : g.ink)}`;
       if (c?.url) { el.src = c.url; el.alt = ''; el.loading = 'lazy'; el.onerror = () => { el.removeAttribute('src'); el.style.visibility = 'hidden'; }; }
       return el;
@@ -2093,7 +2106,8 @@ export async function createHomeEngine(opts) {
     dialDragging = false;
     if ($gdHit.hasPointerCapture(e.pointerId)) $gdHit.releasePointerCapture(e.pointerId);
     // 끌지 않고 눌렀다 뗐으면 = 클릭 → 누른 장르로 바로 (가까운 방향으로 돌아감)
-    const tap = dialMoved ? -1 : genreAt(e.clientX, e.clientY);
+    const hr = host.getBoundingClientRect();
+    const tap = dialMoved ? -1 : genreAt(e.clientX - hr.left, e.clientY - hr.top);
     if (tap >= 0) selectGenre(tap);
     else setDial(Math.round(dialTarget / DIAL.step));   // 가장 가까운 장르로 스냅
   };
@@ -2122,7 +2136,8 @@ export async function createHomeEngine(opts) {
   }
   on($gdHit, 'pointermove', (e) => {
     if (dialDragging || e.pointerType !== 'mouse') return;
-    hoverGenre = genreAt(e.clientX, e.clientY);
+    const hr = host.getBoundingClientRect();
+    hoverGenre = genreAt(e.clientX - hr.left, e.clientY - hr.top);
   });
   on($gdHit, 'pointerleave', () => { hoverGenre = -1; });
   on($gdHit, 'pointerup', endDial);
@@ -2412,7 +2427,7 @@ export async function createHomeEngine(opts) {
     const catEase = easeInOut(catP);
     if (catEase > 0) {
       const dialScale = (geo.R * 0.5) / ZOOM;                 // 판 반지름 = 다이얼 반지름의 절반
-      const dx = (geo.cx - innerWidth / 2) / ZOOM, dy = (innerHeight / 2 - geo.cy) / ZOOM;
+      const dx = (geo.cx - canvas.clientWidth / 2) / ZOOM, dy = (canvas.clientHeight / 2 - geo.cy) / ZOOM;
       comp.rotation.x = THREE.MathUtils.lerp(comp.rotation.x, Math.PI / 2, catEase);
       root.rotation.z = THREE.MathUtils.lerp(root.rotation.z, 0, catEase);
       root.scale.setScalar(THREE.MathUtils.lerp(root.scale.x, dialScale, catEase));
@@ -2424,17 +2439,17 @@ export async function createHomeEngine(opts) {
     //  Genre dial → News: 판이 오른쪽 칸(news-disc)으로 옮겨 가 턴테이블 위처럼 비스듬히 눕고 돎
     const newsEase = easeInOut(newsP);
     if (newsEase > 0) {
-      const r = $newsDisc.getBoundingClientRect();
-      const ncx = r.width > 0 ? r.left + r.width / 2 : innerWidth * 1.3;    // 자리가 없으면 화면 밖으로
-      const ncy = r.width > 0 ? r.top + r.height / 2 : innerHeight / 2;
+      const r = $newsDisc.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
+      const ncx = r.width > 0 ? r.left - cr.left + r.width / 2 : cr.width * 1.3;    // 자리가 없으면 화면 밖으로
+      const ncy = r.width > 0 ? r.top - cr.top + r.height / 2 : cr.height / 2;
       const nScale = Math.max(r.width, 120) * NEWS_COMPOSITION.fill / ZOOM;
       comp.rotation.x = THREE.MathUtils.lerp(comp.rotation.x, NEWS_COMPOSITION.tilt, newsEase);
       root.rotation.z = THREE.MathUtils.lerp(root.rotation.z, NEWS_COMPOSITION.roll, newsEase);
       root.scale.setScalar(THREE.MathUtils.lerp(root.scale.x, nScale, newsEase));
       // 옮겨 가는 동안 살짝 떠올랐다 내려앉음
       const hop = Math.sin(Math.PI * newsEase) * 0.06 * viewH;
-      root.position.x = THREE.MathUtils.lerp(root.position.x, (ncx - innerWidth / 2) / ZOOM, newsEase);
-      root.position.y = THREE.MathUtils.lerp(root.position.y, (innerHeight / 2 - ncy) / ZOOM, newsEase) + hop;
+      root.position.x = THREE.MathUtils.lerp(root.position.x, (ncx - cr.width / 2) / ZOOM, newsEase);
+      root.position.y = THREE.MathUtils.lerp(root.position.y, (cr.height / 2 - ncy) / ZOOM, newsEase) + hop;
       // 판이 바늘을 만나듯 옮겨 가는 동안 한 번 빠르게 돎
       if (newsTweening) spin.rotation.y -= Math.sin(Math.PI * newsP) * 5 * dt;
     }
