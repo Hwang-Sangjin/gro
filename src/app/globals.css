@@ -958,7 +958,9 @@ body:has(.album-detail-page) .ct-navbar,body:has(.album-detail-page) .ct-navbar 
   --ct-header-fg: var(--ink);
   contain: layout paint;
 }
-.ct-page[data-crate-path="/"] { --ct-header-bg:var(--page-bg); --ct-header-fg:var(--page-fg); }
+/* Home: 헤더는 투명 — 아래 페이지 배경(--wire-t로 크림 ↔ 잉크)이 그대로 비침 */
+.ct-page[data-crate-path="/"] { --ct-header-bg:transparent; --ct-header-fg:var(--page-fg); }
+.ct-page[data-crate-path="/"] > .ct-navbar::before { display:none; }
 .ct-page:has(.paper-textured) > .ct-navbar::before {
   content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
   opacity:var(--paper-texture-opacity);

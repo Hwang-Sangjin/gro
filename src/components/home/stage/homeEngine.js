@@ -243,9 +243,9 @@ export async function createHomeEngine(opts) {
   const LANDED_COMPOSITION = {
     tilt: (19 * Math.PI) / 180,   // 단축/장축 ≈ 0.33 → 넓게 누운 타원
     roll: 0,
-    widthFraction: 0.52,          // 판(반지름 1) 지름이 화면 폭 기준 비율
-    heightFraction: 0.46,
-    centerY: -0.03,               // 화면 높이 대비 중심 위치 (+ = 위). 앨범이 주인공이라 판은 아래로
+    widthFraction: 0.46,          // 판(반지름 1) 지름이 화면 폭 기준 비율
+    heightFraction: 0.4,
+    centerY: -0.1,               // 화면 높이 대비 중심 위치 (+ = 위). 앨범이 주인공이라 판은 아래로
   };
   function getLandedRecordScale(width, height) {
     const { tilt, widthFraction, heightFraction } = LANDED_COMPOSITION;

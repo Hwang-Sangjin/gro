@@ -131,7 +131,7 @@ export default function HomeStage() {
       data-home-stage
       data-crate-ignore
       data-lenis-prevent
-      className="absolute inset-x-0 bottom-0 top-[var(--ct-header-h,106px)] touch-pan-y overflow-hidden bg-[var(--hs-paper,#f4e7cd)] text-[var(--hs-text,#4c404a)] [&.custom-cursor]:cursor-none [&.custom-cursor_*]:cursor-none!"
+      className="absolute inset-x-0 bottom-0 top-[var(--ct-header-h,106px)] touch-pan-y overflow-hidden text-[var(--hs-text,#4c404a)] [&.custom-cursor]:cursor-none [&.custom-cursor_*]:cursor-none!"
     >
       {/* 3D 캔버스는 homeEngine이 이 안에 만듦 */}
       <div id="hs-canvas" className="absolute inset-0" />
@@ -177,15 +177,15 @@ export default function HomeStage() {
            화면보다 길면 이 안에서 스크롤 (맨 위에서 위로 스크롤하면 Genre dial로) */}
       <div id="news" data-lenis-prevent className="invisible absolute inset-0 overflow-y-auto overscroll-contain opacity-0" role="region" aria-labelledby="news-title">
         <div className="mx-auto flex min-h-full w-full max-w-[min(120rem,100%)] flex-col px-6 pb-3 pt-[clamp(1rem,3.5vh,3rem)] sm:px-10 lg:px-[5vw]">
-          <div className="grid flex-1 grid-cols-1 items-start gap-x-[4vw] lg:grid-cols-[minmax(0,1fr)_clamp(15rem,22vw,30rem)]">
+          <div className="my-auto grid grid-cols-1 items-center gap-x-[4vw] lg:grid-cols-[minmax(0,1fr)_clamp(14rem,18vw,25rem)]">
             <div>
               <div className={`${NEWS_IN} flex items-baseline justify-between text-[clamp(10px,0.7vw,13px)] font-medium uppercase tracking-[0.24em]`} style={delay(0)}>
                 <p className="text-[var(--hs-muted)]">Journal <span className="mx-2" style={{ color: NEWS_ACCENT }}>✦</span> Vol. 04</p>
                 <Link href="/news" className="group/all inline-flex items-center gap-1">All news <span className="transition-transform duration-300 group-hover/all:-translate-y-0.5 group-hover/all:translate-x-0.5">↗</span></Link>
               </div>
-              <div className="mt-2 flex items-end gap-5 border-b border-[var(--hs-text)] pb-4 sm:gap-7">
-                <h2 id="news-title" className="overflow-hidden pb-[0.04em]">
-                  <span className="ink-grain block translate-y-full text-[clamp(2.6rem,6vw,8.5rem)] font-black uppercase leading-[0.86] tracking-[-0.045em] transition-[translate] duration-[1100ms] ease-[cubic-bezier(0.22,1,0.36,1)] [#news.is-in_&]:translate-y-0">News&nbsp;&amp;&nbsp;Stories</span>
+              <div className="mt-2 flex flex-wrap items-end gap-x-7 gap-y-3 border-b border-[var(--hs-text)] pb-4">
+                <h2 id="news-title" className="min-w-0 overflow-x-visible overflow-y-clip pb-[0.04em]">
+                  <span className="ink-grain block translate-y-full text-[clamp(2.4rem,4vw,6rem)] font-black uppercase leading-[0.86] whitespace-nowrap tracking-[-0.045em] transition-[translate] duration-[1100ms] ease-[cubic-bezier(0.22,1,0.36,1)] [#news.is-in_&]:translate-y-0">News&nbsp;&amp;&nbsp;Stories</span>
                 </h2>
                 <ul className={`${NEWS_IN} mb-1 hidden shrink-0 list-none border-l border-[var(--hs-line)] pl-4 text-[clamp(9px,0.62vw,12px)] font-medium uppercase leading-[1.7] tracking-[0.2em] text-[var(--hs-muted)] sm:block`} style={delay(1)}>
                   {META.map((line) => <li key={line}>{line}</li>)}
@@ -197,7 +197,7 @@ export default function HomeStage() {
                     <article key={post.no} data-cursor="read" style={delay(2 + i)}
                       className={`${NEWS_IN} group relative flex flex-col py-[clamp(1.5rem,3vh,2.75rem)] md:px-[clamp(1.5rem,1.8vw,2.5rem)] ${i > 0 ? "border-t border-[var(--hs-line)] md:border-l md:border-t-0" : ""}`}>
                       <Link href={post.href} className="absolute inset-0 z-[1]" aria-label={`${post.kicker}: ${post.title}`} />
-                      <div className="relative aspect-[16/11] overflow-hidden bg-[#eadcc2]">
+                      <div className="relative aspect-[16/10] overflow-hidden bg-[#eadcc2]">
                         <svg viewBox="0 10 400 275" className="h-full w-full transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04]" aria-hidden="true"
                           dangerouslySetInnerHTML={{ __html: `${NEWS_ART[post.art]()}<text x="200" y="274" text-anchor="middle" font-family="Grooves Bodoni, Georgia, serif" font-size="9" letter-spacing="3.5" fill="#4c404a" opacity=".75">GROOVES JOURNAL</text>` }} />
                       </div>
@@ -215,13 +215,13 @@ export default function HomeStage() {
               </div>
             </div>
             <aside className={`${NEWS_IN} order-last mt-10 flex flex-col items-center justify-center lg:order-none lg:mt-0`} style={delay(5)} aria-label="지금 도는 판">
-              <div id="news-disc" className="aspect-square w-[min(15rem,62vw)] lg:mt-[4vh] lg:w-full" aria-hidden="true" />
+              <div id="news-disc" className="aspect-square w-[min(15rem,62vw)] lg:w-full" aria-hidden="true" />
               <p className="mt-2 font-[Georgia,serif] text-[clamp(1.1rem,1.6vw,2rem)] italic">Beyond the grooves.</p>
               <p className="mt-1 text-[clamp(10px,0.7vw,13px)] uppercase tracking-[0.24em] text-[var(--hs-muted)]">Now spinning · 33⅓ rpm</p>
             </aside>
           </div>
 
-          <div className={`${NEWS_IN} mt-[clamp(1.75rem,4vh,4rem)] flex flex-col items-center text-center`} style={delay(6)}>
+          <div className={`${NEWS_IN} mt-[clamp(1.5rem,3.5vh,3.5rem)] flex flex-col items-center text-center`} style={delay(6)}>
             <svg className="h-[clamp(2.5rem,3.5vw,4rem)] w-auto" viewBox="0 0 96 40" fill="none" aria-hidden="true">
               <path d="M14 14c.8 3.2 1.6 4 4.8 4.8-3.2.8-4 1.6-4.8 4.8-.8-3.2-1.6-4-4.8-4.8 3.2-.8 4-1.6 4.8-4.8Z" fill="#c8553d" />
               <ellipse cx="60" cy="20" rx="28" ry="10.5" transform="rotate(-14 60 20)" stroke="#c8553d" strokeWidth="1" />
