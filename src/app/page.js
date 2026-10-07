@@ -1,40 +1,17 @@
 "use client";
-import { useRef } from "react";
-import homeStyles from "@/components/home/HomeLayout.module.css";
+import dynamic from "next/dynamic";
 
-import PageShell from "@/components/layout/PageShell";
-import useWireProgress from "@/components/home/useWireProgress";
-
-import HeroSection from "@/components/home/HeroSection";
-import NewVinylsSection from "@/components/home/NewVinylsSection";
-import CategorySection from "@/components/home/CategorySection";
-import NewsSection from "@/components/home/NewsSection";
+// Home = 한 화면(100svh)에서 4개 섹션을 전환하는 스테이지 (Hero → New Vinyls → Genre dial → News).
+// 섹션 전환은 HomeStage가, 페이지 사이 이동은 기존 Crate Flip이 담당한다. docs/HOME-STAGE.md 참고.
+const HomeStage = dynamic(() => import("@/components/home/stage/HomeStage"), { ssr: false });
 
 export default function Home() {
-  const veilInRef = useRef();
-  const veilOutRef = useRef();
-
-  useWireProgress({ inRef: veilInRef, outRef: veilOutRef });
-
   return (
-    <PageShell className={`home paper-textured ${homeStyles.home}`}>
-      {/* 01 — Hero (크림) */}
-      <HeroSection />
-
-      {/* 크림 → 잉크 */}
-      <div className="home-veil" ref={veilInRef} aria-hidden="true" />
-
-      {/* 02 — New vinyls (잉크) */}
-      <NewVinylsSection />
-
-      {/* 03 — Category (잉크) */}
-      <CategorySection />
-
-      {/* 잉크 → 크림 */}
-      <div className="home-veil" ref={veilOutRef} aria-hidden="true" />
-
-      {/* 04 — News (크림) */}
-      <NewsSection />
-    </PageShell>
+    // 스크롤 컨테이너(.page)는 유지하되 스크롤하지 않음 — 휠·터치는 스테이지가 섹션 전환으로 씀
+    <div className="page home paper-textured" style={{ overflow: "hidden" }}>
+      <div className="page-content">
+        <HomeStage />
+      </div>
+    </div>
   );
 }

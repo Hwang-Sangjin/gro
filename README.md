@@ -87,3 +87,7 @@ Home New Vinyls에도 앨범 커버 이동 전환 적용. Hero는 정적인 Groo
 ## 최신 Hero: 인터랙션 4종
 
 마우스 카메라 패럴랙스, 홀드로 45 RPM까지 가속, HOLD/RPM 커서, 속도 반응 아크·리플·잉크 튐을 통합했습니다. 인트로 종료 후 출발하며 모바일 스크롤과 모션 줄이기를 지원합니다. `docs/HERO-INTERACTIONS.md`가 최신 구현 설명입니다.
+
+## 최신 Home: 4섹션 스테이지
+
+Claude 프로토타입의 Home(Hero → New Vinyls → Genre dial → News)을 한 화면 스테이지로 이식했습니다. 섹션 전환은 Home이, 페이지 이동과 앨범 커버 이동 전환은 기존 시스템이 맡습니다. 구조·데이터·조정 위치는 `docs/HOME-STAGE.md`가 이전 Home·Hero 문서(HERO-INTERACTIONS.md 포함)보다 우선합니다.

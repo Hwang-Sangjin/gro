@@ -142,7 +142,8 @@ export default function CrateStage({children}) {
   function down(e){
     if(!done||T.current||awaiting.current||document.documentElement.dataset.albumTransition==='true'||e.button!==0)return;
     const handle=e.target.closest('[data-crate-handle]');
-    if(!handle&&(e.pointerType==='touch'||e.target.closest('a,button,input,textarea,select,canvas,video,[role=dialog]')))return;
+    // [data-crate-ignore]: 자체 드래그·섹션 전환을 쓰는 영역(Home 스테이지)은 핸들로만 페이지를 넘김
+    if(!handle&&(e.pointerType==='touch'||e.target.closest('a,button,input,textarea,select,canvas,video,[role=dialog],[data-crate-ignore]')))return;
     drag.current={id:e.pointerId,armed:true,on:false,y:e.clientY,lastY:e.clientY,lastTime:performance.now(),v:0,handle:!!handle,release:null};
   }
   function move(e){
