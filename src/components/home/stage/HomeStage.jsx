@@ -93,6 +93,8 @@ export default function HomeStage() {
     }).then((engine) => {
       if (cancelled) { engine.dispose(); return; }
       engineRef.current = engine;
+      // 모델을 불러오는 사이에 인트로가 끝났을 수 있음
+      engine.setIntroDone(doneRef.current);
       memory.section = initialSection;
       loadAlbums(engine);
     }, (error) => console.error("Home stage could not start", error));
@@ -129,9 +131,10 @@ export default function HomeStage() {
       data-home-stage
       data-crate-ignore
       data-lenis-prevent
-      className="relative h-svh w-full touch-pan-y overflow-hidden bg-[var(--hs-paper,var(--page-bg))] text-[var(--hs-text,var(--page-fg))] [&.custom-cursor]:cursor-none [&.custom-cursor_*]:cursor-none!"
+      className="relative h-svh w-full touch-pan-y overflow-hidden bg-[var(--hs-paper,#f4e7cd)] text-[var(--hs-text,#4c404a)] [&.custom-cursor]:cursor-none [&.custom-cursor_*]:cursor-none!"
     >
-      <canvas id="c" className="absolute inset-0 block h-full w-full touch-pan-y" aria-label="잉크 드로잉 스타일 바이닐 3D. 판을 누르고 있으면 빨라지고, 누른 채 끌면 뒤집혀요" />
+      {/* 3D 캔버스는 homeEngine이 이 안에 만듦 */}
+      <div id="hs-canvas" className="absolute inset-0" />
 
       {/* 01 — Hero */}
       <h1 id="title" className={`pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 select-none text-center ${SERIF} text-[12.5vw] font-black leading-none tracking-[-0.02em] will-change-transform`} aria-label="Grooves">

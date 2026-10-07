@@ -27,6 +27,9 @@ export async function createHomeEngine(opts) {
   const host = opts.root;   // DOM 루트 (아래 root는 Three.js 그룹)
   const q = (id) => host.querySelector(`#${id}`);
   let disposed = false;
+  // 모델을 불러오는 동안(await) 이미 등록된 이벤트가 아직 선언 전인 상태(section 등)를 건드리지 않도록,
+  // 준비가 끝날 때까지 모든 이벤트를 무시
+  let ready = false;
   let introDone = !!opts.introDone;
   const cleanups = [];
   // 페이지 전환·앨범 전환 중이거나 인트로 전이면 입력을 받지 않음
@@ -37,7 +40,7 @@ export async function createHomeEngine(opts) {
   const GUARDED = new Set(['keydown', 'wheel', 'touchstart', 'touchmove', 'touchend', 'pointerdown']);
   function on(target, type, fn, o) {
     const wrapped = (e) => {
-      if (disposed) return;
+      if (disposed || !ready) return;
       if (GUARDED.has(type) && !inputOn()) return;
       fn(e);
     };
@@ -289,7 +292,12 @@ export async function createHomeEngine(opts) {
   let currentSideB = false;   // 지금 보이는 면이 B면인지 (판 뒤집기)
 
   /* ================= 렌더러·카메라 ================= */
-  const canvas = q('c');
+  // 캔버스는 엔진마다 새로 만듦: 개발 모드(StrictMode)에서 엔진이 두 번 만들어졌다 정리돼도
+  // 같은 WebGL 컨텍스트를 나눠 쓰다 잃어버리지 않게
+  const canvas = document.createElement('canvas');
+  canvas.className = 'absolute inset-0 block h-full w-full touch-pan-y';
+  canvas.setAttribute('aria-label', '잉크 드로잉 스타일 바이닐 3D. 판을 누르고 있으면 빨라지고, 누른 채 끌면 뒤집혀요');
+  (q('hs-canvas') ?? host).prepend(canvas);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setClearColor(0x000000, 0);
@@ -2544,6 +2552,8 @@ export async function createHomeEngine(opts) {
 
   /* ================= 시작 상태 · 외부 API ================= */
   if (opts.albums) buildRing(opts.albums);
+  ready = true;
+  resize(); layoutDial();   // 불러오는 동안 창 크기가 바뀌었을 수 있음
 
   return {
     /** New Vinyls 앨범 목록 (Supabase에서 받은 뒤) */
@@ -2579,6 +2589,8 @@ export async function createHomeEngine(opts) {
       renderer.dispose(); renderer.forceContextLoss();
       dracoLoader.dispose();
       $waveCanvas.remove();
+      canvas.remove();
+      genreButtons.forEach((b) => b.remove());
       host.classList.remove('custom-cursor');
       host.closest('.ct-page')?.style.removeProperty('--wire-t');
     },
