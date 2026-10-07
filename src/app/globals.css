@@ -978,3 +978,8 @@ html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 .album-flight-bg { position: absolute; inset: 0; }
 .album-flight-cover { position: fixed; overflow: hidden; will-change: left, top, width, height; }
 .album-flight-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* Only enabled while the Hero cursor is visibly mounted on fine pointers. */
+@media (hover: hover) and (pointer: fine) {
+  html.custom-cursor, html.custom-cursor * { cursor: none !important; }
+}

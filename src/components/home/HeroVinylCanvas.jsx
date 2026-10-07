@@ -3,7 +3,8 @@
 import { Component, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import HeroVinylScene from "./HeroVinylScene";
-import { OrbitControls } from "@react-three/drei";
+import HeroCameraParallax from './HeroCameraParallax';
+import HeroInput from './HeroInput';
 
 class SceneErrorBoundary extends Component {
   state = { failed: false };
@@ -20,10 +21,12 @@ class SceneErrorBoundary extends Component {
   }
 }
 
-export default function HeroVinylCanvas() {
+export default function HeroVinylCanvas({ sectionRef, titleRef, active }) {
   return (
     <SceneErrorBoundary>
       <Canvas
+        className="touch-pan-y select-none"
+        style={{ touchAction: "pan-y" }}
         orthographic
         camera={{ position: [0, 0, 10], zoom: 80, near: 0.1, far: 100 }}
         gl={{ alpha: true, antialias: true }}
@@ -32,14 +35,12 @@ export default function HeroVinylCanvas() {
         resize={{ offsetSize: true }}
         fallback={<div className="h-full w-full bg-transparent" />}
       >
+        <HeroInput sectionRef={sectionRef} active={active} />
+        <HeroCameraParallax titleRef={titleRef} />
         <Suspense fallback={null}>
-          <HeroVinylScene />
+          <HeroVinylScene active={active} />
         </Suspense>
-        <OrbitControls
-          enableZoom={false}
-          enablePan={true}
-          enableRotate={true}
-        />
+
       </Canvas>
     </SceneErrorBoundary>
   );

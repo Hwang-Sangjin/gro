@@ -1,0 +1,21 @@
+{
+  "hover": "disc",
+  "titleTransform": "translate3d(-1.05833px, 0.524123px, 0px)",
+  "hold": "45 RPM",
+  "releaseOutside": true,
+  "afterInertia": "20 RPM",
+  "blankPress": "idle",
+  "blur": "hidden",
+  "reduced": {
+    "mode": "idle",
+    "transform": "translate3d(0px, 0px, 0px)"
+  },
+  "mobile": {
+    "customCursor": false,
+    "touchAction": "pan-y",
+    "scroll": 245
+  },
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

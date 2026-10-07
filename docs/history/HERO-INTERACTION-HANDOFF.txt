@@ -1,0 +1,341 @@
+Grooves Hero 인터랙션 핸드오프
+2026년 10월 6일 · @jin
+요청 사항
+Grooves 홈 히어로에 인터랙션 네 가지를 붙이는 작업입니다. 동작은 바닐라 Three.js 프로토타입으로 검증을 마쳤고, 이 문서를 받은 당신은 그 동작을 실제 Next.js 프로젝트의 R3F 구조로 옮기고 결합해 주세요.
+• 스택: Next.js (App Router), React Three Fiber 9, drei 10, three r169, TypeScript/JSX, Tailwind
+• 스타일은 순수 CSS 대신 Tailwind로 작성. 기본 커서를 전역으로 숨기는 규칙처럼 Tailwind로 표현하기 어려운 최소한만 CSS로 둡니다
+• 동작과 수치는 프로토타입이 기준입니다. 값을 바꾸거나 구조를 크게 바꿀 때는 이유를 먼저 설명해 주세요
+• 셰이더의 빛줄기 계산(시선 기준 장축, 직교 카메라 처리)은 여러 번의 버그 수정을 거친 상태이므로 그대로 유지합니다
+산출물: 수정된 HeroVinylCanvas, HeroVinylScene, InkVinyl, 새로 추가되는 커서·패럴랙스·이펙트 컴포넌트, 그리고 상태 공유용 스토어.
+현재 상태
+동작 기준 프로토타입: Grooves · Hero prototype (우하단 "인터랙션 조정" 패널에서 수치 비교 가능). 같은 코드에서 내장 모델만 뺀 참고용 소스 grooves-hero-prototype.reference.html을 함께 전달합니다.
+구분
+내용
+프로젝트에 이미 있음
+직교 카메라(zoom 80) 캔버스, HERO_COMPOSITION(tilt 40°, roll 33°)과 getHeroRecordScale, 잉크 셰이더 InkVinyl(빛줄기, depth 프리패스, 바닥 그림자), 회전 출발 연출(rpm, startDelay, spinEase, active)
+이번에 추가
+마우스 패럴랙스 카메라, 누르고 있으면 가속, 커스텀 커서, 회전 속도 반응 이펙트
+이번에 제거
+HeroVinylCanvas의 OrbitControls
+아직 미적용
+인트로 종료 시점과 회전 출발 동기화. introState.js(markIntroDone, useIntroDone)는 만들어 두었지만 인트로 컴포넌트에서 markIntroDone()을 아직 호출하지 않음
+프로젝트의 히어로 회전 기본 속도는 HERO_RPM = 10, 출발 대기 1.2초, 가속 4초입니다. 프로토타입도 같은 값입니다.
+기능 1: 마우스 패럴랙스 카메라
+드래그로 카메라를 돌리는 OrbitControls를 없애고, 마우스 위치에 따라 카메라가 살짝 움직이게 합니다.
+• 입력: 화면 중앙 = 0, 좌우·상하 끝 = ±1로 정규화한 포인터 위치. 클릭이나 드래그는 쓰지 않음
+• 카메라: 레코드 중심(원점)을 바라본 채 반지름 10의 작은 궤도로 이동. 마우스 오른쪽 → 카메라 오른쪽, 마우스 위 → 카메라 위
+• 스무딩: 현재값이 목표값을 지수적으로 따라감 current.lerp(target, 1 - exp(-dt * damping))
+• 타이포 레이어: "Grooves" 제목이 반대 방향으로 조금 이동해 깊이감을 만듦
+• 창 밖으로 나가거나 포커스를 잃으면 목표값을 0으로 돌려 정면으로 복귀
+• 비활성 조건: 터치 기기((hover: hover) and (pointer: fine)이 아닐 때), prefers-reduced-motion: reduce
+• 누르기 가속 중에는 패럴랙스 강도를 30%로 줄였다가 떼면 복구
+값
+기본
+의미
+yaw
+6°
+좌우 끝에서 카메라가 도는 각도
+pitch
+2.5°
+상하 끝에서 카메라가 도는 각도
+damping
+3
+반응 속도. 클수록 빠르게 따라감
+typo
+14px
+제목이 반대로 움직이는 최대 거리 (세로는 절반)
+직교 카메라라서 화면에서 판이 옆으로 밀리지 않고, 타원의 각도와 열린 정도가 미묘하게 바뀌는 방식으로 보입니다. 빛줄기는 매 프레임 시선 기준으로 다시 계산되므로 카메라가 움직여도 장축을 따라 유지됩니다.
+기능 2: 누르고 있으면 가속 (최고 45 RPM)
+판 위를 누르고 있으면 점점 빨라지고, 떼면 관성으로 기본 속도로 돌아옵니다. 최고 속도는 실제 LP 규격(33⅓, 45 RPM)에 맞춰 45 RPM으로 제한합니다. 처음에는 드래그로 돌리는 방식을 만들었지만 조작이 어려워 이 방식으로 바꿨습니다.
+회전은 각속도 omega(rad/s, 음수 = 위에서 볼 때 시계 방향) 하나로 관리합니다.
+1. 모터 목표 속도: 기존 출발 연출 그대로. startDelay 동안 0, 이후 spinEase 동안 ease-in-out으로 HERO_RPM까지 올라감
+2. 누르는 동안: 모터 방향으로 accel만큼 선형 가속, maxRpm에서 멈춤. 누르는 순간 튀지 않고 꾸준히 올라감
+3. 뗀 뒤: omega += (motorOmega - omega) * (1 - exp(-dt / (inertia / 3)))로 기본 속도까지 서서히 복귀
+4. 매 프레임 spin.rotation.y += omega * dt
+값
+기본
+의미
+accel
+1.5 rad/s²
+누르는 동안 각가속도. 10 → 45 RPM까지 약 2.4초
+maxRpm
+45
+누르고 있을 때 최고 속도
+inertia
+1.4초
+뗀 뒤 기본 속도로 돌아오는 시간감
+판정과 입력 처리:
+• 판정: 포인터를 레이캐스트해서 디스크 메시에 맞았을 때만 시작. 빈 공간을 누르면 아무 일도 없음
+• setPointerCapture로 누른 채 판 밖으로 나가도 계속 가속, 어디서 떼든 종료 (pointerup, pointercancel, lostpointercapture)
+• 마우스는 왼쪽 버튼만. 모바일 길게 누르기는 contextmenu를 막아 메뉴와 선택이 뜨지 않게 함
+• 캔버스는 touch-action: pan-y(Tailwind touch-pan-y)로 세로 스크롤을 살림
+• prefers-reduced-motion이면 모터 속도 0 (누르기 가속도 의미가 없으므로 함께 끄는 것을 권장)
+기능 3: 커스텀 커서
+DOM 레이어로 만드는 두 겹 커서입니다. 작은 점은 마우스를 즉시 따라오고, 바깥 링은 0.12초 늦게 따라옵니다. 마우스 환경((hover: hover) and (pointer: fine))에서만 켜고, 그때만 기본 커서를 숨깁니다.
+상태
+조건
+모양
+idle
+빈 공간
+작은 링(88px의 0.32배) + 가운데 점
+disc
+디스크 위 호버
+링 1배로 확대, 종이색 72% 채움 + blur(6px), 라벨 "HOLD", 점 숨김
+drag
+누르는 중
+링 0.78배에서 속도에 따라 최대 0.14만큼 더 조여짐, 라벨에 실시간 RPM, 판과 함께 도는 점선 링과 눈금
+link
+a, button, summary, [role=button] 위
+링 0.55배, 테두리 텍스트색, 점 숨김
+native
+개발용 조정 패널 위
+커스텀 커서 숨김, 기본 커서 사용 (실서비스에선 불필요)
+hidden
+창 밖, 포커스 잃음
+페이드 아웃
+• 구조: 바깥 래퍼는 위치만 JS로(translate3d), 안쪽 원은 크기·채움만 CSS transition으로. 크기 전환은 0.5초 cubic-bezier(0.22, 1, 0.36, 1)
+• 크기는 transform: scale() 인라인 스타일로 바꿉니다. Tailwind v4의 scale-* 클래스는 transform이 아니라 scale 속성을 써서 인라인 transform과 곱해지므로, 초기 크기도 클래스가 아닌 인라인 스타일로 둡니다
+• 디스크 판정은 포인터 아래 요소가 캔버스(또는 pointer-events: none인 제목)일 때만 레이캐스트. 헤더나 버튼에 가려진 곳은 disc가 아님
+• 점에는 종이색 ring-1을 둘러 큰 제목 글자 위에서도 보이게 함
+• prefers-reduced-motion이면 링 지연 없이 즉시 따라감
+• 기본 커서 숨김 규칙은 이것만 CSS로: @media (hover:hover) and (pointer:fine) { html.custom-cursor, html.custom-cursor * { cursor: none !important } }
+기능 4: 회전 속도 반응 이펙트
+판 주변에 디스크와 같은 잉크 스타일의 "헤일로"를 그리고, 회전이 빨라질수록 세지게 합니다. 레코드 평면(comp 그룹 로컬 XZ, y = −0.019) 위에 놓인 4.2 × 4.2 평면 하나를 ShaderMaterial로 그리며, 판 안쪽(r < 1)은 비우고 r 1 ~ 2 영역만 사용합니다. 레코드 평면에 있으므로 판과 함께 기울고 패럴랙스 카메라도 따라갑니다.
+레이어
+켜지는 시점
+모양
+모션 아크
+기본 회전부터 아주 옅게
+판 둘레를 도는 손그림 호. 빠를수록 길어지고 바깥 레인이 최대 6개까지 하나씩 켜짐. 진행 방향 앞쪽이 진하고 꼬리는 흐림
+사운드 리플
+중간 속도부터
+테두리에서 바깥으로 퍼지는 끊긴 펜 선 동심원. 빠를수록 자주, 멀리
+잉크 튐
+최고 속도 근처에서만
+테두리 밖으로 흩어지는 작은 점
+강도 uFx(0 ~ 1) 계산:
+1. 현재 RPM을 기본 속도(10)에서 0, 최고 속도(45)에서 1로 정규화
+2. 기본 회전 중에도 아주 옅게 남기기 위해 바닥값 FX_IDLE = 0.07을 둠
+3. 올라갈 땐 τ 0.12초로 빠르게, 내려갈 땐 τ 0.7초로 천천히 따라감 (잔상)
+4. 최종값 min(1, level^0.8 × fxStrength)
+그 밖의 uniform:
+• uLane[6]: 레인별 누적 각도. 바깥 레인일수록 판보다 느리게 따라감(lag = 1 − i × 0.11) → 공기가 끌려가는 느낌. 매 프레임 2π로 나머지 처리
+• uRipple: 리플 위상. dt × (0.25 + 3.2 × uFx)씩 누적
+• uDir: 회전 방향 부호 (아크의 머리·꼬리 방향 결정)
+• uInk: 디스크와 같은 잉크 색을 공유
+렌더 순서는 디스크 depth 프리패스(0) 다음인 1. 판 뒤로 가려지는 부분은 depth 테스트로 자동으로 숨습니다.
+프로젝트 결합 가이드
+프로토타입은 한 파일 안에서 변수를 공유하지만, 프로젝트에서는 커서(DOM)와 캔버스(R3F)가 서로 다른 트리에 있습니다. 둘 사이를 리렌더 없이 잇는 공유 스토어 하나를 두는 구조를 권장합니다.
+화살표 방향이 쓰기와 읽기입니다. 포인터 입력과 InkVinyl만 스토어에 쓰고, 나머지는 읽기만 합니다.
+스토어: 매 프레임 바뀌는 값이므로 React state가 아니라 모듈 수준 mutable 객체(또는 zustand의 getState()로만 읽기)로 둡니다. state로 두면 60fps로 리렌더가 일어납니다. 이미 있는 introState.js와 같은 위치에 heroInteraction.js로 두면 됩니다.
+파일
+변경
+HeroVinylCanvas.jsx
+OrbitControls 제거, <HeroCameraParallax /> 추가, 캔버스에 touch-pan-y. 커서는 캔버스 바깥에 <HeroCursor />로
+HeroCameraParallax (새 파일)
+useFrame에서 스토어의 pointer와 holding을 읽어 카메라 위치 갱신 + camera.lookAt(0,0,0). 제목 이동도 여기서 ref로 처리하거나 HeroCursor와 같은 rAF에서 처리
+InkVinyl.tsx
+기존 smoothRpm·ramp 회전 로직을 omega 모델로 교체. 디스크 메시로 누르기 판정(R3F의 onPointerDown이나 직접 레이캐스트), hoverDisc·holding·omega를 스토어에 기록
+SpinHalo (새 파일)
+comp 그룹 안 레코드 평면에 헤일로 메시. InkVinyl의 compRef 그룹 자식으로 넣어야 기울기와 스케일을 함께 받음
+HeroCursor.jsx (새 파일)
+requestAnimationFrame 루프에서 스토어를 읽어 위치·상태 갱신. 디스크 판정은 스토어의 hoverDisc를 사용
+heroInteraction.js (새 파일)
+공유 스토어
+frameloop="demand": 지금 캔버스가 demand 모드입니다. 패럴랙스가 움직이는 중, 누르는 중, 이펙트가 남아 있는 동안에는 invalidate()를 계속 호출해야 프레임이 돕니다. 기본 회전이 계속되는 한 이미 매 프레임 호출되고 있지만, 회전이 0인 경우(모션 줄이기)에도 패럴랙스가 멈춰 있는지 확인이 필요합니다.
+주의사항
+이전 작업에서 실제로 겪은 문제들입니다. 결합할 때 같은 실수가 다시 생기지 않게 확인해 주세요.
+• useMemo 안에서 ref에 대입 금지: Next.js 개발 모드의 StrictMode는 useMemo 함수를 두 번 실행하고 결과 하나만 씁니다. ref가 화면에 없는 복제본을 가리키면 빛줄기 계산이 틀어집니다. InkVinyl은 { model, disc }를 같은 호출에서 함께 반환하는 방식으로 고쳐져 있으니, 헤일로나 판정용 메시 목록도 같은 방식으로 얻어야 합니다
+• 직교 카메라의 시선: 셰이더에 넘기는 눈 위치는 카메라 위치가 아니라 시선 반대 방향으로 1000만큼 먼 점입니다(ORTHO_EYE_DISTANCE). 패럴랙스로 카메라가 움직여도 이 계산을 매 프레임 유지해야 합니다
+• 패럴랙스와 빛줄기: 카메라가 움직일 때마다 uCamLocal, uLightLocal이 다시 계산되어야 합니다. 패럴랙스 컴포넌트가 카메라를 옮긴 뒤 InkVinyl의 useFrame이 실행되도록 useFrame 우선순위(패럴랙스를 더 작은 값)를 정해 주세요
+• 스케일 0 프레임: 캔버스 크기 측정 전에는 스케일이 0이라 역행렬이 없습니다. InkVinyl의 determinant 검사를 헤일로에도 똑같이 적용합니다
+• 레이캐스트 대상: depth 프리패스용 메시(colorWrite: false)도 같은 지오메트리입니다. 판정 대상은 잉크 메시만으로 해도 충분합니다
+• 스크롤: 히어로 아래에 섹션이 있으므로 캔버스에 touch-action: none을 쓰면 모바일 스크롤이 막힙니다. pan-y를 유지합니다
+• 인트로 동기화: introState가 연결되면 active가 true가 된 시점부터 출발 대기가 시작됩니다. 누르기 가속은 출발 전에도 동작하지만, 모터 방향이 0일 때는 시계 방향(음수)으로 가속하도록 처리되어 있습니다
+참고 코드
+전체 소스는 함께 전달하는 grooves-hero-prototype.reference.html에 있습니다(모델만 /models/vinyl.glb에서 로드하도록 바꾼 버전). 아래는 새로 추가된 부분 중 옮길 때 핵심이 되는 코드입니다. 잉크 셰이더 공통 함수 NOISE(noise3, ring, hatch)는 프로젝트의 inkShaders.ts에 있는 것과 같습니다.
+헤일로 이펙트 (셰이더 + 메시)
+${NOISE}, ${LANES}는 JS 템플릿 문자열 치환입니다. comp는 tilt가 적용된 그룹(InkVinyl의 compRef)입니다.
+const LANES = 6;
+const haloUniforms = {
+  uInk: uniforms.uInk,
+  uFx: { value: 0 },                                    // 0..1 이펙트 강도(속도 기반, 스무딩됨)
+  uDir: { value: -1 },                                  // 회전 방향 부호
+  uLane: { value: new Array(LANES).fill(0) },          // 레인별 누적 각도(바깥일수록 느리게 따라감)
+  uRipple: { value: 0 },                                // 리플 위상(속도에 비례해 누적)
+  uTime: { value: 0 },
+};
+const haloFrag = /* glsl */`
+precision highp float;
+varying vec2 vP;
+uniform vec3 uInk;
+uniform float uFx, uDir, uRipple, uTime;
+uniform float uLane[${LANES}];
+${NOISE}
+float hash1(float n){ return fract(sin(n * 127.1) * 43758.5453); }
+
+void main(){
+  float r = length(vP);
+  if (r < 1.0 || r > 2.0) discard;
+  float th = atan(vP.y, vP.x);
+  vec2 cs = vP / r;
+  float fx = uFx;
+  float ink = 0.0;
+
+  // ---- 1) 모션 아크 ----
+  for (int i = 0; i < ${LANES}; i++) {
+    float fi = float(i);
+    // 레인은 속도가 오를수록 안쪽부터 하나씩 켜짐
+    float laneOn = smoothstep(fi * 0.13, fi * 0.13 + 0.18, fx);
+    if (laneOn <= 0.0) continue;
+    float R = 1.045 + fi * 0.062 + (noise3(vec3(cs * 2.0, fi * 7.0)) - 0.5) * 0.012;
+    float line = ring(r, R, 0.75 + 0.5 * fx);
+    if (line <= 0.0) continue;
+    float segs = 2.0 + fi;                                   // 바깥 레인일수록 조각 수 증가
+    float phi = th + uLane[i] + hash1(fi) * 6.2831853;
+    float u = fract(phi * segs / 6.2831853);
+    float L = mix(0.06, 0.62, fx) * (1.0 - fi * 0.08);      // 호 길이 = 속도
+    float g = clamp(u / L, 0.0, 1.0);
+    float inside = step(u, L);
+    float head = uDir < 0.0 ? g : 1.0 - g;                    // 진행 방향 앞쪽이 진하고 꼬리는 흐리게
+    float stroke = inside * smoothstep(0.0, 0.85, head) * (0.55 + 0.45 * noise3(vec3(cs * 14.0, fi)));
+    ink = max(ink, line * stroke * laneOn * (1.0 - fi * 0.1));
+  }
+
+  // ---- 2) 사운드 리플 ----
+  float rippleOn = smoothstep(0.05, 0.35, fx);
+  if (rippleOn > 0.0) {
+    float wob = (noise3(vec3(cs * 3.0, uTime * 0.2)) - 0.5) * 0.05;
+    float ph = (r - 1.0 + wob) * 5.0 - uRipple;
+    float fw = fwidth(ph);
+    float d = abs(fract(ph + 0.5) - 0.5);
+    float rr = 1.0 - smoothstep(fw * 0.6, fw * 1.6, d);
+    float dash = smoothstep(0.35, 0.6, noise3(vec3(cs * 7.0, floor(ph) * 3.1)));  // 끊긴 펜 선
+    float fade = (1.0 - smoothstep(1.05, 1.15 + 0.8 * fx, r)) * smoothstep(1.0, 1.04, r);
+    ink = max(ink, rr * dash * fade * rippleOn * 0.7);
+  }
+
+  // ---- 3) 잉크 튐 ----
+  float flickOn = smoothstep(0.55, 0.9, fx);
+  if (flickOn > 0.0) {
+    vec2 cell = vec2(floor((th + uLane[0]) * 18.0), floor((r - uRipple * 0.08) * 22.0));
+    float h = hash1(cell.x * 13.7 + cell.y * 71.3);
+    if (h > 0.93) {
+      vec2 f = vec2(fract((th + uLane[0]) * 18.0), fract((r - uRipple * 0.08) * 22.0)) - 0.5;
+      float dot = 1.0 - smoothstep(0.12, 0.22, length(f * vec2(0.55, 1.0)));
+      ink = max(ink, dot * flickOn * (1.0 - smoothstep(1.2, 1.9, r)) * 0.8);
+    }
+  }
+
+  ink *= 0.85;
+  gl_FragColor = vec4(uInk * ink, ink);
+}`;
+const haloVert = /* glsl */`
+varying vec2 vP;
+void main(){
+  vP = position.xz;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`;
+const halo = new THREE.Mesh(
+  new THREE.PlaneGeometry(4.2, 4.2).rotateX(-Math.PI / 2),
+  new THREE.ShaderMaterial({
+    vertexShader: haloVert, fragmentShader: haloFrag, uniforms: haloUniforms,
+    transparent: true, premultipliedAlpha: true, depthWrite: false, side: THREE.DoubleSide,
+  }),
+);
+halo.position.y = -0.019;      // 판 두께의 가운데
+halo.renderOrder = 1;          // 디스크 depth 프리패스 뒤 → 판 뒤로 가려지는 부분은 자동으로 숨음
+comp.add(halo);
+누르기 입력
+// 판 위를 누르고 있는 동안 회전 방향으로 점점 가속 → 손을 떼면 관성으로 원래 속도로 복귀
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let holding = false;
+let holdPointerId = null;
+let omega = 0;                  // 현재 각속도(rad/s). 음수 = 시계 방향(위에서 볼 때)
+
+function setNdc(e) {
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+}
+const hitsDisc = (e) => {
+  setNdc(e);
+  return pickTargets.length > 0 && raycaster.intersectObjects(pickTargets, false).length > 0;
+};
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (holding || e.button !== 0 || !hitsDisc(e)) return;
+  holding = true;
+  holdPointerId = e.pointerId;
+  canvas.setPointerCapture(e.pointerId);   // 누른 채 판 밖으로 나가도 계속 가속
+  e.preventDefault();
+});
+const endHold = (e) => {
+  if (!holding || e.pointerId !== holdPointerId) return;
+  holding = false;
+  holdPointerId = null;
+  if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+};
+canvas.addEventListener('pointerup', endHold);
+canvas.addEventListener('pointercancel', endHold);
+canvas.addEventListener('lostpointercapture', endHold);
+// 모바일 길게 누르기 시 메뉴·선택이 뜨지 않게
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+프레임 루프 (패럴랙스 → 회전 → 이펙트 → 커서 → 빛줄기)
+updateCursor, updateLight의 전체 구현은 참고 소스에 있습니다. updateLight는 프로젝트 InkVinyl의 useFrame 빛줄기 계산과 같은 내용입니다.
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  // 1) 패럴랙스: 누르는 중에는 30%로 약하게
+  dragWeight += ((holding ? 0.3 : 1) - dragWeight) * (1 - Math.exp(-dt * 6));
+  parallaxTarget.copy(target).multiplyScalar(dragWeight);
+  current.lerp(parallaxTarget, 1 - Math.exp(-dt * PARALLAX.damping));
+  const yaw = current.x * PARALLAX.yaw * DEG;
+  const pitch = -current.y * PARALLAX.pitch * DEG;
+  camera.position.set(
+    Math.sin(yaw) * Math.cos(pitch) * CAM_DISTANCE,
+    Math.sin(pitch) * CAM_DISTANCE,
+    Math.cos(yaw) * Math.cos(pitch) * CAM_DISTANCE,
+  );
+  camera.lookAt(0, 0, 0);
+  // 타이포는 반대 방향으로 조금
+  const tx = -current.x * PARALLAX.typo;
+  const ty = -current.y * PARALLAX.typo * 0.5;
+  title.style.translate = `${tx.toFixed(2)}px calc(-50% + ${ty.toFixed(2)}px)`;
+
+  // 2) 회전: 모터 목표 속도 (startDelay 정지 → spinEase 동안 ease-in-out)
+  const t = performance.now() / 1000 - startedAt - SPIN.startDelay;
+  const ramp = t <= 0 ? 0 : t >= SPIN.spinEase ? 1 : 0.5 - 0.5 * Math.cos((Math.PI * t) / SPIN.spinEase);
+  const rpm = reduceMotion ? 0 : SPIN.rpm;
+  const motorOmega = -((rpm * ramp) / 60) * Math.PI * 2;
+  if (holding) {
+    const dir = Math.sign(motorOmega) || -1;
+    const maxOmega = (HOLD.maxRpm / 60) * Math.PI * 2;
+    omega += dir * HOLD.accel * dt;
+    omega = dir < 0 ? Math.max(omega, -maxOmega) : Math.min(omega, maxOmega);
+  } else {
+    omega += (motorOmega - omega) * (1 - Math.exp(-dt / Math.max(PARALLAX.inertia / 3, 0.01)));
+  }
+  spin.rotation.y += omega * dt;
+
+  // 3) 이펙트: 기본 속도(10)에서 0, 최고 속도(45)에서 1
+  const rpmNow = (Math.abs(omega) * 60) / (Math.PI * 2);
+  const fxNorm = THREE.MathUtils.clamp((rpmNow - SPIN.rpm) / (HOLD.maxRpm - SPIN.rpm), 0, 1);
+  const fxTarget = Math.max(fxNorm, FX_IDLE * Math.min(1, rpmNow / SPIN.rpm));
+  const fxTau = fxTarget > fxLevel ? 0.12 : 0.7;
+  fxLevel += (fxTarget - fxLevel) * (1 - Math.exp(-dt / fxTau));
+  haloUniforms.uFx.value = Math.min(1, Math.pow(fxLevel, 0.8) * PARALLAX.fx);
+  if (Math.abs(omega) > 0.05) haloUniforms.uDir.value = Math.sign(omega);
+  for (let i = 0; i < LANES; i++) {
+    const lag = 1 - i * 0.11;   // 바깥 레인일수록 느리게 → 공기가 끌려가는 느낌
+    haloUniforms.uLane.value[i] = (haloUniforms.uLane.value[i] - omega * lag * dt) % (Math.PI * 2);
+  }
+  haloUniforms.uRipple.value += dt * (0.25 + 3.2 * haloUniforms.uFx.value);
+  haloUniforms.uTime.value += dt;
+
+  // 4) 커서, 5) 빛줄기
+  updateCursor(dt);
+  updateLight();
+  renderer.render(scene, camera);
+});

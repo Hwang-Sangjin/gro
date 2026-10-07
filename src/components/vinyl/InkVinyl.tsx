@@ -13,6 +13,10 @@ import {
   shadowVert,
 } from "./inkShaders";
 
+import { SpinHalo } from './SpinHalo';
+import { useDiscInput } from './useDiscInput';
+import { HERO_MOTION, heroInteraction, heroIsActive } from '../home/heroInteraction';
+
 type InkParams = typeof inkDefaults;
 
 type InkVinylProps = Partial<InkParams> & {
@@ -76,7 +80,8 @@ export function InkVinyl({
   // tilt/roll/scale이 적용되는 그룹 (spin 바깥). 빛줄기 방향의 기준 좌표계
   const compRef = useRef<THREE.Group>(null);
   const spinRef = useRef<THREE.Group>(null);
-  const smoothRpm = useRef(rpm); // rpm prop이 바뀔 때 부드럽게 따라가는 값
+  const omega = useRef(0);
+  const elapsed = useRef(0);
   const startedAt = useRef<number | null>(null); // active가 처음 true가 된 시각(초)
 
   const uniforms = useMemo(
@@ -150,7 +155,7 @@ export function InkVinyl({
   // 주의: useMemo 안에서 ref에 대입하면 안 됨. StrictMode(개발 모드)는 이 함수를 두 번 실행하고
   // 결과 하나만 쓰기 때문에, ref가 화면에 없는 복제본의 메시를 가리키게 됨.
   // → model과 disc를 같은 호출의 결과로 함께 반환해서 항상 짝이 맞게 함
-  const { model, disc } = useMemo(() => {
+  const { model, disc, pickTargets } = useMemo(() => {
     const cloned = scene.clone(true);
     cloned.scale.set(1, thickness, 1);
     const meshes: THREE.Mesh[] = [];
@@ -167,8 +172,10 @@ export function InkVinyl({
       m.material = inkMat;
       m.renderOrder = 2;
     }
-    return { model: cloned, disc: meshes[0] ?? null };
+    return { model: cloned, disc: meshes[0] ?? null, pickTargets: meshes };
   }, [scene, inkMat, depthMat, thickness]);
+
+  useDiscInput(pickTargets);
 
   // props → uniforms
   useEffect(() => {
@@ -223,31 +230,31 @@ export function InkVinyl({
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
 
-    // ---- 회전 ----
-    // 1) 출발: active 후 startDelay초 동안 정지 → spinEase초에 걸쳐 ease-in-out으로 가속
-    const now = performance.now() / 1000;
-    if (active && startedAt.current === null) startedAt.current = now;
-    const t =
-      startedAt.current === null ? -1 : now - startedAt.current - startDelay;
-    const ramp =
-      t <= 0
-        ? 0
-        : t >= spinEase
-          ? 1
-          : 0.5 - 0.5 * Math.cos((Math.PI * t) / spinEase);
-
-    // 2) 이후 rpm prop이 바뀌면 부드럽게 따라감 (감속·정지 포함)
-    smoothRpm.current += (rpm - smoothRpm.current) * (1 - Math.exp(-dt / 0.6));
-    if (Math.abs(smoothRpm.current - rpm) < 1e-3) smoothRpm.current = rpm;
-
-    const speed = smoothRpm.current * ramp;
-    const spinning = Math.abs(speed) > 1e-4;
-    if (spinRef.current && spinning) {
-      spinRef.current.rotation.y -= (speed / 60) * Math.PI * 2 * dt;
+    // One angular velocity drives the record, DOM cursor and halo.
+    const enabled = active && heroIsActive() && !heroInteraction.reduced;
+    if (active && startedAt.current === null) {
+      startedAt.current = performance.now() / 1000;
+      elapsed.current = 0;
     }
-    // frameloop="demand": 회전 중, 출발 대기 중, 커서를 따라갈 때만 다음 프레임 요청
-    const waitingToStart = active && rpm !== 0 && ramp < 1;
-    if (spinning || waitingToStart || followPointer) invalidate();
+    if (!active) { startedAt.current = null; elapsed.current = 0; }
+    if (enabled) elapsed.current += dt;
+    const t = elapsed.current - startDelay;
+    const ramp = t <= 0 ? 0 : spinEase <= 0 || t >= spinEase ? 1 : 0.5 - 0.5 * Math.cos(Math.PI * t / spinEase);
+    const motorOmega = -(rpm * ramp / 60) * Math.PI * 2;
+    if (!enabled) {
+      omega.current = 0;
+      heroInteraction.holding = false;
+    } else if (heroInteraction.holding) {
+      const dir = Math.sign(motorOmega) || -1;
+      const maxOmega = HERO_MOTION.maxRpm / 60 * Math.PI * 2;
+      omega.current = THREE.MathUtils.clamp(omega.current + dir * HERO_MOTION.accel * dt, -maxOmega, maxOmega);
+    } else {
+      omega.current += (motorOmega - omega.current) * (1 - Math.exp(-dt / Math.max(HERO_MOTION.inertia / 3, 0.01)));
+    }
+    if (spinRef.current) spinRef.current.rotation.y = (spinRef.current.rotation.y + omega.current * dt) % (Math.PI * 2);
+    heroInteraction.omega = omega.current;
+    heroInteraction.angle = spinRef.current?.rotation.y ?? 0;
+    if (enabled && (rpm !== 0 || Math.abs(omega.current) > 0.0001 || followPointer)) invalidate();
 
     // 커서 위치를 부드럽게 따라감 (R3F pointer는 y가 위로 +)
     smooth.lerp(followPointer ? pointer : zero, 1 - Math.exp(-dt * 3));
@@ -329,10 +336,11 @@ export function InkVinyl({
       uniforms.uCamLocal.value.copy(camLocal);
       uniforms.uLightLocal.value.copy(tmp);
     }
-  });
+  }, -0.5); // After camera/picking, before halo.
 
   return (
     <group ref={compRef} {...(groupProps as ThreeElements["group"])}>
+      <SpinHalo inkUniform={uniforms.uInk} compRef={compRef} />
       {/* 바닥 그림자: 디스크 depth 뒤에 그려져야 하므로 renderOrder 1 */}
       <mesh
         position-y={-0.42}

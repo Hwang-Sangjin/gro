@@ -5,12 +5,7 @@ import { useThree } from "@react-three/fiber";
 import { InkVinyl } from "../vinyl/InkVinyl";
 import { HERO_COMPOSITION, getHeroRecordScale } from "./heroComposition";
 
-/** 히어로 회전 속도. 실제 턴테이블(33⅓)보다 훨씬 느리게 — 배경처럼 은은하게 */
-const HERO_RPM = 10;
-/** 홈 진입 후 멈춰 있는 시간(초) */
-const HERO_START_DELAY = 1.2;
-/** 정지 → HERO_RPM까지 가속 시간(초) */
-const HERO_SPIN_EASE = 4;
+import { HERO_MOTION } from './heroInteraction';
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -24,7 +19,7 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-export default function HeroVinylScene() {
+export default function HeroVinylScene({ active }) {
   const viewport = useThree((state) => state.viewport);
   const pixelHeight = useThree((state) => state.size.height);
   const reducedMotion = usePrefersReducedMotion();
@@ -43,11 +38,10 @@ export default function HeroVinylScene() {
       <InkVinyl
         followPointer={false}
         rotation={[HERO_COMPOSITION.tilt, 0, 0]}
-        rpm={reducedMotion ? 0 : HERO_RPM}
-        startDelay={HERO_START_DELAY}
-        spinEase={HERO_SPIN_EASE}
-        /* 인트로(로딩)가 있다면 끝난 시점에 true를 넘기면 그때부터 대기·출발:
-           active={introDone} */
+        rpm={reducedMotion ? 0 : HERO_MOTION.rpm}
+        startDelay={HERO_MOTION.startDelay}
+        spinEase={HERO_MOTION.spinEase}
+        active={active}
       />
     </group>
   );
