@@ -680,7 +680,7 @@ body.intro-locked {
 
 .preloader-disc circle {
   fill: none;
-  stroke: var(--cream); /* 홈은 크림색 */
+  stroke: var(--fg);
   stroke-linecap: round;
 }
 
@@ -691,7 +691,7 @@ body.intro-locked {
 }
 
 .preloader-disc circle.preloader-spindle {
-  fill: var(--fg);
+  fill: var(--cream); /* 가운데 구멍 (Home 3D 판의 구멍처럼 크림 배경이 비침) */
   stroke: none;
 }
 
