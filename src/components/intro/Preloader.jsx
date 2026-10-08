@@ -49,7 +49,7 @@ const VB = 400; // viewBox 한 변
 const C = VB / 2; // 중심
 const ORIGIN = `${C} ${C}`; // 모든 변형의 기준점
 
-const LABEL_R = 34; // 가운데 라벨 반지름. 처음엔 크림, 파고들 때 Home 3D 판의 라벨색(파랑)으로
+const LABEL_R = 34; // 가운데 하늘색 라벨 반지름 (Home 3D 판의 라벨과 같은 색)
 const SPINDLE_R = 5;
 
 // 바깥 → 안쪽. 12 씩 등간격.
@@ -282,8 +282,6 @@ export default function Preloader() {
           },
           0,
         )
-        // 라벨이 크림 → 파랑으로 물듦 (Home 3D 판의 라벨 색). 덮인 화면이 그대로 3D 라벨로 이어진다
-        .to(label.current, { fill: "#bbcbda", duration: T.anticipate + 0.25, ease: "power1.inOut" }, 0)
         .to(spindle.current, { opacity: 0, duration: 0.45 }, T.zoomStart)
         // 로그 공간 줌
         .to(

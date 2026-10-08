@@ -680,14 +680,13 @@ body.intro-locked {
 
 .preloader-disc circle {
   fill: none;
-  stroke: var(--fg);
+  stroke: var(--cream); /* 홈은 크림색 */
   stroke-linecap: round;
 }
 
-/* 가운데 라벨. 처음엔 크림, 파고들기 직전 3D 판의 라벨 색(--frame)으로 물들어
-   덮인 화면이 그대로 Home 3D 판의 라벨로 이어진다 (Preloader.jsx 아웃 타임라인) */
+/* 가운데 라벨은 하늘색(--frame) = Home 3D 판의 라벨 색. 파고들어 덮인 화면이 그대로 3D 라벨로 이어진다 */
 .preloader-disc circle.preloader-label {
-  fill: var(--bg);
+  fill: var(--frame);
   stroke: none;
 }
 
