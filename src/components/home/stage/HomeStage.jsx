@@ -131,14 +131,14 @@ export default function HomeStage() {
       data-home-stage
       data-crate-ignore
       data-lenis-prevent
-      className="absolute inset-x-0 bottom-0 top-[var(--ct-header-h,106px)] touch-pan-y overflow-hidden text-[var(--hs-text,#4c404a)] [&.custom-cursor]:cursor-none [&.custom-cursor_*]:cursor-none!"
+      className="absolute inset-x-0 bottom-0 top-[var(--ct-header-h,106px)] touch-pan-y overflow-visible text-[var(--hs-text,#4c404a)] [&.custom-cursor]:cursor-none [&.custom-cursor_*]:cursor-none!"
     >
       {/* 3D 캔버스는 homeEngine이 이 안에 만듦 */}
       <div id="hs-canvas" className="absolute inset-0" />
 
       {/* 01 — Hero */}
       {/* 글자는 처음에 h1 아래에 숨어 있다가 인트로 뒤 하나씩 올라옴 (overflow-y-clip이 잘라 줌) */}
-      <h1 id="title" className={`pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 select-none overflow-y-clip py-[0.06em] text-center ${SERIF} text-[12.5vw] font-black leading-none tracking-[-0.02em] will-change-transform`} aria-label="Grooves">
+      <h1 id="title" className={`pointer-events-none absolute inset-x-0 top-[calc(50%-var(--hs-top,0px)/2)] -translate-y-1/2 select-none overflow-y-clip py-[0.06em] text-center ${SERIF} text-[12.5vw] font-black leading-none tracking-[-0.02em] will-change-transform`} aria-label="Grooves">
         {"Grooves".split("").map((ch, i) => <span key={i} aria-hidden="true" className="inline-block origin-bottom translate-y-[110%]">{ch}</span>)}
       </h1>
 

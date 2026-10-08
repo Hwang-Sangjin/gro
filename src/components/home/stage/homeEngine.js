@@ -1611,9 +1611,14 @@ export async function createHomeEngine(opts) {
   let heroScale = 1, landedScale = 1, viewH = 10;
   // 스테이지는 사이트 헤더 아래에서 시작 (헤더가 장면을 가리지 않게)
   const navbar = layer.querySelector?.('.ct-navbar');
+  // 섹션 내용은 헤더 아래에서 시작하지만, 3D 캔버스는 헤더 뒤까지 화면 전체를 덮음 (헤더는 투명)
+  let headerTop = 0;
   const placeStage = () => {
-    const top = navbar ? Math.round(navbar.offsetTop + navbar.offsetHeight) : 0;
-    host.style.top = `${top}px`;
+    headerTop = navbar ? Math.round(navbar.offsetTop + navbar.offsetHeight) : 0;
+    host.style.top = `${headerTop}px`;
+    host.style.setProperty('--hs-top', `${headerTop}px`);
+    canvas.style.top = `${-headerTop}px`;
+    canvas.style.height = `calc(100% + ${headerTop}px)`;
   };
   const resize = () => {
     placeStage();
@@ -2466,7 +2471,8 @@ export async function createHomeEngine(opts) {
     const catEase = easeInOut(catP);
     if (catEase > 0) {
       const dialScale = (geo.R * 0.5) / ZOOM;                 // 판 반지름 = 다이얼 반지름의 절반
-      const dx = (geo.cx - canvas.clientWidth / 2) / ZOOM, dy = (canvas.clientHeight / 2 - geo.cy) / ZOOM;
+      // geo는 스테이지(헤더 아래) 좌표 → 캔버스(화면 전체) 좌표로
+      const dx = (geo.cx - canvas.clientWidth / 2) / ZOOM, dy = (canvas.clientHeight / 2 - (geo.cy + headerTop)) / ZOOM;
       comp.rotation.x = THREE.MathUtils.lerp(comp.rotation.x, Math.PI / 2, catEase);
       root.rotation.z = THREE.MathUtils.lerp(root.rotation.z, 0, catEase);
       root.scale.setScalar(THREE.MathUtils.lerp(root.scale.x, dialScale, catEase));
