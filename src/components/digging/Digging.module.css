@@ -204,13 +204,14 @@
   transition: opacity 0.2s;
 }
 .art::before {
-  top: -10px;
-  left: -10px;
+  /* 호버 때 생기는 두께 면(--sleeve-depth)에 가리지 않게 그만큼 바깥으로 */
+  top: calc(-10px - var(--sleeve-depth, 0px));
+  left: calc(-10px - var(--sleeve-depth, 0px) * 0.5);
   border-width: 7px 0 0 7px;
 }
 .art::after {
-  bottom: -10px;
-  right: -10px;
+  bottom: calc(-10px - var(--sleeve-depth, 0px) * 0.5);
+  right: calc(-10px - var(--sleeve-depth, 0px));
   border-width: 0 7px 7px 0;
 }
 .caption {
