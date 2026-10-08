@@ -782,7 +782,7 @@ export async function createHomeEngine(opts) {
   const ALBUM = {
     size: 0.46,          // 정사각 앨범 한 변 (판 반지름 = 1)
     inner: 0.46,         // 아래 모서리 안쪽 끝의 반지름 → 바깥 끝 = 0.92
-    depth: 0.015,        // 두께 (얇은 종이 재킷)
+    depth: 0.0075,       // 두께 (얇은 종이 재킷)
     dropHeight: 1.6,     // 떨어지기 시작하는 높이
     hoverLift: 0.06,
   };

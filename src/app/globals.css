@@ -684,9 +684,10 @@ body.intro-locked {
   stroke-linecap: round;
 }
 
-/* 가운데 파란 라벨. 3D 판의 라벨 색(#bbcbda)과 같아서, 파고든 화면이 그대로 Home 3D 판의 라벨로 이어진다 */
+/* 가운데 라벨. 처음엔 크림, 파고들기 직전 3D 판의 라벨 색(--frame)으로 물들어
+   덮인 화면이 그대로 Home 3D 판의 라벨로 이어진다 (Preloader.jsx 아웃 타임라인) */
 .preloader-disc circle.preloader-label {
-  fill: var(--frame);
+  fill: var(--bg);
   stroke: none;
 }
 
