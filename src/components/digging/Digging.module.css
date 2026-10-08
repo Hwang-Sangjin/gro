@@ -1,7 +1,11 @@
-.page {
-  --paper-surface: #f3e7cd;
+.page,
+.page:global(.paper-textured) {
+  /* --dig-tint: 마우스를 올린 앨범 색 (DiggingGrid가 .ct-page에 설정). 종이에 9%만 섞여 은은하게 번짐 */
+  --dig-paper: color-mix(in oklab, var(--dig-tint, #f3e7cd) 9%, #f3e7cd);
+  --paper-surface: var(--dig-paper);
   --paper-texture-opacity: 0.65;
-  background: #f3e7cd;
+  background: var(--dig-paper);
+  transition: background-color 0.8s ease;
   color: #4c404a;
 }
 .page :global(.page-content) {
@@ -116,6 +120,7 @@
   border-block: 1px solid #4c404a80;
   padding: 0.8rem 0;
   margin-bottom: 2.3rem;
+  isolation: isolate;
 }
 .filters a,
 .filters button {
@@ -138,10 +143,11 @@
 .filters > button {
   border-left: 1px solid #4c404a40;
 }
-.filters a[aria-current="page"],
-.filters button[data-active="true"] {
-  background: #bbcbda;
-  border-radius: 24px;
+/* 선택 표시는 DiggingCatalog의 미끄러지는 알약이 맡음. 글자만 알약 위에 */
+.filters a,
+.filters button {
+  position: relative;
+  z-index: 1;
 }
 .filters a:hover,
 .filters button:hover {
@@ -213,8 +219,8 @@
   gap: 0.3rem;
   min-height: 4.5rem;
   padding-top: 1rem;
-  opacity: 0;
-  transform: translateY(4px);
+  opacity: 0.55; /* 평소에도 제목·아티스트가 보여서 훑어보기 쉬움. 마우스를 올리면 진해짐 */
+  transform: none;
   transition:
     opacity 0.2s,
     transform 0.2s;

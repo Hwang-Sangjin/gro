@@ -12,7 +12,25 @@ import styles from "./Digging.module.css";
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl, fetchDiggingPage } from "@/lib/albums";
 
-function AlbumCard({ album }) {
+// 슬리브에서 빠져나오는 판: 잉크 홈(Home 판과 같은 크림·파랑) + 가운데 라벨은 앨범 커버
+const GROOVES = "repeating-radial-gradient(circle at 50% 50%, #4f6d93 0 1.1px, #f4e7cd 1.1px 3.2px, #4f6d93 3.2px 3.9px, #f4e7cd 3.9px 6px)";
+function SleeveRecord({ src, color }) {
+  return (
+    <span aria-hidden="true"
+      className="pointer-events-none absolute inset-[3%] rounded-full opacity-0 shadow-[0_10px_24px_rgba(48,38,44,0.18)] transition-[translate,opacity] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] [[data-revealed=true]>&]:opacity-100 group-hover:translate-x-[46%] group-focus-visible:translate-x-[46%] motion-reduce:transition-none">
+      <span className="absolute inset-0 rounded-full group-hover:animate-[spin_3.6s_linear_infinite] motion-reduce:!animate-none"
+        style={{ backgroundImage: `radial-gradient(circle, #f4e7cd 0 1.6%, transparent 1.7%), radial-gradient(circle, transparent 0 17.5%, #4f6d93 17.6% 18.4%, transparent 18.5% 47%, #4f6d93 47% 48.5%, transparent 48.6%), ${GROOVES}` }}>
+        {/* 라벨 = 앨범 커버 (돌면서 그림이 같이 돎) */}
+        <span className="absolute inset-[32.5%] overflow-hidden rounded-full"
+          style={{ backgroundColor: color, backgroundImage: src ? `url("${src}")` : undefined, backgroundSize: "cover", backgroundPosition: "center" }}>
+          <span className="absolute left-1/2 top-1/2 h-[9%] w-[9%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f4e7cd]" />
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function AlbumCard({ album, onTint }) {
   const transition = useAlbumTransition();
   function open(event) {
     if (!transition || event.defaultPrevented || event.button !== 0 ||
@@ -61,8 +79,11 @@ function AlbumCard({ album }) {
     art.current?.style.setProperty("--ry", "0deg");
   }
   return (
-    <Link data-crate-skip data-album-slug={album.slug} data-album-color={album.cover_color || "#bbcbda"} data-album-image={failed ? undefined : src} onClick={open} className={styles.card} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
+    <Link data-crate-skip data-album-slug={album.slug} data-album-color={album.cover_color || "#bbcbda"} data-album-image={failed ? undefined : src} onClick={open}
+      onPointerEnter={(e) => { if (e.pointerType !== "touch") onTint?.(album.cover_color); }}
+      className={`${styles.card} group relative hover:z-10 focus-visible:z-10`} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
       <span ref={revealRef} className={styles.hitArea} data-revealed={revealed} onPointerMove={move} onPointerLeave={reset} onPointerCancel={reset}>
+        <SleeveRecord src={failed ? null : src} color={album.cover_color || "#bbcbda"} />
         <span ref={art} data-album-source className={styles.art}>
           <span className={styles.revealPanel} data-image-ready={loaded || failed || !src} style={{ backgroundColor: album.cover_color || "#bbcbda" }}>
           {src && !failed ? <img ref={imageRef} src={src} alt="" loading="lazy" decoding="async" /> : <span className={styles.placeholder} aria-hidden="true">G</span>}
@@ -124,6 +145,15 @@ export default function DiggingGrid({ initial, genreId = null, query = "" }) {
   useEffect(() => {
     if (term && hasMore && !loading && !error) loadMore();
   }, [term, hasMore, loading, error, loadMore]);
+  // 마우스를 올린 앨범의 색이 종이에 아주 옅게 번짐 (그리드를 벗어나면 원래 종이색)
+  const gridRef = useRef(null);
+  const tint = useCallback((color) => {
+    const page = gridRef.current?.closest(".ct-page");   // 헤더도 같은 종이색이 되도록 페이지 레이어 전체에
+    if (!page) return;
+    if (color) page.style.setProperty("--dig-tint", color);
+    else page.style.removeProperty("--dig-tint");
+  }, []);
+  useEffect(() => () => tint(null), [tint]);
   const filtered = items.filter(album => !term ||
     `${album.title} ${album.artist_names}`.toLocaleLowerCase().includes(term));
 
@@ -137,8 +167,8 @@ export default function DiggingGrid({ initial, genreId = null, query = "" }) {
 
   return (
     <>
-      <div className={styles.grid} aria-busy={loading}>
-        {filtered.map(album => <AlbumCard key={album.id} album={album} />)}
+      <div ref={gridRef} className={styles.grid} aria-busy={loading} onPointerLeave={() => tint(null)}>
+        {filtered.map(album => <AlbumCard key={album.id} album={album} onTint={tint} />)}
       </div>
       {filtered.length === 0 && <p className={styles.empty} role="status">{error ? "검색을 완료하지 못했어요. 다시 시도해 주세요." : hasMore ? "검색 중…" : "검색한 앨범이 없어요."}</p>}
 
