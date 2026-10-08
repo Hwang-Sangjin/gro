@@ -81,7 +81,7 @@ function AlbumCard({ album, onTint }) {
   return (
     <Link data-crate-skip data-album-slug={album.slug} data-album-color={album.cover_color || "#bbcbda"} data-album-image={failed ? undefined : src} onClick={open}
       onPointerEnter={(e) => { if (e.pointerType !== "touch") onTint?.(album.cover_color); }}
-      className={`${styles.card} group relative hover:z-10 focus-visible:z-10`} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
+      className={`${styles.card} group relative transition-[opacity,scale] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:z-10 hover:scale-[1.04] focus-visible:z-10 focus-visible:scale-[1.04] motion-reduce:transition-none`} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
       <span ref={revealRef} className={styles.hitArea} data-revealed={revealed} onPointerMove={move} onPointerLeave={reset} onPointerCancel={reset}>
         <SleeveRecord src={failed ? null : src} color={album.cover_color || "#bbcbda"} />
         <span ref={art} data-album-source className={styles.art}>
@@ -167,7 +167,8 @@ export default function DiggingGrid({ initial, genreId = null, query = "" }) {
 
   return (
     <>
-      <div ref={gridRef} className={styles.grid} aria-busy={loading} onPointerLeave={() => tint(null)}>
+      {/* 앨범에 마우스를 올리면 나머지 앨범은 흐려짐 (마우스를 떼면 원래대로) */}
+      <div ref={gridRef} className={`${styles.grid} [@media(hover:hover)_and_(pointer:fine)]:[&:has(>a:hover)>a:not(:hover)]:opacity-35`} aria-busy={loading} onPointerLeave={() => tint(null)}>
         {filtered.map(album => <AlbumCard key={album.id} album={album} onTint={tint} />)}
       </div>
       {filtered.length === 0 && <p className={styles.empty} role="status">{error ? "검색을 완료하지 못했어요. 다시 시도해 주세요." : hasMore ? "검색 중…" : "검색한 앨범이 없어요."}</p>}
