@@ -174,7 +174,6 @@ export default function CrateStage({children}) {
     <main ref={stage} className="ct-stage" data-crate-stage onPointerDown={down} onPointerMove={move} onPointerUp={release} onPointerCancel={release}>
       {[0,1,2].map(i=><div key={i} ref={el=>sleeves.current[i]=el} className="ct-sleeve" aria-hidden="true" />)}
       {entries.map(entry=><CratePage key={entry.key} entry={entry} ref={el=>{if(el)nodes.current.set(entry.key,el);else nodes.current.delete(entry.key);}} />)}
-      {done&&<button type="button" data-crate-handle className="ct-handle" aria-label="페이지 넘기기: 아래로 끌면 다음, 위로 끌면 이전. 방향키 사용 가능.">↕ <span>Flip the crate</span></button>}
     </main>
     <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
   </>;

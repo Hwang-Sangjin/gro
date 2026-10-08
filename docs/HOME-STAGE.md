@@ -14,7 +14,7 @@ Home은 한 화면(100svh)에서 섹션을 바꿉니다. 문서 스크롤은 쓰
 | 3 News | 다시 크림. 판은 오른쪽 칸에서 턴테이블처럼 돎. 기사 3개, Start digging, 푸터. 화면보다 길면 이 안에서 스크롤 |
 
 - 섹션 이동: 휠·터치 스와이프·PageUp/PageDown/Space/↑↓ (한 칸씩, 전환 중 입력 무시)
-- 페이지 사이 이동은 기존 그대로: 상단 메뉴, 아래 가운데 `Flip the crate` 핸들, 링크 클릭(Crate Flip). Home 위에서 마우스로 끌어 페이지를 넘기는 동작만 꺼 두었습니다(아래 CrateStage 변경).
+- 페이지 사이 이동: 상단 메뉴, 링크 클릭(Crate Flip). 아래 가운데 `Flip the crate` 핸들은 삭제했습니다. Home 위에서 마우스로 끌어 페이지를 넘기는 동작만 꺼 두었습니다(아래 CrateStage 변경).
 - 테마: 엔진이 `.ct-page`의 `--wire-t`(0 크림 ↔ 1 잉크)를 섹션에 맞춰 바꿉니다. 내비게이션·종이 질감 색이 기존 방식 그대로 따라옵니다. Home 내부 색은 `--hs-*` 변수(`--hs-paper`, `--hs-text`, `--hs-muted`, `--hs-line`, `--hs-ink3d`, `--hs-label3d`, `--hs-genre`)를 씁니다.
 - 앨범 상세에서 돌아오면 New Vinyls(또는 떠날 때의 섹션)로, 열었던 앨범이 정면에 온 상태로 돌아옵니다. 메뉴로 Home에 오면 Hero부터.
 
@@ -72,3 +72,7 @@ Home은 한 화면(100svh)에서 섹션을 바꿉니다. 문서 스크롤은 쓰
   - 앨범 클릭 → 확대 → 한 번 더 클릭 → 커버 이동 전환으로 `/album/[slug]` → 뒤로 가기 시 New Vinyls·같은 앨범 정면
   - `Dig into …` → `/digging?genre=…` Crate Flip, 메뉴로 Home 복귀 시 엔진 재생성
 - 실제 Supabase 데이터, 외부 폰트, 실제 기기 GPU 성능은 이번 검증에 포함되지 않았습니다.
+
+## 제목 등장
+
+Home의 제목(Grooves, New Vinyls, 장르 이름, News & Stories, 마지막 문구)은 모두 아래에서 스르륵 올라옵니다. 부모가 `overflow-y-clip`으로 잘라 주고, 글자는 `translate`/`transform`으로 110%에서 0으로 움직입니다. Hero 글자 타이밍은 `homeEngine.js`의 `TITLE_RISE`.

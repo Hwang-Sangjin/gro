@@ -224,7 +224,7 @@ export async function createHomeEngine(opts) {
     roll: (33 * Math.PI) / 180,
     // 판 지름이 스테이지에서 차지하는 비율. 바깥 타이포 링(판의 약 1.3배)까지 화면 안에 들어오게
     widthFraction: 0.58, compactWidthFraction: 0.74, heightFraction: 0.68,
-    reservePx: 72,                // 아래 'Flip the crate' 핸들 자리
+    reservePx: 24,                // 아래 여백
   };
   function getHeroRecordScale(width, height, pixelHeight) {
     const { tilt, roll, widthFraction, compactWidthFraction, heightFraction } = HERO_COMPOSITION;
@@ -782,7 +782,7 @@ export async function createHomeEngine(opts) {
   const ALBUM = {
     size: 0.46,          // 정사각 앨범 한 변 (판 반지름 = 1)
     inner: 0.46,         // 아래 모서리 안쪽 끝의 반지름 → 바깥 끝 = 0.92
-    depth: 0.03,         // 두께
+    depth: 0.015,        // 두께 (얇은 종이 재킷)
     dropHeight: 1.6,     // 떨어지기 시작하는 높이
     hoverLift: 0.06,
   };
@@ -1199,7 +1199,7 @@ export async function createHomeEngine(opts) {
     $nvHead.style.visibility = nvIn > 0.01 ? 'visible' : 'hidden';
     $nvLines.forEach((el, i) => {
       const t = easeOut(clamp01((albumClock - AUTO.titleAt - i * 0.1) / AUTO.titleDur));
-      el.style.transform = `translateY(${((1 - t) * 0.35).toFixed(3)}em)`;
+      el.style.transform = `translateY(${((1 - t) * 110).toFixed(2)}%)`;   // 아래에서 스르륵 (부모가 잘라 줌)
     });
     $nvCaption.style.opacity = String(easeOut(clamp01((albumClock - AUTO.captionAt) / AUTO.captionDur)));
     q('nv-hint').style.opacity = String(fe);
@@ -1216,6 +1216,15 @@ export async function createHomeEngine(opts) {
   // 빨라질수록 글자가 회전 방향으로 기울고 살짝 벌어짐. 글자마다 조금씩 늦게 따라와 물결처럼 번짐
   const titleLetters = [...host.querySelectorAll('#title > span')];
   const letterVel = titleLetters.map(() => 0);
+  // 인트로가 끝나면 'Grooves' 글자가 아래에서 하나씩 스르륵 올라옴 (h1이 잘라 줌)
+  const TITLE_RISE = { delay: 0.15, stagger: 0.06, dur: 0.9 };
+  function updateTitleRise() {
+    const t = performance.now() / 1000 - startedAt - TITLE_RISE.delay;
+    titleLetters.forEach((el, i) => {
+      const k = reduceMotion ? 1 : easeOut(clamp01((t - i * TITLE_RISE.stagger) / TITLE_RISE.dur));
+      el.style.translate = `0 ${((1 - k) * 110).toFixed(2)}%`;
+    });
+  }
   function updateTitle(dt, amount) {
     const on = fxTitle.checked && !reduceMotion;
     titleLetters.forEach((el, i) => {
@@ -2002,8 +2011,7 @@ export async function createHomeEngine(opts) {
     if (geo.portrait) {
       // 세로 화면: 아래쪽에 반쯤 걸치고 바늘은 위(12시)
       geo.R = Math.min(W * 0.62, H * 0.42);
-      // 아래 가운데의 사이트 공용 'Flip the crate' 핸들과 겹치지 않게 조금 올림
-      geo.cx = W / 2; geo.cy = H + geo.R * 0.18 - 56;
+      geo.cx = W / 2; geo.cy = H + geo.R * 0.18;
       geo.needle = -Math.PI / 2;
     } else {
       // 가로 화면: 왼쪽에 반쯤 걸치고 바늘은 오른쪽(3시)
@@ -2047,7 +2055,7 @@ export async function createHomeEngine(opts) {
     shownGenre = i;
     const g = GENRES[i];
     q('gd-count-idx').textContent = `${String(i + 1).padStart(2, '0')} / ${GENRES.length}`;
-    q('gd-name').textContent = g.name;
+    q('gd-name-text').textContent = g.name;
     q('gd-desc').textContent = g.desc;
     const link = q('gd-link');
     link.textContent = `Dig into ${g.name.toUpperCase()} ↗`;
@@ -2056,10 +2064,14 @@ export async function createHomeEngine(opts) {
     // 장르별 대표 커버 3장: 불러오는 동안은 장르 색 슬리브, 불러오면 실제 커버
     opts.getGenreCovers?.(g.slug).then((list) => { if (!disposed && shownGenre === i) renderGenreCovers(i, list); }, () => {});
     if (!reduceMotion) {
-      for (const id of ['gd-name', 'gd-desc', 'gd-covers']) {
+      // 장르 이름은 다른 제목처럼 아래에서 스르륵 올라옴 (h2가 잘라 줌)
+      q('gd-name-text').animate(
+        [{ transform: 'translateY(110%)' }, { transform: 'none' }],
+        { duration: 700, easing: 'cubic-bezier(0.22,1,0.36,1)' });
+      for (const id of ['gd-desc', 'gd-covers']) {
         q(id).animate(
           [{ opacity: 0, transform: 'translateY(0.35em)' }, { opacity: 1, transform: 'none' }],
-          { duration: 420, easing: 'cubic-bezier(0.22,1,0.36,1)', delay: id === 'gd-covers' ? 60 : 0 });
+          { duration: 420, easing: 'cubic-bezier(0.22,1,0.36,1)', delay: id === 'gd-covers' ? 120 : 60 });
       }
     }
   }
@@ -2549,6 +2561,7 @@ export async function createHomeEngine(opts) {
     rimUniforms.uBlur.value = Math.min(0.045, Math.max(0, Math.abs(omega) - SPIN.rpm * RPM2W) * 0.012);
     updateStrobe(dt);
     updateTitle(dt, fxNorm);
+    updateTitleRise();
     //  링 표시: 판(또는 링) 위에 올리거나 누르는 동안 서서히 나타나고, 벗어나면 천천히 사라짐
     const ringTarget = ((heroActive && overRing) || holding) && fxSceneFade > 0.5 ? 1 : 0;
     const ringTau = ringTarget > rimUniforms.uReveal.value ? 0.35 : 0.6;
