@@ -136,8 +136,14 @@ export default function DiggingGrid({ initial, genreId = null, query = "" }) {
   const tint = useCallback((color) => {
     const page = gridRef.current?.closest(".ct-page");   // 헤더도 같은 종이색이 되도록 페이지 레이어 전체에
     if (!page) return;
-    if (color) page.style.setProperty("--dig-tint", color);
-    else page.style.removeProperty("--dig-tint");
+    // 헤더와 본문이 같은 색이 되도록 헤더 색도 여기서 직접 같은 값으로 지정 (스타일시트 계산에 기대지 않음)
+    if (color) {
+      page.style.setProperty("--dig-tint", color);
+      page.style.setProperty("--ct-header-bg", `color-mix(in oklab, ${color} 9%, #f3e7cd)`);
+    } else {
+      page.style.removeProperty("--dig-tint");
+      page.style.removeProperty("--ct-header-bg");
+    }
   }, []);
   useEffect(() => () => tint(null), [tint]);
   const filtered = items.filter(album => !term ||
