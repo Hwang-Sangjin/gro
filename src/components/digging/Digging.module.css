@@ -192,8 +192,15 @@
   height: 100%;
   object-fit: cover;
 }
+/* 하늘색 모서리 마크: 꺾쇠의 두 팔이 차례로 그어짐
+   - 왼쪽 위: 모서리에서 오른쪽으로 → 아래로 / 오른쪽 아래: 모서리에서 왼쪽으로 → 위로
+   - 사라질 땐 거꾸로 (세로 팔이 먼저 접히고 가로 팔이 접힘)
+   --mark-a = 가로 팔 길이, --mark-b = 세로 팔 길이 (clip-path로 잘라 보여 줌) */
+@property --mark-a { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
+@property --mark-b { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
 .art::before,
 .art::after {
+  --mark-w: 7px;
   content: "";
   position: absolute;
   width: clamp(24px, 3vw, 42px);
@@ -201,7 +208,38 @@
   border: solid #bbcbda;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s;
+  /* 사라질 때: 세로 팔 먼저(0.22s) → 가로 팔(0.22s) → 다 접힌 뒤 투명 */
+  transition:
+    --mark-b 0.22s cubic-bezier(0.55, 0, 0.75, 0.2),
+    --mark-a 0.22s cubic-bezier(0.55, 0, 0.75, 0.2) 0.18s,
+    opacity 0s linear 0.42s;
+}
+.art::before {
+  clip-path: polygon(0 0, var(--mark-a) 0, var(--mark-a) var(--mark-w), var(--mark-w) var(--mark-w), var(--mark-w) var(--mark-b), 0 var(--mark-b));
+}
+.art::after {
+  clip-path: polygon(100% 100%, calc(100% - var(--mark-a)) 100%, calc(100% - var(--mark-a)) calc(100% - var(--mark-w)), calc(100% - var(--mark-w)) calc(100% - var(--mark-w)), calc(100% - var(--mark-w)) calc(100% - var(--mark-b)), 100% calc(100% - var(--mark-b)));
+}
+/* 나타날 때: 바로 보이고, 가로 팔(0.3s) → 세로 팔(0.3s) */
+.card:focus-visible .art::before,
+.card:focus-visible .art::after {
+  --mark-a: 100%;
+  --mark-b: 100%;
+  transition:
+    --mark-a 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    --mark-b 0.3s cubic-bezier(0.22, 1, 0.36, 1) 0.2s,
+    opacity 0s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .art::before,
+  .card:hover .art::after {
+    --mark-a: 100%;
+    --mark-b: 100%;
+    transition:
+      --mark-a 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+      --mark-b 0.3s cubic-bezier(0.22, 1, 0.36, 1) 0.2s,
+      opacity 0s;
+  }
 }
 .art::before {
   /* 호버 때 생기는 두께 면(--sleeve-depth)에 가리지 않게 그만큼 바깥으로 */
@@ -335,6 +373,7 @@
   }
   .art::before,
   .art::after {
+    --mark-w: 5px;
     border-width: 5px 0 0 5px;
   }
   .art::after {

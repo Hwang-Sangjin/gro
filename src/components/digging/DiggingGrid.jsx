@@ -65,7 +65,7 @@ function AlbumCard({ album, onTint }) {
       onPointerEnter={(e) => { if (e.pointerType !== "touch") onTint?.(album.cover_color); }}
       // 두께 면 색 = 앨범 대표색보다 조금 진하게 (위 면은 덜, 오른쪽 면은 더 — 빛이 왼쪽 위에서 오는 느낌)
       style={{ "--sleeve-top": `color-mix(in oklab, ${album.cover_color || "#bbcbda"} 82%, #000)`, "--sleeve-side": `color-mix(in oklab, ${album.cover_color || "#bbcbda"} 64%, #000)` }}
-      className={`${styles.card} group relative [--sleeve-depth:clamp(6px,0.7vw,12px)] [transition:opacity_500ms_ease-in-out_100ms,scale_500ms_cubic-bezier(0.22,1,0.36,1)] hover:z-10 hover:scale-[1.04] focus-visible:z-10 focus-visible:scale-[1.04] motion-reduce:transition-none`} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
+      className={`${styles.card} group relative [--sleeve-depth:clamp(3px,0.35vw,6px)] [transition:opacity_500ms_ease-in-out_100ms,scale_500ms_cubic-bezier(0.22,1,0.36,1)] hover:z-10 hover:scale-[1.04] focus-visible:z-10 focus-visible:scale-[1.04] motion-reduce:transition-none`} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
       <span ref={revealRef} className={styles.hitArea} data-revealed={revealed} onPointerMove={move} onPointerLeave={reset} onPointerCancel={reset}>
         <span ref={art} data-album-source className={styles.art}>
           {/* 호버하면 슬리브에 두께가 생김: 위·오른쪽 면이 비스듬히 솟아 종이 재킷 상자처럼 보임 */}
