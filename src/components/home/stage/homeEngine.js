@@ -289,7 +289,8 @@ export async function createHomeEngine(opts) {
   const FX_IDLE = 0.07;   // 기본 회전 때 이펙트 강도
   const ORTHO_EYE_DISTANCE = 1000;
   const MIN_LIGHT_Y = 0.3;
-  const CAM_DISTANCE = 10;
+  // 직교 카메라라 거리는 크기에 영향이 없음. 큰 화면에서 판·앨범이 커져도 카메라 앞면(near)에 잘리지 않게 충분히 뒤로
+  const CAM_DISTANCE = 100;
   const ZOOM = 80;
   let currentSideB = false;   // 지금 보이는 면이 B면인지 (판 뒤집기)
 
@@ -304,7 +305,7 @@ export async function createHomeEngine(opts) {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setClearColor(0x000000, 0);
   const scene = new THREE.Scene();
-  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
   camera.zoom = ZOOM;
   camera.position.set(0, 0, CAM_DISTANCE);
 
