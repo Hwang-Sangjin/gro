@@ -49,7 +49,7 @@ const VB = 400; // viewBox 한 변
 const C = VB / 2; // 중심
 const ORIGIN = `${C} ${C}`; // 모든 변형의 기준점
 
-const LABEL_R = 34; // 가운데 크림색 원 반지름
+const LABEL_R = 34; // 가운데 파란 라벨 반지름 (Home 3D 판의 라벨과 같은 색)
 const SPINDLE_R = 5;
 
 // 바깥 → 안쪽. 12 씩 등간격.

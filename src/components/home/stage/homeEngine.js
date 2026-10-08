@@ -1218,6 +1218,32 @@ export async function createHomeEngine(opts) {
   const letterVel = titleLetters.map(() => 0);
   // 인트로가 끝나면 'Grooves' 글자가 아래에서 하나씩 스르륵 올라옴 (h1이 잘라 줌)
   const TITLE_RISE = { delay: 0.15, stagger: 0.06, dur: 0.9 };
+  /* ---- 로딩 → Hero 인트로 (B안: 라벨로 들어갔다 나오기) ----
+     Preloader가 파란 라벨(#bbcbda)로 파고들어 화면을 덮으면, 같은 색인 3D 판의 라벨이 화면을 덮은 상태에서 시작해
+     판이 뒤로 빠지며(로그 공간 줌) Hero 자세로 기울어짐. 그동안 헤일로·링·먼지는 숨겼다가 끝나면 나타남 */
+  const INTRO = {
+    pull: 2.0,          // 빠져나오는 시간(초)
+    handoffRpm: 20,     // 로딩 판(감속 중)에서 이어받는 회전 속도
+    cover: 1.15,        // 시작 때 라벨이 화면 대각선을 덮는 여유배율
+    titleAt: 1.55,      // 'Grooves' 글자가 올라오기 시작하는 시점(초)
+  };
+  const intro = { t0: -1, k: opts.introDone ? 1 : 0 };
+  function applyIntroPose() {
+    if (intro.k >= 1 && intro.t0 < 0) return;
+    if (intro.t0 >= 0) {
+      intro.k = easeInOutSine(clamp01((performance.now() / 1000 - intro.t0) / INTRO.pull));
+      if (intro.k >= 1) intro.t0 = -1;
+    }
+    const k = intro.k;
+    comp.rotation.x = THREE.MathUtils.lerp(Math.PI / 2, comp.rotation.x, k);
+    root.rotation.z = THREE.MathUtils.lerp(0, root.rotation.z, k);
+    const hero = root.scale.x;
+    const s0 = (Math.hypot(canvas.clientWidth, canvas.clientHeight) / 2) / (uniforms.uLabelR.value * ZOOM) * INTRO.cover;
+    root.scale.setScalar(Math.exp(Math.log(s0) + (Math.log(hero) - Math.log(s0)) * k));
+    root.position.y *= k;
+    fxSceneFade *= k;
+    dustFade *= k;
+  }
   function updateTitleRise() {
     const t = performance.now() / 1000 - startedAt - TITLE_RISE.delay;
     titleLetters.forEach((el, i) => {
@@ -2254,6 +2280,7 @@ export async function createHomeEngine(opts) {
   const easeInOutSine = (t) => 0.5 - 0.5 * Math.cos(Math.PI * t);
 
   function goSection(next) {
+    if (intro.t0 >= 0) return;   // 인트로 중에는 섹션 이동 안 함
     next = Math.max(0, Math.min(3, next));
     if (next === section) return;
     const prev = section;
@@ -2475,6 +2502,7 @@ export async function createHomeEngine(opts) {
     //  Hero 타이틀은 위로 사라지고, New Vinyls 타이틀은 착륙 뒤 나타남
     const heroOut = seg(p, 0.0, 0.14);
     fxSceneFade = 1 - seg(p, 0.0, SCROLL.fxOutEnd);   // 링·헤일로는 Hero 전용
+    applyIntroPose();
     title.style.opacity = String(1 - heroOut);
     //  배경·글자·잉크 색: 판이 내려오는 동안 크림 → 플럼으로 자연스럽게
     applyTheme(easeInOut(seg(p, 0.15, 0.85)) * (1 - newsEase));   // News에서는 다시 크림
@@ -2596,7 +2624,17 @@ export async function createHomeEngine(opts) {
     setIntroDone(done) {
       if (!done || introDone) return;
       introDone = true;
-      startedAt = performance.now() / 1000;
+      const now = performance.now() / 1000;
+      if (section === 0 && !reduceMotion) {
+        // 로딩 화면이 파란 라벨로 파고들어 화면을 덮은 상태 → 3D 판의 라벨 속에서 빠져나오며 Hero 자세로
+        intro.t0 = now;
+        startedAt = now - SPIN.startDelay - SPIN.spinEase;              // 모터는 이미 Hero 속도
+        omega = -(INTRO.handoffRpm / 60) * Math.PI * 2;                 // 로딩 판의 회전을 이어받아 서서히 감속
+        TITLE_RISE.delay = SPIN.startDelay + SPIN.spinEase + INTRO.titleAt;   // startedAt을 앞당겼으므로 그만큼 보정
+      } else {
+        intro.k = 1;
+        startedAt = now;
+      }
     },
     goSection(n) { if (!disposed && !inputLocked()) goSection(n); },
     get section() { return section; },

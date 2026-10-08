@@ -76,3 +76,7 @@ Home은 한 화면(100svh)에서 섹션을 바꿉니다. 문서 스크롤은 쓰
 ## 제목 등장
 
 Home의 제목(Grooves, New Vinyls, 장르 이름, News & Stories, 마지막 문구)은 모두 아래에서 스르륵 올라옵니다. 부모가 `overflow-y-clip`으로 잘라 주고, 글자는 `translate`/`transform`으로 110%에서 0으로 움직입니다. Hero 글자 타이밍은 `homeEngine.js`의 `TITLE_RISE`.
+
+## 로딩 → Hero 인트로 (B안)
+
+Preloader가 파란 라벨(`--frame`, #bbcbda)로 파고들어 화면을 덮으면 `finish()`가 불리고, 엔진은 같은 색인 3D 판 라벨이 화면을 덮은 상태에서 시작해 판이 뒤로 빠지며(로그 공간 줌) Hero 자세로 기울어집니다. 회전은 로딩 판에서 이어받은 속도(`INTRO.handoffRpm`)에서 Hero 속도로 감속하고, 'Grooves' 글자는 `INTRO.titleAt`초 뒤 올라옵니다. 인트로 중에는 섹션 이동을 막습니다. 다른 페이지에서 Home으로 올 때는 인트로 없이 바로 Hero입니다.

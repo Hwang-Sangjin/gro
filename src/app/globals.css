@@ -684,9 +684,9 @@ body.intro-locked {
   stroke-linecap: round;
 }
 
-/* 가운데 크림 원. 이 원이 그대로 홈 배경이 된다 */
+/* 가운데 파란 라벨. 3D 판의 라벨 색(#bbcbda)과 같아서, 파고든 화면이 그대로 Home 3D 판의 라벨로 이어진다 */
 .preloader-disc circle.preloader-label {
-  fill: var(--bg);
+  fill: var(--frame);
   stroke: none;
 }
 
