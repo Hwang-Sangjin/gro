@@ -168,7 +168,7 @@ export default function HomeStage() {
         <div id="gd-panel" className="pointer-events-auto absolute w-[min(clamp(34rem,40vw,52rem),calc(100vw-3rem))]">
           <p className="text-[clamp(11px,0.75vw,14px)] uppercase tracking-[0.42em] text-[var(--hs-genre)] transition-colors duration-500">Explore by genre · <span id="gd-count-idx" className="tabular-nums" /></p>
           <h2 id="gd-name" aria-live="polite" className={`mt-3 overflow-y-clip pb-[0.06em] ${SERIF} text-[clamp(2.75rem,6.4vw,8.5rem)] font-black uppercase leading-[0.9] tracking-[-0.01em]`}><span id="gd-name-text" className="block" /></h2>
-          <p id="gd-desc" className={`mt-4 max-w-[clamp(28rem,32vw,40rem)] ${SERIF} text-[clamp(1.125rem,1.45vw,1.9rem)] leading-snug`} />
+          <p id="gd-desc" className={`mt-4 max-w-[clamp(28rem,32vw,40rem)] overflow-y-clip pb-[0.1em] ${SERIF} text-[clamp(1.125rem,1.45vw,1.9rem)] leading-snug`}><span id="gd-desc-text" className="block" /></p>
           <div id="gd-covers" className="mt-[clamp(1.5rem,2.5vh,2.5rem)] flex h-[clamp(7rem,12vw,15rem)] items-end" />
           <a id="gd-link" href="/digging" className={`mt-6 inline-block border-b border-[var(--hs-genre)] pb-1 transition-colors duration-500 ${SERIF} text-[clamp(1.125rem,1.4vw,1.75rem)]`} />
         </div>

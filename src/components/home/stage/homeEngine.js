@@ -2069,6 +2069,7 @@ export async function createHomeEngine(opts) {
   }
 
   let shownGenre = -1;
+  let dialRevealed = false;
   const coverTilt = (n) => `transform: rotate(${(n - 1) * 5}deg) translateY(${n === 1 ? -6 : 0}px)`;
   function renderGenreCovers(i, list) {
     const g = GENRES[i];
@@ -2088,24 +2089,43 @@ export async function createHomeEngine(opts) {
     const g = GENRES[i];
     q('gd-count-idx').textContent = `${String(i + 1).padStart(2, '0')} / ${GENRES.length}`;
     q('gd-name-text').textContent = g.name;
-    q('gd-desc').textContent = g.desc;
+    q('gd-desc-text').textContent = g.desc;
     const link = q('gd-link');
     link.textContent = `Dig into ${g.name.toUpperCase()} ↗`;
     link.setAttribute('href', `/digging?genre=${encodeURIComponent(g.slug)}`);
     renderGenreCovers(i, null);
     // 장르별 대표 커버 3장: 불러오는 동안은 장르 색 슬리브, 불러오면 실제 커버
-    opts.getGenreCovers?.(g.slug).then((list) => { if (!disposed && shownGenre === i) renderGenreCovers(i, list); }, () => {});
-    if (!reduceMotion) {
-      // 장르 이름은 다른 제목처럼 아래에서 스르륵 올라옴 (h2가 잘라 줌)
-      q('gd-name-text').animate(
-        [{ transform: 'translateY(110%)' }, { transform: 'none' }],
-        { duration: 700, easing: 'cubic-bezier(0.22,1,0.36,1)' });
-      for (const id of ['gd-desc', 'gd-covers']) {
-        q(id).animate(
-          [{ opacity: 0, transform: 'translateY(0.35em)' }, { opacity: 1, transform: 'none' }],
-          { duration: 420, easing: 'cubic-bezier(0.22,1,0.36,1)', delay: id === 'gd-covers' ? 120 : 60 });
-      }
-    }
+    opts.getGenreCovers?.(g.slug).then((list) => {
+      if (disposed || shownGenre !== i) return;
+      renderGenreCovers(i, list);
+      // 실제 커버로 바뀔 때: 등장 중이면 남은 차례에 맞춰, 끝났으면 살짝 페이드
+      revealCovers(Math.max(0, revealAt + REVEAL.coversAt - performance.now()));
+    }, () => {});
+    revealGenre();
+  }
+  /* ---- 장르 정보 차례대로 등장: 제목 → 설명 → 커버 3장 → 링크 ----
+     제목·설명은 아래에서 스르륵 올라오고(부모가 잘라 줌), 커버는 한 장씩 떠오름 */
+  const REVEAL = {
+    ease: 'cubic-bezier(0.22,1,0.36,1)',
+    title: 750, descAt: 160, desc: 800, coversAt: 330, coverStagger: 110, cover: 750, linkAt: 640,
+  };
+  let revealAt = 0;
+  function revealCovers(delay) {
+    if (reduceMotion) return;
+    [...q('gd-covers').children].forEach((el, n) => {
+      el.animate(
+        [{ opacity: 0, translate: '0 40%' }, { opacity: 1, translate: '0 0' }],
+        { duration: REVEAL.cover, easing: REVEAL.ease, delay: delay + n * REVEAL.coverStagger, fill: 'backwards' });
+    });
+  }
+  function revealGenre() {
+    revealAt = performance.now();
+    if (reduceMotion) return;
+    const opt = (delay, duration) => ({ duration, delay, easing: REVEAL.ease, fill: 'backwards' });
+    q('gd-name-text').animate([{ transform: 'translateY(110%)' }, { transform: 'none' }], opt(0, REVEAL.title));
+    q('gd-desc-text').animate([{ transform: 'translateY(105%)' }, { transform: 'none' }], opt(REVEAL.descAt, REVEAL.desc));
+    revealCovers(REVEAL.coversAt);
+    q('gd-link').animate([{ opacity: 0, translate: '0 0.4em' }, { opacity: 1, translate: '0 0' }], opt(REVEAL.linkAt, 600));
   }
   // 다이얼은 끝없이 돎: 각도(dialTarget)는 제한 없이 누적하고, 장르 번호만 12로 나눈 나머지로 씀
   //  → etc. 다음은 다시 k-indie, k-indie 이전은 etc.
@@ -2196,6 +2216,9 @@ export async function createHomeEngine(opts) {
     }
     // 다이얼은 판이 거의 자리 잡은 뒤 나타남
     const show = easeOut(seg(catEase, 0.45, 1));
+    // 다이얼 섹션에 들어올 때마다 지금 장르 정보도 차례대로 등장
+    if (show > 0.35 && !dialRevealed) { dialRevealed = true; revealGenre(); }
+    else if (show < 0.05) dialRevealed = false;
     updateWaves(dt, show);
     $gd.style.opacity = String(show);
     $gdPanel.style.translate = geo.portrait ? `0 ${((1 - show) * -16).toFixed(1)}px` : `${((1 - show) * 24).toFixed(1)}px 0`;
