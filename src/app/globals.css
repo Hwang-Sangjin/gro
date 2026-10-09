@@ -14,6 +14,15 @@
       transform: translateX(-50%);
     }
   }
+
+  /* 앨범 상세: 트랙 행이 차례로 올라옴 (사이드를 바꿀 때마다 다시) */
+  --animate-track-in: track-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  @keyframes track-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+  }
 }
 
 :root {

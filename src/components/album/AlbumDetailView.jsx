@@ -13,6 +13,30 @@ const AlbumVinyl = dynamic(() => import("./AlbumVinyl"), { ssr: false });
 const DISC_SWAP_MS = 650; // LP 교체: 판이 슬리브로 들어가는 시간
 const AlbumGrainient = dynamic(() => import("./AlbumGrainient"), { ssr: false });
 
+// ── 등장 애니메이션 (커버 이동 전환이 끝난 뒤 show) ──
+const EASE = "ease-[cubic-bezier(.22,1,.36,1)]";
+// 글자가 마스크 아래에서 올라옴 (Home 제목과 같은 방식)
+function Rise({ show, delay = 0, className = "", children }) {
+  return (
+    <span className={`block overflow-y-clip pb-[.1em] ${className}`}>
+      <span data-show={show} style={{ transitionDelay: show ? `${delay}ms` : "0ms" }}
+        className={`block transition-transform duration-[1100ms] ${EASE} data-[show=false]:translate-y-[110%] motion-reduce:transition-none motion-reduce:data-[show=false]:translate-y-0`}>
+        {children}
+      </span>
+    </span>
+  );
+}
+// 살짝 떠오르며 나타남
+function Fade({ show, delay = 0, className = "", children }) {
+  return (
+    <div data-show={show} style={{ transitionDelay: show ? `${delay}ms` : "0ms" }}
+      className={`transition-[opacity,translate] duration-[900ms] ${EASE} data-[show=false]:translate-y-4 data-[show=false]:opacity-0 motion-reduce:transition-none motion-reduce:data-[show=false]:translate-y-0 ${className}`}>
+      {children}
+    </div>
+  );
+}
+const duration = sec => sec == null ? "—" : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+
 // Presentational only: complete URLs and camelCase props come from the page.
 export default function AlbumDetailView({ album }) {
   const art = useRef(null);
@@ -52,6 +76,7 @@ export default function AlbumDetailView({ album }) {
   const [loaded, setLoaded] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [selectedSide, setSelectedSide] = useState(null);
+  const [sidePicked, setSidePicked] = useState(false); // 첫 등장 이후 사이드를 바꿨는지 (트랙 행 지연 계산용)
   const sides = [...new Set((album.tracks || []).map(track => `${track.discNo}:${track.side}`))];
   const activeSide = sides.includes(selectedSide) ? selectedSide : sides[0];
   const visibleTracks = (album.tracks || []).filter(track => `${track.discNo}:${track.side}` === activeSide);
@@ -101,7 +126,17 @@ export default function AlbumDetailView({ album }) {
         {/* 종이 질감 (Home·Digging·헤더와 같은 이미지·세기) */}
         <span aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-(image:--paper-texture-image) bg-[length:var(--paper-texture-size)_var(--paper-texture-size)] bg-repeat opacity-(--paper-texture-opacity) mix-blend-soft-light" />
         <div className="mx-auto w-full max-w-[1200px]">
-        <Link href="/digging" className="mb-8 inline-block text-sm underline-offset-4 hover:underline">← Digging</Link>
+        <Fade show={discReady} className="mb-10">
+          <Link href="/digging" className="group inline-flex items-center gap-3 text-[11px] font-medium uppercase tracking-[.24em] focus-visible:outline-2 focus-visible:outline-offset-4">
+            <span aria-hidden="true" className="grid size-9 place-items-center rounded-full border border-current/35 transition-[translate,background-color] duration-300 group-hover:-translate-x-1 group-hover:bg-current/10">
+              <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M13 8H3M7 4 3 8l4 4" /></svg>
+            </span>
+            <span className="relative py-1">
+              Back to Digging
+              <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px origin-right scale-x-0 bg-current transition-transform duration-500 group-hover:origin-left group-hover:scale-x-100" />
+            </span>
+          </Link>
+        </Fade>
         <div className="album-listening-stage">
           <div data-album-cover={album.slug} className="album-listening-cover relative aspect-square" onPointerMove={tilt} onPointerLeave={resetTilt} onPointerCancel={resetTilt}>
             <div ref={art} className="album-cover-tilt absolute inset-0 shadow-2xl" style={{ backgroundColor: color }}>
@@ -129,38 +164,67 @@ export default function AlbumDetailView({ album }) {
           </div>
           </div>
         </div>
-        <div className="album-detail-columns mt-12 grid items-start gap-12 border-t border-current/25 pt-8 md:grid-cols-[1.15fr_1fr] md:gap-16">
-          <div className="flex min-w-0 flex-col gap-8">
-            <section aria-label="앨범 정보" className="flex flex-col gap-4">
-              <p className="text-xs uppercase tracking-[.2em]">{[album.format, album.releaseYear].filter(Boolean).join(" · ")}</p>
-            <h1 data-album-heading tabIndex={-1} className="album-detail-title break-words text-4xl leading-tight outline-none md:text-6xl">{album.title}</h1>
-            <p className="font-serif text-2xl">{album.artistNames || "아티스트 정보가 없습니다"}</p>
-            {album.label && <p className="text-sm text-[var(--album-muted)]">Label — {album.label}</p>}
-            {album.description && <p className="max-w-xl whitespace-pre-line text-sm leading-7 text-[var(--album-muted)]">{album.description}</p>}
+        <div className="album-detail-columns mt-14 md:mt-20">
+          {/* 구분선이 왼쪽에서 그어짐 */}
+          <span aria-hidden="true" data-show={discReady}
+            className={`block h-px origin-left bg-current/25 transition-transform duration-[1200ms] ${EASE} data-[show=false]:scale-x-0 motion-reduce:transition-none`} />
+          <div className="grid items-start gap-16 pt-10 md:grid-cols-[1.2fr_1fr] md:gap-20 md:pt-12">
+          <div className="flex min-w-0 flex-col gap-16">
+            <section aria-label="앨범 정보">
+              <Fade show={discReady} delay={150}>
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium uppercase tracking-[.24em] text-[var(--album-muted)]">
+                  {[album.format, album.releaseYear, album.label].filter(Boolean).map((item, i) => (
+                    <span key={i} className="flex items-center gap-3">{i > 0 && <span aria-hidden="true" className="h-px w-4 bg-current/50" />}{item}</span>
+                  ))}
+                </p>
+              </Fade>
+              <h1 data-album-heading tabIndex={-1} className="album-detail-title mt-5 break-words text-[clamp(44px,6.4vw,96px)] leading-[.92] outline-none">
+                <Rise show={discReady} delay={220}>{album.title}</Rise>
+              </h1>
+              <p className="mt-4 text-[clamp(20px,2vw,28px)] font-medium tracking-[-.015em]">
+                <Rise show={discReady} delay={340}>{album.artistNames || "아티스트 정보가 없습니다"}</Rise>
+              </p>
+              {album.description && <Fade show={discReady} delay={460}>
+                <p className="mt-6 max-w-xl whitespace-pre-line text-[15px] leading-7 text-[var(--album-muted)]">{album.description}</p>
+              </Fade>}
             </section>
+            <Fade show={discReady} delay={520}>
             <section aria-label="앨범 수록곡">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-current/25 pb-4">
-                <h2 className="text-xs uppercase tracking-[.18em]">Tracklist</h2>
-                <div className="flex flex-wrap gap-2" aria-label="LP 면 선택">
-                  {sides.map(side => <button key={side} type="button" aria-pressed={side === activeSide}
-                    onClick={() => setSelectedSide(side)}
-                    className="rounded-full border border-current/30 px-3 py-1.5 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-4"
-                    style={side === activeSide ? { backgroundColor: ink, color } : undefined}>
-                    {new Set((album.tracks || []).map(track => track.discNo)).size > 1 ? `LP ${side.split(":")[0]} · ` : ""}SIDE {side.split(":")[1]}
-                  </button>)}
+              <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-b border-current/25 pb-5">
+                <div className="flex items-baseline gap-4">
+                  <h2 className="text-[11px] font-medium uppercase tracking-[.24em]">Tracklist</h2>
+                  {visibleTracks.length > 0 && <span className="text-[11px] uppercase tracking-[.18em] tabular-nums text-[var(--album-muted)]">
+                    {visibleTracks.length} tracks · {duration(visibleTracks.reduce((sum, track) => sum + (track.durationSec || 0), 0))}
+                  </span>}
                 </div>
+                {sides.length > 1 && <div className="flex flex-wrap gap-2" aria-label="LP 면 선택">
+                  {sides.map(side => {
+                    const [disc, face] = side.split(":");
+                    const multi = new Set((album.tracks || []).map(track => track.discNo)).size > 1;
+                    return <button key={side} type="button" aria-pressed={side === activeSide}
+                      onClick={() => { setSelectedSide(side); setSidePicked(true); }}
+                      className="min-h-10 rounded-full border border-current/30 px-4 text-[13px] tracking-[.04em] transition-colors hover:border-current focus-visible:outline-2 focus-visible:outline-offset-4"
+                      style={side === activeSide ? { backgroundColor: ink, color, borderColor: ink } : undefined}>
+                      {multi && <span className="mr-1.5 opacity-60">LP{disc}</span>}Side {face}
+                    </button>;
+                  })}
+                </div>}
               </div>
-              {album.tracks?.length ? <ol className="divide-y divide-current/15">
-                {visibleTracks.map(track => <li key={`${track.discNo}-${track.side}-${track.position}`} className="flex items-baseline gap-4 py-3 text-sm">
-                  <span className="w-8 shrink-0 text-[var(--album-muted)]">{track.side}{track.position}</span>
-                  <span className="min-w-0 flex-1 break-words">{track.title}</span>
-                  <span className="shrink-0 tabular-nums text-[var(--album-muted)]">{track.durationSec == null ? "—" : `${Math.floor(track.durationSec / 60)}:${String(track.durationSec % 60).padStart(2, "0")}`}</span>
+              {album.tracks?.length ? <ol key={activeSide}>
+                {visibleTracks.map((track, i) => <li key={`${track.discNo}-${track.side}-${track.position}`}
+                  className={`group grid grid-cols-[3rem_1fr_auto] items-baseline gap-4 border-b border-current/15 py-5 ${discReady ? "animate-track-in motion-reduce:animate-none" : "opacity-0"}`}
+                  style={{ animationDelay: `${(sidePicked ? 0 : 700) + i * 70}ms` }}>
+                  <span className="text-[13px] tabular-nums text-[var(--album-muted)] transition-colors group-hover:text-current">{track.side}{track.position}</span>
+                  <span className="min-w-0 break-words text-[clamp(17px,1.45vw,21px)] leading-snug tracking-[-.01em] transition-transform duration-300 group-hover:translate-x-1">{track.title}</span>
+                  <span className="text-[13px] tabular-nums text-[var(--album-muted)]">{duration(track.durationSec)}</span>
                 </li>)}
-              </ol> : <p className="text-sm text-[var(--album-muted)]">{album.tracksUnavailable ? "수록곡을 불러오지 못했어요." : "등록된 수록곡이 없습니다."}</p>}
+              </ol> : <p className="pt-5 text-[15px] text-[var(--album-muted)]">{album.tracksUnavailable ? "수록곡을 불러오지 못했어요." : "등록된 수록곡이 없습니다."}</p>}
             </section>
+            </Fade>
           </div>
-          <div className="min-w-0">
+          <Fade show={discReady} delay={620} className="min-w-0">
             <YouTubeAlbumPlayer key={album.slug} playlistId={album.youtubePlaylistId} previewUrl={album.thumbUrl || album.coverUrl} albumTitle={album.title} onPlayingChange={setPlaying} />
+          </Fade>
           </div>
         </div>
         </div>
