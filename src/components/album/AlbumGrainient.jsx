@@ -17,6 +17,8 @@ const LOOK = {
   grain: 0.045,      // 셰이더 자체 그레인 (종이 질감과 별도)
   darker: { hue: -14, sat: 1.08, light: -0.13 },  // 2번 색
   lighter: { hue: 18, sat: 0.95, light: 0.11 },   // 3번 색
+  accent: 0.55,
+  darkBase: 0.22,    // 커버 색 밝기(HSL L)가 이보다 낮으면 '어두운 커버' 배합      // 커버 이미지 강조색을 3번 색에 섞는 최대 비율
   resolution: 0.6,   // 렌더 해상도 배율 (CSS 픽셀 기준)
 };
 
@@ -83,25 +85,76 @@ function hslToRgb(h, s, l) {
 }
 const toHex = c => "#" + c.map(v => Math.round(v * 255).toString(16).padStart(2, "0")).join("");
 // 커버 색 → 3톤. 글자색(ink)과의 대비가 4.5:1 아래로 떨어지면 그 톤만 커버 색 쪽으로 당김
-export function grainientColors(hex, ink) {
+export function grainientColors(hex, ink, accent) {
   const [h, s, l] = hexToHsl(hex);
   const shift = ({ hue, sat, light }, k) => hslToRgb(h + hue * k, s * (1 + (sat - 1) * k), l + light * k);
   const safe = look => {
     for (let k = 1; k > 0; k -= 0.1) { const c = shift(look, k); if (!ink || contrastRatio(toHex(c), ink) >= 4.5) return c; }
     return shift(look, 0);
   };
-  return [hslToRgb(h, s, l), safe(LOOK.darker), safe(LOOK.lighter)];
+  // 커버 이미지에서 뽑은 강조색이 있으면 밝은 톤을 그 색 쪽으로 (검정·회색 커버도 색이 살아남)
+  const lift = accent && accentUsable(accent, [h, s, l]) ? safeAccent(hslToRgb(h, s, l), accent, ink) : null;
+  const base = hslToRgb(h, s, l), light = lift ?? safe(LOOK.lighter);
+  // 아주 어두운 커버: 더 어둡게 할 여지가 없어 무늬가 거의 안 보임 →
+  // 큰 소용돌이(1번 색)를 밝은 톤의 절반쯤으로 올려 화면 전체에 흐름이 보이게
+  if (l < LOOK.darkBase) return [base.map((v, i) => v + (light[i] - v) * 0.5), base, light];
+  return [base, safe(LOOK.darker), light];
+}
+// 강조색이 커버 색과 충분히 다를 때만 씀 (이미 채도 있는 커버면 기존 방식 유지)
+function accentUsable(accent, [, s]) {
+  const [, as] = hexToHsl(toHex(accent));
+  return as > 0.35 && as - s > 0.25;
+}
+function safeAccent(base, accent, ink) {
+  for (let k = LOOK.accent; k > 0.05; k -= 0.05) {
+    const c = base.map((v, i) => v + (accent[i] - v) * k);
+    if (!ink || contrastRatio(toHex(c), ink) >= 4.5) return c;
+  }
+  return null;
+}
+// 커버 썸네일을 24×24로 줄여 채도·밝기 가중 평균 → 커버의 대표 강조색 (CORS 막히면 null)
+export function sampleAccent(url) {
+  return new Promise(resolve => {
+    if (!url) return resolve(null);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const n = 24, cv = document.createElement("canvas");
+        cv.width = cv.height = n;
+        const ctx = cv.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, n, n);
+        const d = ctx.getImageData(0, 0, n, n).data;
+        let r = 0, g = 0, b = 0, w = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          const [, ps, pl] = hexToHsl(toHex([d[i] / 255, d[i + 1] / 255, d[i + 2] / 255]));
+          const wt = ps * ps * Math.max(0, 1 - Math.abs(pl - 0.5) * 1.6);
+          r += d[i] * wt; g += d[i + 1] * wt; b += d[i + 2] * wt; w += wt;
+        }
+        resolve(w > 0.5 ? [r / w / 255, g / w / 255, b / w / 255] : null);
+      } catch { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
 }
 
-export default function AlbumGrainient({ color, ink, className = "" }) {
+export default function AlbumGrainient({ color, ink, image, className = "" }) {
   const canvasRef = useRef(null);
-  const colorRef = useRef([color, ink]);
+  const colorRef = useRef([color, ink, null]);
   const redrawRef = useRef(() => {});
 
   useEffect(() => {
-    colorRef.current = [color, ink];
+    colorRef.current = [color, ink, null];
     redrawRef.current();
-  }, [color, ink]);
+    let alive = true;
+    sampleAccent(image).then(accent => {
+      if (!alive || !accent) return;
+      colorRef.current = [color, ink, accent];
+      redrawRef.current();
+    });
+    return () => { alive = false; };
+  }, [color, ink, image]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

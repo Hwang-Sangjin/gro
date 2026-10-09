@@ -78,7 +78,7 @@ export default function AlbumDetailView({ album }) {
             화면 크기 캔버스가 페이지 안에서 sticky로 따라다니고, 헤더 아래에서 서서히 나타남 */}
         {discReady && (
           <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-20">
-            <AlbumGrainient color={color} ink={ink} className="sticky top-0 h-svh w-full [mask-image:linear-gradient(to_bottom,transparent_0,transparent_90px,#000_300px)]" />
+            <AlbumGrainient color={color} ink={ink} image={album.thumbUrl || album.coverUrl} className="sticky top-0 h-svh w-full [mask-image:linear-gradient(to_bottom,transparent_0,transparent_90px,#000_300px)]" />
           </div>
         )}
         {/* 종이 질감 (Home·Digging·헤더와 같은 이미지·세기) */}
