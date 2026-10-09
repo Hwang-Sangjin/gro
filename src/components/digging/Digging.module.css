@@ -270,7 +270,7 @@
     serif;
   overflow-wrap: anywhere;
 }
-.caption > span {
+.caption > span:last-child {
   font-size: 0.82rem;
   opacity: 0.65;
 }

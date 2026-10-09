@@ -65,6 +65,7 @@ function AlbumCard({ album, onTint }) {
       onPointerEnter={(e) => { if (e.pointerType !== "touch") onTint?.(album.cover_color); }}
       // 두께 면 색 = 앨범 대표색보다 조금 진하게 (위 면은 덜, 오른쪽 면은 더 — 빛이 왼쪽 위에서 오는 느낌)
       style={{ "--sleeve-top": `color-mix(in oklab, ${album.cover_color || "#bbcbda"} 82%, #000)`, "--sleeve-side": `color-mix(in oklab, ${album.cover_color || "#bbcbda"} 64%, #000)` }}
+      data-revealed={revealed}
       className={`${styles.card} group relative [--sleeve-depth:clamp(3px,0.35vw,6px)] [transition:opacity_500ms_ease-in-out_100ms,scale_500ms_cubic-bezier(0.22,1,0.36,1)] hover:z-10 hover:scale-[1.04] focus-visible:z-10 focus-visible:scale-[1.04] motion-reduce:transition-none`} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
       <span ref={revealRef} className={styles.hitArea} data-revealed={revealed} onPointerMove={move} onPointerLeave={reset} onPointerCancel={reset}>
         <span ref={art} data-album-source className={styles.art}>
@@ -76,7 +77,11 @@ function AlbumCard({ album, onTint }) {
           </span>
         </span>
       </span>
-      <span className={styles.caption}><strong>{album.title}</strong><span>{album.artist_names}</span></span>
+      {/* 제목·아티스트: 커버가 다 펼쳐진 뒤 아래에서 스르륵 올라옴 (줄마다 잘라 주는 틀 안에서) */}
+      <span className={styles.caption}>
+        <span className="block overflow-y-clip pb-[0.1em]"><strong className="block translate-y-[110%] transition-[translate] delay-[650ms] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.title}</strong></span>
+        <span className="block overflow-y-clip"><span className="block translate-y-[110%] transition-[translate] delay-[760ms] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.artist_names}</span></span>
+      </span>
     </Link>
   );
 }
