@@ -66,6 +66,29 @@ function getGenreIds(supabase) {
   return genreIdsPromise;
 }
 
+/* 지금 그리드의 판들을 등장 때와 반대로 접어서 닫음 (그림이 먼저 흐려지고, 가운데 세로선으로 접힘) */
+function closeGrid(wrap) {
+  if (!wrap || matchMedia("(prefers-reduced-motion: reduce)").matches) return Promise.resolve();
+  const H = innerHeight;
+  const ease = "cubic-bezier(0.55, 0, 0.75, 0.2)";
+  const jobs = [];
+  wrap.querySelectorAll("a[data-album-slug]").forEach((card) => {
+    const r = card.getBoundingClientRect();
+    const visible = r.bottom > 0 && r.top < H;
+    const panel = card.querySelector("[data-image-ready]");
+    const caption = card.lastElementChild;
+    if (!visible || !panel) { card.style.visibility = "hidden"; return; }
+    const delay = Math.random() * 120;
+    const media = panel.querySelector("img, span");
+    if (media) jobs.push(media.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, delay, easing: "ease-in", fill: "forwards" }).finished);
+    jobs.push(panel.animate(
+      [{ clipPath: "inset(0 0 0 0)" }, { clipPath: "inset(0 calc(50% - 2px) 0 calc(50% - 2px))", offset: 0.85 }, { clipPath: "inset(50% calc(50% - 2px) 50% calc(50% - 2px))" }],
+      { duration: 520, delay: delay + 140, easing: ease, fill: "forwards" }).finished);
+    if (caption) jobs.push(caption.animate([{ opacity: getComputedStyle(caption).opacity }, { opacity: 0 }], { duration: 260, delay, fill: "forwards" }).finished);
+  });
+  return Promise.all(jobs).catch(() => {});
+}
+
 /* 장르를 바꿔도 페이지는 그대로: 그리드만 해당 장르의 판으로 바뀜.
    - 주소(?genre=)는 replaceState로만 맞춰 둠 → 새로고침·공유하면 그 장르로 열림 (서버가 첫 페이지를 그려 줌)
    - 한 번 본 장르는 기억해 두었다가 다시 고르면 바로 보여 줌 */
@@ -76,6 +99,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
   const cache = useRef(new Map([[initialGenre ?? "all", { initial, genreId }]]));
   const wanted = useRef(initialGenre ?? "all");
   const supabaseRef = useRef(null);
+  const gridWrapRef = useRef(null);
   const selectGenre = useCallback(async (slug) => {
     const key = slug ?? "all";
     if (key === wanted.current) return;
@@ -87,15 +111,19 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
     // 장르 줄이 위에 붙어 있을 만큼 내려와 있었다면, 새 목록의 처음부터 보이게
     const nav = navRef.current, page = nav?.closest(".page");
     if (nav && page && page.scrollTop > nav.offsetTop) page.scrollTo({ top: nav.offsetTop - 8, behavior: "instant" });
-    const hit = cache.current.get(key);
-    if (hit) { setCurrent({ key, ...hit }); return; }
+    // 지금 판들을 접어 닫는 동안 새 장르를 불러오고, 둘 다 끝나면 새 판들이 펼쳐지며 등장
     setSwitching(true);
+    const closing = closeGrid(gridWrapRef.current);
     try {
-      const supabase = (supabaseRef.current ??= createClient());
-      const id = slug ? (await getGenreIds(supabase))[slug] ?? null : null;
-      const first = await fetchDiggingPage(supabase, { genreId: id });
-      cache.current.set(key, { initial: first, genreId: id });
-      if (wanted.current === key) setCurrent({ key, initial: first, genreId: id });
+      let data = cache.current.get(key);
+      if (!data) {
+        const supabase = (supabaseRef.current ??= createClient());
+        const id = slug ? (await getGenreIds(supabase))[slug] ?? null : null;
+        data = { initial: await fetchDiggingPage(supabase, { genreId: id }), genreId: id };
+        cache.current.set(key, data);
+      }
+      await closing;
+      if (wanted.current === key) setCurrent({ key, ...data });
     } catch {
       // 실패하면 예전 방식(페이지 이동)으로
       if (wanted.current === key) location.assign(slug ? `/digging?genre=${slug}` : "/digging");
@@ -151,8 +179,8 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
           {GENRES.slice(8).map(g => <a key={g.slug} href={`/digging?genre=${g.slug}`} data-crate-skip onClick={pick(g.slug)} aria-current={genre === g.slug ? "page" : undefined}>{g.name}</a>)}
         </div>
       </nav>
-      {/* 장르를 바꾸면 그리드만 새로 그려짐 (카드가 다시 펼쳐지며 등장). 불러오는 동안은 지금 목록을 흐리게 */}
-      <div aria-busy={switching} className={`transition-opacity duration-300 ${switching ? "pointer-events-none opacity-40" : "opacity-100"}`}>
+      {/* 장르를 바꾸면 지금 판들이 접혀 사라진 뒤, 그리드만 새로 그려짐 (카드가 다시 펼쳐지며 등장) */}
+      <div ref={gridWrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         <DiggingGrid key={current.key} initial={current.initial} genreId={current.genreId} query={query} />
       </div>
       <dialog ref={request} className={styles.dialog}>
