@@ -10,17 +10,23 @@ import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { discFrag, discVert, hexToRgb, inkDefaults } from "../vinyl/inkShaders";
 
-type Props = { ink: string; label: string; rpm: number; playing: boolean };
+// face: 0 = 앞면(A·C), 1 = 뒷면(B·D). 바뀌면 판을 세로축으로 반 바퀴 뒤집음. snap이면 애니메이션 없이 바로
+type Props = { ink: string; label: string; rpm: number; playing: boolean; face?: number; snap?: boolean };
 
 const TILT = THREE.MathUtils.degToRad(76);   // 90 = 완전 정면. 조금 눕혀 옆면이 살짝 보이게
 const ORTHO_EYE = 1000;
+const FLIP = { duration: 0.9, lift: 0.07 };  // 뒤집기 시간(초), 뒤집는 동안 살짝 떠오르는 정도(배율)
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-function Disc({ ink, label, rpm, playing }: Props) {
+function Disc({ ink, label, rpm, playing, face = 0, snap = false }: Props) {
   const { scene } = useGLTF("/models/vinyl.glb", "/draco/");
   const { camera, pointer, invalidate, size } = useThree();
   const comp = useRef<THREE.Group>(null);
   const spin = useRef<THREE.Group>(null);
   const omega = useRef(0);
+  const flip = useRef<THREE.Group>(null);
+  // 뒤집기: 같은 방향으로 계속 반 바퀴씩 (A→B→A가 되감기처럼 보이지 않게)
+  const flipState = useRef({ from: face * Math.PI, to: face * Math.PI, t: 1, face });
   const reduced = useMemo(() => typeof window !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches, []);
 
   const uniforms = useMemo(() => ({
@@ -65,6 +71,16 @@ function Disc({ ink, label, rpm, playing }: Props) {
   // frameloop="demand"라 재생 상태가 바뀌면 직접 깨워야 useFrame이 돌기 시작함 (이후엔 회전 중 계속 invalidate)
   useEffect(() => { invalidate(); }, [playing, rpm, invalidate]);
 
+  useEffect(() => {
+    const f = flipState.current;
+    if (f.face === face) return;
+    f.face = face;
+    const now = f.from + (f.to - f.from) * easeInOut(f.t);  // 뒤집는 도중에 또 바뀌어도 지금 각도에서 이어감
+    if (snap || reduced) { f.from = f.to = face * Math.PI; f.t = 1; }
+    else { f.from = now; f.to = f.to + Math.PI; f.t = 0; }
+    invalidate();
+  }, [face, snap, reduced, invalidate]);
+
   // 판이 캔버스를 꽉 채우게 (반지름 1 + 옆면 여유)
   useEffect(() => {
     const cam = camera as THREE.OrthographicCamera;
@@ -84,7 +100,14 @@ function Disc({ ink, label, rpm, playing }: Props) {
     omega.current += (target - omega.current) * (1 - Math.exp(-dt / (playing ? 0.6 : 1.1)));
     if (spin.current) spin.current.rotation.y = (spin.current.rotation.y + omega.current * dt) % (Math.PI * 2);
     v.smooth.lerp(pointer, 1 - Math.exp(-dt * 3));
-    const moving = Math.abs(omega.current) > 0.001 || v.smooth.distanceTo(pointer) > 0.002;
+    const f = flipState.current;
+    if (f.t < 1) f.t = Math.min(1, f.t + dt / FLIP.duration);
+    if (flip.current) {
+      const k = easeInOut(f.t);
+      flip.current.rotation.y = f.from + (f.to - f.from) * k;
+      flip.current.scale.setScalar(1 + FLIP.lift * Math.sin(Math.PI * k));
+    }
+    const moving = Math.abs(omega.current) > 0.001 || v.smooth.distanceTo(pointer) > 0.002 || f.t < 1;
 
     // 빛줄기 방향 (InkVinyl과 같은 계산: 화면상 장축 기준 + 커서로 살짝 회전)
     const c = comp.current;
@@ -101,9 +124,11 @@ function Disc({ ink, label, rpm, playing }: Props) {
         v.major.set(-v.flat.z, 0, v.flat.x);
         const a = v.smooth.x * 0.7, m = THREE.MathUtils.clamp(0.45 + v.smooth.y * 0.15, 0.1, 0.9);
         v.half.set(v.major.x * Math.cos(a) + v.flat.x * Math.sin(a), 0, v.major.z * Math.cos(a) + v.flat.z * Math.sin(a)).multiplyScalar(m);
-        v.half.y = 1; v.half.normalize();
+        // 뒤집혀 아랫면이 보이면(view.y < 0) 빛도 아랫면 쪽으로 — 어느 면이든 같은 빛줄기
+        const sgn = v.view.y < 0 ? -1 : 1;
+        v.half.y = sgn; v.half.normalize();
         v.light.copy(v.half).multiplyScalar(2 * v.half.dot(v.view)).sub(v.view).normalize();
-        if (v.light.y < 0.3) { v.light.y = 0.3; v.light.normalize(); }
+        if (v.light.y * sgn < 0.3) { v.light.y = 0.3 * sgn; v.light.normalize(); }
         v.light.transformDirection(c.matrixWorld);
         inv.copy(disc.matrixWorld).invert();
         v.cam.copy(v.eye).applyMatrix4(inv);
@@ -116,9 +141,11 @@ function Disc({ ink, label, rpm, playing }: Props) {
   });
 
   return (
-    <group ref={comp} rotation={[TILT, 0, 0]}>
-      <group ref={spin}>
-        <primitive object={model} dispose={null} />
+    <group ref={flip}>
+      <group ref={comp} rotation={[TILT, 0, 0]}>
+        <group ref={spin}>
+          <primitive object={model} dispose={null} />
+        </group>
       </group>
     </group>
   );

@@ -10,6 +10,7 @@ import PageShell from "@/components/layout/PageShell";
 import dynamic from "next/dynamic";
 
 const AlbumVinyl = dynamic(() => import("./AlbumVinyl"), { ssr: false });
+const DISC_SWAP_MS = 650; // LP 교체: 판이 슬리브로 들어가는 시간
 const AlbumGrainient = dynamic(() => import("./AlbumGrainient"), { ssr: false });
 
 // Presentational only: complete URLs and camelCase props come from the page.
@@ -54,6 +55,22 @@ export default function AlbumDetailView({ album }) {
   const sides = [...new Set((album.tracks || []).map(track => `${track.discNo}:${track.side}`))];
   const activeSide = sides.includes(selectedSide) ? selectedSide : sides[0];
   const visibleTracks = (album.tracks || []).filter(track => `${track.discNo}:${track.side}` === activeSide);
+  // 사이드 → 판 상태. 같은 LP 안에서 몇 번째 면인지로 앞(0)/뒤(1)
+  const activeDisc = activeSide?.split(":")[0] ?? null;
+  const activeFace = activeSide ? Math.max(0, sides.filter(side => side.split(":")[0] === activeDisc).indexOf(activeSide)) % 2 : 0;
+  // 화면의 판: 같은 LP면 바로 face만 바꿔 뒤집고, 다른 LP면 슬리브에 넣었다가(swapping) 가려진 순간 바꿔 다시 꺼냄
+  const [shownDisc, setShownDisc] = useState({ disc: activeDisc, face: activeFace, snap: true });
+  const [swapping, setSwapping] = useState(false);
+  useEffect(() => {
+    if (shownDisc.disc === activeDisc) {
+      setSwapping(false);
+      if (shownDisc.face !== activeFace) setShownDisc({ disc: activeDisc, face: activeFace, snap: false });
+      return;
+    }
+    setSwapping(true);
+    const swap = setTimeout(() => setShownDisc({ disc: activeDisc, face: activeFace, snap: true }), DISC_SWAP_MS);
+    return () => clearTimeout(swap);
+  }, [activeDisc, activeFace, shownDisc.disc, shownDisc.face]);
   const theme = getAlbumTheme(album.coverColor);
   const color = theme.background;
   const ink = theme.foreground;
@@ -99,11 +116,16 @@ export default function AlbumDetailView({ album }) {
             </div>
           </div>
           <div className="album-record-slide" data-ready={discReady} aria-hidden="true"
-            style={{ transform: discReady ? "translateX(0)" : "translateX(-85.185185%)" }}>
+            style={{
+              transform: discReady && !swapping ? "translateX(0)" : "translateX(-85.185185%)",
+              // LP 교체 때 들어가는 동작은 짧게, 나오는 동작은 원래 속도(1.15s)로
+              transitionDuration: swapping ? `${DISC_SWAP_MS}ms` : undefined,
+            }}>
           {/* Home과 같은 잉크 3D 판. 재생하면 앨범 RPM으로 돎 */}
           <div className="absolute inset-0" data-playing={playing}>
             <AlbumVinyl ink={ink} label={album.coverColor || color}
-              rpm={[33, 45, 78].includes(album.rpm) ? album.rpm : 33.333} playing={playing} />
+              rpm={[33, 45, 78].includes(album.rpm) ? album.rpm : 33.333} playing={playing}
+              face={shownDisc.face} snap={shownDisc.snap} />
           </div>
           </div>
         </div>
