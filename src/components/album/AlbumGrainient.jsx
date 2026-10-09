@@ -10,15 +10,17 @@ import { contrastRatio } from "@/lib/album-theme";
 
 // 조정값 (Grainient의 props에 해당)
 const LOOK = {
-  speed: 0.045,      // 흐름 속도
-  warp: 2.2,         // 도메인 워프 세기 (클수록 소용돌이가 큼)
-  scale: 1.15,       // 무늬 크기 (작을수록 큰 덩어리)
-  wave: 0.16,        // 부드러운 물결 왜곡
-  grain: 0.045,      // 셰이더 자체 그레인 (종이 질감과 별도)
-  darker: { hue: -14, sat: 1.08, light: -0.13 },  // 2번 색
-  lighter: { hue: 18, sat: 0.95, light: 0.11 },   // 3번 색
-  accent: 0.55,
-  darkBase: 0.22,    // 커버 색 밝기(HSL L)가 이보다 낮으면 '어두운 커버' 배합      // 커버 이미지 강조색을 3번 색에 섞는 최대 비율
+  speed: 0.018,      // 흐름 속도 (아주 느리게)
+  warp: 1.3,         // 도메인 워프 세기 (클수록 소용돌이가 큼)
+  scale: 0.7,        // 무늬 크기 (작을수록 큰 덩어리) — 큰 덩어리로 완만하게
+  wave: 0.06,        // 부드러운 물결 왜곡
+  grain: 0.03,       // 셰이더 자체 그레인 (종이 질감과 별도)
+  darker: { hue: -6, sat: 1.03, light: -0.055 },  // 2번 색 — 커버 색에서 조금만
+  lighter: { hue: 8, sat: 0.98, light: 0.05 },    // 3번 색
+  accent: 0.28,      // 커버 이미지 강조색을 3번 색에 섞는 최대 비율
+  accentMix: 0.6,    // 3번 색이 덮는 최대 세기
+  darkBase: 0.22,    // 커버 색 밝기(HSL L)가 이보다 낮으면 '어두운 커버' 배합
+  darkLift: 0.35,    // 어두운 커버에서 큰 소용돌이를 밝은 톤 쪽으로 올리는 비율
   resolution: 0.6,   // 렌더 해상도 배율 (CSS 픽셀 기준)
 };
 
@@ -31,7 +33,7 @@ precision highp float;
 uniform vec2 uRes;
 uniform float uTime;
 uniform vec3 uC1, uC2, uC3;
-uniform float uWarp, uScale, uWave, uGrain;
+uniform float uWarp, uScale, uWave, uGrain, uAccentMix;
 out vec4 outColor;
 
 vec2 hash2(vec2 p) {
@@ -64,7 +66,7 @@ void main() {
   float a = smoothstep(-0.32, 0.38, f);
   float b = smoothstep(0.02, 0.5, r.x + 0.35 * q.y);
   vec3 col = mix(uC2, uC1, a);
-  col = mix(col, uC3, b * 0.85);
+  col = mix(col, uC3, b * uAccentMix);
   col += uGrain * grain(gl_FragCoord.xy);
   outColor = vec4(col, 1.0);
 }`;
@@ -97,7 +99,7 @@ export function grainientColors(hex, ink, accent) {
   const base = hslToRgb(h, s, l), light = lift ?? safe(LOOK.lighter);
   // 아주 어두운 커버: 더 어둡게 할 여지가 없어 무늬가 거의 안 보임 →
   // 큰 소용돌이(1번 색)를 밝은 톤의 절반쯤으로 올려 화면 전체에 흐름이 보이게
-  if (l < LOOK.darkBase) return [base.map((v, i) => v + (light[i] - v) * 0.5), base, light];
+  if (l < LOOK.darkBase) return [base.map((v, i) => v + (light[i] - v) * LOOK.darkLift), base, light];
   return [base, safe(LOOK.darker), light];
 }
 // 강조색이 커버 색과 충분히 다를 때만 씀 (이미 채도 있는 커버면 기존 방식 유지)
@@ -180,6 +182,7 @@ export default function AlbumGrainient({ color, ink, image, className = "" }) {
     gl.uniform1f(u("uScale"), LOOK.scale);
     gl.uniform1f(u("uWave"), LOOK.wave);
     gl.uniform1f(u("uGrain"), LOOK.grain);
+    gl.uniform1f(u("uAccentMix"), LOOK.accentMix);
 
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const start = performance.now() - Math.random() * 60000; // 앨범마다 다른 무늬에서 시작
