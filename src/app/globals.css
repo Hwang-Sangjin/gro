@@ -978,7 +978,7 @@ html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 /* Digging cover flight: body portal stays outside CrateStage transforms. */
 .album-flight { position: fixed; inset: 0; z-index: 2147483000; pointer-events: auto; }
 .album-flight-bg { position: absolute; inset: 0; }
-.album-flight-cover { position: fixed; overflow: hidden; will-change: left, top, width, height; }
+.album-flight-cover { position: fixed; overflow: visible; will-change: left, top, width, height; } /* 두께 면이 커버 밖(위·오른쪽)에 붙음 */
 .album-flight-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
 
 /* Only enabled while the Hero cursor is visibly mounted on fine pointers. */

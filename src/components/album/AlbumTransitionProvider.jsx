@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import gsap from 'gsap';
 import { useCrate } from '../crate/CrateProvider';
 import { normalizedPath, isAlbumCoverTransition } from '../crate/routes';
+import { createSleeveFaces } from './sleeveDepth';
 
 const Context = createContext(null);
 export const useAlbumTransition = () => useContext(Context);
@@ -50,6 +51,8 @@ export default function AlbumTransitionProvider({ children }) {
       image.alt = '';
       cover.append(image);
     }
+    // 슬리브 두께(위·오른쪽 면): Digging 호버와 앨범 상세와 같은 비율이라 날아가는 동안에도 그대로 이어짐
+    cover.append(...createSleeveFaces(color));
     overlay.append(background, cover);
     document.body.append(overlay);
     gsap.set(background, { opacity: 0 });

@@ -1,4 +1,5 @@
 "use client";
+import { SLEEVE_DEPTH, sleeveColors } from "./sleeveDepth";
 
 import { useEffect, useRef, useState } from "react";
 import { useIntro } from "@/components/intro/intro-context";
@@ -52,6 +53,7 @@ export default function AlbumDetailView({ album }) {
   const theme = getAlbumTheme(album.coverColor);
   const color = theme.background;
   const ink = theme.foreground;
+  const sleeve = sleeveColors(album.coverColor);
   useEffect(() => {
     const layer = art.current?.closest(".ct-page");
     layer?.style.setProperty("--ct-header-bg", color);
@@ -68,10 +70,15 @@ export default function AlbumDetailView({ album }) {
         <Link href="/digging" className="mb-8 inline-block text-sm underline-offset-4 hover:underline">← Digging</Link>
         <div className="album-listening-stage">
           <div data-album-cover={album.slug} className="album-listening-cover relative aspect-square" onPointerMove={tilt} onPointerLeave={resetTilt} onPointerCancel={resetTilt}>
-            <div ref={art} className="album-cover-tilt absolute inset-0 overflow-hidden shadow-2xl" style={{ backgroundColor: color }}>
+            <div ref={art} className="album-cover-tilt absolute inset-0 shadow-2xl" style={{ backgroundColor: color }}>
+            {/* 슬리브 두께 (Digging·이동 전환과 같은 비율·색) */}
+            <span aria-hidden="true" className="pointer-events-none absolute bottom-full left-0 w-full origin-bottom-left -skew-x-45" style={{ height: SLEEVE_DEPTH, backgroundColor: sleeve.top }} />
+            <span aria-hidden="true" className="pointer-events-none absolute left-full top-0 h-full origin-top-left -skew-y-45" style={{ width: SLEEVE_DEPTH, backgroundColor: sleeve.side }} />
+            <div className="absolute inset-0 overflow-hidden">
             <div className="absolute inset-0 flex items-center justify-center border border-current/20 text-sm">커버 이미지가 없습니다</div>
             {album.thumbUrl && <img src={album.thumbUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" onError={event => { event.currentTarget.style.visibility = "hidden"; }} />}
             {album.coverUrl && !failed && <img src={album.coverUrl} alt={`${album.title} 앨범 커버`} onLoad={() => setLoaded(true)} onError={() => setFailed(true)} className="absolute inset-0 h-full w-full object-cover" style={{ opacity: loaded ? 1 : 0 }} />}
+            </div>
             </div>
           </div>
           <div className="album-record-slide" data-ready={discReady} aria-hidden="true"
