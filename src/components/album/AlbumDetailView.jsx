@@ -10,6 +10,7 @@ import PageShell from "@/components/layout/PageShell";
 import dynamic from "next/dynamic";
 
 const AlbumVinyl = dynamic(() => import("./AlbumVinyl"), { ssr: false });
+const AlbumGrainient = dynamic(() => import("./AlbumGrainient"), { ssr: false });
 
 // Presentational only: complete URLs and camelCase props come from the page.
 export default function AlbumDetailView({ album }) {
@@ -73,6 +74,8 @@ export default function AlbumDetailView({ album }) {
         backgroundColor: color, color: ink, "--album-muted": theme.muted,
         backgroundImage: `radial-gradient(ellipse min(62vw, 900px) 480px at 50% 470px, color-mix(in oklab, ${color} 84%, #fff) 0%, color-mix(in oklab, ${color} 94%, #fff) 38%, transparent 72%), linear-gradient(to bottom, ${color} 0, ${color} 360px, color-mix(in oklab, ${color} 84%, #000) 100%)`,
       }}>
+        {/* 움직이는 그레인 그라디언트 (커버 색 3톤). 커버 이동 전환이 끝난 뒤 켜짐. 위는 헤더 아래에서 서서히 나타나고 아래는 CSS 그라디언트로 사라짐 */}
+        {discReady && <AlbumGrainient color={color} className="absolute inset-x-0 top-0 -z-20 h-[min(1400px,150svh)] w-full [mask-image:linear-gradient(to_bottom,transparent_0,transparent_70px,#000_300px,#000_62%,transparent_100%)]" />}
         {/* 종이 질감 (Home·Digging·헤더와 같은 이미지·세기) */}
         <span aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-(image:--paper-texture-image) bg-[length:var(--paper-texture-size)_var(--paper-texture-size)] bg-repeat opacity-(--paper-texture-opacity) mix-blend-soft-light" />
         <div className="mx-auto w-full max-w-[1200px]">
