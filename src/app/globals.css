@@ -911,6 +911,8 @@ html[data-crate-transition="true"] .ct-page{will-change:transform,opacity;user-s
 .ct-shade{inset:0;background:rgb(var(--ct-crate))}
 .ct-cast{bottom:0;height:60%;background:linear-gradient(to top,rgba(18,12,16,.6),rgba(18,12,16,0) 70%)}
 .ct-spec{top:0;height:40%;background:linear-gradient(to bottom,transparent,rgba(255,255,255,.55) 50%,transparent);mix-blend-mode:soft-light}
+/* 사이트 헤더는 페이드 대신 항목들이 올라오며 나타남(Navbar.jsx의 Rise) */
+.navbar.ct-navbar{opacity:1}
 .ct-navbar{position:absolute;isolation:isolate;z-index:30;background:var(--ct-header-bg);color:var(--ct-header-fg);top:env(safe-area-inset-top)}
 .ct-handle{position:absolute;bottom:max(12px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:10;touch-action:none;cursor:ns-resize;border:1px solid rgb(var(--ct-ink)/.25);border-radius:24px;background:rgb(var(--ct-paper)/.94);color:rgb(var(--ct-ink));padding:10px 18px;font-size:12px;letter-spacing:.03em;user-select:none}
 .ct-handle:focus-visible,.ct-navbar a:focus-visible,.ct-navbar button:focus-visible{outline:2px solid currentColor;outline-offset:4px}

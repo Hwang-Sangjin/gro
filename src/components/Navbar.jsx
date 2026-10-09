@@ -3,6 +3,7 @@
    - 왼쪽: Bodoni 워드마크
    - 가운데: 01 Home · 02 Digging … 번호 붙은 메뉴. 호버하면 밑줄이 그어짐
    - 오른쪽: (재생 중일 때만) Now spinning · Login · Sound(이퀄라이저 아이콘)
+   - 처음 로딩 때 왼쪽부터 차례로 아래에서 올라옴 (Rise)
    - 스크롤하면 아래 헤어라인 (높이는 고정: Digging 고정 바·Home 엔진이 헤더 높이에 맞춰져 있음). 모바일은 Menu → 전체 화면 메뉴
    페이지(.ct-page)마다 자기 헤더를 가짐. 색은 --ct-header-fg/bg(페이지가 정함)를 그대로 따름 */
 import Link from 'next/link';
@@ -14,6 +15,20 @@ import {useNowSpinning} from '@/lib/nowSpinning';
 
 const BODONI={fontFamily:'"Grooves Bodoni", "Bodoni MT", Georgia, serif'};
 const num=i=>String(i+1).padStart(2,'0');
+
+// 등장: 처음 로딩(인트로가 끝난 순간)에만 왼쪽부터 차례로 아래에서 올라옴.
+// 페이지를 넘길 때 새로 생기는 헤더는 이미 보인 상태로 시작 (매번 다시 올라오지 않게)
+let revealedOnce=false;
+const RISE_EASE='ease-[cubic-bezier(.22,1,.36,1)]';
+function Rise({show,delay=0,className='',children}){
+  return <span className={`block overflow-y-clip ${className}`}>
+    <span data-show={show} style={{transitionDelay:show?`${delay}ms`:'0ms'}}
+      className={`block transition-transform duration-[1000ms] ${RISE_EASE} data-[show=false]:translate-y-[110%] motion-reduce:transition-none motion-reduce:data-[show=false]:translate-y-0`}>
+      {children}
+    </span>
+  </span>;
+}
+const RISE_STEP=80;
 
 // 작은 레코드 — 재생 중 표시. 홈 사이의 홈(notch)이 있어 도는 게 보임
 function SpinningDisc({className=''}){
@@ -44,6 +59,12 @@ export default function Navbar({path}){
   const nav=useRef(null);
   const [scrolled,setScrolled]=useState(false);
   const [open,setOpen]=useState(false);
+  const [shown,setShown]=useState(revealedOnce);
+  useEffect(()=>{
+    if(!done||shown)return;
+    const id=requestAnimationFrame(()=>{revealedOnce=true;setShown(true);});
+    return()=>cancelAnimationFrame(id);
+  },[done,shown]);
 
   // 이 페이지 레이어 안의 스크롤(.page)을 보고 헤더를 얇게
   useEffect(()=>{
@@ -66,14 +87,17 @@ export default function Navbar({path}){
     {/* 스크롤 헤어라인 */}
     <span aria-hidden="true" className={`pointer-events-none absolute inset-x-0 bottom-0 h-px bg-current/15 transition-opacity duration-500 ${scrolled?'opacity-100':'opacity-0'}`}/>
 
-    <Link href="/" className="justify-self-start text-[clamp(22px,2vw,28px)] font-black leading-none tracking-[-.035em]" style={BODONI}>Grooves</Link>
+    <Link href="/" className="justify-self-start text-[clamp(22px,2vw,28px)] font-black leading-none tracking-[-.035em]" style={BODONI}>
+      <Rise show={shown} className="pb-[.12em]">Grooves</Rise>
+    </Link>
 
     <ul className="hidden items-center gap-[clamp(24px,3.2vw,56px)] md:flex">
       {NAV.map((item,i)=><li key={item.href}>
         <Link href={item.href} aria-current={path===item.href?'page':undefined}
-          className="group relative flex items-baseline gap-2.5 py-2 text-[clamp(17px,1.65vw,24px)] font-medium uppercase tracking-[.14em] opacity-60 transition-opacity duration-300 hover:opacity-100 aria-[current=page]:opacity-100">
-          <span className="text-[.5em] tabular-nums tracking-[.08em] opacity-55">{num(i)}</span>
-          {item.label}
+          className="group relative block py-2 text-[clamp(15px,1.4vw,20px)] font-medium uppercase tracking-[.14em] opacity-60 transition-opacity duration-300 hover:opacity-100 aria-[current=page]:opacity-100">
+          <Rise show={shown} delay={RISE_STEP*(i+1)}>
+            <span className="flex items-baseline gap-2.5"><span className="text-[.55em] tabular-nums tracking-[.08em] opacity-55">{num(i)}</span>{item.label}</span>
+          </Rise>
           <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[1.5px] origin-left scale-x-0 bg-current transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-x-100 group-aria-[current=page]:scale-x-100"/>
         </Link>
       </li>)}
@@ -90,16 +114,19 @@ export default function Navbar({path}){
         <span className="sr-only lg:hidden">Now spinning: {spinning.title}</span>
       </Link>}
       <Link href="/login" aria-current={path==='/login'?'page':undefined}
-        className="group relative hidden py-1 text-[12px] font-medium uppercase tracking-[.2em] md:block">
-        Login
+        className="group relative hidden py-1 text-[16px] font-medium uppercase tracking-[.16em] md:block">
+        <Rise show={shown} delay={RISE_STEP*(NAV.length+1)}>Login</Rise>
         <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px origin-right scale-x-0 bg-current transition-transform duration-500 group-hover:origin-left group-hover:scale-x-100"/>
       </Link>
-      <SoundButton sound={sound} onClick={toggleSound} className="hidden md:grid"/>
+      <Rise show={shown} delay={RISE_STEP*(NAV.length+2)} className="hidden md:block">
+        <SoundButton sound={sound} onClick={toggleSound}/>
+      </Rise>
       {/* 모바일: Menu */}
       <button type="button" onClick={()=>setOpen(true)} aria-expanded={open} aria-controls="site-menu"
-        className="flex min-h-11 items-center gap-2.5 text-[12px] font-medium uppercase tracking-[.2em] md:hidden">
-        Menu
-        <span aria-hidden="true" className="flex w-5 flex-col gap-[5px]"><span className="h-px bg-current"/><span className="h-px w-3/5 self-end bg-current"/></span>
+        className="flex min-h-11 items-center text-[12px] font-medium uppercase tracking-[.2em] md:hidden">
+        <Rise show={shown} delay={RISE_STEP}>
+          <span className="flex items-center gap-2.5">Menu<span aria-hidden="true" className="flex w-5 flex-col gap-[5px]"><span className="h-px bg-current"/><span className="h-px w-3/5 self-end bg-current"/></span></span>
+        </Rise>
       </button>
     </div>
 
