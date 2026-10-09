@@ -12,7 +12,7 @@ import styles from "./Digging.module.css";
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl, fetchDiggingPage } from "@/lib/albums";
 
-function AlbumCard({ album, onTint }) {
+function AlbumCard({ album }) {
   const transition = useAlbumTransition();
   function open(event) {
     if (!transition || event.defaultPrevented || event.button !== 0 ||
@@ -62,7 +62,6 @@ function AlbumCard({ album, onTint }) {
   }
   return (
     <Link data-crate-skip data-album-slug={album.slug} data-album-color={album.cover_color || "#bbcbda"} data-album-image={failed ? undefined : src} onClick={open}
-      onPointerEnter={(e) => { if (e.pointerType !== "touch") onTint?.(album.cover_color); }}
       // 두께 면 색 = 앨범 대표색보다 조금 진하게 (위 면은 덜, 오른쪽 면은 더 — 빛이 왼쪽 위에서 오는 느낌)
       style={{ "--sleeve-top": `color-mix(in oklab, ${album.cover_color || "#bbcbda"} 82%, #000)`, "--sleeve-side": `color-mix(in oklab, ${album.cover_color || "#bbcbda"} 64%, #000)` }}
       data-revealed={revealed}
@@ -136,21 +135,6 @@ export default function DiggingGrid({ initial, genreId = null, query = "" }) {
   useEffect(() => {
     if (term && hasMore && !loading && !error) loadMore();
   }, [term, hasMore, loading, error, loadMore]);
-  // 마우스를 올린 앨범의 색이 종이에 아주 옅게 번짐 (그리드를 벗어나면 원래 종이색)
-  const gridRef = useRef(null);
-  const tint = useCallback((color) => {
-    const page = gridRef.current?.closest(".ct-page");   // 헤더도 같은 종이색이 되도록 페이지 레이어 전체에
-    if (!page) return;
-    // 헤더와 본문이 같은 색이 되도록 헤더 색도 여기서 직접 같은 값으로 지정 (스타일시트 계산에 기대지 않음)
-    if (color) {
-      page.style.setProperty("--dig-tint", color);
-      page.style.setProperty("--ct-header-bg", `color-mix(in oklab, ${color} 9%, #f3e7cd)`);
-    } else {
-      page.style.removeProperty("--dig-tint");
-      page.style.removeProperty("--ct-header-bg");
-    }
-  }, []);
-  useEffect(() => () => tint(null), [tint]);
   const filtered = items.filter(album => !term ||
     `${album.title} ${album.artist_names}`.toLocaleLowerCase().includes(term));
 
@@ -165,8 +149,8 @@ export default function DiggingGrid({ initial, genreId = null, query = "" }) {
   return (
     <>
       {/* 앨범에 마우스를 올리면 나머지 앨범은 흐려짐 (마우스를 떼면 원래대로) */}
-      <div ref={gridRef} className={`${styles.grid} [@media(hover:hover)_and_(pointer:fine)]:[&:has(>a:hover)>a:not(:hover)]:opacity-35`} aria-busy={loading} onPointerLeave={() => tint(null)}>
-        {filtered.map(album => <AlbumCard key={album.id} album={album} onTint={tint} />)}
+      <div className={`${styles.grid} [@media(hover:hover)_and_(pointer:fine)]:[&:has(>a:hover)>a:not(:hover)]:opacity-35`} aria-busy={loading}>
+        {filtered.map(album => <AlbumCard key={album.id} album={album} />)}
       </div>
       {filtered.length === 0 && <p className={styles.empty} role="status">{error ? "검색을 완료하지 못했어요. 다시 시도해 주세요." : hasMore ? "검색 중…" : "검색한 앨범이 없어요."}</p>}
 

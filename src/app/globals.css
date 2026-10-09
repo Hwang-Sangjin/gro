@@ -986,8 +986,5 @@ html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
   html.custom-cursor, html.custom-cursor * { cursor: none !important; }
 }
 
-/* Digging: 마우스를 올린 앨범 색이 종이(헤더 포함)에 은은하게 번짐. --dig-tint는 DiggingGrid가 설정 */
-.ct-page[data-crate-path="/digging"] { --ct-header-bg: #f3e7cd; } /* 본문 종이색과 같게. 호버 색은 DiggingGrid가 인라인으로 덮어씀 */
-.ct-page[data-crate-path="/digging"] > .ct-navbar,
-.ct-page[data-crate-path="/digging"] > .ct-navbar::before,
-.ct-page[data-crate-path="/digging"] .page-content::before { transition: background-color .8s ease; }
+/* Digging: 헤더는 본문 종이색과 같게 */
+.ct-page[data-crate-path="/digging"] { --ct-header-bg: #f3e7cd; }
