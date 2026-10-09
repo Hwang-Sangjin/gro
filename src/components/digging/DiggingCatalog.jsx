@@ -1,6 +1,7 @@
 "use client";
-import { useLayoutEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { fetchDiggingPage } from "@/lib/albums";
 import { GENRES } from "@/lib/genres";
 import DiggingGrid from "./DiggingGrid";
 import useReveal from "./useReveal";
@@ -53,7 +54,60 @@ function useGenrePill(navRef, deps) {
   return pillRef;
 }
 
-export default function DiggingCatalog({ initial, genreId, genre }) {
+// 장르 slug → id (genres 테이블). 한 번만 불러 둠
+let genreIdsPromise = null;
+function getGenreIds(supabase) {
+  if (!genreIdsPromise) {
+    genreIdsPromise = supabase.from("genres").select("id, slug").then(({ data, error }) => {
+      if (error) { genreIdsPromise = null; throw error; }
+      return Object.fromEntries((data ?? []).map((g) => [g.slug, g.id]));
+    });
+  }
+  return genreIdsPromise;
+}
+
+/* 장르를 바꿔도 페이지는 그대로: 그리드만 해당 장르의 판으로 바뀜.
+   - 주소(?genre=)는 replaceState로만 맞춰 둠 → 새로고침·공유하면 그 장르로 열림 (서버가 첫 페이지를 그려 줌)
+   - 한 번 본 장르는 기억해 두었다가 다시 고르면 바로 보여 줌 */
+export default function DiggingCatalog({ initial, genreId, genre: initialGenre }) {
+  const [genre, setGenre] = useState(initialGenre ?? null);
+  const [current, setCurrent] = useState({ key: initialGenre ?? "all", initial, genreId });
+  const [switching, setSwitching] = useState(false);
+  const cache = useRef(new Map([[initialGenre ?? "all", { initial, genreId }]]));
+  const wanted = useRef(initialGenre ?? "all");
+  const supabaseRef = useRef(null);
+  const selectGenre = useCallback(async (slug) => {
+    const key = slug ?? "all";
+    if (key === wanted.current) return;
+    wanted.current = key;
+    setGenre(slug);
+    const url = new URL(location.href);
+    if (slug) url.searchParams.set("genre", slug); else url.searchParams.delete("genre");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search);
+    // 장르 줄이 위에 붙어 있을 만큼 내려와 있었다면, 새 목록의 처음부터 보이게
+    const nav = navRef.current, page = nav?.closest(".page");
+    if (nav && page && page.scrollTop > nav.offsetTop) page.scrollTo({ top: nav.offsetTop - 8, behavior: "instant" });
+    const hit = cache.current.get(key);
+    if (hit) { setCurrent({ key, ...hit }); return; }
+    setSwitching(true);
+    try {
+      const supabase = (supabaseRef.current ??= createClient());
+      const id = slug ? (await getGenreIds(supabase))[slug] ?? null : null;
+      const first = await fetchDiggingPage(supabase, { genreId: id });
+      cache.current.set(key, { initial: first, genreId: id });
+      if (wanted.current === key) setCurrent({ key, initial: first, genreId: id });
+    } catch {
+      // 실패하면 예전 방식(페이지 이동)으로
+      if (wanted.current === key) location.assign(slug ? `/digging?genre=${slug}` : "/digging");
+    } finally {
+      if (wanted.current === key) setSwitching(false);
+    }
+  }, []);
+  const pick = (slug) => (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;   // 새 탭 열기는 그대로
+    e.preventDefault();
+    selectGenre(slug);
+  };
   const [titleRef, titleRevealed] = useReveal();
   const [filtersRef, filtersRevealed] = useReveal();
   const [open, setOpen] = useState(false);
@@ -90,14 +144,17 @@ export default function DiggingCatalog({ initial, genreId, genre }) {
       {/* 스크롤해도 장르 줄은 헤더 아래에 붙어 있음 */}
       <nav ref={(el) => { filtersRef.current = el; navRef.current = el; }} className={`${styles.filters} ${styles.filterReveal} sticky top-[calc(var(--ct-header-h,106px)-3px)] z-20 bg-[var(--dig-paper,#f3e7cd)] transition-colors duration-[800ms]`} data-revealed={filtersRevealed} aria-label="장르 필터">
         <span ref={pillRef} aria-hidden="true" className="pointer-events-none absolute left-0 top-0 -z-0 rounded-full bg-[#bbcbda] opacity-0 transition-[transform,width,height,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" />
-        <Link href="/digging" scroll={false} aria-current={!genre ? "page" : undefined}>All</Link>
-        {GENRES.slice(0, 8).map((g, i) => <Link style={{ "--reveal-order": i + 1 }} key={g.slug} href={`/digging?genre=${g.slug}`} scroll={false} aria-current={genre === g.slug ? "page" : undefined}>{g.name}</Link>)}
+        <a href="/digging" data-crate-skip onClick={pick(null)} aria-current={!genre ? "page" : undefined}>All</a>
+        {GENRES.slice(0, 8).map((g, i) => <a style={{ "--reveal-order": i + 1 }} key={g.slug} href={`/digging?genre=${g.slug}`} data-crate-skip onClick={pick(g.slug)} aria-current={genre === g.slug ? "page" : undefined}>{g.name}</a>)}
         <button style={{ "--reveal-order": 9 }} type="button" aria-expanded={more} aria-controls="digging-more" data-active={GENRES.slice(8).some(g => g.slug === genre)} onClick={() => setMore(!more)}>More {more ? "−" : "+"}</button>
         <div id="digging-more" className={styles.more} hidden={!more}>
-          {GENRES.slice(8).map(g => <Link key={g.slug} href={`/digging?genre=${g.slug}`} scroll={false} aria-current={genre === g.slug ? "page" : undefined}>{g.name}</Link>)}
+          {GENRES.slice(8).map(g => <a key={g.slug} href={`/digging?genre=${g.slug}`} data-crate-skip onClick={pick(g.slug)} aria-current={genre === g.slug ? "page" : undefined}>{g.name}</a>)}
         </div>
       </nav>
-      <DiggingGrid initial={initial} genreId={genreId} query={query} />
+      {/* 장르를 바꾸면 그리드만 새로 그려짐 (카드가 다시 펼쳐지며 등장). 불러오는 동안은 지금 목록을 흐리게 */}
+      <div aria-busy={switching} className={`transition-opacity duration-300 ${switching ? "pointer-events-none opacity-40" : "opacity-100"}`}>
+        <DiggingGrid key={current.key} initial={current.initial} genreId={current.genreId} query={query} />
+      </div>
       <dialog ref={request} className={styles.dialog}>
         <h2>Request a record</h2>
         <p>앨범 등록 요청 기능을 준비하고 있어요.</p>
