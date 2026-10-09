@@ -159,7 +159,7 @@ export default function AlbumGrainient({ color, ink, image, className = "" }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     const gl = canvas?.getContext("webgl2", { antialias: false, alpha: false, premultipliedAlpha: false });
-    if (!gl) return; // WebGL2가 없으면 아래 CSS 그라디언트가 그대로 보임
+    if (!gl || gl.isContextLost()) return; // WebGL2가 없으면 아래 CSS 그라디언트가 그대로 보임
 
     const compile = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
     const prog = gl.createProgram();
@@ -226,7 +226,8 @@ export default function AlbumGrainient({ color, ink, image, className = "" }) {
       document.removeEventListener("visibilitychange", onVis);
       redrawRef.current = () => {};
       gl.deleteBuffer(buf); gl.deleteProgram(prog);
-      gl.getExtension("WEBGL_lose_context")?.loseContext();
+      // loseContext()는 쓰지 않음: 개발 모드(StrictMode)의 재마운트가 같은 캔버스에서 죽은 컨텍스트를 받아 빈 캔버스가 됨
+      delete canvas.dataset.ready;
     };
   }, []);
 
