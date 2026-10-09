@@ -11,7 +11,7 @@ import { contrastRatio } from "@/lib/album-theme";
 // 조정값 (Grainient의 props에 해당)
 const LOOK = {
   // 움직임 — 잔잔하게
-  speed: 0.022,      // 흐름 속도
+  speed: 0.008,      // 흐름 속도
   warp: 2.0,         // 도메인 워프 세기 (클수록 소용돌이가 큼)
   scale: 1.1,        // 무늬 크기 (작을수록 큰 덩어리)
   wave: 0.12,        // 부드러운 물결 왜곡

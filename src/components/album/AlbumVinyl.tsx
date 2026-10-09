@@ -62,6 +62,9 @@ function Disc({ ink, label, rpm, playing }: Props) {
     invalidate();
   }, [ink, label, uniforms, invalidate]);
 
+  // frameloop="demand"라 재생 상태가 바뀌면 직접 깨워야 useFrame이 돌기 시작함 (이후엔 회전 중 계속 invalidate)
+  useEffect(() => { invalidate(); }, [playing, rpm, invalidate]);
+
   // 판이 캔버스를 꽉 채우게 (반지름 1 + 옆면 여유)
   useEffect(() => {
     const cam = camera as THREE.OrthographicCamera;
