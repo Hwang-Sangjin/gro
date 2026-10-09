@@ -1,58 +1,12 @@
 "use client";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { fetchDiggingPage } from "@/lib/albums";
 import { GENRES } from "@/lib/genres";
+import { GENRE_LOOK } from "@/components/home/stage/homeGenres";
 import DiggingGrid from "./DiggingGrid";
 import useReveal from "./useReveal";
 import styles from "./Digging.module.css";
-
-// 장르를 바꾸면 이 컴포넌트가 새로 만들어지므로, 직전 알약 위치를 기억해 두고 거기서부터 미끄러지게 함
-let lastPill = null;
-
-/* 장르 알약: 선택된 장르 뒤에 깔린 하늘색 알약이 마우스를 따라 미끄러지고, 손을 떼면 선택된 장르로 돌아감 */
-function useGenrePill(navRef, deps) {
-  const pillRef = useRef(null);
-  useLayoutEffect(() => {
-    const nav = navRef.current, pill = pillRef.current;
-    if (!nav || !pill) return;
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const place = (el, animate = true) => {
-      if (!el || el.offsetParent === null) { pill.style.opacity = "0"; return; }
-      const r = { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
-      pill.style.transition = animate && !reduced ? "" : "none";
-      pill.style.opacity = "1";
-      pill.style.transform = `translate(${r.x}px, ${r.y}px)`;
-      pill.style.width = `${r.w}px`;
-      pill.style.height = `${r.h}px`;
-      if (el.matches("[aria-current=page], [data-active=true]")) lastPill = r;
-    };
-    const active = () => nav.querySelector("[aria-current=page]:not([hidden] *), button[data-active=true]") || nav.querySelector("a");
-    // 직전 위치에서 시작해 새 장르로 미끄러짐
-    if (lastPill) {
-      pill.style.transition = "none";
-      Object.assign(pill.style, { opacity: "1", transform: `translate(${lastPill.x}px, ${lastPill.y}px)`, width: `${lastPill.w}px`, height: `${lastPill.h}px` });
-      void pill.offsetWidth;
-    }
-    place(active(), !!lastPill);
-    const over = (e) => { const el = e.target.closest?.("a, button"); if (el && nav.contains(el)) place(el); };
-    const leave = () => place(active());
-    const resize = () => place(active(), false);
-    nav.addEventListener("pointerover", over);
-    nav.addEventListener("pointerleave", leave);
-    nav.addEventListener("focusin", over);
-    nav.addEventListener("focusout", leave);
-    window.addEventListener("resize", resize);
-    return () => {
-      nav.removeEventListener("pointerover", over);
-      nav.removeEventListener("pointerleave", leave);
-      nav.removeEventListener("focusin", over);
-      nav.removeEventListener("focusout", leave);
-      window.removeEventListener("resize", resize);
-    };
-  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
-  return pillRef;
-}
 
 // 장르 slug → id (genres 테이블). 한 번만 불러 둠
 let genreIdsPromise = null;
@@ -65,6 +19,32 @@ function getGenreIds(supabase) {
   }
   return genreIdsPromise;
 }
+
+// 장르별 앨범 수 (공개된 앨범만). 실패하면 숫자 없이 보여 줌
+let countsPromise = null;
+function getGenreCounts(supabase) {
+  if (!countsPromise) {
+    countsPromise = (async () => {
+      const [rows, total, ids] = await Promise.all([
+        supabase.from("album_genres").select("genre_id, albums!inner(status)").eq("albums.status", "published").limit(10000),
+        supabase.from("albums").select("id", { count: "exact", head: true }).eq("status", "published"),
+        getGenreIds(supabase),
+      ]);
+      if (rows.error) throw rows.error;
+      const slugById = Object.fromEntries(Object.entries(ids).map(([slug, id]) => [id, slug]));
+      const out = { all: total.count ?? null };
+      for (const r of rows.data ?? []) { const slug = slugById[r.genre_id]; if (slug) out[slug] = (out[slug] ?? 0) + 1; }
+      return out;
+    })().catch(() => { countsPromise = null; return null; });
+  }
+  return countsPromise;
+}
+
+// 장르 색 (Home 장르 다이얼과 같은 팔레트). 밑줄은 잉크색을 라벨색 쪽으로 눌러 크림 위에서도 보이게
+const ALL_LOOK = { ink: "#bbcbda", label: "#4c404a" };
+const lookOf = (slug) => (slug ? GENRE_LOOK[slug] : ALL_LOOK) ?? ALL_LOOK;
+const lineOf = (slug) => { const l = lookOf(slug); return `color-mix(in oklab, ${l.ink} 70%, ${l.label})`; };
+const ITEMS = [{ slug: null, name: "All" }, ...GENRES.map((g) => ({ slug: g.slug, name: g.name }))];
 
 /* 지금 그리드의 판들을 등장 때와 반대로 접어서 닫음 (그림이 먼저 흐려지고, 가운데 세로선으로 접힘) */
 function closeGrid(wrap) {
@@ -109,7 +89,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
     if (slug) url.searchParams.set("genre", slug); else url.searchParams.delete("genre");
     window.history.replaceState(window.history.state, "", url.pathname + url.search);
     // 장르 줄이 위에 붙어 있을 만큼 내려와 있었다면, 새 목록의 처음부터 보이게
-    const nav = navRef.current, page = nav?.closest(".page");
+    const nav = barRef.current, page = nav?.closest(".page");
     if (nav && page && page.scrollTop > nav.offsetTop) page.scrollTo({ top: nav.offsetTop - 8, behavior: "instant" });
     // 지금 판들을 접어 닫는 동안 새 장르를 불러오고, 둘 다 끝나면 새 판들이 펼쳐지며 등장
     setSwitching(true);
@@ -140,12 +120,40 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
   const [filtersRef, filtersRevealed] = useReveal();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [more, setMore] = useState(false);
   const input = useRef(null);
   const trigger = useRef(null);
   const request = useRef(null);
   const navRef = useRef(null);
-  const pillRef = useGenrePill(navRef, [genre, more, filtersRevealed]);
+  const barRef = useRef(null);
+  const [counts, setCounts] = useState(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    getGenreCounts((supabaseRef.current ??= createClient())).then((c) => { if (alive) setCounts(c); });
+    return () => { alive = false; };
+  }, []);
+  // 장르 줄이 헤더 아래에 붙으면 작게 한 줄로 접힘
+  useEffect(() => {
+    const bar = barRef.current, page = bar?.closest(".page");
+    if (!bar || !page) return;
+    let raf = 0;
+    const check = () => {
+      raf = 0;
+      const top = parseFloat(getComputedStyle(bar).top) || 0;
+      setStuck(bar.getBoundingClientRect().top - page.getBoundingClientRect().top <= top + 1 && page.scrollTop > 0);
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(check); };
+    page.addEventListener("scroll", onScroll, { passive: true });
+    check();
+    return () => { page.removeEventListener("scroll", onScroll); cancelAnimationFrame(raf); };
+  }, []);
+  // 고른 장르의 색이 종이에 아주 옅게 (헤더 포함). 앨범 호버 색이 있으면 그쪽이 우선
+  useEffect(() => {
+    const layer = barRef.current?.closest(".ct-page");
+    if (!layer) return;
+    if (genre) layer.style.setProperty("--dig-genre", lookOf(genre).ink); else layer.style.removeProperty("--dig-genre");
+    return () => layer.style.removeProperty("--dig-genre");
+  }, [genre]);
   function closeSearch() { setQuery(""); setOpen(false); trigger.current?.focus(); }
   return (
     <>
@@ -155,30 +163,54 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
           {/* Existing transparent brand asset; no new artwork dependency. */}
           <img className={styles.mark} src="/images/grooves/vinyl-mark.png" alt="" />
         </div>
-        <div className={styles.actions}>
-          <button className={styles.request} onClick={() => request.current?.showModal()}>+ Request</button>
-          <span className={styles.separator} aria-hidden="true" />
-          <div className={styles.search} data-open={open}>
-            <button ref={trigger} type="button" className={styles.iconButton} aria-label="앨범 검색" aria-expanded={open} aria-controls="digging-search" onClick={() => { setOpen(true); requestAnimationFrame(() => input.current?.focus()); }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="m15 15 7 7"/></svg>
-            </button>
-            <div className={styles.searchField} inert={!open}>
-              <input id="digging-search" ref={input} type="search" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === "Escape") closeSearch(); }} placeholder="앨범, 아티스트 검색" aria-label="앨범명 또는 아티스트" />
-              <button type="button" className={styles.iconButton} onClick={closeSearch} aria-label="검색 닫기">×</button>
+      </header>
+      {/* 장르 인덱스: DIGGING과 같은 세리프로 장르를 크게 나열. 고른 장르만 진하게, 장르 색 밑줄.
+          스크롤해서 헤더 아래에 붙으면 작게 한 줄로 접힘 */}
+      <div ref={barRef} data-stuck={stuck} className="group/bar sticky top-[calc(var(--ct-header-h,106px)-3px)] z-20 mb-[clamp(1.5rem,3vw,2.5rem)] bg-[var(--dig-paper,#f3e7cd)] transition-colors duration-[800ms]">
+        <div className="grid grid-rows-[1fr] overflow-hidden border-t border-[#4c404a99] transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[stuck=true]/bar:grid-rows-[0fr]">
+          <div className="flex min-h-0 items-center justify-between overflow-hidden pt-3 transition-opacity duration-300 group-data-[stuck=true]/bar:opacity-0 text-[10px] font-medium uppercase tracking-[0.3em] text-[#4c404a99]">
+            <span>Browse by genre</span>
+            <span className="tabular-nums">{counts?.[genre ?? "all"] != null ? `${counts[genre ?? "all"]} records` : ""}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-6 border-b border-[#4c404a99] py-[clamp(0.75rem,1.4vw,1.25rem)] transition-[padding] duration-500 group-data-[stuck=true]/bar:py-2">
+          <nav ref={(el) => { filtersRef.current = el; navRef.current = el; }} data-revealed={filtersRevealed} aria-label="장르 필터"
+            className={`${styles.filterReveal} flex min-w-0 [&_sup]:transition-opacity group-data-[stuck=true]/bar:[&_sup]:opacity-0 flex-1 flex-nowrap items-baseline gap-x-[clamp(0.5rem,0.9vw,1.1rem)] gap-y-1 overflow-x-auto [scrollbar-width:none] md:flex-wrap group-data-[stuck=true]/bar:flex-nowrap`}>
+            {ITEMS.map((it, i) => {
+              const on = (genre ?? null) === it.slug;
+              const n = counts ? (counts[it.slug ?? "all"] ?? 0) : null;
+              return (
+                <a key={it.slug ?? "all"} href={it.slug ? `/digging?genre=${it.slug}` : "/digging"} data-crate-skip onClick={pick(it.slug)}
+                  aria-current={on ? "page" : undefined} style={{ "--reveal-order": i, "--line": lineOf(it.slug) }}
+                  className={`group/g relative shrink-0 whitespace-nowrap font-['Grooves_Bodoni',Georgia,serif] font-black uppercase leading-[1.05] tracking-[-0.03em] transition-[color,font-size] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] text-[clamp(1.2rem,1.85vw,2.1rem)] group-data-[stuck=true]/bar:text-[clamp(0.9rem,1.05vw,1.15rem)] ${on ? "text-[#4c404a]" : "text-[#4c404a40] hover:text-[#4c404ab3] focus-visible:text-[#4c404ab3]"}`}>
+                  <span className="relative">
+                    {it.name}
+                    {/* 장르 색 밑줄: 고른 장르는 꽉, 마우스를 올리면 왼쪽에서 그어짐 */}
+                    <span aria-hidden="true" className={`absolute -bottom-[0.06em] left-0 h-[0.1em] min-h-[2px] bg-[var(--line)] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${on ? "w-full" : "w-0 group-hover/g:w-full group-focus-visible/g:w-full"}`} />
+                  </span>
+                  {n != null && <sup className="ml-[0.15em] align-[1.1em] font-sans text-[max(0.3em,9px)] font-semibold tracking-normal tabular-nums">{n}</sup>}
+                  {i < ITEMS.length - 1 && <span aria-hidden="true" className="ml-[clamp(0.5rem,0.9vw,1.1rem)] font-normal text-[#4c404a2e]">/</span>}
+                </a>
+              );
+            })}
+          </nav>
+        <div className={`${styles.actions} mt-0! shrink-0 self-center`}>
+            <button className={styles.request} onClick={() => request.current?.showModal()}>+ Request</button>
+            <span className={styles.separator} aria-hidden="true" />
+            <div className={styles.search} data-open={open}>
+              <button ref={trigger} type="button" className={styles.iconButton} aria-label="앨범 검색" aria-expanded={open} aria-controls="digging-search" onClick={() => { setOpen(true); requestAnimationFrame(() => input.current?.focus()); }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="m15 15 7 7"/></svg>
+              </button>
+              <div className={styles.searchField} inert={!open}>
+                <input id="digging-search" ref={input} type="search" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === "Escape") closeSearch(); }} placeholder="앨범, 아티스트 검색" aria-label="앨범명 또는 아티스트" />
+                <button type="button" className={styles.iconButton} onClick={closeSearch} aria-label="검색 닫기">×</button>
+              </div>
             </div>
           </div>
         </div>
-      </header>
-      {/* 스크롤해도 장르 줄은 헤더 아래에 붙어 있음 */}
-      <nav ref={(el) => { filtersRef.current = el; navRef.current = el; }} className={`${styles.filters} ${styles.filterReveal} sticky top-[calc(var(--ct-header-h,106px)-3px)] z-20 bg-[var(--dig-paper,#f3e7cd)] transition-colors duration-[800ms]`} data-revealed={filtersRevealed} aria-label="장르 필터">
-        <span ref={pillRef} aria-hidden="true" className="pointer-events-none absolute left-0 top-0 -z-0 rounded-full bg-[#bbcbda] opacity-0 transition-[transform,width,height,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" />
-        <a href="/digging" data-crate-skip onClick={pick(null)} aria-current={!genre ? "page" : undefined}>All</a>
-        {GENRES.slice(0, 8).map((g, i) => <a style={{ "--reveal-order": i + 1 }} key={g.slug} href={`/digging?genre=${g.slug}`} data-crate-skip onClick={pick(g.slug)} aria-current={genre === g.slug ? "page" : undefined}>{g.name}</a>)}
-        <button style={{ "--reveal-order": 9 }} type="button" aria-expanded={more} aria-controls="digging-more" data-active={GENRES.slice(8).some(g => g.slug === genre)} onClick={() => setMore(!more)}>More {more ? "−" : "+"}</button>
-        <div id="digging-more" className={styles.more} hidden={!more}>
-          {GENRES.slice(8).map(g => <a key={g.slug} href={`/digging?genre=${g.slug}`} data-crate-skip onClick={pick(g.slug)} aria-current={genre === g.slug ? "page" : undefined}>{g.name}</a>)}
-        </div>
-      </nav>
+        {/* 고른 장르 색의 얇은 띠 */}
+        <span aria-hidden="true" className="block h-[3px] transition-colors duration-500" style={{ backgroundColor: lineOf(genre) }} />
+      </div>
       {/* 장르를 바꾸면 지금 판들이 접혀 사라진 뒤, 그리드만 새로 그려짐 (카드가 다시 펼쳐지며 등장) */}
       <div ref={gridWrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         <DiggingGrid key={current.key} initial={current.initial} genreId={current.genreId} query={query} />
