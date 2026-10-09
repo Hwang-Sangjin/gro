@@ -147,13 +147,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
     check();
     return () => { page.removeEventListener("scroll", onScroll); cancelAnimationFrame(raf); };
   }, []);
-  // 고른 장르의 색이 종이에 아주 옅게 (헤더 포함). 앨범 호버 색이 있으면 그쪽이 우선
-  useEffect(() => {
-    const layer = barRef.current?.closest(".ct-page");
-    if (!layer) return;
-    if (genre) layer.style.setProperty("--dig-genre", lookOf(genre).ink); else layer.style.removeProperty("--dig-genre");
-    return () => layer.style.removeProperty("--dig-genre");
-  }, [genre]);
+
   function closeSearch() { setQuery(""); setOpen(false); trigger.current?.focus(); }
   return (
     <>
@@ -167,7 +161,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
       {/* 장르 인덱스: DIGGING과 같은 세리프로 장르를 크게 나열. 고른 장르만 진하게, 장르 색 밑줄.
           스크롤해서 헤더 아래에 붙으면 작게 한 줄로 접힘 */}
       <div ref={barRef} data-stuck={stuck} className="group/bar sticky top-[calc(var(--ct-header-h,106px)-3px)] z-20 mb-[clamp(1.5rem,3vw,2.5rem)] bg-[var(--dig-paper,#f3e7cd)] transition-colors duration-[800ms]">
-        <div className="grid grid-rows-[1fr] overflow-hidden border-t border-[#4c404a99] transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[stuck=true]/bar:grid-rows-[0fr]">
+        <div className="grid grid-rows-[1fr] overflow-hidden border-t-[3px] border-[#4c404a] transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[stuck=true]/bar:grid-rows-[0fr]">
           <div className="flex min-h-0 items-center justify-between overflow-hidden pt-3 transition-opacity duration-300 group-data-[stuck=true]/bar:opacity-0 text-[10px] font-medium uppercase tracking-[0.3em] text-[#4c404a99]">
             <span>Browse by genre</span>
             <span className="tabular-nums">{counts?.[genre ?? "all"] != null ? `${counts[genre ?? "all"]} records` : ""}</span>

@@ -1,7 +1,7 @@
 .page,
 .page:global(.paper-textured) {
   /* --dig-tint: 마우스를 올린 앨범 색 (DiggingGrid가 .ct-page에 설정). 종이에 9%만 섞여 은은하게 번짐 */
-  --dig-paper: color-mix(in oklab, var(--dig-tint, var(--dig-genre, #f3e7cd)) 9%, #f3e7cd); /* 앨범 호버 색 > 고른 장르 색 */
+  --dig-paper: color-mix(in oklab, var(--dig-tint, #f3e7cd) 9%, #f3e7cd); /* 앨범 호버 색 */
   --paper-surface: var(--dig-paper);
   --paper-texture-opacity: 0.65;
   background: var(--dig-paper);
