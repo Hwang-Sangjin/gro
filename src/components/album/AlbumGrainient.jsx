@@ -6,6 +6,7 @@
    - 화면 밖·탭 숨김이면 멈추고, reduced-motion이면 한 장만 그림
    - 위·아래 끝은 마스크로 사라져서 헤더(단색)·아래 CSS 그라디언트와 이어짐 */
 import { useEffect, useRef } from "react";
+import { contrastRatio } from "@/lib/album-theme";
 
 // 조정값 (Grainient의 props에 해당)
 const LOOK = {
@@ -80,21 +81,27 @@ function hslToRgb(h, s, l) {
   const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
   return [0, 8, 4].map(n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))));
 }
-export function grainientColors(hex) {
+const toHex = c => "#" + c.map(v => Math.round(v * 255).toString(16).padStart(2, "0")).join("");
+// 커버 색 → 3톤. 글자색(ink)과의 대비가 4.5:1 아래로 떨어지면 그 톤만 커버 색 쪽으로 당김
+export function grainientColors(hex, ink) {
   const [h, s, l] = hexToHsl(hex);
-  const shift = ({ hue, sat, light }) => hslToRgb(h + hue, s * sat, l + light);
-  return [hslToRgb(h, s, l), shift(LOOK.darker), shift(LOOK.lighter)];
+  const shift = ({ hue, sat, light }, k) => hslToRgb(h + hue * k, s * (1 + (sat - 1) * k), l + light * k);
+  const safe = look => {
+    for (let k = 1; k > 0; k -= 0.1) { const c = shift(look, k); if (!ink || contrastRatio(toHex(c), ink) >= 4.5) return c; }
+    return shift(look, 0);
+  };
+  return [hslToRgb(h, s, l), safe(LOOK.darker), safe(LOOK.lighter)];
 }
 
-export default function AlbumGrainient({ color, className = "" }) {
+export default function AlbumGrainient({ color, ink, className = "" }) {
   const canvasRef = useRef(null);
-  const colorRef = useRef(color);
+  const colorRef = useRef([color, ink]);
   const redrawRef = useRef(() => {});
 
   useEffect(() => {
-    colorRef.current = color;
+    colorRef.current = [color, ink];
     redrawRef.current();
-  }, [color]);
+  }, [color, ink]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -126,7 +133,7 @@ export default function AlbumGrainient({ color, className = "" }) {
     let raf = 0, visible = true, frozenAt = 0;
 
     function draw(now) {
-      const [c1, c2, c3] = grainientColors(colorRef.current);
+      const [c1, c2, c3] = grainientColors(...colorRef.current);
       gl.uniform3fv(U.c1, c1); gl.uniform3fv(U.c2, c2); gl.uniform3fv(U.c3, c3);
       gl.uniform2f(U.res, canvas.width, canvas.height);
       gl.uniform1f(U.time, ((reduced ? frozenAt : now) - start) / 1000 * LOOK.speed * 10);
