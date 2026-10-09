@@ -67,8 +67,14 @@ export default function AlbumDetailView({ album }) {
     };
   }, [ink, color]);
   return (
-    <PageShell className="album-detail-page">
-      <div className="album-detail-surface" style={{ backgroundColor: color, color: ink, "--album-muted": theme.muted }}> 
+    <PageShell className="album-detail-page paper-textured">
+      {/* 배경: 커버 색 위에 커버·판 뒤 은은한 빛 + 아래로 갈수록 살짝 어두워짐. 맨 위는 헤더와 같은 단색이라 이음새가 없음 */}
+      <div className="album-detail-surface relative isolate" style={{
+        backgroundColor: color, color: ink, "--album-muted": theme.muted,
+        backgroundImage: `radial-gradient(ellipse min(62vw, 900px) 480px at 50% 470px, color-mix(in oklab, ${color} 84%, #fff) 0%, color-mix(in oklab, ${color} 94%, #fff) 38%, transparent 72%), linear-gradient(to bottom, ${color} 0, ${color} 360px, color-mix(in oklab, ${color} 84%, #000) 100%)`,
+      }}>
+        {/* 종이 질감 (Home·Digging·헤더와 같은 이미지·세기) */}
+        <span aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-(image:--paper-texture-image) bg-[length:var(--paper-texture-size)_var(--paper-texture-size)] bg-repeat opacity-(--paper-texture-opacity) mix-blend-soft-light" />
         <div className="mx-auto w-full max-w-[1200px]">
         <Link href="/digging" className="mb-8 inline-block text-sm underline-offset-4 hover:underline">← Digging</Link>
         <div className="album-listening-stage">
