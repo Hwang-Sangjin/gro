@@ -127,7 +127,9 @@ function Disc({ ink, label, rpm, playing }: Props) {
 export default function AlbumVinyl(props: Props) {
   return (
     <Canvas orthographic camera={{ position: [0, 0, 100], zoom: 100, near: 0.1, far: 400 }}
-      gl={{ alpha: true, antialias: true, premultipliedAlpha: true }} dpr={[1, 2]} frameloop="demand"
+      gl={{ alpha: true, antialias: true, premultipliedAlpha: true }} dpr={[1, 2]}
+      // 재생 중엔 매 프레임 그림(회전이 확실히 이어지게). 멈추면 demand로 돌아가 관성으로 서는 동안만 그림
+      frameloop={props.playing ? "always" : "demand"}
       resize={{ offsetSize: true }} className="!absolute inset-0" aria-hidden="true">
       <Suspense fallback={null}><Disc {...props} /></Suspense>
     </Canvas>
