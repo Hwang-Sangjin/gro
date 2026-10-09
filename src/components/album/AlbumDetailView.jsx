@@ -7,6 +7,9 @@ import YouTubeAlbumPlayer from "./YouTubeAlbumPlayer";
 import Link from "next/link";
 import { getAlbumTheme } from "@/lib/album-theme";
 import PageShell from "@/components/layout/PageShell";
+import dynamic from "next/dynamic";
+
+const AlbumVinyl = dynamic(() => import("./AlbumVinyl"), { ssr: false });
 
 // Presentational only: complete URLs and camelCase props come from the page.
 export default function AlbumDetailView({ album }) {
@@ -83,11 +86,10 @@ export default function AlbumDetailView({ album }) {
           </div>
           <div className="album-record-slide" data-ready={discReady} aria-hidden="true"
             style={{ transform: discReady ? "translateX(0)" : "translateX(-85.185185%)" }}>
-          <div className="album-record" aria-hidden="true" data-playing={playing} style={{ animationDuration: `${60 / ([33, 45, 78].includes(album.rpm) ? album.rpm : 33.333)}s` }}>
-            <div className="album-record-label" style={{ backgroundColor: color, color: ink }}>
-              <span>GROOVES</span><strong>{album.title}</strong><span>{album.rpm || 33} RPM</span>
-            </div>
-            <span className="album-record-spindle" />
+          {/* Home과 같은 잉크 3D 판. 재생하면 앨범 RPM으로 돎 */}
+          <div className="absolute inset-0" data-playing={playing}>
+            <AlbumVinyl ink={ink} label={album.coverColor || color}
+              rpm={[33, 45, 78].includes(album.rpm) ? album.rpm : 33.333} playing={playing} />
           </div>
           </div>
         </div>
