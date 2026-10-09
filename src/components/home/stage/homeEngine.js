@@ -2525,9 +2525,9 @@ export async function createHomeEngine(opts) {
     const dialVis = catEase * (1 - newsEase);       // 다이얼(장르 색·파동·글자)이 보이는 정도
     dustFade = 1 - 0.85 * dialVis;
     updateGenreFlip(dt, dialVis);
-    //  떠 있는 판의 바닥 그림자는 착륙하면서 사라짐 (판이 지면에 닿음)
-    shadowUniforms.uShadow.value = 0.45 * (1 - settle);
-    shadow.visible = settle < 0.99;
+    //  바닥 그림자(판 아래 희미한 고리)는 쓰지 않음 — 다시 켜려면 아래 두 줄로
+    //  shadowUniforms.uShadow.value = 0.45 * (1 - settle); shadow.visible = settle < 0.99;
+    shadow.visible = false;
 
     //  Hero 타이틀은 위로 사라지고, New Vinyls 타이틀은 착륙 뒤 나타남
     const heroOut = seg(p, 0.0, 0.14);

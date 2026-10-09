@@ -1,7 +1,7 @@
 'use client';
 /* 사이트 헤더 — "레코드 레이블 마스트헤드"
    - 왼쪽: Bodoni 워드마크
-   - 가운데: 01 Home · 02 Digging … 번호 붙은 메뉴. 호버하면 그 메뉴의 두들이 떠오르고 밑줄이 그어짐
+   - 가운데: 01 Home · 02 Digging … 번호 붙은 메뉴. 호버하면 밑줄이 그어짐
    - 오른쪽: (재생 중일 때만) Now spinning · Login · Sound(이퀄라이저 아이콘)
    - 스크롤하면 아래 헤어라인 (높이는 고정: Digging 고정 바·Home 엔진이 헤더 높이에 맞춰져 있음). 모바일은 Menu → 전체 화면 메뉴
    페이지(.ct-page)마다 자기 헤더를 가짐. 색은 --ct-header-fg/bg(페이지가 정함)를 그대로 따름 */
@@ -10,7 +10,6 @@ import {useEffect,useRef,useState} from 'react';
 import {useIntro} from './intro/intro-context';
 import {useCrate} from './crate/CrateProvider';
 import {NAV} from './crate/routes';
-import DoodleSprite from './doodle/DoodleSprite';
 import {useNowSpinning} from '@/lib/nowSpinning';
 
 const BODONI={fontFamily:'"Grooves Bodoni", "Bodoni MT", Georgia, serif'};
@@ -69,13 +68,11 @@ export default function Navbar({path}){
 
     <Link href="/" className="justify-self-start text-[clamp(22px,2vw,28px)] font-black leading-none tracking-[-.035em]" style={BODONI}>Grooves</Link>
 
-    <ul className="hidden items-center gap-[clamp(40px,4.4vw,64px)] md:flex">
+    <ul className="hidden items-center gap-[clamp(24px,3.2vw,56px)] md:flex">
       {NAV.map((item,i)=><li key={item.href}>
         <Link href={item.href} aria-current={path===item.href?'page':undefined}
-          className="group relative flex items-baseline gap-2 py-2 text-[12px] font-medium uppercase tracking-[.2em] opacity-60 transition-opacity duration-300 hover:opacity-100 aria-[current=page]:opacity-100">
-          {/* 호버 때 왼쪽에 두들이 떠오름 */}
-          <DoodleSprite id={item.doodle} className="pointer-events-none absolute right-full top-1/2 mr-1.5 size-8 -translate-y-1/2 translate-x-1 scale-75 object-contain opacity-0 transition duration-300 group-hover:translate-x-0 group-hover:scale-100 group-hover:opacity-100"/>
-          <span className="text-[10px] tabular-nums tracking-[.08em] opacity-55">{num(i)}</span>
+          className="group relative flex items-baseline gap-2.5 py-2 text-[clamp(17px,1.65vw,24px)] font-medium uppercase tracking-[.14em] opacity-60 transition-opacity duration-300 hover:opacity-100 aria-[current=page]:opacity-100">
+          <span className="text-[.5em] tabular-nums tracking-[.08em] opacity-55">{num(i)}</span>
           {item.label}
           <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[1.5px] origin-left scale-x-0 bg-current transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-x-100 group-aria-[current=page]:scale-x-100"/>
         </Link>
