@@ -8,6 +8,7 @@ import Link from "next/link";
 import { getAlbumTheme } from "@/lib/album-theme";
 import PageShell from "@/components/layout/PageShell";
 import dynamic from "next/dynamic";
+import { setNowSpinning } from "@/lib/nowSpinning";
 
 const AlbumVinyl = dynamic(() => import("./AlbumVinyl"), { ssr: false });
 const DISC_SWAP_MS = 650; // LP 교체: 판이 슬리브로 들어가는 시간
@@ -75,6 +76,11 @@ export default function AlbumDetailView({ album }) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [playing, setPlaying] = useState(false);
+  // 재생 중이면 헤더에 "Now spinning — 앨범" 표시. 페이지를 떠나도 재생은 멈추므로 언마운트 때 지움
+  useEffect(() => {
+    setNowSpinning(playing ? { slug: album.slug, title: album.title, artist: album.artistNames } : null);
+  }, [playing, album.slug, album.title, album.artistNames]);
+  useEffect(() => () => setNowSpinning(null), []);
   const [selectedSide, setSelectedSide] = useState(null);
   const [sidePicked, setSidePicked] = useState(false); // 첫 등장 이후 사이드를 바꿨는지 (트랙 행 지연 계산용)
   const sides = [...new Set((album.tracks || []).map(track => `${track.discNo}:${track.side}`))];

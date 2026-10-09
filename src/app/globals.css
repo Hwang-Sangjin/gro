@@ -15,6 +15,17 @@
     }
   }
 
+  /* 헤더 Sound 아이콘의 이퀄라이저 막대 */
+  --animate-eq: eq 0.9s ease-in-out infinite alternate;
+  @keyframes eq {
+    from {
+      transform: scaleY(0.3);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
+
   /* 앨범 상세: 트랙 행이 차례로 올라옴 (사이드를 바꿀 때마다 다시) */
   --animate-track-in: track-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
   @keyframes track-in {
@@ -100,13 +111,10 @@ body {
 
 /* ── 헤더 ───────────────────────────────────── */
 
+/* 레이아웃은 Navbar.jsx(Tailwind). 여기선 등장 페이드만 */
 .navbar {
   position: fixed;
   width: 100%;
-  padding: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   z-index: 2;
   opacity: 0;
   color: var(--page-fg);
@@ -117,15 +125,6 @@ body {
   opacity: 1;
 }
 
-.navbar-mark {
-  padding: 1.5rem;
-  text-decoration: none;
-  color: var(--page-fg);
-  font-weight: bolder;
-  font-size: 1.1rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
 
 .navbar-items {
   display: flex;
@@ -814,7 +813,6 @@ body.intro-locked {
 .album-listening-cover { flex:0 0 54%; z-index:1; }
 .album-youtube-frame { width:100%; aspect-ratio:16/9; min-height:220px; background:#111; }
 .album-youtube-frame iframe { display:block; width:100%; height:100%; min-height:220px; border:0; }
-body:has(.album-detail-page) .navbar, body:has(.album-detail-page) .navbar a { color:var(--album-detail-ink, #fff); }
 
 /* Translation and playback rotation live on separate elements. */
 .album-listening-stage { isolation:isolate; }
@@ -839,12 +837,7 @@ body:has(.album-detail-page) .navbar, body:has(.album-detail-page) .navbar a { c
   --content-pad: clamp(20px, 3vw, 48px);
   --wide-inset: max(var(--content-pad), calc((100% - var(--content-wide)) / 2));
 }
-.navbar {
-  padding: 24px var(--content-pad);
-  min-height: 88px;
-  gap: 20px;
-}
-.navbar-mark, .navbar-item { padding: 8px 0; }
+.navbar-item { padding: 8px 0; }
 .navbar-items { gap: clamp(16px, 2.5vw, 40px); }
 .home-hero {
   --hero-title-size: min(12vw, 160px);
@@ -863,8 +856,6 @@ body:has(.album-detail-page) .navbar, body:has(.album-detail-page) .navbar a { c
   bottom: 64px;
 }
 @media(max-width:600px) {
-  .navbar { padding-block: 16px; gap: 12px; flex-wrap: wrap; }
-  .navbar-mark { font-size: .9rem; }
   .navbar-items { gap: 14px; }
   .navbar-item a { font-size: .75rem; }
   .home-hero { --navbar-h: 112px; min-height: 600px; }
@@ -920,22 +911,14 @@ html[data-crate-transition="true"] .ct-page{will-change:transform,opacity;user-s
 .ct-shade{inset:0;background:rgb(var(--ct-crate))}
 .ct-cast{bottom:0;height:60%;background:linear-gradient(to top,rgba(18,12,16,.6),rgba(18,12,16,0) 70%)}
 .ct-spec{top:0;height:40%;background:linear-gradient(to bottom,transparent,rgba(255,255,255,.55) 50%,transparent);mix-blend-mode:soft-light}
-.ct-navbar{position:absolute;isolation:isolate;z-index:30;background:var(--ct-header-bg);color:var(--ct-header-fg);top:env(safe-area-inset-top);gap:12px}
-.ct-navbar .navbar-mark,.ct-nav-actions a,.ct-nav-actions button{color:inherit}
-.ct-nav-menu{position:relative;display:flex;align-items:center;gap:clamp(8px,2vw,28px)}
-.ct-nav-link{display:flex;align-items:center;gap:6px;padding:8px 2px;text-decoration:none;color:inherit;font-size:14px}
-.ct-nav-link img{width:40px;height:40px;object-fit:contain}
-.ct-indicator{position:absolute;bottom:3px;height:2px;border-radius:2px;background:currentColor;pointer-events:none}
-.ct-nav-actions{display:flex;align-items:center;gap:16px;font-size:12px;padding-right:16px}
-.ct-nav-actions button{background:none;border:1px solid color-mix(in srgb,currentColor 27%,transparent);border-radius:20px;padding:7px 10px;cursor:pointer}
+.ct-navbar{position:absolute;isolation:isolate;z-index:30;background:var(--ct-header-bg);color:var(--ct-header-fg);top:env(safe-area-inset-top)}
 .ct-handle{position:absolute;bottom:max(12px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:10;touch-action:none;cursor:ns-resize;border:1px solid rgb(var(--ct-ink)/.25);border-radius:24px;background:rgb(var(--ct-paper)/.94);color:rgb(var(--ct-ink));padding:10px 18px;font-size:12px;letter-spacing:.03em;user-select:none}
 .ct-handle:focus-visible,.ct-navbar a:focus-visible,.ct-navbar button:focus-visible{outline:2px solid currentColor;outline-offset:4px}
 .ct-page[inert] .page{overflow:hidden!important}
-@media(max-width:720px){.ct-navbar{padding:10px 14px;gap:8px}.ct-navbar .navbar-mark{font-size:14px;padding:10px 0}.ct-nav-menu{gap:8px}.ct-nav-link{min-height:44px}.ct-nav-link img{width:30px;height:30px}.ct-nav-link span{display:none}.ct-nav-actions{padding:0;gap:8px}.ct-nav-actions a{font-size:11px}.ct-nav-actions button{font-size:10px;padding:5px}.ct-handle{min-height:44px}}
-@media(max-width:380px){.ct-navbar .navbar-mark{font-size:12px}.ct-nav-menu{gap:2px}.ct-nav-actions{gap:4px}.ct-nav-link img{width:26px}}
+@media(max-width:720px){.ct-handle{min-height:44px}}
+/* 헤더 높이 = --ct-header-h (Navbar가 이 높이로 고정. Digging 고정 바·Home 스테이지가 같은 값을 씀) */
+@media(max-width:767px){:root{--ct-header-h:72px}}
 
-/* Album surfaces keep their own palette; the fixed paper header stays legible. */
-body:has(.album-detail-page) .ct-navbar,body:has(.album-detail-page) .ct-navbar a{color:var(--ct-header-fg)}
 
 /* Resolve the home palette locally too: frozen outgoing pages retain their color. */
 .page.home {
@@ -964,9 +947,6 @@ body:has(.album-detail-page) .ct-navbar,body:has(.album-detail-page) .ct-navbar 
   background-position:0 var(--paper-header-y,0px);
   background-repeat:repeat;background-blend-mode:soft-light;
 }
-.ct-nav-link{position:relative;opacity:.55}
-.ct-nav-link[aria-current="page"]{opacity:1}
-.ct-nav-link[aria-current="page"]::after{content:"";position:absolute;bottom:3px;left:2px;right:2px;height:2px;border-radius:2px;background:currentColor}
 html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 
 /* Digging cover flight: body portal stays outside CrateStage transforms. */
