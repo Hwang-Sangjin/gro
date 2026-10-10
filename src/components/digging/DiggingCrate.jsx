@@ -71,6 +71,17 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
     } else p.scrollTop = need;
     await wait(smooth ? 520 : 40);
   }, []);
+  // 페이지가 완전히 멈출 때까지 (관성 스크롤 · 장르 바 접힘) — 스크롤 위치와 바 위치가 3프레임 연속 그대로면 멈춘 것
+  const settle = useCallback(async () => {
+    const p = page(), b = bar();
+    let last = "", same = 0;
+    const t0 = performance.now();
+    while (same < 3 && performance.now() - t0 < 1200) {
+      await nextFrame();
+      const now = `${p?.scrollTop}|${b?.getBoundingClientRect().bottom.toFixed(1)}`;
+      same = now === last ? same + 1 : 0; last = now;
+    }
+  }, []);
   const placeStage = useCallback(() => {
     const b = bar(), s = stageRef.current; if (!b || !s) return;
     const top = `${Math.max(0, b.getBoundingClientRect().bottom)}px`;
@@ -117,6 +128,7 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
     while (document.documentElement.dataset.crateTransition === "true" || document.querySelector(".preloader")) await wait(80);
     lock(true);
     await stickBar(!direct);
+    await settle();
     placeStage();
     const e = await engine();
     if (direct) {
@@ -147,7 +159,7 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
       p.scrollTop = Math.max(need, p.scrollTop + el.getBoundingClientRect().top - barBottom - 28);
     }
     onPhase?.("leaving");
-    await nextFrame();
+    await settle();
     // 돌아온 뒤 캡션이 화면에 보이는 카드 순서대로 나타나게
     let k = 0;
     albumsRef.current.forEach((_, i) => { const el = cardArt(i)?.closest("[data-album-slug]"); if (el) el.style.setProperty("--k", rectOf(i) ? k++ : 0); });

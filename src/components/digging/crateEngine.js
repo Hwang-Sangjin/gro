@@ -177,6 +177,8 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
     let finished = true;
     for (const it of flight.items) {
       const k = Math.min(1, Math.max(0, (t - it.delay) / (reduced ? 0.45 : CRATE.flight)));
+      if (k === 0 && it.track) { const r = it.track(); if (r) rectPose(r, it.from); }
+      if (it.trackTo) { const r = it.trackTo(); if (r) rectPose(r, it.to); }
       if (k < 1) finished = false;
       const e = easeIO(k);
       lerpPose(it.from, it.to, e, tmp);
@@ -213,7 +215,8 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
         const r = rectOf(idx);
         const from = r ? rectPose(r) : { ...to, o: 0 };
         applyPose(slot, from);
-        items.push({ slot, from, to, delay: 0.12 + (r ? order++ * CRATE.stagger : 0.25 + j * 0.02) });
+        // track: 날아오르기 전까지 매 프레임 그리드 칸 위치를 다시 재서 붙어 있음 (측정 뒤 레이아웃이 밀려도 어긋나지 않게)
+        items.push({ slot, from, to, delay: 0.12 + (r ? order++ * CRATE.stagger : 0.25 + j * 0.02), track: r ? () => rectOf(idx) : null });
       });
       // 같은 프레임에 그리드 이미지를 숨기고 3D를 그림 → 눈에는 변화 없음
       onPlaced?.();
@@ -261,7 +264,8 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
         const from = j === 0 ? { ...cratePose(-0.6), o: 0 } : cratePose(j - 1);
         const to = r ? rectPose(r) : { ...from, o: 0 };
         if (r) flown.push(idx);
-        items.push({ slot, from, to, delay: r ? order++ * CRATE.stagger : 0 });
+        // trackTo: 내려앉을 칸 위치를 비행 내내 다시 잼 (도중에 레이아웃이 밀려도 정확히 그 칸에)
+        items.push({ slot, from, to, delay: r ? order++ * CRATE.stagger : 0, trackTo: r ? () => rectOf(idx) : null });
       });
       onPlan?.(flown);
       bgGoal.copy(PAPER);
