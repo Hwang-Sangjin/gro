@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { fetchDiggingPage } from "@/lib/albums";
 import { GENRES } from "@/lib/genres";
@@ -78,12 +78,20 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre, 
   // 주소는 바꾸지 않음 — 검색 파라미터가 바뀌면 Next 라우터가 페이지를 다시 그리면서(개발 모드 등)
   // 그리드가 한 줄 튀거나 새로 그려져, 3D 카드가 잰 자리와 어긋났음. 대신 이 탭(sessionStorage)에 기억
   // (?view=crate로 들어오는 링크는 그대로 지원)
-  const [view, setViewState] = useState(() => {
-    if (typeof window === "undefined") return initialView === "crate" ? "crate" : "grid";
-    if (new URLSearchParams(window.location.search).get("view") === "crate") return "crate";
-    try { if (sessionStorage.getItem("grooves:dig-view") === "crate") return "crate"; } catch {}
-    return initialView === "crate" ? "crate" : "grid";
-  });
+  // 첫 렌더는 서버와 똑같이(initialView) — 브라우저에서만 아는 값(sessionStorage·주소)으로 첫 렌더를 바꾸면
+  // 하이드레이션 불일치로 화면의 data-phase 등이 React 상태와 어긋나 그리드가 숨겨지지 않았음.
+  // 기억된 보기 방식은 화면에 그리기 직전(layout effect)에 반영 → 깜빡임 없이 크레이트로 바로 시작
+  const [view, setViewState] = useState(initialView === "crate" ? "crate" : "grid");
+  useLayoutEffect(() => {
+    if (initialView === "crate") return;
+    let want = new URLSearchParams(window.location.search).get("view") === "crate" ? "crate" : null;
+    try { if (!want && sessionStorage.getItem("grooves:dig-view") === "crate") want = "crate"; } catch {}
+    if (want !== "crate") return;
+    crateMemory.restore = true;                          // 날아가는 전환 없이 바로 크레이트로
+    document.documentElement.dataset.digCrate = "on";    // 그리드가 한 프레임도 보이지 않게
+    setViewState("crate");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const viewRef = useRef(view); viewRef.current = view;
   const setView = useCallback((v) => {
     // 클릭한 순간의 스크롤 위치를 기억 → 크레이트 전환은 이 위치를 기준으로

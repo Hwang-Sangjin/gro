@@ -11,7 +11,7 @@ import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
 import { coverUrl } from "@/lib/albums";
 
 // 크레이트에서 앨범 상세로 갔다가 돌아오면 그 판이 맨 앞에 오도록
-export const crateMemory = { slug: null, holdTop: null };
+export const crateMemory = { slug: null, holdTop: null, restore: false };
 
 const PAPER = "#f3e7cd", INK = "#4c404a";
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
@@ -171,7 +171,7 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
   // 요청된 보기(view)와 지금 상태(mode)를 맞춤
   useEffect(() => {
     if (mode === "toCrate" || mode === "toGrid") return;
-    if (view === "crate" && mode === "grid") enter(firstRef.current);
+    if (view === "crate" && mode === "grid") { const direct = firstRef.current || crateMemory.restore; crateMemory.restore = false; enter(direct); }
     else if (view === "grid" && mode === "crate") leave();
     firstRef.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
