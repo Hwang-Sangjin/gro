@@ -151,7 +151,12 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
     // 돌아온 뒤 캡션이 화면에 보이는 카드 순서대로 나타나게
     let k = 0;
     albumsRef.current.forEach((_, i) => { const el = cardArt(i)?.closest("[data-album-slug]"); if (el) el.style.setProperty("--k", rectOf(i) ? k++ : 0); });
-    await e.exitToRects(rectOf);
+    await e.exitToRects(rectOf, (flown) => {
+      // 3D 카드가 날아오지 않는 칸(크레이트에 없던 앞쪽 판 등)은 비워 두지 않고 그 자리에서 서서히
+      const set = new Set(flown);
+      albumsRef.current.forEach((_, i) => { if (!set.has(i) && rectOf(i)) cardArt(i)?.closest("[data-album-slug]")?.setAttribute("data-ground", ""); });
+    });
+    gridRef.current?.querySelectorAll("[data-ground]").forEach((el) => el.removeAttribute("data-ground"));
     onPhase?.("grid");                       // 이미지 바로 보이고, 글자는 차례로 돌아옴
     lock(false);
     setFront(-1);

@@ -244,21 +244,26 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
     });
   }
   /** 크레이트 → 그리드. 먼저 맨 앞 판에 딱 맞춘 뒤, rectOf로 그리드 칸 위치를 받아 날아가 내려앉음 */
-  function exitToRects(rectOf) {
+  // onPlan(날아가는 앨범 index 목록): 비행 시작 직전에 알려 줌 → 3D 카드가 없는 칸은 그리드가 직접 서서히 보여 줌
+  function exitToRects(rectOf, onPlan) {
     pos = target = Math.round(pos);
     layout();
     const base = Math.round(pos), f = wrap(base);
     return new Promise((resolve) => {
       let order = 0;
-      const items = [];
+      const items = [], flown = [];
       slots.forEach((slot, j) => {
-        if (!slot.mesh.visible || slot.key == null) return;
+        if (slot.key == null || (j > 0 && !slot.mesh.visible)) return;
         const idx = slot.album;
-        const from = cratePose(j - 1);
-        const r = j >= 1 && idx >= f ? rectOf(idx) : null;
+        // 그리드에 보이는 칸이면 모두 날아가 내려앉음 — 넘겨진 판(맨 앞 바로 전, d=-1)은 아래에서 떠오르며 들어감
+        // 앨범이 적어 같은 판이 두 슬롯에 있으면(앞으로 넘겨진 판 = 뒤쪽 끝 판) 하나만 날아감
+        const r = flown.includes(idx) ? null : rectOf(idx);
+        const from = j === 0 ? { ...cratePose(-0.6), o: 0 } : cratePose(j - 1);
         const to = r ? rectPose(r) : { ...from, o: 0 };
+        if (r) flown.push(idx);
         items.push({ slot, from, to, delay: r ? order++ * CRATE.stagger : 0 });
       });
+      onPlan?.(flown);
       bgGoal.copy(PAPER);
       fly(items, () => { active = false; slots.forEach((s) => (s.mesh.visible = false)); resolve(); });
     });
