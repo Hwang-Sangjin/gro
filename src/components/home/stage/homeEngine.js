@@ -246,8 +246,8 @@ export async function createHomeEngine(opts) {
     widthFraction: 0.56,          // 판(반지름 1) 지름이 화면 폭 기준 비율 — 화면을 채우게 크게
     compactWidthFraction: 0.86,   // 세로 화면(모바일)에서는 폭을 더 씀
     heightFraction: 0.42,
-    centerY: -0.31,              // 가로 화면
-    compactCenterY: -0.2,        // 세로 화면(모바일): 판이 작아 위쪽 빈자리가 크지 않게 조금 올림
+    centerY: -0.26,              // 가로 화면
+    compactCenterY: -0.16,       // 세로 화면(모바일): 판이 작아 위쪽 빈자리가 크지 않게 조금 올림
                  // 화면 높이 대비 중심 위치 (+ = 위). 위쪽은 앨범 제목(nv-big) 자리라 판은 아래로
   };
   function getLandedRecordScale(width, height) {
@@ -1028,6 +1028,8 @@ export async function createHomeEngine(opts) {
   const nvTintCur = NV_INK.clone(), nvTintGoal = new THREE.Vector3(), nvAlbumCol = new THREE.Vector3();
   const nvLabelCur = new THREE.Vector3(), nvTmp = new THREE.Vector3();
   let nvTintHex = '', nvLabelTouched = false, nvLabelInit = false;
+  const nvAccent = new THREE.Vector3();
+  let nvAccentHex = '';
   const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
   const lumOf = (v) => 0.2126 * lin(v.x) + 0.7152 * lin(v.y) + 0.0722 * lin(v.z);
   const contrastOf = (a, b) => { const x = lumOf(a), y = lumOf(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
@@ -1059,6 +1061,13 @@ export async function createHomeEngine(opts) {
       nvLabelCur.lerp(nvAlbumCol.copy(hexToVec3(al.data.color || '#4d5f74')), 1 - Math.exp(-dt / NV_TINT.tau));
       uniforms.uLabel.value.copy(heroLabel3).lerp(baseLabel, themeT).lerp(nvLabelCur, NV_TINT.label * vis);
       nvLabelTouched = true;
+      // 앨범 제목·아티스트 글자색 = 앨범 대표색. 배경과 대비(4.5:1)가 모자라면 크림 쪽으로 밝힘
+      for (let k = 0; k <= 1.001; k += 0.05) {
+        nvAccent.copy(nvLabelCur).lerp(NV_CREAM, k);
+        if (contrastOf(nvAccent, nvTintCur) >= 4.5) break;
+      }
+      const ah = vecHex(nvAccent);
+      if (ah !== nvAccentHex) { nvAccentHex = ah; host.style.setProperty('--nv-accent', ah); }
     } else if (nvLabelTouched && catEase < 0.01) {
       nvLabelTouched = false; nvLabelInit = false; applyColors();
     }

@@ -152,7 +152,7 @@ export default function HomeStage() {
           <Link href="/digging" className={`pointer-events-auto mt-6 border-b border-[var(--hs-text)] pb-1 ${SERIF} text-lg sm:text-xl`}>Browse all ↗</Link>
         </div>
         {/* 아티스트: 앨범 제목(nv-big) 바로 아래 */}
-        <div id="nv-caption" className="absolute inset-x-0 top-[calc(34%+clamp(1.6rem,3.2vw,3.8rem))] text-center opacity-0 sm:top-[calc(36%+clamp(1.6rem,3.2vw,3.8rem))]" aria-live="polite">
+        <div id="nv-caption" className="absolute inset-x-0 top-[calc(31%+clamp(1.6rem,3.2vw,3.8rem))] text-center text-(--nv-accent,var(--hs-text)) opacity-0 sm:top-[calc(35%+clamp(1.6rem,3.2vw,3.8rem))]" aria-live="polite">
           <p className="flex items-center justify-center gap-3 text-[clamp(11px,0.85vw,14px)] font-medium uppercase tracking-[0.32em]">
             <span aria-hidden="true" className="h-px w-6 bg-current opacity-50" />
             <span id="nv-artist" />
@@ -166,7 +166,7 @@ export default function HomeStage() {
 
       {/* New Vinyls: 정면 앨범 제목 — 판·앨범 위 빈 자리에 또렷하게. 엔진이 바꿔 끼우며 아래에서 올라오게 함 */}
       <div id="nv-big" aria-hidden="true"
-        className={`pointer-events-none absolute inset-x-[6vw] top-[34%] h-[1em] -translate-y-1/2 select-none overflow-y-clip opacity-0 sm:top-[36%] ${SERIF} text-center text-[clamp(2.5rem,5.4vw,6.25rem)] font-black uppercase leading-[0.95] tracking-[-0.02em] text-(--hs-text)`} />
+        className={`pointer-events-none absolute inset-x-[6vw] top-[31%] h-[1em] -translate-y-1/2 select-none overflow-y-clip opacity-0 sm:top-[35%] ${SERIF} text-center text-[clamp(2.5rem,5.4vw,6.25rem)] font-black uppercase leading-[0.95] tracking-[-0.02em] text-(--nv-accent,var(--hs-text))`} />
 
       {/* 03 — Genre dial: 화면 왼쪽에 반쯤 걸친 원형 다이얼. 바늘(3시)에 온 장르가 선택됨 */}
       <div id="gd" className="pointer-events-none invisible absolute inset-0 opacity-0" role="region" aria-label="장르 다이얼">
