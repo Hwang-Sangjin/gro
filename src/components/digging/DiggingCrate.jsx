@@ -121,9 +121,18 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
   const [portal, setPortal] = useState(null);
   useEffect(() => { setPortal(document.body); }, []);
 
-  async function engine() {
-    if (engineRef.current) return engineRef.current;
+  // 엔진은 한 번만 (미리 준비와 클릭이 겹쳐도)
+  const enginePromise = useRef(null);
+  function engine() {
+    if (engineRef.current) return Promise.resolve(engineRef.current);
+    return (enginePromise.current ??= makeEngine());
+  }
+  const generation = useRef(0);   // 정리(언마운트)되면 올라감 → 늦게 끝난 생성은 버림 (캔버스가 두 개 생기지 않게)
+  async function makeEngine() {
+    const gen = generation.current;
     const { createCrateEngine } = await import("./crateEngine");
+    if (gen !== generation.current || !stageRef.current) return null;
+    if (engineRef.current) return engineRef.current;
     const e = createCrateEngine({
       container: stageRef.current,
       onFront: (i) => setFront(i),
@@ -142,7 +151,22 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
   const toEngine = (list) => list.map((a) => ({ key: a.id ?? a.slug, slug: a.slug, title: a.title, artist: a.artist_names, color: a.cover_color || "#bbcbda", image: coverUrl(a.thumb_path || a.cover_path) }));
 
   // 앨범 목록이 바뀌면(더 불러옴·검색) 엔진에도
-  useEffect(() => { engineRef.current?.setAlbums(toEngine(albums)); }, [albums]);
+  useEffect(() => { engineRef.current?.setAlbums(toEngine(albums)); engineRef.current?.prewarm(); }, [albums]);
+
+  // 미리 준비: 그리드를 보고 있는 동안 3D 엔진을 만들고 커버를 GPU에 올려 둠.
+  // 처음 Crate를 누를 때만 이 준비(1초 이상)가 끼어들어 화면이 어긋났음 → 처음부터 두 번째와 같은 상태로
+  useEffect(() => {
+    let cancelled = false, timer = 0;
+    const start = () => {
+      if (cancelled) return;
+      if (document.querySelector(".preloader") || document.documentElement.dataset.crateTransition === "true" || !stageRef.current) { timer = setTimeout(start, 300); return; }
+      const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 200));
+      idle(() => { if (!cancelled) engine().then((e) => { if (!cancelled) e?.prewarm(); }); });
+    };
+    timer = setTimeout(start, 600);
+    return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 요청된 보기(view)와 지금 상태(mode)를 맞춤
   useEffect(() => {
@@ -165,6 +189,7 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
     await settle();
     placeStage();
     const e = await engine();
+    if (!e) { setMode("grid"); return; }
     if (direct) {
       const keep = crateMemory.slug ? albumsRef.current.findIndex((a) => a.slug === crateMemory.slug) : -1;
       coverGrids(true);
@@ -241,7 +266,9 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
 
   // 정리
   useEffect(() => () => {
-    engineRef.current?.dispose(); engineRef.current = null;
+    generation.current++;
+    engineRef.current?.dispose(); engineRef.current = null; enginePromise.current = null;
+    stageRef.current?.querySelectorAll("canvas").forEach((c) => c.remove());
     const p = page(); p?.style.removeProperty("--dig-paper"); p?.closest(".ct-page")?.style.removeProperty("--ct-header-bg");
     window.dispatchEvent(new Event("page-scroll:unlock"));
     delete document.documentElement.dataset.digCrate;

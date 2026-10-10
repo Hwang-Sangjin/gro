@@ -40,7 +40,7 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
   camera.position.set(0, 0, CRATE.camZ);
   scene.fog = new THREE.Fog(CRATE.paper, CRATE.camZ + 1, CRATE.camZ + 16);
 
-  let W = 1, H = 1, CARD = CRATE.cardMax, narrow = false;
+  let W = 1, H = 1, CARD = CRATE.cardMax, narrow = false, compiled = false;
   const visH = 2 * CRATE.camZ * Math.tan((CRATE.fov * Math.PI) / 360);
 
   // ───── 앨범 · 텍스처 ─────
@@ -387,6 +387,17 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
       if (active && !flight) layout();
     },
     enterFromRects, enterDirect, exitToRects, step, hideFront,
+    /** 미리 준비: 앞쪽 n장의 커버를 불러와 쉬는 틈에 하나씩 GPU에 올림 + 셰이더 컴파일
+        (크레이트를 처음 누를 때도 두 번째처럼 바로 넘어가게) */
+    prewarm(n = CRATE.slots + 6) {
+      const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 60));
+      albums.slice(0, n).forEach((a) => {
+        const rec = texOf(a);
+        if (rec.warm) return;
+        rec.promise.then(() => idle(() => { if (!rec.warm) { renderer.initTexture(rec.tex); rec.warm = true; } }));
+      });
+      if (!compiled) { compiled = true; idle(() => renderer.compile(scene, camera)); }
+    },
     frontIndex: () => wrap(Math.round(pos)),
     isActive: () => active,
     resize,
