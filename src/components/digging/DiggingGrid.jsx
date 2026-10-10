@@ -144,8 +144,9 @@ export default function DiggingGrid({ initial, genreId = null, query = "", view 
   useEffect(() => {
     if (term && hasMore && !loading && !error) loadMore();
   }, [term, hasMore, loading, error, loadMore]);
-  const filtered = items.filter(album => !term ||
-    `${album.title} ${album.artist_names}`.toLocaleLowerCase().includes(term));
+  // 같은 목록이면 같은 배열을 유지 (크레이트가 다시 그릴 때마다 목록이 바뀐 것으로 보지 않게)
+  const filtered = useMemo(() => items.filter(album => !term ||
+    `${album.title} ${album.artist_names}`.toLocaleLowerCase().includes(term)), [items, term]);
 
   if (items.length === 0) {
     return (

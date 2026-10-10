@@ -166,11 +166,14 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
   // 움직임 줄이기 설정: 화면 구조가 바뀐다는 건 보여 주되, 짧게·한꺼번에·들림/흔들림 없이
   function fly(items, done) {
     if (reduced) items.forEach((it) => { it.delay = 0; });
-    flight = { t0: performance.now() / 1000, items, done };
+    flight = { t: 0, items, done };
   }
   const tmp = {};
-  function stepFlight(now) {
-    const t = now - flight.t0;
+  // 비행 시계는 프레임마다 최대 1/20초씩만 감 → 큰 텍스처 업로드 등으로 한 프레임이 오래 걸려도
+  // 애니메이션을 건너뛰지 않고 이어서 보여 줌
+  function stepFlight(dt) {
+    flight.t += Math.min(dt, 1 / 20);
+    const t = flight.t;
     let finished = true;
     for (const it of flight.items) {
       const k = Math.min(1, Math.max(0, (t - it.delay) / (reduced ? 0.45 : CRATE.flight)));
@@ -185,16 +188,21 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
     }
     if (finished) { const d = flight.done; flight = null; d(); }
   }
-  const waitTextures = (from, n, ms) => Promise.race([
-    Promise.all(Array.from({ length: Math.min(n, albums.length) }, (_, k) => texOf(albums[wrap(from + k)]).promise)),
-    new Promise((r) => setTimeout(r, ms)),
-  ]);
+  // 텍스처를 불러오고 GPU에 미리 올려 둠 (그리드가 아직 보이는 동안 멈춤이 생기게 — 3D로 바꾼 뒤엔 매끄럽게)
+  async function waitTextures(from, n, ms) {
+    const recs = Array.from({ length: Math.min(n, albums.length) }, (_, k) => texOf(albums[wrap(from + k)]));
+    await Promise.race([Promise.all(recs.map((r) => r.promise)), new Promise((r) => setTimeout(r, ms))]);
+    for (const r of recs) renderer.initTexture(r.tex);
+    slots.forEach((sl) => { if (sl.key != null) { const rec = textures.get(sl.key); if (rec && sl.front.map !== rec.tex) { sl.front.map = rec.tex; sl.front.needsUpdate = true; } } });
+    renderer.compile(scene, camera);
+    await new Promise((r) => requestAnimationFrame(() => r()));
+  }
 
   /** 그리드 → 크레이트. rectOf(앨범 index) = 그 앨범 그리드 이미지의 화면 사각형(안 보이면 null) */
   async function enterFromRects(start, rectOf, onPlaced) {
     resize();
     pos = target = start; front = -1;
-    await waitTextures(start, CRATE.slots, 700);
+    await waitTextures(start, CRATE.slots, 2500);
     return new Promise((resolve) => {
       let order = 0;
       const items = [];
@@ -219,7 +227,7 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
   async function enterDirect(start = 0) {
     resize();
     pos = target = start; front = -1;
-    await waitTextures(start, 6, 500);
+    await waitTextures(start, CRATE.slots, 1500);
     return new Promise((resolve) => {
       const items = [];
       slots.forEach((slot, j) => {
@@ -339,7 +347,7 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
   function frame() {
     raf = requestAnimationFrame(frame);
     const now = performance.now() / 1000, dt = Math.min(0.05, now - prev); prev = now;
-    if (flight) stepFlight(now);
+    if (flight) stepFlight(dt);
     else if (active && albums.length) {
       if (!drag && performance.now() - lastInput > CRATE.snapAfter) target += (Math.round(target) - target) * (1 - Math.exp(-dt / 0.12));
       pos += (target - pos) * (1 - Math.exp(-dt / CRATE.follow));
@@ -356,6 +364,10 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
 
   return {
     setAlbums(list) {
+      // 같은 목록(다시 그려져 배열만 새로 생긴 경우)이거나 뒤에 더 붙은 경우: 카드를 건드리지 않음
+      // (비행 중에 카드를 초기화하면 날아가던 판들이 사라짐)
+      const same = albums.length <= list.length && albums.every((a, i) => a.key === list[i]?.key);
+      if (same) { albums = list; return; }
       const prevKey = albums[wrap(Math.round(pos))]?.key;
       albums = list;
       // 더 불러온 경우(목록 뒤에 붙음): 지금 맨 앞 판 유지
