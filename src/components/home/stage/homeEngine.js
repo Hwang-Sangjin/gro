@@ -241,18 +241,21 @@ export async function createHomeEngine(opts) {
   /* ================= 착륙 구도 (New Vinyls 섹션) ================= */
   // 스크롤하면 판이 따라 내려오며 한 바퀴 돌고, 거의 눕혀진 상태로 착륙
   const LANDED_COMPOSITION = {
-    tilt: (19 * Math.PI) / 180,   // 단축/장축 ≈ 0.33 → 넓게 누운 타원
+    tilt: (22 * Math.PI) / 180,   // 단축/장축 ≈ 0.37 → 넓게 누운 타원 (카메라를 조금 더 내려다보게)
     roll: 0,
-    widthFraction: 0.46,          // 판(반지름 1) 지름이 화면 폭 기준 비율
-    heightFraction: 0.4,
-    centerY: -0.1,               // 화면 높이 대비 중심 위치 (+ = 위). 앨범이 주인공이라 판은 아래로
+    widthFraction: 0.56,          // 판(반지름 1) 지름이 화면 폭 기준 비율 — 화면을 채우게 크게
+    compactWidthFraction: 0.86,   // 세로 화면(모바일)에서는 폭을 더 씀
+    heightFraction: 0.42,
+    centerY: -0.12,              // 화면 높이 대비 중심 위치 (+ = 위). 서 있는 앨범이 제목을 가리지 않게 아래로
   };
   function getLandedRecordScale(width, height) {
-    const { tilt, widthFraction, heightFraction } = LANDED_COMPOSITION;
+    const { tilt, widthFraction, compactWidthFraction, heightFraction } = LANDED_COMPOSITION;
     const ringR = 1.24;           // 링 바깥까지 화면에 들어오게
     const projectedWidth = 2 * ringR;
     const projectedHeight = 2 * ringR * Math.sin(tilt) + 0.06;
-    return Math.min((width * widthFraction * ringR) / projectedWidth, (height * heightFraction) / projectedHeight);
+    const portraitBlend = Math.min(1, Math.max(0, (1.25 - width / height) / 0.6));
+    const wf = widthFraction + (compactWidthFraction - widthFraction) * portraitBlend;
+    return Math.min((width * wf * ringR) / projectedWidth, (height * heightFraction) / projectedHeight);
   }
   // 전환 타임라인 (진행도 0 = Hero, 1 = New Vinyls). 진행도는 '섹션 전환' 트윈이 시간에 따라 움직임
   const SCROLL = {
@@ -980,6 +983,83 @@ export async function createHomeEngine(opts) {
     if (!albums[i]) return;
     q('nv-artist').textContent = albums[i].data.artist;
     q('nv-album').textContent = albums[i].data.title;
+    setBigTitle(albums[i].data.title);
+  }
+
+  /* ---- 판 뒤의 큰 제목: 정면 앨범이 바뀌면 이전 제목은 위로, 새 제목은 아래에서 올라옴 ---- */
+  // (함수 선언만 사용: 앨범을 불러오는 시점과 상관없이 안전하게 호출되도록 상태는 DOM에 둠)
+  function cleanTitle(t) { return (t || '').replace(/\s*[([].*[)\]]\s*$/, '').trim() || t || ''; }
+  function fitBig(el) {
+    // 한 줄에 들어가게: 넘치면 글자 크기만 줄임 (부모 글자 크기가 상한)
+    const box = q('nv-big');
+    if (!box) return;
+    el.style.fontSize = '';
+    const max = box.clientWidth;
+    if (max > 0 && el.scrollWidth > max) el.style.fontSize = `${Math.max(35, (max / el.scrollWidth) * 100).toFixed(1)}%`;
+  }
+  function setBigTitle(raw) {
+    const text = cleanTitle(raw);
+    const box = q('nv-big');
+    if (!box || box.dataset.text === text) return;
+    box.dataset.text = text;
+    [...box.children].forEach((old) => {
+      old.style.transform = 'translateY(-110%)';
+      setTimeout(() => old.remove(), 1000);
+    });
+    const el = document.createElement('span');
+    el.className = 'absolute inset-x-0 bottom-0 block whitespace-nowrap transition-transform duration-[1000ms] ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none';
+    el.textContent = text;
+    el.style.transform = 'translateY(110%)';
+    box.appendChild(el);
+    fitBig(el);
+    requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transform = 'translateY(0)'; }));
+  }
+
+  /* ---- 정면 앨범 색으로 섹션 물들이기 (배경 = --ink, 판 라벨) ---- */
+  const NV_TINT = {
+    amount: 0.5,        // 잉크(#4c404a)에 앨범 색을 섞는 최대 비율
+    minContrast: 5,     // 크림 글자와의 최소 대비 (본문 AA 4.5 이상 유지, 낮아지면 덜 섞음)
+    tau: 0.8,           // 색이 따라가는 시간감(초)
+    label: 0.85,        // 판 라벨이 앨범 색으로 바뀌는 정도
+  };
+  const NV_INK = hexToVec3('#4c404a'), NV_CREAM = hexToVec3('#f4e7cd');
+  const nvTintCur = NV_INK.clone(), nvTintGoal = new THREE.Vector3(), nvAlbumCol = new THREE.Vector3();
+  const nvLabelCur = new THREE.Vector3(), nvTmp = new THREE.Vector3();
+  let nvTintHex = '', nvLabelTouched = false, nvLabelInit = false;
+  const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const lumOf = (v) => 0.2126 * lin(v.x) + 0.7152 * lin(v.y) + 0.0722 * lin(v.z);
+  const contrastOf = (a, b) => { const x = lumOf(a), y = lumOf(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const vecHex = (v) => '#' + [v.x, v.y, v.z].map((c) => Math.round(clamp01(c) * 255).toString(16).padStart(2, '0')).join('');
+  function tintFor(hex, out) {
+    nvAlbumCol.copy(hexToVec3(hex || '#4c404a'));
+    for (let k = NV_TINT.amount; k > 0.01; k -= 0.04) {
+      out.copy(NV_INK).lerp(nvAlbumCol, k);
+      if (contrastOf(out, NV_CREAM) >= NV_TINT.minContrast) return out;
+    }
+    return out.copy(NV_INK);
+  }
+  function updateNvTint(dt, catEase) {
+    // 앨범이 보이는 정도(착륙 후 시간) × 다이얼로 넘어가지 않은 정도
+    const vis = clamp01(albumClock / AUTO.total) * (1 - catEase);
+    const al = albums[featured];
+    if (al && vis > 0) tintFor(al.data.color, nvTmp); else nvTmp.copy(NV_INK);
+    nvTintGoal.copy(NV_INK).lerp(nvTmp, vis);
+    nvTintCur.lerp(nvTintGoal, 1 - Math.exp(-dt / NV_TINT.tau));
+    const hex = vecHex(nvTintCur);
+    if (hex !== nvTintHex) {
+      nvTintHex = hex;
+      const page = host.closest('.ct-page');
+      if (hex === '#4c404a') page?.style.removeProperty('--ink'); else page?.style.setProperty('--ink', hex);
+    }
+    // 판 라벨: 다이얼이 아닐 때만 (다이얼은 장르 색을 따로 칠함)
+    if (catEase < 0.01 && al && vis > 0.001) {
+      if (!nvLabelInit) { nvLabelCur.copy(hexToVec3(al.data.color || '#4d5f74')); nvLabelInit = true; }
+      nvLabelCur.lerp(nvAlbumCol.copy(hexToVec3(al.data.color || '#4d5f74')), 1 - Math.exp(-dt / NV_TINT.tau));
+      uniforms.uLabel.value.copy(heroLabel3).lerp(baseLabel, themeT).lerp(nvLabelCur, NV_TINT.label * vis);
+      nvLabelTouched = true;
+    } else if (nvLabelTouched && catEase < 0.01) {
+      nvLabelTouched = false; nvLabelInit = false; applyColors();
+    }
   }
 
   /* ---- 링 회전 (드래그 · 관성 · 스냅) ---- */
@@ -1202,7 +1282,11 @@ export async function createHomeEngine(opts) {
       const t = easeOut(clamp01((albumClock - AUTO.titleAt - i * 0.1) / AUTO.titleDur));
       el.style.transform = `translateY(${((1 - t) * 110).toFixed(2)}%)`;   // 아래에서 스르륵 (부모가 잘라 줌)
     });
-    $nvCaption.style.opacity = String(easeOut(clamp01((albumClock - AUTO.captionAt) / AUTO.captionDur)));
+    const capIn = easeOut(clamp01((albumClock - AUTO.captionAt) / AUTO.captionDur));
+    $nvCaption.style.opacity = String(capIn);
+    // 큰 제목: 앨범을 들어 올리면(포커스) 거의 사라져 커버에 집중
+    const $nvBig = q('nv-big');
+    if ($nvBig) $nvBig.style.opacity = String(easeOut(clamp01((albumClock - AUTO.titleAt) / AUTO.titleDur)) * (1 - 0.85 * fe));
     q('nv-hint').style.opacity = String(fe);
   }
   // 앨범 호버 → 살짝 들림 (New Vinyls에서만)
@@ -1539,8 +1623,10 @@ export async function createHomeEngine(opts) {
     on(window, 'pointermove', (e) => {
       if (e.pointerType !== 'mouse') return;
       mouse.set(e.clientX, e.clientY);
-      if (!cursorVisible) { ringPos.copy(mouse); cursorVisible = true; }
       const el = e.target instanceof Element ? e.target : null;
+      // 스테이지 밖(사이트 헤더 등)에서는 숨김 — 원래 커서가 보이는 곳
+      if (!el || !host.contains(el)) { cursorVisible = false; overDisc = overLink = overPanel = overRead = false; return; }
+      if (!cursorVisible) { ringPos.copy(mouse); cursorVisible = true; }
       overPanel = !!el?.closest('#panel');
       overLink = !overPanel && !!el?.closest('a, button, summary, [role="button"]');
       overRead = !overPanel && !!el?.closest('[data-cursor="read"]');
@@ -1622,6 +1708,8 @@ export async function createHomeEngine(opts) {
     canvas.style.height = `calc(100% + ${headerTop}px)`;
   };
   const resize = () => {
+    const bigNow = q('nv-big')?.lastElementChild;
+    if (bigNow) fitBig(bigNow);
     placeStage();
     const w = canvas.clientWidth, h = canvas.clientHeight;
     renderer.setSize(w, h, false);
@@ -2537,6 +2625,7 @@ export async function createHomeEngine(opts) {
     //  배경·글자·잉크 색: 판이 내려오는 동안 크림 → 플럼으로 자연스럽게
     applyTheme(easeInOut(seg(p, 0.15, 0.85)) * (1 - newsEase));   // News에서는 다시 크림
     updateAlbums(dt, p);
+    updateNvTint(dt, catEase);
     updateDial(dt, dialVis);
     updateNews(newsEase);
 
@@ -2689,6 +2778,7 @@ export async function createHomeEngine(opts) {
       genreButtons.forEach((b) => b.remove());
       host.classList.remove('custom-cursor');
       host.closest('.ct-page')?.style.removeProperty('--wire-t');
+      host.closest('.ct-page')?.style.removeProperty('--ink');
     },
   };
 }

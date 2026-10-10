@@ -133,6 +133,10 @@ export default function HomeStage() {
       data-lenis-prevent
       className="absolute inset-x-0 bottom-0 top-[var(--ct-header-h,106px)] touch-pan-y overflow-visible text-[var(--hs-text,#4c404a)] [&.custom-cursor]:cursor-none [&.custom-cursor_*]:cursor-none!"
     >
+      {/* New Vinyls: 정면 앨범 제목을 판 '뒤'(캔버스 아래)에 크게 — 엔진이 바꿔 끼우며 아래에서 올라오게 함 */}
+      <div id="nv-big" aria-hidden="true"
+        className={`pointer-events-none absolute inset-x-[4vw] top-[44%] h-[0.95em] -translate-y-1/2 select-none overflow-y-clip opacity-0 ${SERIF} text-center text-[clamp(4.5rem,12.5vw,15rem)] font-black uppercase leading-[0.9] tracking-[-0.035em] text-(--hs-text)/[.09]`} />
+
       {/* 3D 캔버스는 homeEngine이 이 안에 만듦 */}
       <div id="hs-canvas" className="absolute inset-0" />
 
@@ -154,7 +158,8 @@ export default function HomeStage() {
         <div id="nv-caption" className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+2.25rem)] text-center opacity-0" aria-live="polite">
           <p className="text-[11px] uppercase tracking-[0.42em] text-[var(--hs-ink3d)]">Fresh finds · Slow listening</p>
           <p id="nv-artist" className={`mt-2 ${SERIF} text-[clamp(1.25rem,1.6vw,2rem)] font-black uppercase tracking-wide`} />
-          <p id="nv-album" className={`${SERIF} text-[clamp(1.125rem,1.3vw,1.6rem)]`} />
+          {/* 앨범명은 판 뒤 큰 제목(nv-big)이 보여 줌 — 여기선 스크린리더용으로만 */}
+          <p id="nv-album" className="sr-only" />
           <p id="nv-hint" className="mt-2 text-xs text-[var(--hs-muted)] opacity-0">커버를 한 번 더 누르면 앨범 상세로 · 바깥을 누르거나 Esc로 닫기</p>
         </div>
       </section>
