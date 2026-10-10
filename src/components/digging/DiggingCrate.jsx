@@ -6,6 +6,7 @@
    - 크레이트 중에는 페이지 스크롤을 잠그고 휠·드래그·←/→가 판을 넘김. Esc = 그리드로
    3D는 crateEngine.js (필요할 때 불러옴) */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
 import { coverUrl } from "@/lib/albums";
 
@@ -82,12 +83,17 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
       same = now === last ? same + 1 : 0; last = now;
     }
   }, []);
+  // 무대는 body에 붙어 있어(포털) 화면 기준으로 정확히 고정됨. 위치·높이는 px로 직접
+  const [top, setTop] = useState(160);
   const placeStage = useCallback(() => {
     const b = bar(), s = stageRef.current; if (!b || !s) return;
-    const top = `${Math.max(0, b.getBoundingClientRect().bottom)}px`;
-    s.style.top = top;
-    page()?.style.setProperty("--crate-top", top);
+    const t = Math.max(0, Math.round(b.getBoundingClientRect().bottom));
+    s.style.top = `${t}px`;
+    s.style.height = `${Math.max(1, window.innerHeight - t)}px`;
+    setTop(t);
   }, []);
+  const [portal, setPortal] = useState(null);
+  useEffect(() => { setPortal(document.body); }, []);
 
   async function engine() {
     if (engineRef.current) return engineRef.current;
@@ -126,6 +132,7 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
     onPhase?.(direct ? "crate" : "lifting");  // 먼저 그리드 글자(캡션)만 정리 — 이미지는 3D가 자리 잡을 때 숨김
     // 페이지 넘김(Crate Flip)·인트로 중엔 화면 위치가 기울어져 있어 잴 수 없음 → 끝날 때까지 기다림
     while (document.documentElement.dataset.crateTransition === "true" || document.querySelector(".preloader")) await wait(80);
+    while (!stageRef.current) await nextFrame();   // body 포털이 붙을 때까지
     lock(true);
     await stickBar(!direct);
     await settle();
@@ -213,14 +220,14 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
   const shown = mode !== "grid";
   const a = albums[front];
   const accent = a ? accentFor(a.cover_color || "#bbcbda") : INK;
-  return (
+  const layer = (
     <>
-      {/* 3D 무대: 장르 바 아래부터 화면 끝까지 */}
-      <div ref={stageRef} data-lenis-prevent aria-hidden={!shown}
-        className={`fixed inset-x-0 bottom-0 z-10 cursor-grab touch-none ${shown ? "" : "pointer-events-none invisible"}`} />
+      {/* 3D 무대: 장르 바 아래부터 화면 끝까지. 페이지 넘김·모바일 메뉴 중엔 숨김(globals.css) */}
+      <div ref={stageRef} data-lenis-prevent data-crate-3d aria-hidden={!shown}
+        className={`fixed inset-x-0 z-[5] cursor-grab touch-none ${shown ? "" : "pointer-events-none invisible"}`} style={{ top: 160, height: 1 }} />
       {/* 맨 앞 앨범 정보 */}
-      <div aria-live="polite"
-        className={`pointer-events-none fixed inset-x-[clamp(22px,4vw,72px)] bottom-[clamp(1.25rem,5vh,3rem)] z-10 flex flex-col-reverse items-start gap-2 transition-opacity duration-500 md:flex-row md:items-end md:justify-between md:gap-6 ${mode === "crate" && a ? "opacity-100" : "opacity-0"}`}>
+      <div aria-live="polite" data-crate-3d
+        className={`pointer-events-none fixed inset-x-[clamp(22px,4vw,72px)] bottom-[clamp(1.25rem,5vh,3rem)] z-[6] flex flex-col-reverse items-start gap-2 transition-opacity duration-500 md:flex-row md:items-end md:justify-between md:gap-6 ${mode === "crate" && a ? "opacity-100" : "opacity-0"}`}>
         <div className="relative h-[1.02em] w-full min-w-0 overflow-hidden font-['Grooves_Bodoni',Georgia,serif] text-[clamp(1.9rem,6vw,6.5rem)] font-black uppercase leading-none tracking-[-0.03em] md:flex-1" style={{ color: accent }}>
           {a && <span key={a.slug} className="absolute bottom-0 left-0 block animate-[crate-title_.9s_cubic-bezier(.22,1,.36,1)_both] truncate whitespace-nowrap pr-[0.1em]" style={{ maxWidth: "100%" }}>{a.title}</span>}
         </div>
@@ -231,8 +238,13 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
           <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.24em]" style={{ color: accent }}>{a?.artist_names}</p>
         </div>
       </div>
-      <p className={`pointer-events-none fixed right-[clamp(22px,4vw,72px)] z-10 hidden text-[10px] font-medium uppercase tracking-[0.3em] text-[#4c404a80] transition-opacity duration-500 [@media(pointer:fine)]:block ${mode === "crate" ? "opacity-100" : "opacity-0"}`}
-        style={{ top: "calc(var(--crate-top, 160px) + 16px)" }}>Scroll · Drag · ← → · Esc</p>
+      <p data-crate-3d className={`pointer-events-none fixed right-[clamp(22px,4vw,72px)] z-[6] hidden text-[10px] font-medium uppercase tracking-[0.3em] text-[#4c404a80] transition-opacity duration-500 [@media(pointer:fine)]:block ${mode === "crate" ? "opacity-100" : "opacity-0"}`}
+        style={{ top: top + 16 }}>Scroll · Drag · ← → · Esc</p>
+    </>
+  );
+  return (
+    <>
+      {portal && createPortal(layer, portal)}
       {/* 앨범 상세로 날아가는 전환의 출발점 (보이지 않는 상자) */}
       <div ref={proxyRef} aria-hidden="true" className="pointer-events-none fixed opacity-0" />
     </>

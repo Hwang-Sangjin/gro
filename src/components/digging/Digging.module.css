@@ -471,3 +471,5 @@
 .grid[data-phase="leaving"] > a[data-ground] .revealPanel { visibility: visible; clip-path: inset(0); transition: none; animation: ground-in .7s ease .2s both; }
 .grid[data-phase="leaving"] > a[data-ground] .revealPanel img { opacity: 1; transition: none; }
 @keyframes ground-in { from { opacity: 0; transform: translateY(14px); } }
+/* 크레이트 중엔 그리드 전체를 감춤 (3D가 대신 보여 주므로 어떤 경우에도 두 장이 겹쳐 보이지 않게). 위치 측정은 그대로 가능 */
+.grid[data-phase="crate"] { visibility: hidden; }

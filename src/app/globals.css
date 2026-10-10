@@ -971,3 +971,8 @@ html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 
 /* Digging: 헤더는 본문 종이색과 같게 */
 .ct-page[data-crate-path="/digging"] { --ct-header-bg: #f3e7cd; }
+
+/* Digging 크레이트(3D)는 body에 붙어 있음: 페이지 넘김 전환·모바일 메뉴·인트로 중엔 가림 */
+html[data-crate-transition="true"] [data-crate-3d],
+body:has(#site-menu[data-open="true"]) [data-crate-3d],
+body:has(.preloader) [data-crate-3d] { visibility: hidden; }
