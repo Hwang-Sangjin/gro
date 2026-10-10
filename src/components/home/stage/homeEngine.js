@@ -246,7 +246,9 @@ export async function createHomeEngine(opts) {
     widthFraction: 0.56,          // 판(반지름 1) 지름이 화면 폭 기준 비율 — 화면을 채우게 크게
     compactWidthFraction: 0.86,   // 세로 화면(모바일)에서는 폭을 더 씀
     heightFraction: 0.42,
-    centerY: -0.12,              // 화면 높이 대비 중심 위치 (+ = 위). 서 있는 앨범이 제목을 가리지 않게 아래로
+    centerY: -0.31,              // 가로 화면
+    compactCenterY: -0.2,        // 세로 화면(모바일): 판이 작아 위쪽 빈자리가 크지 않게 조금 올림
+                 // 화면 높이 대비 중심 위치 (+ = 위). 위쪽은 앨범 제목(nv-big) 자리라 판은 아래로
   };
   function getLandedRecordScale(width, height) {
     const { tilt, widthFraction, compactWidthFraction, heightFraction } = LANDED_COMPOSITION;
@@ -986,7 +988,7 @@ export async function createHomeEngine(opts) {
     setBigTitle(albums[i].data.title);
   }
 
-  /* ---- 판 뒤의 큰 제목: 정면 앨범이 바뀌면 이전 제목은 위로, 새 제목은 아래에서 올라옴 ---- */
+  /* ---- 앨범 제목(판 위): 정면 앨범이 바뀌면 이전 제목은 위로, 새 제목은 아래에서 올라옴 ---- */
   // (함수 선언만 사용: 앨범을 불러오는 시점과 상관없이 안전하게 호출되도록 상태는 DOM에 둠)
   function cleanTitle(t) { return (t || '').replace(/\s*[([].*[)\]]\s*$/, '').trim() || t || ''; }
   function fitBig(el) {
@@ -1283,10 +1285,10 @@ export async function createHomeEngine(opts) {
       el.style.transform = `translateY(${((1 - t) * 110).toFixed(2)}%)`;   // 아래에서 스르륵 (부모가 잘라 줌)
     });
     const capIn = easeOut(clamp01((albumClock - AUTO.captionAt) / AUTO.captionDur));
-    $nvCaption.style.opacity = String(capIn);
-    // 큰 제목: 앨범을 들어 올리면(포커스) 거의 사라져 커버에 집중
+    $nvCaption.style.opacity = String(capIn * (1 - fe));   // 앨범을 들어 올리면 제목과 함께 사라짐
+    // 앨범 제목: 앨범을 들어 올리면(포커스) 사라져 커버에 집중
     const $nvBig = q('nv-big');
-    if ($nvBig) $nvBig.style.opacity = String(easeOut(clamp01((albumClock - AUTO.titleAt) / AUTO.titleDur)) * (1 - 0.85 * fe));
+    if ($nvBig) $nvBig.style.opacity = String(easeOut(clamp01((albumClock - AUTO.titleAt) / AUTO.titleDur)) * (1 - fe));
     q('nv-hint').style.opacity = String(fe);
   }
   // 앨범 호버 → 살짝 들림 (New Vinyls에서만)
@@ -2575,7 +2577,8 @@ export async function createHomeEngine(opts) {
     //  화면 가로축 기준으로 한 바퀴(360°) — 끝나면 원래 자세와 같아서 그대로 착륙
     tumble.rotation.x = tumbleT * Math.PI * 2;
     //  도는 동안 살짝 떠올랐다가 내려앉음
-    const landY = LANDED_COMPOSITION.centerY * viewH;
+    const portraitK = Math.min(1, Math.max(0, (1.25 - canvas.clientWidth / Math.max(1, canvas.clientHeight)) / 0.6));
+    const landY = (LANDED_COMPOSITION.centerY + (LANDED_COMPOSITION.compactCenterY - LANDED_COMPOSITION.centerY) * portraitK) * viewH;
     const lift = Math.sin(Math.PI * seg(p, SCROLL.tumbleStart, SCROLL.settleEnd)) * SCROLL.lift * viewH;
     root.position.y = THREE.MathUtils.lerp(0, landY, settle) + lift;
     heroActive = p < SCROLL.heroEnd;
