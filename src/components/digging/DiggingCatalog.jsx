@@ -5,6 +5,7 @@ import { fetchDiggingPage } from "@/lib/albums";
 import { GENRES } from "@/lib/genres";
 import { GENRE_LOOK } from "@/components/home/stage/homeGenres";
 import DiggingGrid from "./DiggingGrid";
+import { crateMemory } from "./DiggingCrate";
 import useReveal from "./useReveal";
 import styles from "./Digging.module.css";
 
@@ -81,6 +82,8 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre, 
   });
   const viewRef = useRef(view); viewRef.current = view;
   const setView = useCallback((v) => {
+    // 클릭한 순간의 스크롤 위치를 기억 → 크레이트 전환은 이 위치를 기준으로 (도중에 페이지가 튀어도 무시)
+    if (v === "crate") crateMemory.holdTop = barRef.current?.closest(".page")?.scrollTop ?? null;
     setViewState(v);
     const url = new URL(location.href);
     if (v === "crate") url.searchParams.set("view", "crate"); else url.searchParams.delete("view");

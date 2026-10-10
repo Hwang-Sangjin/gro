@@ -11,7 +11,7 @@ import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
 import { coverUrl } from "@/lib/albums";
 
 // 크레이트에서 앨범 상세로 갔다가 돌아오면 그 판이 맨 앞에 오도록
-export const crateMemory = { slug: null };
+export const crateMemory = { slug: null, holdTop: null };
 
 const PAPER = "#f3e7cd", INK = "#4c404a";
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
@@ -50,11 +50,32 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
     return r.width > 0 && r.bottom > 0 && r.top < innerHeight ? r : null;
   };
 
-  // 페이지 스크롤 잠금 (Lenis 정지 + 네이티브 스크롤 막기)
+  // 스크롤 고정: 전환·크레이트 동안 페이지 스크롤을 한 값에 붙잡아 둠.
+  // (클릭 직후 페이지가 한 줄쯤 튀었다 돌아오면, 그 사이에 잰 위치로 3D 카드가 그려져 그리드와 겹쳐 보였음)
+  // 우리가 일부러 옮길 때만 setScroll로 바꿈. overflow는 건드리지 않음(레이아웃이 바뀌지 않게)
+  const hold = useRef(null);
+  const setScroll = useCallback((v) => {
+    const p = page(); if (!p) return;
+    p.scrollTop = v; hold.current = p.scrollTop;
+  }, []);
+  useEffect(() => {
+    let raf = 0;
+    const enforce = () => {
+      const p = page();
+      if (p && hold.current != null && Math.abs(p.scrollTop - hold.current) > 0.5) p.scrollTop = hold.current;
+    };
+    const tick = () => { enforce(); raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+    const p = page();
+    p?.addEventListener("scroll", enforce, { passive: true });
+    return () => { cancelAnimationFrame(raf); p?.removeEventListener("scroll", enforce); };
+  }, []);
+  // 페이지 스크롤 잠금 (Lenis 정지 + 위치 고정)
   const lock = useCallback((on) => {
     const p = page(); if (!p) return;
     window.dispatchEvent(new Event(on ? "page-scroll:lock" : "page-scroll:unlock"));
-    p.style.overflow = on ? "hidden" : "";
+    if (on) { if (hold.current == null) hold.current = crateMemory.holdTop ?? p.scrollTop; }
+    else hold.current = null;
   }, []);
   // 장르 바를 헤더 아래에 붙임 (붙는 동안 바가 접히는 애니메이션까지 기다림)
   const stickBar = useCallback(async (smooth) => {
@@ -65,11 +86,11 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
       const from = p.scrollTop, t0 = performance.now();
       while (true) {
         const k = Math.min(1, (performance.now() - t0) / 450);
-        p.scrollTop = from + (need - from) * (1 - (1 - k) ** 3);
+        setScroll(from + (need - from) * (1 - (1 - k) ** 3));
         if (k >= 1) break;
         await nextFrame();
       }
-    } else p.scrollTop = need;
+    } else setScroll(need);
     await wait(smooth ? 520 : 40);
   }, []);
   // 페이지가 완전히 멈출 때까지 (관성 스크롤 · 장르 바 접힘) — 스크롤 위치와 바 위치가 3프레임 연속 그대로면 멈춘 것
@@ -132,8 +153,9 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
     onPhase?.(direct ? "crate" : "lifting");  // 먼저 그리드 글자(캡션)만 정리 — 이미지는 3D가 자리 잡을 때 숨김
     // 페이지 넘김(Crate Flip)·인트로 중엔 화면 위치가 기울어져 있어 잴 수 없음 → 끝날 때까지 기다림
     while (document.documentElement.dataset.crateTransition === "true" || document.querySelector(".preloader")) await wait(80);
+    lock(true);                                     // 가장 먼저 스크롤 위치 고정 (클릭한 순간 값)
+    crateMemory.holdTop = null;
     while (!stageRef.current) await nextFrame();   // body 포털이 붙을 때까지
-    lock(true);
     await stickBar(!direct);
     await settle();
     placeStage();
@@ -163,7 +185,7 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
     if (p && el) {
       const need = b ? b.offsetTop - (parseFloat(getComputedStyle(b).top) || 0) + 1 : 0;
       const barBottom = b ? b.getBoundingClientRect().bottom : 0;
-      p.scrollTop = Math.max(need, p.scrollTop + el.getBoundingClientRect().top - barBottom - 28);
+      setScroll(Math.max(need, p.scrollTop + el.getBoundingClientRect().top - barBottom - 28));
     }
     onPhase?.("leaving");
     await settle();
@@ -212,7 +234,6 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
   useEffect(() => () => {
     engineRef.current?.dispose(); engineRef.current = null;
     const p = page(); p?.style.removeProperty("--dig-paper"); p?.closest(".ct-page")?.style.removeProperty("--ct-header-bg");
-    if (p) p.style.overflow = "";
     window.dispatchEvent(new Event("page-scroll:unlock"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
