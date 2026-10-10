@@ -60,7 +60,7 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
     const p = page(), b = bar(); if (!p || !b) return;
     const need = b.offsetTop - (parseFloat(getComputedStyle(b).top) || 0) + 1;
     if (p.scrollTop >= need) return;
-    if (smooth && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (smooth) {
       const from = p.scrollTop, t0 = performance.now();
       while (true) {
         const k = Math.min(1, (performance.now() - t0) / 450);

@@ -163,8 +163,9 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
   }
 
   // ───── 전환 비행 ─────
+  // 움직임 줄이기 설정: 화면 구조가 바뀐다는 건 보여 주되, 짧게·한꺼번에·들림/흔들림 없이
   function fly(items, done) {
-    if (reduced) { items.forEach((it) => applyPose(it.slot, it.to)); done(); return; }
+    if (reduced) items.forEach((it) => { it.delay = 0; });
     flight = { t0: performance.now() / 1000, items, done };
   }
   const tmp = {};
@@ -172,12 +173,14 @@ export function createCrateEngine({ container, onFront, onBg, onOpen, onNeedMore
     const t = now - flight.t0;
     let finished = true;
     for (const it of flight.items) {
-      const k = Math.min(1, Math.max(0, (t - it.delay) / CRATE.flight));
+      const k = Math.min(1, Math.max(0, (t - it.delay) / (reduced ? 0.45 : CRATE.flight)));
       if (k < 1) finished = false;
       const e = easeIO(k);
       lerpPose(it.from, it.to, e, tmp);
-      tmp.z += Math.sin(Math.PI * e) * CRATE.lift * (CARD / CRATE.cardMax);
-      tmp.rz += Math.sin(Math.PI * e) * 0.06 * (it.slot.mesh.id % 2 ? 1 : -1);
+      if (!reduced) {
+        tmp.z += Math.sin(Math.PI * e) * CRATE.lift * (CARD / CRATE.cardMax);
+        tmp.rz += Math.sin(Math.PI * e) * 0.06 * (it.slot.mesh.id % 2 ? 1 : -1);
+      }
       applyPose(it.slot, tmp);
     }
     if (finished) { const d = flight.done; flight = null; d(); }
