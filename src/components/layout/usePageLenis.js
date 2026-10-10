@@ -29,9 +29,6 @@ export default function usePageLenis({
     const start = () => lenis.start();
     window.addEventListener("crate:start", stop);
     window.addEventListener("crate:end", start);
-    // 페이지 안에서 스크롤을 잠깐 잠글 때 (Digging 크레이트 보기 등)
-    window.addEventListener("page-scroll:lock", stop);
-    window.addEventListener("page-scroll:unlock", start);
     if (document.documentElement.dataset.crateTransition === "true") stop();
 
     let raf = 0;
@@ -45,8 +42,6 @@ export default function usePageLenis({
       cancelAnimationFrame(raf);
       window.removeEventListener("crate:start", stop);
       window.removeEventListener("crate:end", start);
-      window.removeEventListener("page-scroll:lock", stop);
-      window.removeEventListener("page-scroll:unlock", start);
       lenis.destroy();
     };
   }, [wrapperRef, contentRef, enabled]);

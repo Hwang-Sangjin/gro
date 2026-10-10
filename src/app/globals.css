@@ -26,13 +26,6 @@
     }
   }
 
-  /* Digging 크레이트: 맨 앞 앨범 제목이 아래에서 올라옴 */
-  @keyframes crate-title {
-    from {
-      transform: translateY(110%);
-    }
-  }
-
   /* 앨범 상세: 트랙 행이 차례로 올라옴 (사이드를 바꿀 때마다 다시) */
   --animate-track-in: track-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
   @keyframes track-in {
@@ -971,9 +964,3 @@ html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 
 /* Digging: 헤더는 본문 종이색과 같게 */
 .ct-page[data-crate-path="/digging"] { --ct-header-bg: #f3e7cd; }
-
-/* Digging 크레이트(3D)는 body에 붙어 있음: 페이지 넘김 전환·모바일 메뉴·인트로 중엔 가림 */
-html[data-crate-transition="true"] [data-crate-3d],
-body:has(#site-menu[data-open="true"]) [data-crate-3d],
-body:has(.preloader) [data-crate-3d] { visibility: hidden; }
-html[data-dig-crate="on"] [data-dig-grid] { visibility: hidden; }

@@ -1,11 +1,10 @@
 "use client";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { fetchDiggingPage } from "@/lib/albums";
 import { GENRES } from "@/lib/genres";
 import { GENRE_LOOK } from "@/components/home/stage/homeGenres";
 import DiggingGrid from "./DiggingGrid";
-import { crateMemory } from "./DiggingCrate";
 import useReveal from "./useReveal";
 import styles from "./Digging.module.css";
 
@@ -73,37 +72,7 @@ function closeGrid(wrap) {
 /* 장르를 바꿔도 페이지는 그대로: 그리드만 해당 장르의 판으로 바뀜.
    - 주소(?genre=)는 replaceState로만 맞춰 둠 → 새로고침·공유하면 그 장르로 열림 (서버가 첫 페이지를 그려 줌)
    - 한 번 본 장르는 기억해 두었다가 다시 고르면 바로 보여 줌 */
-export default function DiggingCatalog({ initial, genreId, genre: initialGenre, view: initialView = "grid" }) {
-  // 보기 방식: grid | crate.
-  // 주소는 바꾸지 않음 — 검색 파라미터가 바뀌면 Next 라우터가 페이지를 다시 그리면서(개발 모드 등)
-  // 그리드가 한 줄 튀거나 새로 그려져, 3D 카드가 잰 자리와 어긋났음. 대신 이 탭(sessionStorage)에 기억
-  // (?view=crate로 들어오는 링크는 그대로 지원)
-  // 첫 렌더는 서버와 똑같이(initialView) — 브라우저에서만 아는 값(sessionStorage·주소)으로 첫 렌더를 바꾸면
-  // 하이드레이션 불일치로 화면의 data-phase 등이 React 상태와 어긋나 그리드가 숨겨지지 않았음.
-  // 기억된 보기 방식은 화면에 그리기 직전(layout effect)에 반영 → 깜빡임 없이 크레이트로 바로 시작
-  const [view, setViewState] = useState(initialView === "crate" ? "crate" : "grid");
-  useLayoutEffect(() => {
-    if (initialView === "crate") return;
-    let want = new URLSearchParams(window.location.search).get("view") === "crate" ? "crate" : null;
-    try { if (!want && sessionStorage.getItem("grooves:dig-view") === "crate") want = "crate"; } catch {}
-    if (want !== "crate") return;
-    crateMemory.restore = true;                          // 날아가는 전환 없이 바로 크레이트로
-    document.documentElement.dataset.digCrate = "on";    // 그리드가 한 프레임도 보이지 않게
-    setViewState("crate");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const viewRef = useRef(view); viewRef.current = view;
-  const setView = useCallback((v) => {
-    // 클릭한 순간의 스크롤 위치를 기억 → 크레이트 전환은 이 위치를 기준으로
-    if (v === "crate") crateMemory.holdTop = barRef.current?.closest(".page")?.scrollTop ?? null;
-    setViewState(v);
-    try { sessionStorage.setItem("grooves:dig-view", v); } catch {}
-    // 예전 링크의 ?view=crate가 남아 있으면 그리드로 돌아갈 때만 정리 (크레이트로 갈 땐 주소를 건드리지 않음)
-    if (v === "grid" && new URLSearchParams(location.search).has("view")) {
-      const url = new URL(location.href); url.searchParams.delete("view");
-      window.history.replaceState(window.history.state, "", url.pathname + url.search);
-    }
-  }, []);
+export default function DiggingCatalog({ initial, genreId, genre: initialGenre }) {
   const [genre, setGenre] = useState(initialGenre ?? null);
   const [current, setCurrent] = useState({ key: initialGenre ?? "all", initial, genreId });
   const [switching, setSwitching] = useState(false);
@@ -124,8 +93,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre, 
     if (nav && page && page.scrollTop > nav.offsetTop) page.scrollTo({ top: nav.offsetTop - 8, behavior: "instant" });
     // 지금 판들을 접어 닫는 동안 새 장르를 불러오고, 둘 다 끝나면 새 판들이 펼쳐지며 등장
     setSwitching(true);
-    // 크레이트 보기에선 그리드가 숨어 있으니 접는 애니메이션 없이 바로
-    const closing = viewRef.current === "crate" ? Promise.resolve() : closeGrid(gridWrapRef.current);
+    const closing = closeGrid(gridWrapRef.current);
     try {
       let data = cache.current.get(key);
       if (!data) {
@@ -192,7 +160,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre, 
       </header>
       {/* 장르 인덱스: DIGGING과 같은 세리프로 장르를 크게 나열. 고른 장르만 진하게, 장르 색 밑줄.
           스크롤해서 헤더 아래에 붙으면 작게 한 줄로 접힘 */}
-      <div ref={barRef} data-dig-bar data-stuck={stuck} className="group/bar sticky top-[calc(var(--ct-header-h,106px)-3px)] z-20 mb-[clamp(1.5rem,3vw,2.5rem)] bg-[var(--dig-paper,#f3e7cd)] transition-colors duration-[800ms]">
+      <div ref={barRef} data-stuck={stuck} className="group/bar sticky top-[calc(var(--ct-header-h,106px)-3px)] z-20 mb-[clamp(1.5rem,3vw,2.5rem)] bg-[var(--dig-paper,#f3e7cd)] transition-colors duration-[800ms]">
         <div className="grid grid-rows-[1fr] overflow-hidden border-t-[3px] border-[#4c404a] transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[stuck=true]/bar:grid-rows-[0fr]">
           <div className="flex min-h-0 items-center justify-between overflow-hidden pt-3 transition-opacity duration-300 group-data-[stuck=true]/bar:opacity-0 text-[10px] font-medium uppercase tracking-[0.3em] text-[#4c404a99]">
             <span>Browse by genre</span>
@@ -221,21 +189,6 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre, 
             })}
           </nav>
         <div className={`${styles.actions} mt-0! shrink-0 self-center`}>
-            {/* 보기 방식: Grid ↔ Crate (3D) */}
-            <div role="group" aria-label="보기 방식" className="relative flex rounded-full border border-[#4c404a4d] p-[3px]">
-              <span aria-hidden="true" className={`absolute inset-y-[3px] left-[3px] w-[calc(50%-3px)] rounded-full bg-[#4c404a] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${view === "crate" ? "translate-x-full" : ""}`} />
-              {["grid", "crate"].map((v) => (
-                <button key={v} type="button" aria-pressed={view === v} aria-label={v === "grid" ? "그리드로 보기" : "크레이트(3D)로 보기"} onClick={() => setView(v)}
-                  className={`relative z-[1] flex min-h-9 w-11 items-center justify-center gap-2 rounded-full text-[11px] font-medium uppercase tracking-[0.2em] transition-colors duration-500 sm:w-[5.5rem] ${view === v ? "text-[#f3e7cd]" : "text-[#4c404a]"}`}>
-                  {/* 좁은 화면에선 아이콘만 */}
-                  <svg aria-hidden="true" viewBox="0 0 16 16" className="size-3.5 shrink-0 sm:hidden" fill="none" stroke="currentColor" strokeWidth="1.4">
-                    {v === "grid" ? <path d="M2.5 2.5h4.5v4.5H2.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5H2.5zM9 9h4.5v4.5H9z" /> : <path d="M2 4.5h7.5v9H2zM11 3.5l3 1v9l-3-1M9.5 4.5l1.5-1" />}
-                  </svg>
-                  <span className="hidden sm:inline">{v}</span>
-                </button>
-              ))}
-            </div>
-            <span className={styles.separator} aria-hidden="true" />
             <button className={styles.request} onClick={() => request.current?.showModal()}>+ Request</button>
             <span className={styles.separator} aria-hidden="true" />
             <div className={styles.search} data-open={open}>
@@ -254,7 +207,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre, 
       </div>
       {/* 장르를 바꾸면 지금 판들이 접혀 사라진 뒤, 그리드만 새로 그려짐 (카드가 다시 펼쳐지며 등장) */}
       <div ref={gridWrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
-        <DiggingGrid key={current.key} initial={current.initial} genreId={current.genreId} query={query} view={view} setView={setView} />
+        <DiggingGrid key={current.key} initial={current.initial} genreId={current.genreId} query={query} />
       </div>
       <dialog ref={request} className={styles.dialog}>
         <h2>Request a record</h2>
