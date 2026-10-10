@@ -74,20 +74,27 @@ function closeGrid(wrap) {
    - 주소(?genre=)는 replaceState로만 맞춰 둠 → 새로고침·공유하면 그 장르로 열림 (서버가 첫 페이지를 그려 줌)
    - 한 번 본 장르는 기억해 두었다가 다시 고르면 바로 보여 줌 */
 export default function DiggingCatalog({ initial, genreId, genre: initialGenre, view: initialView = "grid" }) {
-  // 보기 방식: grid | crate. 주소(?view=crate)에도 남겨 새로고침·뒤로 가기에도 유지
-  // 뒤로 가기로 돌아오면 라우터가 예전 화면(주소 바꾸기 전)을 꺼낼 수 있어서, 실제 주소를 직접 확인
+  // 보기 방식: grid | crate.
+  // 주소는 바꾸지 않음 — 검색 파라미터가 바뀌면 Next 라우터가 페이지를 다시 그리면서(개발 모드 등)
+  // 그리드가 한 줄 튀거나 새로 그려져, 3D 카드가 잰 자리와 어긋났음. 대신 이 탭(sessionStorage)에 기억
+  // (?view=crate로 들어오는 링크는 그대로 지원)
   const [view, setViewState] = useState(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "crate") return "crate";
+    if (typeof window === "undefined") return initialView === "crate" ? "crate" : "grid";
+    if (new URLSearchParams(window.location.search).get("view") === "crate") return "crate";
+    try { if (sessionStorage.getItem("grooves:dig-view") === "crate") return "crate"; } catch {}
     return initialView === "crate" ? "crate" : "grid";
   });
   const viewRef = useRef(view); viewRef.current = view;
   const setView = useCallback((v) => {
-    // 클릭한 순간의 스크롤 위치를 기억 → 크레이트 전환은 이 위치를 기준으로 (도중에 페이지가 튀어도 무시)
+    // 클릭한 순간의 스크롤 위치를 기억 → 크레이트 전환은 이 위치를 기준으로
     if (v === "crate") crateMemory.holdTop = barRef.current?.closest(".page")?.scrollTop ?? null;
     setViewState(v);
-    const url = new URL(location.href);
-    if (v === "crate") url.searchParams.set("view", "crate"); else url.searchParams.delete("view");
-    window.history.replaceState(window.history.state, "", url.pathname + url.search);
+    try { sessionStorage.setItem("grooves:dig-view", v); } catch {}
+    // 예전 링크의 ?view=crate가 남아 있으면 그리드로 돌아갈 때만 정리 (크레이트로 갈 땐 주소를 건드리지 않음)
+    if (v === "grid" && new URLSearchParams(location.search).has("view")) {
+      const url = new URL(location.href); url.searchParams.delete("view");
+      window.history.replaceState(window.history.state, "", url.pathname + url.search);
+    }
   }, []);
   const [genre, setGenre] = useState(initialGenre ?? null);
   const [current, setCurrent] = useState({ key: initialGenre ?? "all", initial, genreId });

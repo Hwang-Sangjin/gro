@@ -976,3 +976,4 @@ html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 html[data-crate-transition="true"] [data-crate-3d],
 body:has(#site-menu[data-open="true"]) [data-crate-3d],
 body:has(.preloader) [data-crate-3d] { visibility: hidden; }
+html[data-dig-crate="on"] [data-dig-grid] { visibility: hidden; }

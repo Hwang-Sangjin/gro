@@ -70,6 +70,11 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
     p?.addEventListener("scroll", enforce, { passive: true });
     return () => { cancelAnimationFrame(raf); p?.removeEventListener("scroll", enforce); };
   }, []);
+  // 3D가 보이는 동안엔 페이지 안의 모든 그리드를 감춤 (어떤 이유로 그리드가 다시 그려지거나 두 개가 되어도 겹쳐 보이지 않게)
+  const coverGrids = useCallback((on) => {
+    if (on) document.documentElement.dataset.digCrate = "on";
+    else delete document.documentElement.dataset.digCrate;
+  }, []);
   // 페이지 스크롤 잠금 (Lenis 정지 + 위치 고정)
   const lock = useCallback((on) => {
     const p = page(); if (!p) return;
@@ -162,6 +167,7 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
     const e = await engine();
     if (direct) {
       const keep = crateMemory.slug ? albumsRef.current.findIndex((a) => a.slug === crateMemory.slug) : -1;
+      coverGrids(true);
       await e.enterDirect(Math.max(0, keep));
     } else {
       // 화면에 보이는 첫 카드부터
@@ -170,6 +176,7 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
       if (start < 0) start = 0;
       await e.enterFromRects(start, rectOf, () => {
         if (gridRef.current) gridRef.current.dataset.phase = "crate";   // 같은 프레임에 바로 (React 반영을 기다리지 않음)
+        coverGrids(true);
         onPhase?.("crate");
       });
     }
@@ -188,6 +195,8 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
       setScroll(Math.max(need, p.scrollTop + el.getBoundingClientRect().top - barBottom - 28));
     }
     onPhase?.("leaving");
+    if (gridRef.current) gridRef.current.dataset.phase = "leaving";   // 이미지 칸은 계속 숨긴 채 (3D가 내려앉을 때까지)
+    coverGrids(false);
     await settle();
     // 돌아온 뒤 캡션이 화면에 보이는 카드 순서대로 나타나게
     let k = 0;
@@ -235,6 +244,7 @@ export default function DiggingCrate({ albums, view, setView, hasMore, loadMore,
     engineRef.current?.dispose(); engineRef.current = null;
     const p = page(); p?.style.removeProperty("--dig-paper"); p?.closest(".ct-page")?.style.removeProperty("--ct-header-bg");
     window.dispatchEvent(new Event("page-scroll:unlock"));
+    delete document.documentElement.dataset.digCrate;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

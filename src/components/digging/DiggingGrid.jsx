@@ -159,7 +159,7 @@ export default function DiggingGrid({ initial, genreId = null, query = "", view 
   return (
     <>
       {/* 앨범에 마우스를 올리면 나머지 앨범은 흐려짐 (마우스를 떼면 원래대로) */}
-      <div ref={gridRef} data-phase={phase} data-returned={returned} aria-hidden={phase !== "grid" || undefined}
+      <div ref={gridRef} data-dig-grid data-phase={phase} data-returned={returned} aria-hidden={phase !== "grid" || undefined}
         className={`${styles.grid} [@media(hover:hover)_and_(pointer:fine)]:[&:has(>a:hover)>a:not(:hover)]:opacity-35`} aria-busy={loading}>
         {filtered.map(album => <AlbumCard key={album.id} album={album} forceRevealed={returned} />)}
       </div>
