@@ -8,12 +8,13 @@ import Link from "next/link";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
 import useReveal from "./useReveal";
 import styles from "./Digging.module.css";
+import DiggingCrate from "./DiggingCrate";
 import { sleeveColors } from "@/components/album/sleeveDepth";
 
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl, fetchDiggingPage } from "@/lib/albums";
 
-function AlbumCard({ album }) {
+function AlbumCard({ album, forceRevealed = false }) {
   const transition = useAlbumTransition();
   function open(event) {
     if (!transition || event.defaultPrevented || event.button !== 0 ||
@@ -48,7 +49,9 @@ function AlbumCard({ album }) {
     };
   }, [src]);
   // Expand the color panel even while the network is still loading the image.
-  const [revealRef, revealed] = useReveal({ randomDelay: true });
+  const [revealRef, revealedOnScroll] = useReveal({ randomDelay: true });
+  // 크레이트에서 돌아온 뒤엔 펼침 없이 바로 (3D 카드가 내려앉은 자리를 그대로 이어받음)
+  const revealed = revealedOnScroll || forceRevealed;
   function move(event) {
     if (event.pointerType === "touch" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const box = event.currentTarget.getBoundingClientRect();
@@ -86,7 +89,7 @@ function AlbumCard({ album }) {
   );
 }
 
-export default function DiggingGrid({ initial, genreId = null, query = "" }) {
+export default function DiggingGrid({ initial, genreId = null, query = "", view = "grid", setView }) {
   const supabase = useMemo(() => createClient(), []);
 
   const [items, setItems] = useState(initial.items);
@@ -96,6 +99,11 @@ export default function DiggingGrid({ initial, genreId = null, query = "" }) {
   const [error, setError] = useState(null);
 
   const sentinelRef = useRef(null);
+  const gridRef = useRef(null);
+  // grid: 평소 · crate/leaving: 3D가 대신하는 중 (이미지 숨김) — 처음부터 크레이트 보기면 그리드를 한 번도 보이지 않게
+  const [phase, setPhase] = useState(view === "crate" ? "crate" : "grid");
+  const [returned, setReturned] = useState(false);
+  const onPhase = useCallback((p) => { setPhase(p); if (p === "grid") setReturned(true); }, []);
   const busyRef = useRef(false); // 같은 커서로 두 번 요청하는 걸 막는다
 
   const loadMore = useCallback(async () => {
@@ -150,9 +158,11 @@ export default function DiggingGrid({ initial, genreId = null, query = "" }) {
   return (
     <>
       {/* 앨범에 마우스를 올리면 나머지 앨범은 흐려짐 (마우스를 떼면 원래대로) */}
-      <div className={`${styles.grid} [@media(hover:hover)_and_(pointer:fine)]:[&:has(>a:hover)>a:not(:hover)]:opacity-35`} aria-busy={loading}>
-        {filtered.map(album => <AlbumCard key={album.id} album={album} />)}
+      <div ref={gridRef} data-phase={phase} data-returned={returned} aria-hidden={phase !== "grid" || undefined}
+        className={`${styles.grid} [@media(hover:hover)_and_(pointer:fine)]:[&:has(>a:hover)>a:not(:hover)]:opacity-35`} aria-busy={loading}>
+        {filtered.map(album => <AlbumCard key={album.id} album={album} forceRevealed={returned} />)}
       </div>
+      <DiggingCrate albums={filtered} view={view} setView={setView} hasMore={hasMore} loadMore={loadMore} gridRef={gridRef} onPhase={onPhase} />
       {filtered.length === 0 && <p className={styles.empty} role="status">{error ? "검색을 완료하지 못했어요. 다시 시도해 주세요." : hasMore ? "검색 중…" : "검색한 앨범이 없어요."}</p>}
 
       <div

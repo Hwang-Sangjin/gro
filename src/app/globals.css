@@ -26,6 +26,13 @@
     }
   }
 
+  /* Digging 크레이트: 맨 앞 앨범 제목이 아래에서 올라옴 */
+  @keyframes crate-title {
+    from {
+      transform: translateY(110%);
+    }
+  }
+
   /* 앨범 상세: 트랙 행이 차례로 올라옴 (사이드를 바꿀 때마다 다시) */
   --animate-track-in: track-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
   @keyframes track-in {
