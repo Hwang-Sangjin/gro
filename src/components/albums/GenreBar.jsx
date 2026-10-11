@@ -18,6 +18,9 @@ const lookOf = (slug) => (slug ? GENRE_LOOK[slug] : ALL_LOOK) ?? ALL_LOOK;
 export const lineOf = (slug) => { const l = lookOf(slug); return `color-mix(in oklab, ${l.ink} 70%, ${l.label})`; };
 export const GENRE_ITEMS = [{ slug: null, name: "All" }, ...GENRES.map((g) => ({ slug: g.slug, name: g.name }))];
 
+// 페이지와 같은 종이 결 (globals.css 의 .page-content::before 와 같은 값) — 위치는 스크롤마다 맞춤
+const PAPER = "before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:content-[''] before:bg-[color:var(--paper-surface,var(--cream))] before:bg-(image:--paper-texture-image) before:bg-[length:var(--paper-texture-size)_var(--paper-texture-size)] before:bg-repeat before:bg-blend-soft-light before:opacity-(--paper-texture-opacity) before:[background-position:var(--bar-paper-x,0px)_var(--bar-paper-y,0px)]";
+
 export default function GenreBar({
   genre = null, counts = null, onPick, hrefFor = () => "#",
   query = "", onQueryChange, label = "Browse by genre", searchId = "album-search",
@@ -35,15 +38,21 @@ export default function GenreBar({
     const bar = barRef.current, page = bar?.closest(".page");
     if (!bar || !page) return;
     let raf = 0;
+    const content = bar.closest(".page-content") ?? page;
     const check = () => {
       raf = 0;
       const top = parseFloat(getComputedStyle(bar).top) || 0;
-      setStuck(bar.getBoundingClientRect().top - page.getBoundingClientRect().top <= top + 1 && page.scrollTop > 0);
+      const box = bar.getBoundingClientRect(), base = content.getBoundingClientRect();
+      setStuck(box.top - page.getBoundingClientRect().top <= top + 1 && page.scrollTop > 0);
+      // 바의 종이 결을 뒤 페이지의 종이 결과 같은 자리에 맞춤 → 붙어 있어도 한 장의 종이처럼 보임
+      bar.style.setProperty("--bar-paper-x", `${(base.left - box.left).toFixed(1)}px`);
+      bar.style.setProperty("--bar-paper-y", `${(base.top - box.top).toFixed(1)}px`);
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(check); };
     page.addEventListener("scroll", onScroll, { passive: true });
+    addEventListener("resize", onScroll);
     check();
-    return () => { page.removeEventListener("scroll", onScroll); cancelAnimationFrame(raf); };
+    return () => { page.removeEventListener("scroll", onScroll); removeEventListener("resize", onScroll); cancelAnimationFrame(raf); };
   }, []);
 
   const pick = (slug) => (e) => {
@@ -59,7 +68,7 @@ export default function GenreBar({
   const total = counts?.[genre ?? "all"];
 
   return (
-    <div ref={barRef} data-stuck={stuck} className={`group/bar sticky top-[calc(var(--ct-header-h,106px)-3px)] z-20 mb-[clamp(1.5rem,3vw,2.5rem)] bg-[var(--dig-paper,var(--cream))] transition-colors duration-[800ms] ${className}`}>
+    <div ref={barRef} data-stuck={stuck} className={`group/bar sticky top-[calc(var(--ct-header-h,106px)-3px)] z-20 isolate mb-[clamp(1.5rem,3vw,2.5rem)] bg-[var(--dig-paper,var(--cream))] transition-colors duration-[800ms] ${PAPER} ${className}`}>
       <div className={`grid grid-rows-[1fr] overflow-hidden ${topRule === "thick" ? "border-t-[3px]" : "border-t"} border-(--ink) transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[stuck=true]/bar:grid-rows-[0fr]`}>
         <div className="flex min-h-0 items-center justify-between overflow-hidden pt-3 transition-opacity duration-300 group-data-[stuck=true]/bar:opacity-0 text-[10px] font-medium uppercase tracking-[0.3em] text-(--ink)/60">
           <span>{label}</span>
