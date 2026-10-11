@@ -1,18 +1,27 @@
 "use client";
 // 내 판 (소장 owned / 위시리스트 wishlist) — user_albums 테이블. RLS 로 본인 행만 보임.
 import { authClient } from "@/lib/useAuthUser";
+import { getGenreIds } from "@/lib/genreIds";
 
 export const SHELVES = ["owned", "wishlist"];
 
-// Digging 카드와 같은 모양으로 돌려줌 (id, slug, title, artist_names, thumb_path, cover_color)
+// Digging 카드와 같은 모양으로 돌려줌 (id, slug, title, artist_names, thumb_path, cover_color) + genres: [장르 slug]
 export async function fetchShelves() {
-  const { data, error } = await authClient().from("user_albums")
-    .select("kind, created_at, albums!inner(id, slug, title, artist_names, thumb_path, cover_color, status)")
-    .eq("albums.status", "published")
-    .order("created_at", { ascending: false });
+  const supabase = authClient();
+  const [{ data, error }, genreIds] = await Promise.all([
+    supabase.from("user_albums")
+      .select("kind, created_at, albums!inner(id, slug, title, artist_names, thumb_path, cover_color, status, album_genres(genre_id))")
+      .eq("albums.status", "published")
+      .order("created_at", { ascending: false }),
+    getGenreIds(supabase).catch(() => ({})),
+  ]);
   if (error) throw error;
+  const slugById = Object.fromEntries(Object.entries(genreIds).map(([slug, id]) => [String(id), slug]));
   const shelves = { owned: [], wishlist: [] };
-  for (const row of data ?? []) shelves[row.kind]?.push(row.albums);
+  for (const row of data ?? []) {
+    const { album_genres: links = [], ...album } = row.albums;
+    shelves[row.kind]?.push({ ...album, genres: links.map(l => slugById[String(l.genre_id)]).filter(Boolean) });
+  }
   return shelves;
 }
 
