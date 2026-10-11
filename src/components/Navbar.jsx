@@ -7,7 +7,6 @@
    - 스크롤하면 아래 헤어라인 (높이는 고정: Digging 고정 바·Home 엔진이 헤더 높이에 맞춰져 있음). 모바일은 Menu → 전체 화면 메뉴
    페이지(.ct-page)마다 자기 헤더를 가짐. 색은 --ct-header-fg/bg(페이지가 정함)를 그대로 따름 */
 import Link from 'next/link';
-import GroovesLogo from "./GroovesLogo";
 import {useEffect,useRef,useState} from 'react';
 import {useIntro} from './intro/intro-context';
 import {useCrate} from './crate/CrateProvider';
@@ -117,10 +116,8 @@ export default function Navbar({path}){
     {/* 스크롤 헤어라인 */}
     <span aria-hidden="true" className={`pointer-events-none absolute inset-x-0 bottom-0 h-px bg-current/15 transition-opacity duration-500 ${scrolled?'opacity-100':'opacity-0'}`}/>
 
-    <Link href="/" aria-label="Grooves 홈" className="group/logo justify-self-start">
-      <Rise show={shown} className="py-[.12em]">
-        <GroovesLogo label="Grooves" className="size-[clamp(34px,2.9vw,44px)] transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover/logo:rotate-[-25deg]" />
-      </Rise>
+    <Link href="/" className="justify-self-start text-[clamp(22px,2vw,28px)] font-black leading-none tracking-[-.035em]" style={BODONI}>
+      <Rise show={shown} className="pb-[.12em]">Grooves</Rise>
     </Link>
 
     <ul className="hidden items-center gap-[clamp(24px,3.2vw,56px)] md:flex">
@@ -167,7 +164,7 @@ export default function Navbar({path}){
     <div id="site-menu" role="dialog" aria-modal="true" aria-label="메뉴" inert={!open} data-open={open}
       className="fixed inset-0 z-40 flex flex-col bg-[#2a222a] px-6 pb-8 pt-6 text-[#f4e7cd] transition-[clip-path] duration-700 ease-[cubic-bezier(.76,0,.24,1)] [clip-path:inset(0_0_100%_0)] data-[open=true]:[clip-path:inset(0)] md:hidden">
       <div className="flex items-center justify-between">
-        <Link href="/" onClick={()=>setOpen(false)} aria-label="Grooves 홈"><GroovesLogo label="Grooves" className="size-9" /></Link>
+        <Link href="/" onClick={()=>setOpen(false)} className="text-[24px] font-black leading-none tracking-[-.035em]" style={BODONI}>Grooves</Link>
         <button type="button" onClick={()=>setOpen(false)} className="flex min-h-11 items-center gap-2.5 text-[12px] font-medium uppercase tracking-[.2em]">
           Close<span aria-hidden="true" className="relative block size-4"><span className="absolute left-0 top-1/2 h-px w-full rotate-45 bg-current"/><span className="absolute left-0 top-1/2 h-px w-full -rotate-45 bg-current"/></span>
         </button>

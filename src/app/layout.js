@@ -3,8 +3,8 @@ import "./globals.css";
 
 
 export const metadata = {
-  title: "View Transition API | Codegrid",
-  description: "View Transition API | Codegrid",
+  title: "Grooves",
+  description: "LP 컬렉터를 위한 바이닐 디깅 — 판을 찾고, 듣고, 내 컬렉션에 꽂아 두기.",
 };
 
 export default function RootLayout({ children }) {
