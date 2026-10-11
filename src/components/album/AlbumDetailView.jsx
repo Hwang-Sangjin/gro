@@ -4,6 +4,7 @@ import { SLEEVE_DEPTH, sleeveColors } from "./sleeveDepth";
 import { useEffect, useRef, useState } from "react";
 import { useIntro } from "@/components/intro/intro-context";
 import YouTubeAlbumPlayer from "./YouTubeAlbumPlayer";
+import ShelfButtons from "./ShelfButtons";
 import Link from "next/link";
 import { getAlbumTheme } from "@/lib/album-theme";
 import PageShell from "@/components/layout/PageShell";
@@ -193,6 +194,9 @@ export default function AlbumDetailView({ album }) {
               {album.description && <Fade show={discReady} delay={460}>
                 <p className="mt-6 max-w-xl whitespace-pre-line text-[15px] leading-7 text-[var(--album-muted)]">{album.description}</p>
               </Fade>}
+              <Fade show={discReady} delay={500}>
+                <ShelfButtons albumId={album.id} slug={album.slug} ink={ink} color={color} />
+              </Fade>
             </section>
             <Fade show={discReady} delay={520}>
             <section aria-label="앨범 수록곡">

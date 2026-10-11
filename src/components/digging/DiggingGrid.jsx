@@ -13,7 +13,7 @@ import { sleeveColors } from "@/components/album/sleeveDepth";
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl, fetchDiggingPage } from "@/lib/albums";
 
-function AlbumCard({ album }) {
+export function AlbumCard({ album }) {
   const transition = useAlbumTransition();
   function open(event) {
     if (!transition || event.defaultPrevented || event.button !== 0 ||

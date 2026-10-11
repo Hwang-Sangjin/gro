@@ -1,0 +1,34 @@
+"use client";
+// 내 판 (소장 owned / 위시리스트 wishlist) — user_albums 테이블. RLS 로 본인 행만 보임.
+import { authClient } from "@/lib/useAuthUser";
+
+export const SHELVES = ["owned", "wishlist"];
+
+// Digging 카드와 같은 모양으로 돌려줌 (id, slug, title, artist_names, thumb_path, cover_color)
+export async function fetchShelves() {
+  const { data, error } = await authClient().from("user_albums")
+    .select("kind, created_at, albums!inner(id, slug, title, artist_names, thumb_path, cover_color, status)")
+    .eq("albums.status", "published")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  const shelves = { owned: [], wishlist: [] };
+  for (const row of data ?? []) shelves[row.kind]?.push(row.albums);
+  return shelves;
+}
+
+// 이 앨범이 내 어느 칸에 있는지: "owned" | "wishlist" | null
+export async function fetchAlbumKind(albumId) {
+  const { data, error } = await authClient().from("user_albums")
+    .select("kind").eq("album_id", albumId).maybeSingle();
+  if (error) throw error;
+  return data?.kind ?? null;
+}
+
+// kind 가 null 이면 빼기, 아니면 그 칸으로 넣기/옮기기
+export async function setAlbumKind(userId, albumId, kind) {
+  const table = authClient().from("user_albums");
+  const { error } = kind
+    ? await table.upsert({ user_id: userId, album_id: albumId, kind, created_at: new Date().toISOString() }, { onConflict: "user_id,album_id" })
+    : await table.delete().eq("album_id", albumId);
+  if (error) throw error;
+}
