@@ -147,7 +147,7 @@ export default function Navbar({path}){
         <span className="sr-only lg:hidden">Now spinning: {spinning.title}</span>
       </Link>}
       {user?<div className="hidden md:block"><UserMenu user={user}/></div>
-        :<Link href={`/login${path&&path!=='/'&&path!=='/login'&&path!=='/signup'?`?next=${encodeURIComponent(path)}`:''}`} aria-current={path==='/login'?'page':undefined}
+        :<Link href={`/login${path&&path!=='/'&&path!=='/login'?`?next=${encodeURIComponent(path)}`:''}`} aria-current={path==='/login'?'page':undefined}
         className={`group relative hidden py-1 text-[16px] font-medium uppercase tracking-[.16em] transition-opacity duration-300 md:block ${user===undefined?'opacity-0':''}`}>
         <Rise show={shown} delay={RISE_STEP*(NAV.length+1)}>Login</Rise>
         <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px origin-right scale-x-0 bg-current transition-transform duration-500 group-hover:origin-left group-hover:scale-x-100"/>
