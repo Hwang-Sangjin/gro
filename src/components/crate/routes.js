@@ -1,3 +1,4 @@
+import { COVER_FLIGHT_SOURCES } from '@/lib/albumOrigin';
 export const NAV = [
   { href: '/', label: 'Home', doodle: '03' },
   { href: '/digging', label: 'Digging', doodle: '01' },
@@ -20,5 +21,5 @@ export function normalizedPath(path) {
   try { return decodeURIComponent(pathname); } catch { return pathname; }
 }
 export function isAlbumCoverTransition(from, to) {
-  return ['/', '/digging'].includes(normalizedPath(from)) && /^\/album\/[^/]+$/.test(normalizedPath(to));
+  return COVER_FLIGHT_SOURCES.includes(normalizedPath(from)) && /^\/album\/[^/]+$/.test(normalizedPath(to));
 }

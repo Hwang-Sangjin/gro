@@ -5,6 +5,7 @@ import gsap from 'gsap';
 import { useCrate } from '../crate/CrateProvider';
 import { normalizedPath, isAlbumCoverTransition } from '../crate/routes';
 import { createSleeveFaces } from './sleeveDepth';
+import { rememberAlbumOrigin } from '@/lib/albumOrigin';
 
 const Context = createContext(null);
 export const useAlbumTransition = () => useContext(Context);
@@ -32,8 +33,9 @@ export default function AlbumTransitionProvider({ children }) {
   const openAlbum = useCallback(({ slug, color, imageUrl, source }) => {
     if (!slug || active.current || busy) return;
     const href = `/album/${encodeURIComponent(slug)}`;
-    // Home New Vinyls and Digging share the same cover flight.
+    // Home New Vinyls, Digging, Collection share the same cover flight.
     if (!isAlbumCoverTransition(location.pathname, href)) { go(href); return; }
+    rememberAlbumOrigin(slug);   // 상세의 "Back to …" 가 이 목록으로 돌아가게
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const box = source?.getBoundingClientRect();
     const overlay = document.createElement('div');

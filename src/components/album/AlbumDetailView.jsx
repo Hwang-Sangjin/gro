@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useIntro } from "@/components/intro/intro-context";
 import YouTubeAlbumPlayer from "./YouTubeAlbumPlayer";
 import ShelfButtons from "./ShelfButtons";
-import Link from "next/link";
+import AlbumBackLink from "@/components/albums/AlbumBackLink";
 import { getAlbumTheme } from "@/lib/album-theme";
 import PageShell from "@/components/layout/PageShell";
 import dynamic from "next/dynamic";
@@ -134,15 +134,7 @@ export default function AlbumDetailView({ album }) {
         <span aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-(image:--paper-texture-image) bg-[length:var(--paper-texture-size)_var(--paper-texture-size)] bg-repeat opacity-(--paper-texture-opacity) mix-blend-soft-light" />
         <div className="mx-auto w-full max-w-[1200px]">
         <Fade show={discReady} className="mb-10">
-          <Link href="/digging" className="group inline-flex items-center gap-3 text-[11px] font-medium uppercase tracking-[.24em] focus-visible:outline-2 focus-visible:outline-offset-4">
-            <span aria-hidden="true" className="grid size-9 place-items-center rounded-full border border-current/35 transition-[translate,background-color] duration-300 group-hover:-translate-x-1 group-hover:bg-current/10">
-              <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M13 8H3M7 4 3 8l4 4" /></svg>
-            </span>
-            <span className="relative py-1">
-              Back to Digging
-              <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px origin-right scale-x-0 bg-current transition-transform duration-500 group-hover:origin-left group-hover:scale-x-100" />
-            </span>
-          </Link>
+          <AlbumBackLink slug={album.slug} />
         </Fade>
         <div className="album-listening-stage">
           <div data-album-cover={album.slug} className="album-listening-cover relative aspect-square" onPointerMove={tilt} onPointerLeave={resetTilt} onPointerCancel={resetTilt}>

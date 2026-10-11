@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import PageShell from "@/components/layout/PageShell";
-import { AlbumCard } from "@/components/digging/DiggingGrid";
+import AlbumGrid from "@/components/albums/AlbumGrid";
 import useReveal from "@/components/digging/useReveal";
 import styles from "@/components/digging/Digging.module.css";
 import useAuthUser, { profileOf } from "@/lib/useAuthUser";
@@ -119,9 +119,7 @@ export default function Collection() {
           ) : !shelves ? (
             <p className={styles.status} role="status">{user ? "불러오는 중…" : ""}</p>
           ) : items.length ? (
-            <div key={shown} role="tabpanel" className={`${styles.grid} [@media(hover:hover)_and_(pointer:fine)]:[&:has(>a:hover)>a:not(:hover)]:opacity-35`}>
-              {items.map(album => <AlbumCard key={album.id} album={album} />)}
-            </div>
+            <AlbumGrid key={shown} role="tabpanel" albums={items} />
           ) : (
             <div key={shown} role="tabpanel" className="flex flex-col items-center px-6 py-20 text-center transition-[opacity,translate] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-3 starting:opacity-0">
               <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>{current.empty}</p>
