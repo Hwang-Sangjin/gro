@@ -135,7 +135,7 @@ export default function Collection() {
           {/* 장르 + 검색 (Digging 과 같은 바, + Request 없이) */}
           <GenreBar genre={view.genre} counts={counts} onPick={(slug) => change({ genre: slug })}
             hrefFor={(slug) => `/collection?${new URLSearchParams({ ...(view.tab === "wishlist" && { tab: "wishlist" }), ...(slug && { genre: slug }) })}`}
-            query={query} onQueryChange={setQuery} searchId="collection-search" topRule="thin" />
+            query={query} onQueryChange={setQuery} searchId="collection-search" />
 
           <div ref={wrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
           {error ? (
