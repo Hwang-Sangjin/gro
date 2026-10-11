@@ -105,7 +105,7 @@ export default function DiggingGrid({ initial, genreId = null, query = "" }) {
     setError(null);
 
     try {
-      const next = await fetchDiggingPage(supabase, { cursor, genreId });
+      const next = await fetchDiggingPage(supabase, { cursor, genreId, seed: initial.seed });
       setItems((prev) => [...prev, ...next.items]);
       setCursor(next.cursor);
       setHasMore(next.hasMore);
@@ -115,7 +115,7 @@ export default function DiggingGrid({ initial, genreId = null, query = "" }) {
       busyRef.current = false;
       setLoading(false);
     }
-  }, [supabase, cursor, genreId, hasMore]);
+  }, [supabase, cursor, genreId, hasMore, initial.seed]);
 
   // 바닥 600px 전에 미리 다음 페이지를 요청한다
   useEffect(() => {

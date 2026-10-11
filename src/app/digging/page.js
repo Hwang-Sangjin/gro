@@ -1,7 +1,7 @@
 import PageShell from "@/components/layout/PageShell";
 import DiggingCatalog from "@/components/digging/DiggingCatalog";
 import { createClient } from "@/utils/supabase/server";
-import { fetchDiggingPage } from "@/lib/albums";
+import { fetchDiggingPage, newShuffleSeed } from "@/lib/albums";
 import styles from "@/components/digging/Digging.module.css";
 
 export default async function Digging({ searchParams }) {
@@ -12,7 +12,7 @@ export default async function Digging({ searchParams }) {
     const { data } = await supabase.from("genres").select("id").eq("slug", genre).maybeSingle();
     genreId = data?.id ?? null;
   }
-  const initial = await fetchDiggingPage(supabase, { genreId });
+  const initial = await fetchDiggingPage(supabase, { genreId, seed: newShuffleSeed() });
   return (
     <PageShell className={`${styles.page} paper-textured`}>
       <DiggingCatalog key={genre ?? "all"} initial={initial} genreId={genreId} genre={genre} />

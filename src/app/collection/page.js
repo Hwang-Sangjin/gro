@@ -1,6 +1,6 @@
 "use client";
 // 내 판: 소장(Owned) / 위시리스트(Wishlist) — Digging 과 같은 머리말·바·그리드
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import PageShell from "@/components/layout/PageShell";
@@ -9,6 +9,8 @@ import useReveal from "@/components/digging/useReveal";
 import styles from "@/components/digging/Digging.module.css";
 import useAuthUser, { profileOf } from "@/lib/useAuthUser";
 import { fetchShelves } from "@/lib/userAlbums";
+import shuffle from "@/lib/shuffle";
+import closeGrid from "@/components/digging/closeGrid";
 
 const SERIF = "font-['Grooves_Bodoni',Georgia,serif]";
 const TABS = [
@@ -18,7 +20,11 @@ const TABS = [
 
 export default function Collection() {
   const user = useAuthUser();   // undefined = 확인 중
-  const [tab, setTab] = useState("owned");
+  const [tab, setTab] = useState("owned");       // 고른 탭 (바로 바뀜)
+  const [shown, setShown] = useState("owned");   // 보여 주는 판들 (지금 판들이 접혀 닫힌 뒤 바뀜)
+  const [switching, setSwitching] = useState(false);
+  const wanted = useRef("owned");
+  const wrapRef = useRef(null);
   const [shelves, setShelves] = useState(null);
   const [error, setError] = useState(false);
   const [titleRef, titleRevealed] = useReveal();
@@ -26,26 +32,38 @@ export default function Collection() {
 
   // ?tab=wishlist 로 바로 열기 (서버 렌더와 어긋나지 않게 마운트 후에 읽음)
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("tab") === "wishlist") setTab("wishlist");
+    if (new URLSearchParams(window.location.search).get("tab") === "wishlist") {
+      wanted.current = "wishlist"; setTab("wishlist"); setShown("wishlist");
+    }
   }, []);
 
   useEffect(() => {
     if (!user) { setShelves(null); return; }
     let alive = true;
     setError(false);
-    fetchShelves().then(s => { if (alive) setShelves(s); }).catch(() => { if (alive) setError(true); });
+    // 들어올 때마다 순서를 섞어서 (새로 발견하는 느낌으로)
+    fetchShelves().then(s => { if (alive) setShelves({ owned: shuffle(s.owned), wishlist: shuffle(s.wishlist) }); }).catch(() => { if (alive) setError(true); });
     return () => { alive = false; };
   }, [user]);
 
-  function pick(kind) {
+  // 탭 전환: 지금 판들을 등장의 역순(그림 → 단색 → 가운데 줄 → 사라짐)으로 닫은 뒤 새 판들이 펼쳐짐
+  async function pick(kind) {
+    if (kind === wanted.current) return;
+    wanted.current = kind;
     setTab(kind);
     const url = new URL(window.location.href);
     if (kind === "owned") url.searchParams.delete("tab"); else url.searchParams.set("tab", kind);
     window.history.replaceState(window.history.state, "", url);
+    setSwitching(true);
+    await closeGrid(wrapRef.current);
+    if (wanted.current !== kind) return;   // 닫는 사이에 다른 탭을 눌렀으면 그쪽이 마무리
+    setShown(kind);
+    setSwitching(false);
   }
 
-  const items = shelves?.[tab] ?? [];
-  const current = TABS.find(t => t.kind === tab);
+  const items = shelves?.[shown] ?? [];
+  const current = TABS.find(t => t.kind === shown);
+  const count = shelves?.[tab].length ?? 0;
   const name = profileOf(user).name;
 
   return (
@@ -71,7 +89,7 @@ export default function Collection() {
           <div className="mb-[clamp(1.5rem,3vw,2.5rem)] border-t-[3px] border-[#4c404a]">
             <div className="flex items-center justify-between pt-3 text-[10px] font-medium uppercase tracking-[0.3em] text-[#4c404a99]">
               <span>{name ? `${name}’s shelf` : "My shelf"}</span>
-              <span className="tabular-nums">{shelves ? `${items.length} record${items.length === 1 ? "" : "s"}` : ""}</span>
+              <span className="tabular-nums">{shelves ? `${count} record${count === 1 ? "" : "s"}` : ""}</span>
             </div>
             <div className="border-b border-[#4c404a99] py-[clamp(0.75rem,1.4vw,1.25rem)]">
               <div ref={barRef} data-revealed={barRevealed} role="tablist" aria-label="내 판 보기"
@@ -95,16 +113,17 @@ export default function Collection() {
             </div>
           </div>
 
+          <div ref={wrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
           {error ? (
             <p className={styles.empty} role="status">내 판을 불러오지 못했어요. 새로고침해 주세요.</p>
           ) : !shelves ? (
             <p className={styles.status} role="status">{user ? "불러오는 중…" : ""}</p>
           ) : items.length ? (
-            <div key={tab} role="tabpanel" className={`${styles.grid} [@media(hover:hover)_and_(pointer:fine)]:[&:has(>a:hover)>a:not(:hover)]:opacity-35`}>
+            <div key={shown} role="tabpanel" className={`${styles.grid} [@media(hover:hover)_and_(pointer:fine)]:[&:has(>a:hover)>a:not(:hover)]:opacity-35`}>
               {items.map(album => <AlbumCard key={album.id} album={album} />)}
             </div>
           ) : (
-            <div key={tab} role="tabpanel" className="flex flex-col items-center px-6 py-20 text-center">
+            <div key={shown} role="tabpanel" className="flex flex-col items-center px-6 py-20 text-center transition-[opacity,translate] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-3 starting:opacity-0">
               <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>{current.empty}</p>
               <p className="mt-3 text-[15px] leading-7 text-[#4c404ab3]">{current.hint}</p>
               <Link href="/digging" className="mt-8 inline-flex min-h-12 items-center rounded-full bg-[#4c404a] px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-[#f4e7cd] transition-colors hover:bg-[#c8553d]">
@@ -112,6 +131,7 @@ export default function Collection() {
               </Link>
             </div>
           )}
+          </div>
         </>
       )}
     </PageShell>
