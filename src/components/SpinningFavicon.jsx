@@ -3,7 +3,9 @@
 // - 브라우저는 움직이는 파비콘을 지원하지 않아서(Chrome 은 GIF 도 멈춤), 돌린 그림 24장을 미리 그려 두고 번갈아 끼움
 // - 33⅓ rpm 에 맞춰 한 바퀴 1.8초. 다른 탭을 보고 있을 땐 브라우저가 타이머를 늦춰서 천천히 똑딱이며 돎
 // - 움직임 줄이기 설정이면 돌리지 않음. 정지 아이콘은 app/favicon.ico (JS 없이도 보임)
+// - 첫 로딩 인트로(가운데 판이 새겨지고 파고드는 연출)가 다 끝난 뒤 한가할 때 시작 → 인트로가 버벅이지 않게
 import { useEffect } from "react";
+import { useIntro } from "./intro/intro-context";
 
 const FRAMES = 24;
 const REV_MS = 1800;            // 33⅓ rpm
@@ -14,9 +16,10 @@ function iconLink() {
 }
 
 export default function SpinningFavicon() {
+  const { done } = useIntro();
   useEffect(() => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let timer = 0, alive = true, link = null, original = null;
+    if (!done || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let timer = 0, alive = true, link = null, original = null, idle = 0, wait = 0;
     const image = new Image();
     image.onload = () => {
       if (!alive) return;
@@ -44,12 +47,16 @@ export default function SpinningFavicon() {
         link.href = frames[i = (i + 1) % FRAMES];
       }, REV_MS / FRAMES);
     };
-    image.src = SRC;
+    // 인트로의 마지막 페이드가 끝나고, 브라우저가 한가할 때 그림을 그림
+    const later = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 200));
+    wait = setTimeout(() => { idle = later(() => { image.src = SRC; }); }, 1200);
     return () => {
       alive = false;
+      clearTimeout(wait);
+      if (idle) (window.cancelIdleCallback ?? clearTimeout)(idle);
       clearInterval(timer);
       if (link && original) link.href = original;
     };
-  }, []);
+  }, [done]);
   return null;
 }

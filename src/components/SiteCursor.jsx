@@ -5,16 +5,20 @@
 // - 글자 입력칸 위·Home 스테이지 안(자체 커서가 있음)·유튜브 화면 위: 숨김 (원래 커서)
 // - 색은 가리킨 곳의 글자색을 따라감 → 크림/브라운/앨범 색 어떤 배경에서도 보임
 // - 마우스(정밀 포인터)에서만, 움직임 줄이기 설정이면 링이 지연 없이 따라감
+// - 첫 로딩 인트로가 끝난 뒤에 켜짐 (인트로 동안은 원래 커서, 인트로 연출을 방해하지 않게)
+// - 가리킨 요소는 마우스가 움직일 때만 다시 판정 (DOM 이 바뀔 때마다 재면 로딩 중 화면이 버벅임)
 import { useEffect, useRef } from "react";
+import { useIntro } from "./intro/intro-context";
 
 const SCALE = { idle: 0.32, link: 0.55, view: 0.8 };
 const LAG = 0.12;   // 링이 따라오는 지연(초). 점은 즉시
 
 export default function SiteCursor() {
   const ring = useRef(null), shape = useRef(null), label = useRef(null), dot = useRef(null);
+  const { done } = useIntro();
 
   useEffect(() => {
-    if (!matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    if (!done || !matchMedia("(hover: hover) and (pointer: fine)").matches) return;
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const root = document.documentElement;
     let x = -100, y = -100, rx = -100, ry = -100, visible = false, state = "", color = "", raf = 0, last = performance.now();
@@ -73,21 +77,25 @@ export default function SiteCursor() {
     addEventListener("pointermove", move, { passive: true });
     document.addEventListener("pointerout", out);
     addEventListener("blur", hide);
-    // 페이지가 바뀌어 같은 자리에 다른 요소가 오면 다시 판정
-    const recheck = () => { const el = document.elementFromPoint(x, y); target = el; if (visible) { setState(stateFor(el)); paint(el); } };
-    const observer = new MutationObserver(() => { cancelAnimationFrame(recheck.raf); recheck.raf = requestAnimationFrame(recheck); });
-    observer.observe(document.body, { childList: true, subtree: true });
-    const themeObserver = new MutationObserver(() => { color = ""; requestAnimationFrame(recheck); });
+    // 클릭으로 페이지가 바뀌거나 스크롤해서 커서 아래 요소가 바뀌면 한 번 다시 판정 (가볍게, 프레임당 최대 1번)
+    const recheck = () => { recheck.raf = 0; if (!visible) return; const el = document.elementFromPoint(x, y); target = el; setState(stateFor(el)); paint(el); };
+    const soon = () => { if (!recheck.raf) recheck.raf = requestAnimationFrame(recheck); };
+    const settle = () => { clearTimeout(recheck.t); recheck.t = setTimeout(soon, 450); };
+    addEventListener("scroll", soon, { capture: true, passive: true });
+    addEventListener("click", settle, true);
+    const themeObserver = new MutationObserver(() => { color = ""; soon(); });
     themeObserver.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
     return () => {
-      cancelAnimationFrame(raf); cancelAnimationFrame(recheck.raf);
+      cancelAnimationFrame(raf); cancelAnimationFrame(recheck.raf); clearTimeout(recheck.t);
+      removeEventListener("scroll", soon, { capture: true });
+      removeEventListener("click", settle, true);
       removeEventListener("pointermove", move);
       document.removeEventListener("pointerout", out);
       removeEventListener("blur", hide);
-      observer.disconnect(); themeObserver.disconnect();
+      themeObserver.disconnect();
       root.classList.remove("site-cursor");
     };
-  }, []);
+  }, [done]);
 
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[9999]">
