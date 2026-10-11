@@ -96,18 +96,18 @@ export default function Collection() {
       </header>
 
       {user === null ? (
-        <div className="mt-6 flex flex-col items-start gap-6 border-t-[3px] border-[#4c404a] pt-10">
+        <div className="mt-6 flex flex-col items-start gap-6 border-t-[3px] border-(--ink) pt-10">
           <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>로그인하고 내 판을 모아 보세요</p>
-          <p className="text-[15px] leading-7 text-[#4c404ab3]">소장한 판과 갖고 싶은 판을 한자리에 꽂아 둘 수 있어요.</p>
-          <Link href="/login?next=/collection" className="inline-flex min-h-12 items-center rounded-full bg-[#4c404a] px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-[#f4e7cd] transition-colors hover:bg-[#c8553d]">
+          <p className="text-[15px] leading-7 text-(--ink)/70">소장한 판과 갖고 싶은 판을 한자리에 꽂아 둘 수 있어요.</p>
+          <Link href="/login?next=/collection" className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-[#c8553d]">
             Login
           </Link>
         </div>
       ) : (
         <>
           {/* 소장 / 위시리스트 탭: 위 굵은 선, 작은 라벨, Bodoni 탭 */}
-          <div className="border-t-[3px] border-[#4c404a]">
-            <div className="flex items-center justify-between pt-3 text-[10px] font-medium uppercase tracking-[0.3em] text-[#4c404a99]">
+          <div className="border-t-[3px] border-(--ink)">
+            <div className="flex items-center justify-between pt-3 text-[10px] font-medium uppercase tracking-[0.3em] text-(--ink)/60">
               <span>{name ? `${name}’s shelf` : "My shelf"}</span>
             </div>
             <div className="py-[clamp(0.75rem,1.4vw,1.25rem)]">
@@ -118,13 +118,13 @@ export default function Collection() {
                   const n = shelves ? shelves[t.kind].length : null;
                   return (
                     <button key={t.kind} type="button" role="tab" aria-selected={on} onClick={() => change({ tab: t.kind })} style={{ "--reveal-order": i }}
-                      className={`group/g relative shrink-0 whitespace-nowrap ${SERIF} font-black uppercase leading-[1.05] tracking-[-0.03em] transition-colors duration-500 text-[clamp(1.6rem,2.6vw,2.8rem)] ${on ? "text-[#4c404a]" : "text-[#4c404a40] hover:text-[#4c404ab3] focus-visible:text-[#4c404ab3]"}`}>
+                      className={`group/g relative shrink-0 whitespace-nowrap ${SERIF} font-black uppercase leading-[1.05] tracking-[-0.03em] transition-colors duration-500 text-[clamp(1.6rem,2.6vw,2.8rem)] ${on ? "text-(--ink)" : "text-(--ink)/25 hover:text-(--ink)/70 focus-visible:text-(--ink)/70"}`}>
                       <span className="relative">
                         {t.name}
                         <span aria-hidden="true" className={`absolute -bottom-[0.06em] left-0 h-[0.08em] min-h-[2px] bg-[#c8553d] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${on ? "w-full" : "w-0 group-hover/g:w-full group-focus-visible/g:w-full"}`} />
                       </span>
                       {n != null && <sup className="ml-[0.15em] align-[1.1em] font-sans text-[max(0.3em,10px)] font-semibold tracking-normal tabular-nums">{n}</sup>}
-                      {i < TABS.length - 1 && <span aria-hidden="true" className="ml-[clamp(0.5rem,0.9vw,1.1rem)] font-normal text-[#4c404a2e]">/</span>}
+                      {i < TABS.length - 1 && <span aria-hidden="true" className="ml-[clamp(0.5rem,0.9vw,1.1rem)] font-normal text-(--ink)/18">/</span>}
                     </button>
                   );
                 })}
@@ -149,15 +149,15 @@ export default function Collection() {
           ) : shown.genre && inShelf.length ? (
             <div key={key} role="tabpanel" className="flex flex-col items-center px-6 py-20 text-center transition-[opacity,translate] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-3 starting:opacity-0">
               <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>{genreName} 판은 아직 없어요</p>
-              <button type="button" onClick={() => change({ genre: null })} className="mt-8 inline-flex min-h-12 items-center rounded-full border border-[#4c404a] px-7 text-[13px] font-medium uppercase tracking-[0.18em] transition-colors hover:bg-[#4c404a] hover:text-[#f4e7cd]">
+              <button type="button" onClick={() => change({ genre: null })} className="mt-8 inline-flex min-h-12 items-center rounded-full border border-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] transition-colors hover:bg-(--ink) hover:text-(--cream)">
                 All genres
               </button>
             </div>
           ) : (
             <div key={key} role="tabpanel" className="flex flex-col items-center px-6 py-20 text-center transition-[opacity,translate] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-3 starting:opacity-0">
               <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>{current.empty}</p>
-              <p className="mt-3 text-[15px] leading-7 text-[#4c404ab3]">{current.hint}</p>
-              <Link href="/digging" className="mt-8 inline-flex min-h-12 items-center rounded-full bg-[#4c404a] px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-[#f4e7cd] transition-colors hover:bg-[#c8553d]">
+              <p className="mt-3 text-[15px] leading-7 text-(--ink)/70">{current.hint}</p>
+              <Link href="/digging" className="mt-8 inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-[#c8553d]">
                 Start digging
               </Link>
             </div>

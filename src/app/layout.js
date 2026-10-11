@@ -1,5 +1,6 @@
 import Providers from "@/components/Provider";
 import "./globals.css";
+import { THEME_BOOT } from "@/lib/themeBoot";
 
 
 export const metadata = {
@@ -9,8 +10,10 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* 저장된 테마(다크)를 첫 화면부터 — React 보다 먼저 실행 */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
         <link
           rel="stylesheet"
           href="https://fonts.cdnfonts.com/css/pp-neue-montreal"

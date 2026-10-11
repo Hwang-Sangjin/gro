@@ -32,6 +32,8 @@ export async function createHomeEngine(opts) {
   let ready = false;
   let introDone = !!opts.introDone;
   const cleanups = [];
+  // 사이트 다크 모드(헤더 테마 버튼): 크림 ↔ 브라운을 맞바꿈 → Hero 는 브라운, New Vinyls 는 크림에서 시작
+  let siteDark = document.documentElement.dataset.theme === 'dark';
   // 페이지 전환·앨범 전환 중이거나 인트로 전이면 입력을 받지 않음
   const inputOn = () => !disposed && introDone
     && document.documentElement.dataset.crateTransition !== 'true'
@@ -1024,7 +1026,15 @@ export async function createHomeEngine(opts) {
     tau: 0.8,           // 색이 따라가는 시간감(초)
     label: 0.85,        // 판 라벨이 앨범 색으로 바뀌는 정도
   };
-  const NV_INK = hexToVec3('#4c404a'), NV_CREAM = hexToVec3('#f4e7cd');
+  // 섹션 바탕(--ink 자리)과 글자색. 다크 모드면 맞바뀜 (바탕 크림, 글자 브라운)
+  const NV_INK = new THREE.Vector3(), NV_CREAM = new THREE.Vector3();
+  let nvBaseHex = '';
+  const setNvBase = () => {
+    NV_INK.copy(hexToVec3(siteDark ? '#f4e7cd' : '#4c404a'));
+    NV_CREAM.copy(hexToVec3(siteDark ? '#4c404a' : '#f4e7cd'));
+    nvBaseHex = siteDark ? '#f4e7cd' : '#4c404a';
+  };
+  setNvBase();
   const nvTintCur = NV_INK.clone(), nvTintGoal = new THREE.Vector3(), nvAlbumCol = new THREE.Vector3();
   const nvLabelCur = new THREE.Vector3(), nvTmp = new THREE.Vector3();
   let nvTintHex = '', nvLabelTouched = false, nvLabelInit = false;
@@ -1053,7 +1063,7 @@ export async function createHomeEngine(opts) {
     if (hex !== nvTintHex) {
       nvTintHex = hex;
       const page = host.closest('.ct-page');
-      if (hex === '#4c404a') page?.style.removeProperty('--ink'); else page?.style.setProperty('--ink', hex);
+      if (hex === nvBaseHex) page?.style.removeProperty('--ink'); else page?.style.setProperty('--ink', hex);
     }
     // 판 라벨: 다이얼이 아닐 때만 (다이얼은 장르 색을 따로 칠함)
     if (catEase < 0.01 && al && vis > 0.001) {
@@ -1399,6 +1409,7 @@ export async function createHomeEngine(opts) {
     return [n(0), n(2), n(4), h.length >= 8 ? n(6) / 255 : 1];
   };
   const THEME_RGBA = Object.fromEntries(Object.entries(THEME).map(([k, v]) => [k, Object.fromEntries(Object.entries(v).map(([n, c]) => [n, hexToRgba(c)]))]));
+  const sectionPalette = () => (siteDark ? [THEME.nv, THEME.hero] : [THEME.hero, THEME.nv]);
   let themeT = -1;
   function applyTheme(t) {
     if (Math.abs(t - themeT) < 0.002) return;
@@ -1407,7 +1418,7 @@ export async function createHomeEngine(opts) {
     // 기존 사이트 테마(--wire-t: 0 = 크림, 1 = 잉크)도 함께 → 내비게이션 색이 따라옴
     host.closest('.ct-page')?.style.setProperty('--wire-t', t.toFixed(3));
     for (const key of Object.keys(THEME.hero)) {
-      const a = THEME_RGBA.hero[key], b = THEME_RGBA.nv[key];
+      const a = (siteDark ? THEME_RGBA.nv : THEME_RGBA.hero)[key], b = (siteDark ? THEME_RGBA.hero : THEME_RGBA.nv)[key];
       const c = a.map((v, k) => v + (b[k] - v) * t);
       const hex = '#' + c.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
       rs.setProperty(`--hs-${key}`, c[3] < 1 ? `rgba(${c.slice(0, 3).map(Math.round).join(',')},${c[3].toFixed(3)})` : hex);
@@ -1419,6 +1430,7 @@ export async function createHomeEngine(opts) {
     uniforms.uInk.value.copy(hexToVec3(cs.getPropertyValue('--hs-ink3d')));
     uniforms.uLabel.value.copy(hexToVec3(cs.getPropertyValue('--hs-label3d')));
     dustMat.uniforms.uPaper.value.copy(hexToVec3(cs.getPropertyValue('--hs-paper')));
+    rimUniforms.uTextCol.value.copy(hexToVec3(cs.getPropertyValue('--hs-text')));   // 링 글자 = 지금 섹션 글자색
   };
   applyTheme(0);
 
@@ -1797,8 +1809,27 @@ export async function createHomeEngine(opts) {
   const genreInk = GENRES.map((g) => hexToVec3(g.ink));
   const genreLabel = GENRES.map((g) => hexToVec3(g.label));
   const tintInk = genreInk[0].clone(), tintLabel = genreLabel[0].clone();   // 지금 판에 칠해진 장르 색 (뒤집을 때 바뀜)
-  const baseInk = hexToVec3(THEME.nv.ink3d), baseLabel = hexToVec3(THEME.nv.label3d);
-  const heroInk3 = hexToVec3(THEME.hero.ink3d), heroLabel3 = hexToVec3(THEME.hero.label3d);
+  const baseInk = new THREE.Vector3(), baseLabel = new THREE.Vector3();
+  const heroInk3 = new THREE.Vector3(), heroLabel3 = new THREE.Vector3();
+  const setDiscPalette = () => {
+    const [first, second] = sectionPalette();
+    heroInk3.copy(hexToVec3(first.ink3d)); heroLabel3.copy(hexToVec3(first.label3d));
+    baseInk.copy(hexToVec3(second.ink3d)); baseLabel.copy(hexToVec3(second.label3d));
+  };
+  setDiscPalette();
+  // 헤더 테마 버튼을 누르면 바로 다시 칠함 (스크롤 위치는 그대로)
+  const themeObserver = new MutationObserver(() => {
+    const next = document.documentElement.dataset.theme === 'dark';
+    if (next === siteDark) return;
+    siteDark = next;
+    setDiscPalette();
+    setNvBase();
+    nvTintCur.copy(NV_INK); nvTintHex = '';
+    host.closest('.ct-page')?.style.removeProperty('--ink');
+    const t = Math.max(0, themeT); themeT = -1; applyTheme(t);
+  });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  cleanups.push(() => themeObserver.disconnect());
   let genreTinted = false;
 
   /* ---- 장르가 바뀌면 판을 한 번(반 바퀴) 뒤집으며 색을 바꿈 ----

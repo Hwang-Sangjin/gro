@@ -1,10 +1,10 @@
 .page,
 .page:global(.paper-textured) {
-  --dig-paper: #f3e7cd;
+  --dig-paper: var(--cream);
   --paper-surface: var(--dig-paper);
   --paper-texture-opacity: 0.65;
   background: var(--dig-paper);
-  color: #4c404a;
+  color: var(--ink);
 }
 .page :global(.page-content) {
   position: relative;
@@ -56,7 +56,7 @@
 .separator {
   width: 1px;
   height: 25px;
-  background: #4c404a66;
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
 }
 .search {
   display: flex;
@@ -67,7 +67,7 @@
   transition: border-color 0.25s;
 }
 .search[data-open="true"] {
-  border-color: #4c404a77;
+  border-color: color-mix(in srgb, var(--ink) 47%, transparent);
 }
 .iconButton {
   display: grid;
@@ -115,7 +115,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0.5rem 0;
-  border-block: 1px solid #4c404a80;
+  border-block: 1px solid color-mix(in srgb, var(--ink) 50%, transparent);
   padding: 0.8rem 0;
   margin-bottom: 2.3rem;
   isolation: isolate;
@@ -139,7 +139,7 @@
 }
 .filters > a + a,
 .filters > button {
-  border-left: 1px solid #4c404a40;
+  border-left: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
 }
 /* 선택 표시는 DiggingCatalog의 미끄러지는 알약이 맡음. 글자만 알약 위에 */
 .filters a,
@@ -153,7 +153,7 @@
 }
 .more {
   flex-basis: 100%;
-  border-top: 1px solid #4c404a25;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
   padding-top: 0.5rem;
 }
 .grid {
@@ -273,7 +273,7 @@
   opacity: 0.65;
 }
 .card:focus-visible {
-  outline: 2px solid #4c404a;
+  outline: 2px solid var(--ink);
   outline-offset: 14px;
 }
 .card:focus-visible .caption,
@@ -321,12 +321,12 @@
   margin: auto;
   max-width: min(90vw, 460px);
   padding: 2rem;
-  background: #f3e7cd;
-  color: #4c404a;
-  border: 1px solid #4c404a77;
+  background: var(--cream);
+  color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--ink) 47%, transparent);
 }
 .dialog::backdrop {
-  background: #4c404a66;
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
 }
 .dialog h2 {
   font:

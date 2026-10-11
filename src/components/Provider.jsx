@@ -9,6 +9,7 @@ import CrateProvider from "./crate/CrateProvider";
 import CrateStage from "./crate/CrateStage";
 import AlbumTransitionProvider from "./album/AlbumTransitionProvider";
 import SpinningFavicon from "./SpinningFavicon";
+import SiteCursor from "./SiteCursor";
 
 // 인트로가 끝날 때까지 Lenis와 네이티브 스크롤을 모두 잠근다.
 function ScrollLock({ lenisRef }) {
@@ -40,6 +41,7 @@ export default function Providers({ children }) {
       <ScrollLock lenisRef={lenisRef} />
       <Preloader />
       <SpinningFavicon />
+      <SiteCursor />
       <CrateProvider>
       <AlbumTransitionProvider>
         <CrateStage>{children}</CrateStage>

@@ -42,49 +42,49 @@ export default function AuthPanel({ mode = "login" }) {
   return (
     <PageShell>
       <section className="mx-auto flex min-h-[calc(100svh-var(--ct-header-h,106px)-6rem)] w-full max-w-[560px] flex-col justify-center px-6 py-16">
-        <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-[#4c404a99]">{signup ? "Sign up" : "Login"}</p>
-        <h1 className={`${SERIF} mt-4 text-[clamp(2.75rem,7vw,4.5rem)] font-black leading-[0.95] tracking-[-0.03em] text-[#4c404a]`}>
+        <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--ink)/60">{signup ? "Sign up" : "Login"}</p>
+        <h1 className={`${SERIF} mt-4 text-[clamp(2.75rem,7vw,4.5rem)] font-black leading-[0.95] tracking-[-0.03em] text-(--ink)`}>
           {user ? "반가워요" : signup ? "판을 모을 준비" : "다시 오셨네요"}
         </h1>
 
         {user ? (
           <div className="mt-10">
-            <div className="flex items-center gap-4 border-y border-[#4c404a33] py-5">
+            <div className="flex items-center gap-4 border-y border-(--ink)/20 py-5">
               {p.avatar
                 ? <img src={p.avatar} alt="" referrerPolicy="no-referrer" className="size-12 rounded-full object-cover" />
-                : <span className={`${SERIF} grid size-12 place-items-center rounded-full bg-[#4c404a] text-xl font-black text-[#f4e7cd]`}>{p.name.slice(0, 1).toUpperCase()}</span>}
+                : <span className={`${SERIF} grid size-12 place-items-center rounded-full bg-(--ink) text-xl font-black text-(--cream)`}>{p.name.slice(0, 1).toUpperCase()}</span>}
               <div className="min-w-0">
-                <p className="truncate text-[17px] font-medium text-[#4c404a]">{p.name}</p>
-                <p className="truncate text-[13px] text-[#4c404a99]">{p.email}</p>
+                <p className="truncate text-[17px] font-medium text-(--ink)">{p.name}</p>
+                <p className="truncate text-[13px] text-(--ink)/60">{p.email}</p>
               </div>
             </div>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link href={next === "/login" || next === "/signup" ? "/collection" : next}
-                className="inline-flex min-h-12 items-center rounded-full bg-[#4c404a] px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-[#f4e7cd] transition-colors hover:bg-[#c8553d]">
+                className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-[#c8553d]">
                 {next !== "/" ? "계속하기" : "내 컬렉션"}
               </Link>
               <button type="button" onClick={signOut}
-                className="min-h-12 px-2 text-[13px] font-medium uppercase tracking-[0.18em] text-[#4c404a99] underline-offset-4 transition-colors hover:text-[#4c404a] hover:underline">
+                className="min-h-12 px-2 text-[13px] font-medium uppercase tracking-[0.18em] text-(--ink)/60 underline-offset-4 transition-colors hover:text-(--ink) hover:underline">
                 Log out
               </button>
             </div>
           </div>
         ) : (
           <div className="mt-6">
-            <p className="max-w-[40ch] text-[15px] leading-7 text-[#4c404a]/75">
+            <p className="max-w-[40ch] text-[15px] leading-7 text-(--ink)/75">
               {signup ? "Google 계정으로 바로 시작해요. 내가 가진 판을 모으고, 듣고 싶은 판을 기억해 둘 수 있어요."
                 : "Google 계정으로 로그인하면 내 컬렉션을 볼 수 있어요."}
             </p>
             <button type="button" onClick={google} disabled={busy || user === undefined}
-              className="group mt-10 flex min-h-14 w-full items-center justify-center gap-3 rounded-full border border-[#4c404a] bg-[#fffaf0] px-6 text-[15px] font-medium text-[#4c404a] transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-white disabled:pointer-events-none disabled:opacity-50">
+              className="group mt-10 flex min-h-14 w-full items-center justify-center gap-3 rounded-full border border-(--ink) bg-[color-mix(in_oklab,var(--cream)_82%,white)] px-6 text-[15px] font-medium text-(--ink) transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-white disabled:pointer-events-none disabled:opacity-50">
               <GoogleMark />
               {busy ? "Google로 이동 중…" : "Google로 계속하기"}
             </button>
             {error && <p role="alert" className="mt-4 text-[13px] text-[#b45137]">{error}</p>}
-            <p className="mt-8 text-[12px] leading-6 text-[#4c404a99]">
+            <p className="mt-8 text-[12px] leading-6 text-(--ink)/60">
               처음이면 자동으로 계정이 만들어져요. 이름·이메일·프로필 사진만 받아 와요.
             </p>
-            <p className="mt-6 border-t border-[#4c404a33] pt-6 text-[13px] text-[#4c404a]">
+            <p className="mt-6 border-t border-(--ink)/20 pt-6 text-[13px] text-(--ink)">
               {signup ? <>이미 계정이 있나요? <Link href="/login" className="underline underline-offset-4">로그인</Link></>
                 : <>처음이신가요? <Link href="/signup" className="underline underline-offset-4">회원가입</Link></>}
             </p>

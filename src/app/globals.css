@@ -77,6 +77,24 @@
   --ink-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -9 0 0 0 6.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 
+/* ── 다크 모드 (헤더의 테마 버튼) ──
+   크림 ↔ 브라운을 통째로 맞바꿈: --cream 은 "바탕색", --ink 는 "글자색" 자리라서
+   두 값만 바꾸면 var(--cream)/var(--ink) 를 쓰는 모든 곳(헤더·페이지·Home 스크롤 전환)이 같이 뒤집힘 */
+:root[data-theme="dark"] {
+  --cream: #4c404a;
+  --ink: #f4e7cd;
+  color-scheme: dark;
+}
+
+/* 테마 전환: 테마 버튼 자리에서 새 색의 원이 퍼짐 (lib/theme.js) */
+html.theme-switching::view-transition-old(root),
+html.theme-switching::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+html.theme-switching::view-transition-new(root) { animation: theme-reveal .75s cubic-bezier(.65,0,.35,1) both; }
+@keyframes theme-reveal {
+  from { clip-path: circle(0 at var(--theme-x) var(--theme-y)); }
+  to { clip-path: circle(var(--theme-r) at var(--theme-x) var(--theme-y)); }
+}
+
 /* ── 리셋 ───────────────────────────────────────
    반드시 @layer base 안에 둔다.
    레이어 밖에 두면 Tailwind 유틸리티(@layer utilities)보다 우선해서
@@ -900,7 +918,7 @@ body.intro-locked {
 
 /* CRATE FLIP — isolated tokens preserve the existing intro's --paper/--ink. */
 :root{--ct-paper:244 231 205;--ct-ink:76 64 74;--ct-crate:42 34 42;--ct-sleeve:226 210 180;--ct-header-h:106px}
-:root[data-theme="dark"]{--ct-paper:38 32 37;--ct-ink:244 231 205;--ct-crate:16 12 15;--ct-sleeve:58 50 56}
+:root[data-theme="dark"]{--ct-paper:76 64 74;--ct-ink:244 231 205;--ct-crate:30 24 29;--ct-sleeve:98 84 94}
 .ct-stage{position:fixed;inset:0;overflow:hidden;background:rgb(var(--ct-crate));perspective:2400px;perspective-origin:50% -25%;touch-action:pan-y}
 .ct-page{position:absolute;inset:0;isolation:isolate;background:rgb(var(--ct-paper));overflow:hidden;transform-origin:50% 100%;backface-visibility:hidden}
 .ct-content{position:relative;z-index:0;height:100%;overflow:auto;overscroll-behavior:contain}
@@ -960,7 +978,9 @@ html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 /* Only enabled while the Hero cursor is visibly mounted on fine pointers. */
 @media (hover: hover) and (pointer: fine) {
   html.custom-cursor, html.custom-cursor * { cursor: none !important; }
+  /* 사이트 전체 커스텀 커서 (SiteCursor.jsx) — 링크·입력칸 판정은 컴포넌트가 함 */
+  html.site-cursor, html.site-cursor * { cursor: none !important; }
 }
 
 /* Digging: 헤더는 본문 종이색과 같게 */
-.ct-page[data-crate-path="/digging"] { --ct-header-bg: #f3e7cd; }
+.ct-page[data-crate-path="/digging"] { --ct-header-bg: var(--cream); }
