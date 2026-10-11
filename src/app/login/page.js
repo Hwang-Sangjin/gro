@@ -1,27 +1,5 @@
-"use client";
-import Link from "next/link";
-
-import PageShell from "@/components/layout/PageShell";
+import AuthPanel from "@/components/auth/AuthPanel";
 
 export default function Login() {
-  return (
-    <PageShell>
-      <div className="auth">
-        <span className="page-label">Login</span>
-        <h1 className="page-title ct-reveal">다시 오셨네요</h1>
-
-        <div className="auth-form ct-reveal">
-          <input className="field" type="email" placeholder="Email" />
-          <input className="field" type="password" placeholder="Password" />
-          <button type="button" className="home-cta">
-            Sign in
-          </button>
-        </div>
-
-        <p className="page-desc ct-reveal">
-          처음이신가요? <Link href="/signup">회원가입</Link>
-        </p>
-      </div>
-    </PageShell>
-  );
+  return <AuthPanel mode="login" />;
 }

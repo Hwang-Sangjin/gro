@@ -12,6 +12,7 @@ import {useIntro} from './intro/intro-context';
 import {useCrate} from './crate/CrateProvider';
 import {NAV} from './crate/routes';
 import {useNowSpinning} from '@/lib/nowSpinning';
+import useAuthUser,{profileOf,signOut} from '@/lib/useAuthUser';
 
 const BODONI={fontFamily:'"Grooves Bodoni", "Bodoni MT", Georgia, serif'};
 const num=i=>String(i+1).padStart(2,'0');
@@ -42,6 +43,33 @@ function SpinningDisc({className=''}){
   </svg>;
 }
 
+// 로그인한 사용자: Google 프로필 사진(없으면 이름 첫 글자). 누르면 작은 메뉴(내 컬렉션 · 로그아웃)
+function UserMenu({user}){
+  const [open,setOpen]=useState(false);
+  const box=useRef(null);
+  const p=profileOf(user);
+  useEffect(()=>{
+    if(!open)return;
+    const away=e=>{if(!box.current?.contains(e.target))setOpen(false);};
+    const key=e=>{if(e.key==='Escape')setOpen(false);};
+    window.addEventListener('pointerdown',away);window.addEventListener('keydown',key);
+    return()=>{window.removeEventListener('pointerdown',away);window.removeEventListener('keydown',key);};
+  },[open]);
+  return <div ref={box} className="relative">
+    <button type="button" onClick={()=>setOpen(v=>!v)} aria-expanded={open} aria-haspopup="menu" aria-label={`${p.name} 계정 메뉴`}
+      className="grid size-9 place-items-center overflow-hidden rounded-full border border-current/25 transition-colors hover:border-current">
+      {p.avatar?<img src={p.avatar} alt="" referrerPolicy="no-referrer" className="size-full object-cover"/>
+        :<span className="text-[15px] font-black" style={BODONI}>{p.name.slice(0,1).toUpperCase()}</span>}
+    </button>
+    <div role="menu" data-open={open} inert={!open}
+      className="absolute right-0 top-[calc(100%+10px)] z-50 w-56 origin-top-right rounded-2xl border border-[#4c404a26] bg-[#f4e7cd] p-2 text-[#4c404a] shadow-[0_18px_40px_-18px_rgba(42,34,42,.45)] transition-[opacity,scale] duration-200 data-[open=false]:pointer-events-none data-[open=false]:scale-95 data-[open=false]:opacity-0">
+      <p className="truncate px-3 pb-2 pt-1.5 text-[12px] text-[#4c404a99]">{p.email}</p>
+      <Link role="menuitem" href="/collection" onClick={()=>setOpen(false)} className="block rounded-xl px-3 py-2.5 text-[14px] hover:bg-[#4c404a14]">내 컬렉션</Link>
+      <button role="menuitem" type="button" onClick={()=>{setOpen(false);signOut();}} className="block w-full rounded-xl px-3 py-2.5 text-left text-[14px] hover:bg-[#4c404a14]">로그아웃</button>
+    </div>
+  </div>;
+}
+
 // Sound 토글: 켜져 있으면 막대가 춤춤, 꺼져 있으면 납작하게 멈춤
 function SoundButton({sound,onClick,className=''}){
   return <button type="button" onClick={onClick} aria-pressed={sound} aria-label="페이지 전환 효과음" title={sound?'Sound on':'Sound off'}
@@ -56,6 +84,7 @@ function SoundButton({sound,onClick,className=''}){
 export default function Navbar({path}){
   const {done}=useIntro(),{sound,toggleSound}=useCrate();
   const spinning=useNowSpinning();
+  const user=useAuthUser();   // undefined = 확인 중, null = 로그아웃
   const nav=useRef(null);
   const [scrolled,setScrolled]=useState(false);
   const [open,setOpen]=useState(false);
@@ -113,11 +142,12 @@ export default function Navbar({path}){
         </span>
         <span className="sr-only lg:hidden">Now spinning: {spinning.title}</span>
       </Link>}
-      <Link href="/login" aria-current={path==='/login'?'page':undefined}
-        className="group relative hidden py-1 text-[16px] font-medium uppercase tracking-[.16em] md:block">
+      {user?<div className="hidden md:block"><UserMenu user={user}/></div>
+        :<Link href={`/login${path&&path!=='/'&&path!=='/login'&&path!=='/signup'?`?next=${encodeURIComponent(path)}`:''}`} aria-current={path==='/login'?'page':undefined}
+        className={`group relative hidden py-1 text-[16px] font-medium uppercase tracking-[.16em] transition-opacity duration-300 md:block ${user===undefined?'opacity-0':''}`}>
         <Rise show={shown} delay={RISE_STEP*(NAV.length+1)}>Login</Rise>
         <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px origin-right scale-x-0 bg-current transition-transform duration-500 group-hover:origin-left group-hover:scale-x-100"/>
-      </Link>
+      </Link>}
       <Rise show={shown} delay={RISE_STEP*(NAV.length+2)} className="hidden md:block">
         <SoundButton sound={sound} onClick={toggleSound}/>
       </Rise>
@@ -155,7 +185,11 @@ export default function Navbar({path}){
         <span className="min-w-0 truncate"><span className="mr-2 text-[10px] uppercase tracking-[.2em] opacity-60">Now spinning</span>{spinning.title}</span>
       </Link>}
       <div className={`flex items-center justify-between ${spinning?'mt-5':'mt-8'}`}>
-        <Link href="/login" onClick={()=>setOpen(false)} className="text-[12px] font-medium uppercase tracking-[.2em]">Login</Link>
+        {user?<div className="flex min-w-0 items-center gap-3">
+            <Link href="/collection" onClick={()=>setOpen(false)} className="min-w-0 truncate text-[13px]">{profileOf(user).name}</Link>
+            <button type="button" onClick={()=>{setOpen(false);signOut();}} className="text-[12px] font-medium uppercase tracking-[.2em] opacity-70">Log out</button>
+          </div>
+          :<Link href="/login" onClick={()=>setOpen(false)} className="text-[12px] font-medium uppercase tracking-[.2em]">Login</Link>}
         <SoundButton sound={sound} onClick={toggleSound}/>
       </div>
     </div>
