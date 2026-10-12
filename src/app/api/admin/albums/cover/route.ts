@@ -1,32 +1,22 @@
 // src/app/api/admin/albums/cover/route.ts
 // 커버만 교체. 트랙·아티스트·장르는 건드리지 않는다.
 //
-// POST multipart/form-data
-//   secret: ADMIN_SECRET
+// POST multipart/form-data — 관리자만
 //   slug:   교체할 앨범 slug
 //   cover:  새 이미지 파일
 
-import { createClient } from "@supabase/supabase-js";
 import { processCover, removeOldCovers } from "@/lib/admin/cover";
+import { adminGuard, serviceClient } from "@/lib/admin/auth";
 
 export const runtime = "nodejs";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } },
-);
+const supabase = serviceClient();
 
 export async function POST(req: Request) {
   try {
+    const denied = await adminGuard();
+    if (denied) return denied;
     const form = await req.formData();
-
-    if (form.get("secret") !== process.env.ADMIN_SECRET) {
-      return Response.json(
-        { error: "관리자 키가 올바르지 않습니다." },
-        { status: 401 },
-      );
-    }
 
     const slug = String(form.get("slug") ?? "").trim();
     const cover = form.get("cover");

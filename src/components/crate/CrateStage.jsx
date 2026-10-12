@@ -73,7 +73,8 @@ export default function CrateStage({children}) {
       cancelAnimationFrame(raf.current);cleanAll();const keep=T.current.newEntry;current.current={path:keep.path,key:keep.key,href:keep.path};T.current=null;
     }
     const next={key:++serial.current,path:pathname,node:children,context};
-    if(isAlbumCoverTransition(current.current.path,pathname)){
+    // 관리자 화면끼리는 페이지 넘김 없이 바로 바꿈 (전체 화면 관리자 틀이 그대로 이어짐)
+    if(isAlbumCoverTransition(current.current.path,pathname)||(current.current.path.startsWith('/admin')&&pathname.startsWith('/admin'))){
       clearWaiting();drag.current=null;
       current.current={path:pathname,key:next.key,href:pathname};
       setEntries([next]);return;

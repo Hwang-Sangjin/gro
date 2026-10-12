@@ -18,6 +18,21 @@ export default function useAuthUser() {
   return user;
 }
 
+// 관리자인지 (profiles.role, 본인 줄만 읽힘). 메뉴에 "Admin" 을 보일지 정하는 용도 — 실제 막는 건 서버
+const roleCache = new Map();
+export function useIsAdmin(user) {
+  const [admin, setAdmin] = useState(() => (user ? roleCache.get(user.id) ?? false : false));
+  useEffect(() => {
+    if (!user) { setAdmin(false); return; }
+    if (roleCache.has(user.id)) { setAdmin(roleCache.get(user.id)); return; }
+    let alive = true;
+    authClient().from("profiles").select("role").eq("id", user.id).maybeSingle()
+      .then(({ data }) => { const v = data?.role === "admin"; roleCache.set(user.id, v); if (alive) setAdmin(v); }, () => {});
+    return () => { alive = false; };
+  }, [user]);
+  return admin;
+}
+
 // 화면에 보여 줄 이름·사진 (Google 프로필)
 export function profileOf(user) {
   const m = user?.user_metadata ?? {};
