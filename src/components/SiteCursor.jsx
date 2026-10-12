@@ -27,6 +27,8 @@ export default function SiteCursor() {
     const stateFor = (el) => {
       if (!el || el.closest("[data-home-stage]")) return "hidden";                    // Home 은 스테이지 커서
       if (el.closest("input, textarea, select, [contenteditable=''], [contenteditable='true'], iframe")) return "hidden";
+      // 열린 모달(<dialog>)은 화면 맨 위층이라 커스텀 커서가 그 뒤에 가려짐 → 원래 커서
+      if (el.closest("dialog[open]")) return "hidden";
       if (el.closest("a[data-album-slug]")) return "view";
       if (el.closest("a, button, summary, label, [role='button'], [role='tab'], [role='menuitem']")) return "link";
       return "idle";

@@ -7,15 +7,16 @@ const LIST = "id, slug, title, artist_names, thumb_path, cover_color, status, re
 export async function getDashboard() {
   const db = serviceClient();
   const count = (q: any) => q.then((r: any) => r.count ?? 0).catch(() => 0);
-  const [published, draft, users, owned, wishlist, recent] = await Promise.all([
+  const [published, draft, users, owned, wishlist, recent, pending] = await Promise.all([
     count(db.from("albums").select("id", { count: "exact", head: true }).eq("status", "published")),
     count(db.from("albums").select("id", { count: "exact", head: true }).neq("status", "published")),
     count(db.from("profiles").select("id", { count: "exact", head: true })),
     count(db.from("user_albums").select("album_id", { count: "exact", head: true }).eq("kind", "owned")),
     count(db.from("user_albums").select("album_id", { count: "exact", head: true }).eq("kind", "wishlist")),
     db.from("albums").select(LIST).order("created_at", { ascending: false }).limit(6).then((r: any) => r.data ?? []),
+    pendingRequestCount(),
   ]);
-  return { published, draft, users, owned, wishlist, recent };
+  return { published, draft, users, owned, wishlist, recent, pending };
 }
 
 export async function listAlbums() {
@@ -45,4 +46,20 @@ export async function getAlbumForEdit(slug: string) {
     genres: (genres.data ?? []).map((r: any) => r.genres?.slug).filter(Boolean),
     tracks: tracks.data ?? [],
   };
+}
+
+// 앨범 등록 요청 — 대기 수 (메뉴·대시보드 숫자), 목록 (요청한 사람 이메일·이름 포함)
+export async function pendingRequestCount() {
+  const { count } = await serviceClient()
+    .from("album_requests").select("id", { count: "exact", head: true }).eq("status", "pending");
+  return count ?? 0;
+}
+
+export async function listRequests() {
+  const { data, error } = await serviceClient()
+    .from("album_requests")
+    .select("id, title, artist, link, note, status, album_slug, admin_note, created_at, profiles(email, display_name)")
+    .order("created_at", { ascending: false }).limit(500);
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }

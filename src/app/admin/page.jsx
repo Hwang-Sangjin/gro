@@ -26,11 +26,14 @@ export default async function AdminHome() {
         <Link href="/admin/albums" className={btnGhost}>All albums</Link>
       </AdminHeader>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat label="Published" value={d.published} hint="Visible on Digging" />
         <Stat label="Hidden" value={d.draft} hint="Drafts, not on the site" />
         <Stat label="Members" value={d.users} hint="Signed in with Google" />
         <Stat label="On shelves" value={d.owned + d.wishlist} hint={`${d.owned} owned · ${d.wishlist} wishlist`} />
+        <Link href="/admin/requests" className="col-span-2 rounded-2xl transition-transform hover:-translate-y-0.5 lg:col-span-1">
+          <Stat label="Requests" value={d.pending} hint={d.pending ? "Waiting for you →" : "All caught up"} />
+        </Link>
       </section>
 
       <section className="mt-12">

@@ -10,7 +10,7 @@ import styles from "./Digging.module.css";
 import { createClient } from "@/utils/supabase/client";
 import { fetchDiggingPage } from "@/lib/albums";
 
-export default function DiggingGrid({ initial, genreId = null, query = "" }) {
+export default function DiggingGrid({ initial, genreId = null, query = "", onRequest }) {
   const supabase = useMemo(() => createClient(), []);
 
   const [items, setItems] = useState(initial.items);
@@ -75,7 +75,18 @@ export default function DiggingGrid({ initial, genreId = null, query = "" }) {
     <>
       {/* 앨범에 마우스를 올리면 나머지 앨범은 흐려짐 (마우스를 떼면 원래대로) */}
       <AlbumGrid albums={filtered} aria-busy={loading} />
-      {filtered.length === 0 && <p className={styles.empty} role="status">{error ? "검색을 완료하지 못했어요. 다시 시도해 주세요." : hasMore ? "검색 중…" : "검색한 앨범이 없어요."}</p>}
+      {filtered.length === 0 && (
+        <div className={styles.empty} role="status">
+          {error ? "Search didn’t finish. Please try again." : hasMore ? "Searching…" : <>
+            <p>No records match “{query.trim()}”.</p>
+            {/* 없는 판이면 바로 요청 */}
+            {onRequest && <button type="button" onClick={onRequest}
+              className="mt-4 inline-flex min-h-11 items-center rounded-full border border-current px-6 text-[12px] font-medium uppercase tracking-[0.16em] transition-colors hover:bg-(--ink) hover:text-(--cream)">
+              Request this record
+            </button>}
+          </>}
+        </div>
+      )}
 
       <div
         ref={sentinelRef}

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getAdmin } from "@/lib/admin/auth";
+import { pendingRequestCount } from "@/lib/admin/data";
 import AdminShell from "@/components/admin/AdminShell";
 import { SERIF, btnGhost } from "@/components/admin/ui";
 
@@ -25,5 +26,6 @@ export default async function AdminLayout({ children }) {
       </div>
     );
   }
-  return <AdminShell email={user.email}>{children}</AdminShell>;
+  const pending = await pendingRequestCount().catch(() => 0);   // 메뉴의 Requests 옆 숫자
+  return <AdminShell email={user.email} pending={pending}>{children}</AdminShell>;
 }

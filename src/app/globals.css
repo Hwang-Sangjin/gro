@@ -90,6 +90,8 @@
 html.theme-switching::view-transition-old(root),
 html.theme-switching::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 html.theme-switching::view-transition-new(root) { animation: theme-reveal .75s cubic-bezier(.65,0,.35,1) both; }
+/* Request 창이 살짝 떠오르며 열림 */
+@keyframes request-in { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes theme-reveal {
   from { clip-path: circle(0 at var(--theme-x) var(--theme-y)); }
   to { clip-path: circle(var(--theme-r) at var(--theme-x) var(--theme-y)); }

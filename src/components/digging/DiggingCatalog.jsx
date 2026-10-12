@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { fetchDiggingPage } from "@/lib/albums";
 import { getGenreIds } from "@/lib/genreIds";
 import GenreBar from "@/components/albums/GenreBar";
+import RequestDialog from "@/components/requests/RequestDialog";
 import DiggingGrid from "./DiggingGrid";
 import useReveal from "./useReveal";
 import closeGrid from "./closeGrid";
@@ -92,18 +93,15 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
         hrefFor={(slug) => (slug ? `/digging?genre=${slug}` : "/digging")}
         query={query} onQueryChange={setQuery} searchId="digging-search"
         extra={<>
-          <button className={styles.request} onClick={() => request.current?.showModal()}>+ Request</button>
+          <button className={styles.request} onClick={() => request.current?.open({ title: query.trim() })}>+ Request</button>
           <span className={styles.separator} aria-hidden="true" />
         </>} />
       {/* 장르를 바꾸면 지금 판들이 접혀 사라진 뒤, 그리드만 새로 그려짐 (카드가 다시 펼쳐지며 등장) */}
       <div ref={gridWrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
-        <DiggingGrid key={current.key} initial={current.initial} genreId={current.genreId} query={query} />
+        <DiggingGrid key={current.key} initial={current.initial} genreId={current.genreId} query={query} onRequest={() => request.current?.open({ title: query.trim() })} />
       </div>
-      <dialog ref={request} className={styles.dialog}>
-        <h2>Request a record</h2>
-        <p>앨범 등록 요청 기능을 준비하고 있어요.</p>
-        <form method="dialog"><button className={styles.request}>닫기</button></form>
-      </dialog>
+      {/* 없는 판 요청 (로그인 사용자) — 검색 결과가 없을 때도 여기로 */}
+      <RequestDialog ref={request} />
     </>
   );
 }

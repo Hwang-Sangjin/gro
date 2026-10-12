@@ -48,10 +48,11 @@ const fromAlbum = (a) => ({
 });
 const tracksText = (a) => (a?.tracks ?? []).map((t) => [t.side, t.title, mmss(t.duration_sec)].filter(Boolean).join(" | ")).join("\n");
 
-export default function AlbumForm({ initial = null }) {
+export default function AlbumForm({ initial = null, prefill = null, requestId = null }) {
   const editing = !!initial;
   const router = useRouter();
-  const [form, setForm] = useState(() => fromAlbum(initial));
+  // 새 앨범인데 요청에서 넘어왔으면 제목·아티스트·slug 를 채워 둠
+  const [form, setForm] = useState(() => (initial ? fromAlbum(initial) : { ...fromAlbum(null), ...(prefill && { title: prefill.title ?? "", artists: (prefill.artists ?? []).join(", "), slug: prefill.slug ?? "" }) }));
   const [genres, setGenres] = useState(initial?.genres ?? []);
   const [trackText, setTrackText] = useState(() => tracksText(initial));
   const [cover, setCover] = useState(null);
@@ -91,7 +92,13 @@ export default function AlbumForm({ initial = null }) {
       const res = await fetch("/api/admin/albums", { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      setResult({ ok: json });
+      // 요청에서 시작한 등록이면 그 요청을 "Added" 로 (요청한 사람이 바로 들으러 갈 수 있게)
+      let linked = false;
+      if (!editing && requestId) {
+        const r = await fetch("/api/admin/requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: Number(requestId), status: "added", album_slug: json.slug }) });
+        linked = r.ok;
+      }
+      setResult({ ok: { ...json, linked } });
       setCover(null);
       if (editing) router.refresh();
       else { setForm(fromAlbum(null)); setGenres([]); setTrackText(""); }
@@ -221,6 +228,7 @@ export default function AlbumForm({ initial = null }) {
             <span>
               {editing ? "Saved" : "Created"} · {result.ok.trackCount} tracks
               {!editing && <> · <Link href={`/admin/albums/${encodeURIComponent(result.ok.slug)}`} className="underline underline-offset-4">Edit {result.ok.slug}</Link></>}
+              {result.ok.linked && <> · request #{requestId} marked added</>}
             </span>
           </div>
         )}
