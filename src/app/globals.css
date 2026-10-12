@@ -155,23 +155,6 @@ body {
   opacity: 1;
 }
 
-
-.navbar-items {
-  display: flex;
-  align-items: center;
-  gap: clamp(0.5rem, 2vw, 1rem);
-}
-
-.navbar-item {
-  padding: 1.5rem;
-}
-
-.navbar-item a {
-  text-decoration: none;
-  color: var(--page-fg);
-  font-weight: 500;
-}
-
 /* ── 페이지 공통 ────────────────────────────── */
 
 /* 페이지 루트는 반드시 100svh 로 고정. 스크롤은 안쪽에서 일어난다 —
@@ -213,49 +196,6 @@ body.intro-locked .page {
   overflow: hidden;
 }
 
-.page-head {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding-bottom: 2rem;
-  border-bottom: 1px solid var(--frame);
-}
-
-.page-label {
-  font-size: 0.8rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-
-.page-title {
-  font-size: clamp(2.5rem, 7vw, 6rem);
-  font-weight: bolder;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.page-desc {
-  font-size: 1rem;
-  opacity: 0.75;
-}
-
-.page-desc a {
-  color: inherit;
-}
-
-.page-toolbar {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.page-toolbar-group {
-  display: flex;
-  gap: 0.75rem;
-}
-
 .chip {
   padding: 0.6rem 1.2rem;
   border-radius: 999px;
@@ -275,46 +215,12 @@ body.intro-locked .page {
   border-color: var(--fg);
 }
 
-.page-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 2rem;
-}
-
 .card {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   text-decoration: none;
   color: inherit;
-}
-
-.card-cover {
-  width: 100%;
-  aspect-ratio: 1;
-  border: 1px solid var(--frame);
-  margin-bottom: 0.5rem;
-}
-
-.card-meta {
-  font-size: 0.85rem;
-  opacity: 0.7;
-}
-
-.page-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-}
-
-.page-row {
-  display: grid;
-  grid-template-columns: 4rem 1fr auto;
-  align-items: baseline;
-  gap: 1rem;
-  padding: 1.5rem 0;
-  border-bottom: 1px solid var(--frame);
-  font-size: 1.25rem;
 }
 
 .page-empty {
@@ -343,53 +249,6 @@ body.intro-locked .page {
   border: 1px solid var(--frame);
 }
 
-.album-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1.5rem;
-}
-
-/* ── 로그인 / 회원가입 ──────────────────────── */
-
-.auth {
-  flex: 1;
-  width: 100%;
-  max-width: 420px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1.5rem;
-}
-
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.field {
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--frame);
-  background: none;
-  color: inherit;
-  font: inherit;
-}
-
-.field::placeholder {
-  color: inherit;
-  opacity: 0.45;
-}
-
-/* ── 홈 ─────────────────────────────────────── */
-
-.home-hero {
-  width: 100%;
-  height: 100svh;
-  position: relative;
-}
-
 /* 재사용 유틸: 텍스트·선에 인쇄 grain */
 .ink-grain {
   -webkit-mask-image: var(--ink-grain);
@@ -398,293 +257,6 @@ body.intro-locked .page {
   mask-size: 220px 220px;
   -webkit-mask-repeat: repeat;
   mask-repeat: repeat;
-}
-
-/* 타이틀 묶음: [GROOVES + vinyl mark] + underline */
-.home-title {
-  position: absolute;
-  top: var(--navbar-h);
-  left: var(--gutter);
-  right: var(--gutter);
-  z-index: 1;
-  pointer-events: none; /* 3D hover 를 막지 않게 */
-}
-
-.home-title-row {
-  display: flex;
-  align-items: center;
-  gap: 2vw;
-}
-
-/* 최종(착지) 상태는 여전히 CSS 레이아웃. GSAP 은 transform 만 건드린다 */
-.home-hero h1 {
-  position: relative;
-  white-space: nowrap;
-  text-transform: uppercase;
-  color: var(--page-fg);
-  font-size: var(--hero-title-size);
-  font-weight: 900;
-  line-height: 1;
-  transform-origin: 0 0;
-  will-change: transform;
-  visibility: hidden; /* SSR 단계에서 숨김 → GSAP 이 split 후 드러냄 */
-}
-
-.home-title-mark {
-  flex: none;
-  height: calc(var(--hero-title-size) * 0.72);
-  width: auto;
-  opacity: 0;
-}
-
-.home-title-rule {
-  display: block;
-  height: 3px;
-  margin-top: 0.8vw;
-  background: var(--page-fg);
-  transform: scaleX(0);
-  transform-origin: 0 50%;
-}
-
-/* 3D 무대: 밑줄 아래부터, 좌우 gutter 안쪽, 하단은 scroll 힌트 자리만 남김 */
-.home-stage {
-  position: absolute;
-  top: calc(var(--navbar-h) + var(--hero-title-size) + 2.8vw);
-  left: var(--gutter);
-  right: var(--gutter);
-  bottom: 4.5rem;
-  z-index: 0;
-  opacity: 0;
-  will-change: transform, opacity;
-}
-
-.home-stage canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.home-scroll {
-  position: absolute;
-  bottom: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  opacity: 0;
-}
-
-/* 색이 보간되는 구간. 내용 없이 높이만 담당한다 */
-.home-veil {
-  width: 100%;
-  height: 55svh;
-  pointer-events: none;
-}
-
-.home-panel {
-  width: 100%;
-  min-height: 100svh;
-  padding: clamp(3rem, 8vw, 7rem) 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: clamp(2rem, 5vw, 4rem);
-}
-
-/* News 는 아웃트로·푸터까지 품으므로 높이를 풀어준다 */
-.home-panel-last {
-  min-height: auto;
-  padding-bottom: 0;
-}
-
-.home-panel-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid color-mix(in oklab, var(--page-fg) 30%, transparent);
-}
-
-.home-label {
-  font-size: 0.8rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-
-.home-panel h2 {
-  font-size: clamp(2rem, 5vw, 4rem);
-  font-weight: 500;
-  line-height: 1.05;
-  max-width: 18ch;
-}
-
-.home-blocks {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-}
-
-.home-block {
-  min-height: 240px;
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  border: 1px solid color-mix(in oklab, var(--page-fg) 35%, transparent);
-}
-
-.home-block strong {
-  font-size: 1.5rem;
-  font-weight: 500;
-}
-
-.home-block span {
-  font-size: 0.85rem;
-  opacity: 0.7;
-}
-
-/* New vinyls 진열대 자리표시자 */
-.home-shelf {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.home-sleeve {
-  width: clamp(80px, 12vw, 200px);
-  aspect-ratio: 1;
-  border: 1px solid color-mix(in oklab, var(--page-fg) 35%, transparent);
-}
-
-.home-sleeve:nth-child(1),
-.home-sleeve:nth-child(5) {
-  transform: scale(0.72);
-  opacity: 0.55;
-}
-
-.home-sleeve:nth-child(2),
-.home-sleeve:nth-child(4) {
-  transform: scale(0.86);
-  opacity: 0.8;
-}
-
-.home-meta {
-  text-align: center;
-  font-size: 0.9rem;
-  opacity: 0.7;
-}
-
-/* ── Category 장르 리스트 ── 트랙 리스트처럼 읽히게. 포인트 색은 --frame */
-.home-genres {
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  column-gap: clamp(2rem, 6vw, 6rem);
-}
-
-.home-genre {
-  display: grid;
-  grid-template-columns: 3rem 1fr auto;
-  align-items: baseline;
-  gap: 1rem;
-  padding: 1.1rem 0;
-  border-bottom: 1px solid color-mix(in oklab, var(--page-fg) 25%, transparent);
-  text-decoration: none;
-  color: inherit;
-  transition: color 0.4s ease;
-}
-
-.home-genre:hover {
-  color: var(--frame);
-}
-
-.home-genre-no {
-  font-size: 0.8rem;
-  letter-spacing: 0.14em;
-  opacity: 0.6;
-}
-
-.home-genre-name {
-  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
-  font-weight: 500;
-}
-
-.home-genre-arrow {
-  opacity: 0;
-  transform: translateX(-0.4rem);
-  transition:
-    opacity 0.4s ease,
-    transform 0.4s ease;
-}
-
-.home-genre:hover .home-genre-arrow {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.home-outro {
-  width: 100%;
-  min-height: 60svh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 2rem;
-  text-align: center;
-}
-
-.home-outro p {
-  font-size: clamp(1.5rem, 4vw, 3rem);
-  font-weight: 500;
-  max-width: 16ch;
-}
-
-.home-cta {
-  padding: 0.9rem 2rem;
-  border: none;
-  border-radius: 999px;
-  font: inherit;
-  font-size: 0.85rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  text-decoration: none;
-  cursor: pointer;
-  color: var(--page-bg);
-  background-color: var(--page-fg);
-}
-
-.home-footer {
-  width: 100%;
-  padding: 4rem 2rem 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.home-footer h3 {
-  font-size: 14vw;
-  font-weight: bolder;
-  line-height: 0.9;
-  text-transform: uppercase;
-}
-
-.home-footer-bar {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.8rem;
-  opacity: 0.7;
-  padding-top: 1rem;
-  border-top: 1px solid color-mix(in oklab, var(--page-fg) 30%, transparent);
-}
-
-.char,
-.line {
-  position: relative;
-  will-change: transform;
 }
 
 /* ── 프리로더 ───────────────────────────────── */
@@ -738,32 +310,10 @@ body.intro-locked {
     padding: 9rem 1.25rem 4rem;
   }
 
-  .page-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .page-row {
-    grid-template-columns: 3rem 1fr;
-    font-size: 1rem;
-  }
-
   .album {
     grid-template-columns: 1fr;
   }
-
-  .home-blocks {
-    grid-template-columns: 1fr;
-  }
-
-  .home-shelf {
-    gap: 0.75rem;
-  }
-
-  .home-genres {
-    grid-template-columns: 1fr;
-  }
 }
-
 
 /* HERO PAPER FADE — scoped overrides; other sections retain their styles. */
 @font-face {
@@ -772,67 +322,6 @@ body.intro-locked {
   font-style: normal;
   font-weight: 900;
   font-display: swap;
-}
-.home-hero {
-  --hero-title-size: clamp(3rem, 12vw, 12rem);
-  --hero-ink-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -6 0 0 0 5.0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  isolation: isolate;
-  overflow: hidden;
-  min-height: 540px;
-}
-
-.home-hero .ink-grain {
-  -webkit-mask-image: var(--hero-ink-grain);
-  mask-image: var(--hero-ink-grain);
-  -webkit-mask-size: 180px 180px;
-  mask-size: 180px 180px;
-}
-.home-hero h1 {
-  font-family: "Grooves Bodoni", "Bodoni MT", Georgia, serif;
-  font-weight: 900;
-  font-size: var(--hero-title-size);
-  letter-spacing: -0.055em;
-  line-height: 1.06;
-  flex: 0 1 auto;
-}
-.home-hero .home-title-row {
-  gap: clamp(12px, 2vw, 32px);
-  align-items: center;
-}
-.home-hero .home-title-mark {
-  display: block;
-  position: relative;
-  width: clamp(72px, 19vw, 280px);
-  height: auto;
-  aspect-ratio: 3 / 2;
-  flex: 0 0 auto;
-  transform-origin: center;
-}
-.home-title-mark img {
-  object-fit: contain;
-}
-.home-hero .home-title-rule {
-  height: 1px;
-  margin-top: 0.7vw;
-}
-.home-hero .home-stage {
-  top: calc(var(--navbar-h) + var(--hero-title-size) * 1.06 + 2.8vw);
-}
-@media (max-width: 600px) {
-  .home-hero {
-    --gutter: 20px;
-    --navbar-h: 110px;
-    --hero-title-size: 12vw;
-  }
-  .home-hero .home-title-row {
-    gap: 10px;
-  }
-  .home-hero .home-title-mark {
-    width: 21vw;
-  }
-  .home-hero .home-stage {
-    bottom: 4rem;
-  }
 }
 
 .album-detail-page .page-content { padding: 0; gap: 0; }
@@ -867,31 +356,6 @@ body.intro-locked {
   --content-pad: clamp(20px, 3vw, 48px);
   --wide-inset: max(var(--content-pad), calc((100% - var(--content-wide)) / 2));
 }
-.navbar-item { padding: 8px 0; }
-.navbar-items { gap: clamp(16px, 2.5vw, 40px); }
-.home-hero {
-  --hero-title-size: min(12vw, 160px);
-  --navbar-h: 112px;
-  min-height: 660px;
-}
-.home-hero .home-title, .home-hero .home-stage {
-  left: var(--wide-inset);
-  right: var(--wide-inset);
-}
-.home-hero .home-title-row { gap: clamp(12px, 2vw, 28px); }
-.home-hero .home-title-mark { width: min(19vw, 240px); }
-.home-hero .home-title-rule { margin-top: 20px; }
-.home-hero .home-stage {
-  top: calc(var(--navbar-h) + var(--hero-title-size) * 1.06 + 48px);
-  bottom: 64px;
-}
-@media(max-width:600px) {
-  .navbar-items { gap: 14px; }
-  .navbar-item a { font-size: .75rem; }
-  .home-hero { --navbar-h: 112px; min-height: 600px; }
-  .home-hero .home-title-mark { width: 19vw; }
-}
-
 
 /* GROOVES PAPER — background only; no overlay on covers, text or Canvas.
    One repeatable image shared by Home, New Vinyls, Genre and Digging.
@@ -950,7 +414,6 @@ html[data-crate-transition="true"] .ct-page{will-change:transform,opacity;user-s
 @media(max-width:720px){.ct-handle{min-height:44px}}
 /* 헤더 높이 = --ct-header-h (Navbar가 이 높이로 고정. Digging 고정 바·Home 스테이지가 같은 값을 씀) */
 @media(max-width:767px){:root{--ct-header-h:72px}}
-
 
 /* Resolve the home palette locally too: frozen outgoing pages retain their color. */
 .page.home {

@@ -1,11 +1,11 @@
 import { COVER_FLIGHT_SOURCES } from '@/lib/albumOrigin';
 export const NAV = [
-  { href: '/', label: 'Home', doodle: '03' },
-  { href: '/digging', label: 'Digging', doodle: '01' },
-  { href: '/collection', label: 'Collection', doodle: '02' },
-  { href: '/news', label: 'News', doodle: '04' },
+  { href: '/', label: 'Home' },
+  { href: '/digging', label: 'Digging' },
+  { href: '/collection', label: 'Collection' },
+  { href: '/news', label: 'News' },
 ];
-const extra = ['/login', '/account', '/privacy', '/terms', '/info', '/projects', '/admin/albums/new', '/admin/albums/cover'];
+const extra = ['/login', '/account', '/privacy', '/terms', '/admin/albums/new', '/admin/albums/cover'];
 export function rank(path) {
   const index = NAV.findIndex(p => p.href === path);
   if (index >= 0) return index;
