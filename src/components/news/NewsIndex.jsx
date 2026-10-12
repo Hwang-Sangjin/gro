@@ -45,7 +45,7 @@ export default function NewsIndex() {
       </header>
 
       <Reveal delay={200} className="mt-10 border-y-[3px] border-(--ink) py-4">
-        <div role="tablist" aria-label="카테고리" className="flex flex-wrap items-baseline gap-x-[clamp(.6rem,1.2vw,1.4rem)] gap-y-1">
+        <div role="tablist" aria-label="Categories" className="flex flex-wrap items-baseline gap-x-[clamp(.6rem,1.2vw,1.4rem)] gap-y-1">
           {TABS.map((t, i) => {
             const n = t.key === "all" ? STORIES.length : STORIES.filter((s) => s.category === t.key).length;
             const on = tab === t.key;

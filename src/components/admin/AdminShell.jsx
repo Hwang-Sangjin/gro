@@ -27,7 +27,7 @@ export default function AdminShell({ email, pending = 0, children }) {
             <Link href="/" data-crate-skip className={`${SERIF} text-[26px] leading-none`}>Grooves</Link>
             <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-(--ink)/50 md:mt-2">Admin</p>
           </div>
-          <nav aria-label="관리자 메뉴" className="-mx-1 mt-4 flex gap-1 overflow-x-auto [scrollbar-width:none] md:mx-0 md:mt-10 md:flex-col md:overflow-visible">
+          <nav aria-label="Admin" className="-mx-1 mt-4 flex gap-1 overflow-x-auto [scrollbar-width:none] md:mx-0 md:mt-10 md:flex-col md:overflow-visible">
             {NAV.map((item) => (
               <Link key={item.href} href={item.href} aria-current={active(item) ? "page" : undefined}
                 className="shrink-0 rounded-full px-3.5 py-2 text-[13px] tracking-[0.02em] text-(--ink)/65 transition-colors hover:bg-(--ink)/6 hover:text-(--ink) aria-[current=page]:bg-(--ink) aria-[current=page]:text-(--cream)">

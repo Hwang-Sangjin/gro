@@ -35,7 +35,7 @@ export async function getAdmin(): Promise<AdminCheck> {
 // API 라우트 맨 앞에서: 관리자가 아니면 바로 돌려줄 응답, 관리자면 null
 export async function adminGuard(): Promise<Response | null> {
   const { user, admin } = await getAdmin();
-  if (!user) return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
-  if (!admin) return Response.json({ error: "관리자 권한이 없습니다." }, { status: 403 });
+  if (!user) return Response.json({ error: "Please log in." }, { status: 401 });
+  if (!admin) return Response.json({ error: "Staff only." }, { status: 403 });
   return null;
 }

@@ -14,14 +14,14 @@ export async function POST(req: Request) {
   try {
     const { slug, status } = await req.json();
     if (!slug || !STATUSES.includes(status)) {
-      return Response.json({ error: "slug 와 status(published | draft)가 필요합니다." }, { status: 400 });
+      return Response.json({ error: "slug and status (published | draft) are required." }, { status: 400 });
     }
     const { data, error } = await serviceClient()
       .from("albums").update({ status }).eq("slug", slug).select("slug, status").maybeSingle();
     if (error) throw new Error(error.message);
-    if (!data) return Response.json({ error: `'${slug}' 앨범이 없습니다.` }, { status: 404 });
+    if (!data) return Response.json({ error: `No album with slug '${slug}'.` }, { status: 404 });
     return Response.json({ ok: true, ...data });
   } catch (e: any) {
-    return Response.json({ error: e.message ?? "알 수 없는 오류" }, { status: 500 });
+    return Response.json({ error: e.message ?? "Unknown error" }, { status: 500 });
   }
 }

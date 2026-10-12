@@ -76,7 +76,7 @@ export default function GenreBar({
         </div>
       </div>
       <div className="flex items-center gap-6 border-b border-(--ink)/60 py-[clamp(0.75rem,1.4vw,1.25rem)] transition-[padding] duration-500 group-data-[stuck=true]/bar:py-2">
-        <nav ref={filtersRef} data-revealed={filtersRevealed} aria-label="장르 필터"
+        <nav ref={filtersRef} data-revealed={filtersRevealed} aria-label="Genres"
           className={`${styles.filterReveal} flex min-w-0 [&_sup]:transition-opacity group-data-[stuck=true]/bar:[&_sup]:opacity-0 flex-1 flex-nowrap items-baseline gap-x-[clamp(0.5rem,0.9vw,1.1rem)] gap-y-1 overflow-x-auto [scrollbar-width:none] md:flex-wrap group-data-[stuck=true]/bar:flex-nowrap`}>
           {GENRE_ITEMS.map((it, i) => {
             const on = (genre ?? null) === it.slug;
@@ -100,12 +100,12 @@ export default function GenreBar({
           {extra}
           {onQueryChange && (
             <div className={styles.search} data-open={open}>
-              <button ref={trigger} type="button" className={styles.iconButton} aria-label="앨범 검색" aria-expanded={open} aria-controls={searchId} onClick={() => { setOpen(true); requestAnimationFrame(() => input.current?.focus()); }}>
+              <button ref={trigger} type="button" className={styles.iconButton} aria-label="Search records" aria-expanded={open} aria-controls={searchId} onClick={() => { setOpen(true); requestAnimationFrame(() => input.current?.focus()); }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="m15 15 7 7"/></svg>
               </button>
               <div className={styles.searchField} inert={!open}>
-                <input id={searchId} ref={input} type="search" value={query} onChange={e => onQueryChange(e.target.value)} onKeyDown={e => { if (e.key === "Escape") closeSearch(); }} placeholder="앨범, 아티스트 검색" aria-label="앨범명 또는 아티스트" />
-                <button type="button" className={styles.iconButton} onClick={closeSearch} aria-label="검색 닫기">×</button>
+                <input id={searchId} ref={input} type="search" value={query} onChange={e => onQueryChange(e.target.value)} onKeyDown={e => { if (e.key === "Escape") closeSearch(); }} placeholder="Search albums, artists" aria-label="Album or artist" />
+                <button type="button" className={styles.iconButton} onClick={closeSearch} aria-label="Close search">×</button>
               </div>
             </div>
           )}

@@ -22,10 +22,10 @@ export async function POST(req: Request) {
     const cover = form.get("cover");
 
     if (!slug)
-      return Response.json({ error: "slug 가 필요합니다." }, { status: 400 });
+      return Response.json({ error: "A slug is required." }, { status: 400 });
     if (!(cover instanceof File) || cover.size === 0) {
       return Response.json(
-        { error: "커버 이미지를 선택하세요." },
+        { error: "Choose a cover image." },
         { status: 400 },
       );
     }
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     if (findErr) throw new Error(findErr.message);
     if (!album)
       return Response.json(
-        { error: `'${slug}' 앨범이 없습니다.` },
+        { error: `No album with slug '${slug}'.` },
         { status: 404 },
       );
 
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       .from("albums")
       .update(image)
       .eq("id", album.id);
-    if (updErr) throw new Error(`앨범 갱신 실패: ${updErr.message}`);
+    if (updErr) throw new Error(`Couldn’t update the album: ${updErr.message}`);
 
     // 새 이미지로 바뀐 뒤에 이전 파일을 지운다
     if (album.cover_path !== image.cover_path) {
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     });
   } catch (e: any) {
     return Response.json(
-      { error: e.message ?? "알 수 없는 오류" },
+      { error: e.message ?? "Unknown error" },
       { status: 500 },
     );
   }

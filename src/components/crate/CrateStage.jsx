@@ -23,7 +23,7 @@ export default function CrateStage({children}) {
   function clearWaiting(){clearTimeout(timeout.current);awaiting.current=null;}
   function draw(){if(T.current)renderCrate(T.current.t,T.current);}
   function cleanAll(){for(const node of nodes.current.values())cleanPage(measurePage(node));sleeves.current.forEach(el=>{if(el){el.style.opacity='0';el.style.transform='';}});}
-  function focusPage(key,path){requestAnimationFrame(()=>{const node=nodes.current.get(key),head=node?.querySelector('h1,h2');if(head){head.setAttribute('tabindex','-1');head.focus({preventScroll:true});}setAnnouncement(`${labelFor(path)} 페이지`);});}
+  function focusPage(key,path){requestAnimationFrame(()=>{const node=nodes.current.get(key),head=node?.querySelector('h1,h2');if(head){head.setAttribute('tabindex','-1');head.focus({preventScroll:true});}setAnnouncement(`${labelFor(path)} page`);});}
   function flush(){const next=pending.current;pending.current=null;if(next)queueMicrotask(()=>functions.current.go(next));}
   function finish(success){
     const tr=T.current;if(!tr)return;cancelAnimationFrame(raf.current);cleanAll();T.current=null;drag.current=null;clearWaiting();

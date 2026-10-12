@@ -59,7 +59,7 @@ function UserMenu({user}){
     return()=>{window.removeEventListener('pointerdown',away);window.removeEventListener('keydown',key);};
   },[open]);
   return <div ref={box} className="relative">
-    <button type="button" onClick={()=>setOpen(v=>!v)} aria-expanded={open} aria-haspopup="menu" aria-label={`${p.name} 계정 메뉴`}
+    <button type="button" onClick={()=>setOpen(v=>!v)} aria-expanded={open} aria-haspopup="menu" aria-label={`${p.name} account menu`}
       className="grid size-9 place-items-center overflow-hidden rounded-full border border-current/25 transition-colors hover:border-current">
       {p.avatar?<img src={p.avatar} alt="" referrerPolicy="no-referrer" className="size-full object-cover"/>
         :<span className="text-[15px] font-black" style={BODONI}>{p.name.slice(0,1).toUpperCase()}</span>}
@@ -80,7 +80,7 @@ function UserMenu({user}){
 function ThemeButton({className=''}){
   const dark=useTheme()==='dark';
   return <button type="button" onClick={e=>toggleTheme(e.currentTarget)} aria-pressed={dark}
-    aria-label={dark?'밝은 크림 화면으로 바꾸기':'어두운 브라운 화면으로 바꾸기'} title={dark?'Light mode':'Dark mode'}
+    aria-label={dark?'Switch to light mode':'Switch to dark mode'} title={dark?'Light mode':'Dark mode'}
     className={`group/theme grid size-9 place-items-center rounded-full border border-current/25 transition-colors hover:border-current hover:bg-current/10 ${className}`}>
     <svg viewBox="0 0 16 16" aria-hidden="true" className={`size-4 transition-transform duration-700 ease-[cubic-bezier(.65,0,.35,1)] group-hover/theme:rotate-[25deg] ${dark?'rotate-180':''}`}>
       <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.3"/>
@@ -124,7 +124,7 @@ export default function Navbar({path}){
   // 관리자 화면은 자체 메뉴가 있어서 사이트 헤더를 숨김 (훅들 뒤에서 판단)
   if(path?.startsWith('/admin'))return null;
 
-  return <nav ref={nav} aria-label="주 메뉴" data-home={path==='/'?'true':'false'} data-ready={done?'true':'false'}
+  return <nav ref={nav} aria-label="Main" data-home={path==='/'?'true':'false'} data-ready={done?'true':'false'}
     className={`navbar ct-navbar inset-x-0 flex items-center justify-between gap-4 px-[clamp(16px,3.2vw,44px)] h-(--ct-header-h) transition-opacity duration-500 md:grid md:grid-cols-[1fr_auto_1fr]`}>
     {/* 스크롤 헤어라인 */}
     <span aria-hidden="true" className={`pointer-events-none absolute inset-x-0 bottom-0 h-px bg-current/15 transition-opacity duration-500 ${scrolled?'opacity-100':'opacity-0'}`}/>
@@ -174,7 +174,7 @@ export default function Navbar({path}){
     </div>
 
     {/* 모바일 전체 화면 메뉴 — 잉크색 슬리브가 위에서 내려옴 */}
-    <div id="site-menu" role="dialog" aria-modal="true" aria-label="메뉴" inert={!open} data-open={open}
+    <div id="site-menu" role="dialog" aria-modal="true" aria-label="Menu" inert={!open} data-open={open}
       className="fixed inset-0 z-40 flex flex-col bg-[#2a222a] px-6 pb-8 pt-6 text-[#f4e7cd] transition-[clip-path] duration-700 ease-[cubic-bezier(.76,0,.24,1)] [clip-path:inset(0_0_100%_0)] data-[open=true]:[clip-path:inset(0)] md:hidden">
       <div className="flex items-center justify-between">
         <Link href="/" onClick={()=>setOpen(false)} className="text-[24px] font-black leading-none tracking-[-.035em]" style={BODONI}>Grooves</Link>

@@ -56,7 +56,7 @@ async function upsertArtist(name: string) {
     .upsert({ slug: slugify(name), name }, { onConflict: "slug" })
     .select("id")
     .single();
-  if (error) throw new Error(`아티스트 실패 (${name}): ${error.message}`);
+  if (error) throw new Error(`Couldn’t save artist (${name}): ${error.message}`);
   return data.id as string;
 }
 
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
 
     if (!payload.slug || !payload.title || !payload.artists?.length) {
       return Response.json(
-        { error: "slug, title, artist 는 필수입니다." },
+        { error: "Slug, title and artist are required." },
         { status: 400 },
       );
     }
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
     // 요청자가 올린 커버로 등록 (request-covers 버킷에서 가져옴)
     if (!coverFile && payload.requestCoverPath) {
       const { data: blob, error: dlErr } = await supabase.storage.from("request-covers").download(String(payload.requestCoverPath));
-      if (dlErr || !blob) return Response.json({ error: "요청에 첨부된 커버를 불러오지 못했습니다. 커버를 직접 올려 주세요." }, { status: 400 });
+      if (dlErr || !blob) return Response.json({ error: "Couldn’t load the cover attached to the request. Please upload one." }, { status: 400 });
       coverFile = new File([await blob.arrayBuffer()], "request-cover", { type: blob.type || "image/jpeg" });
     }
     const hasCover = !!coverFile;
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
       .from("albums").select("id, status").eq("slug", payload.slug).maybeSingle();
     if (!hasCover && !existing) {
       return Response.json(
-        { error: "커버 이미지를 선택하세요." },
+        { error: "Choose a cover image." },
         { status: 400 },
       );
     }
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
       : Number(payload.releaseYear);
     if (!releaseYear) {
       return Response.json(
-        { error: "발매 연도가 필요합니다." },
+        { error: "Release year is required." },
         { status: 400 },
       );
     }
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
     const playlistId = toPlaylistId(payload.youtubePlaylistId);
     if (payload.youtubePlaylistId && !playlistId) {
       return Response.json(
-        { error: "YouTube 플레이리스트 링크 또는 ID를 확인해주세요." },
+        { error: "Check the YouTube playlist link or ID." },
         { status: 400 },
       );
     }
@@ -137,7 +137,7 @@ export async function POST(req: Request) {
       )
       .select("id")
       .single();
-    if (error) throw new Error(`앨범 저장 실패: ${error.message}`);
+    if (error) throw new Error(`Couldn’t save the album: ${error.message}`);
 
     const albumId = row.id as string;
 
@@ -188,7 +188,7 @@ export async function POST(req: Request) {
         };
       });
       const { error: tErr } = await supabase.from("tracks").insert(rows);
-      if (tErr) throw new Error(`트랙 저장 실패: ${tErr.message}`);
+      if (tErr) throw new Error(`Couldn’t save tracks: ${tErr.message}`);
     }
 
     return Response.json({
@@ -200,7 +200,7 @@ export async function POST(req: Request) {
     });
   } catch (e: any) {
     return Response.json(
-      { error: e.message ?? "알 수 없는 오류" },
+      { error: e.message ?? "Unknown error" },
       { status: 500 },
     );
   }

@@ -35,8 +35,8 @@ export default function AlbumTable({ albums: initial }) {
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search title, artist, slug" aria-label="앨범 검색" className={`${field} max-w-sm`} />
-        <div role="tablist" aria-label="상태" className="flex gap-1 rounded-full border border-(--ink)/15 p-1">
+        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search title, artist, slug" aria-label="Search albums" className={`${field} max-w-sm`} />
+        <div role="tablist" aria-label="Status" className="flex gap-1 rounded-full border border-(--ink)/15 p-1">
           {FILTERS.map(([key, label]) => (
             <button key={key} type="button" role="tab" aria-selected={filter === key} onClick={() => setFilter(key)}
               className="rounded-full px-3.5 py-1.5 text-[12px] tracking-[0.04em] text-(--ink)/60 aria-selected:bg-(--ink) aria-selected:text-(--cream)">{label}</button>

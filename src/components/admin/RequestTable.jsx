@@ -40,7 +40,7 @@ export default function RequestTable({ requests: initial }) {
 
   return (
     <div>
-      <div role="tablist" aria-label="상태" className="mb-6 flex w-max gap-1 rounded-full border border-(--ink)/15 p-1">
+      <div role="tablist" aria-label="Status" className="mb-6 flex w-max gap-1 rounded-full border border-(--ink)/15 p-1">
         {FILTERS.map(([key, label]) => (
           <button key={key} type="button" role="tab" aria-selected={filter === key} onClick={() => setFilter(key)}
             className="rounded-full px-3.5 py-1.5 text-[12px] tracking-[0.04em] text-(--ink)/60 aria-selected:bg-(--ink) aria-selected:text-(--cream)">

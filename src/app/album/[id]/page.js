@@ -10,7 +10,7 @@ export default async function Album({ params }) {
   const { data, error } = await supabase.from("albums")
     .select("id, slug, title, artist_names, cover_path, thumb_path, cover_color, release_year, format, label, description, youtube_playlist_id, rpm")
     .eq("slug", slug).eq("status", "published").maybeSingle();
-  if (error) throw new Error("앨범 정보를 불러오지 못했습니다.");
+  if (error) throw new Error("Couldn’t load album details.");
   if (!data) notFound();
   const { data: tracks, error: tracksError } = await supabase.from("tracks")
     .select("disc_no, side, side_position, title, duration_sec")

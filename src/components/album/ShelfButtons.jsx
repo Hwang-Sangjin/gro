@@ -7,8 +7,8 @@ import useAuthUser from "@/lib/useAuthUser";
 import { fetchAlbumKind, setAlbumKind } from "@/lib/userAlbums";
 
 const OPTIONS = [
-  { kind: "owned", on: "소장 중", off: "소장하기", icon: "disc" },
-  { kind: "wishlist", on: "위시리스트에 있음", off: "위시리스트", icon: "heart" },
+  { kind: "owned", on: "In your collection", off: "I own this", icon: "disc" },
+  { kind: "wishlist", on: "On your wishlist", off: "Add to wishlist", icon: "heart" },
 ];
 
 function Icon({ name, filled }) {
@@ -46,13 +46,13 @@ export default function ShelfButtons({ albumId, slug, ink, color }) {
     const target = prev === next ? null : next;
     setKind(target); setBusy(true); setError("");          // 먼저 화면에 반영, 실패하면 되돌림
     try { await setAlbumKind(user.id, albumId, target); }
-    catch { setKind(prev); setError("저장하지 못했어요. 잠시 후 다시 시도해 주세요."); }
+    catch { setKind(prev); setError("Couldn’t save that. Please try again in a moment."); }
     finally { setBusy(false); }
   }
 
   return (
     <div className="mt-8" style={{ "--shelf-bg": color }}>
-      <div className="flex flex-wrap gap-2.5" role="group" aria-label="내 판에 담기">
+      <div className="flex flex-wrap gap-2.5" role="group" aria-label="Add to my shelves">
         {OPTIONS.map(o => {
           const on = kind === o.kind;
           return (
@@ -66,7 +66,7 @@ export default function ShelfButtons({ albumId, slug, ink, color }) {
         })}
       </div>
       <p role="status" className="mt-2 min-h-5 text-[12px] text-[var(--album-muted)]">
-        {error || (user === null ? "로그인하면 내 컬렉션에 담을 수 있어요." : "")}
+        {error || (user === null ? "Log in to add records to your collection." : "")}
       </p>
     </div>
   );

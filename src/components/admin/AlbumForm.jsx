@@ -118,7 +118,7 @@ export default function AlbumForm({ initial = null, prefill = null, requestId = 
           <div>
             <label className={labelCls} htmlFor="f-slug">Slug (URL)</label>
             <input id="f-slug" className={`${field} font-mono`} value={form.slug} onChange={set("slug")} placeholder="jannabi-legend" required readOnly={editing}
-              title={editing ? "slug 는 주소라서 수정 중에는 바꿀 수 없어요" : undefined} />
+              title={editing ? "The slug is the page address, so it can’t change while editing" : undefined} />
           </div>
         </div>
 
@@ -179,7 +179,7 @@ export default function AlbumForm({ initial = null, prefill = null, requestId = 
         <div>
           <label className={labelCls} htmlFor="f-tracks">Tracks</label>
           <textarea id="f-tracks" className={`${field} min-h-56 font-mono text-[13px]`} value={trackText} onChange={(e) => setTrackText(e.target.value)}
-            placeholder={"A | 나의 기쁨 나의 노래 (Intro) | 1:36\nA | 투게더! | 3:42\nB | 전설 | 5:10"} />
+            placeholder={"A | Intro | 1:36\nA | Together | 3:42\nB | Legend | 5:10"} />
           <p className="mt-2 text-[12px] text-(--ink)/55">One per line: <code>side | title | time</code> (time optional). A·B → LP1, C·D → LP2.</p>
           {parsed.errors.length > 0 && <ul className="mt-2 space-y-1 text-[12px] text-[#c8553d]">{parsed.errors.map((err) => <li key={err}>{err}</li>)}</ul>}
           {parsed.rows.length > 0 && parsed.errors.length === 0 && (

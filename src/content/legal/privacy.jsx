@@ -90,7 +90,7 @@ export const PRIVACY = [
         <Table
           head={["Provider", "What they do", "Data involved"]}
           rows={[
-            ["Supabase, Inc.", "Database, sign-in and file storage", "Account details, collection, requests, uploaded covers"],
+            ["Supabase, Inc.", "Database, sign-in and file storage, on servers in Seoul, Korea", "Account details, collection, requests, uploaded covers"],
             ["Vercel, Inc.", "Hosting and delivering the website", "Server logs (IP address, browser type)"],
             ["Google LLC", "Google sign-in; the YouTube player on album pages", "Sign-in details; the YouTube player loads only after you press play"],
           ]}
@@ -101,11 +101,19 @@ export const PRIVACY = [
   },
   {
     id: "overseas",
-    title: "Storage outside Korea",
+    title: "Where it’s stored",
     body: (
       <>
-        <p>Our providers may store and process information on servers outside the Republic of Korea, such as in the United States. Your information is transferred over encrypted connections when you sign in and use the service. It is kept for the periods described above.</p>
-        <p>If you don’t want your information transferred, you can use {SITE.name} without signing in. Features that need an account (collection, requests) won’t be available.</p>
+        <p>Your account, collection, requests and uploaded covers are stored in <b>Korea</b> (Supabase, Seoul region).</p>
+        <p>A few things are processed outside Korea by the providers that deliver the site:</p>
+        <Table
+          head={["Recipient", "Country", "What and when", "Why · how long"]}
+          rows={[
+            ["Vercel, Inc.", "United States and its global network", "IP address, browser type and request time — each time you load a page, over an encrypted connection", "Delivering the site and keeping it secure · kept under Vercel’s log retention"],
+            ["Google LLC", "United States", "Email, name and profile photo — when you sign in; IP address — when you press play on a YouTube player", "Sign-in and video playback · kept under Google’s privacy policy"],
+          ]}
+        />
+        <p>If you don’t want your information to leave Korea, you can browse {SITE.name} without signing in and without playing videos. Features that need an account (collection, requests) won’t be available.</p>
       </>
     ),
   },

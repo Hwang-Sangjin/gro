@@ -306,7 +306,7 @@ export async function createHomeEngine(opts) {
   // 같은 WebGL 컨텍스트를 나눠 쓰다 잃어버리지 않게
   const canvas = document.createElement('canvas');
   canvas.className = 'absolute inset-0 block h-full w-full touch-pan-y';
-  canvas.setAttribute('aria-label', '잉크 드로잉 스타일 바이닐 3D. 판을 누르고 있으면 빨라지고, 누른 채 끌면 뒤집혀요');
+  canvas.setAttribute('aria-label', 'A 3D vinyl record drawn in ink. Press and hold to spin it faster; drag to flip it');
   (q('hs-canvas') ?? host).prepend(canvas);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -1395,7 +1395,7 @@ export async function createHomeEngine(opts) {
     spin.add(model);
   } catch (e) {
     const el = q('hs-err');
-    if (el) { el.textContent = '모델을 불러오지 못했어요: ' + e.message; el.classList.remove('hidden'); }
+    if (el) { el.textContent = 'Couldn’t load the 3D model: ' + e.message; el.classList.remove('hidden'); }
   }
 
   /* ================= 섹션별 테마 (Hero 크림 → New Vinyls 플럼) ================= */

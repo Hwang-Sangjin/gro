@@ -14,10 +14,10 @@ export async function POST(req: Request) {
   try {
     const { id, status, album_slug = null, admin_note = null } = await req.json();
     if (!id || !STATUSES.includes(status)) {
-      return Response.json({ error: "id 와 status(pending | added | declined)가 필요합니다." }, { status: 400 });
+      return Response.json({ error: "id and status (pending | added | declined) are required." }, { status: 400 });
     }
     if (status === "added" && !album_slug) {
-      return Response.json({ error: "등록한 앨범의 slug 가 필요합니다." }, { status: 400 });
+      return Response.json({ error: "The added album’s slug is required." }, { status: 400 });
     }
     const { data, error } = await serviceClient()
       .from("album_requests")
@@ -29,9 +29,9 @@ export async function POST(req: Request) {
       })
       .eq("id", id).select("id, status, album_slug, admin_note").maybeSingle();
     if (error) throw new Error(error.message);
-    if (!data) return Response.json({ error: "요청을 찾지 못했습니다." }, { status: 404 });
+    if (!data) return Response.json({ error: "Request not found." }, { status: 404 });
     return Response.json({ ok: true, ...data });
   } catch (e: any) {
-    return Response.json({ error: e.message ?? "알 수 없는 오류" }, { status: 500 });
+    return Response.json({ error: e.message ?? "Unknown error" }, { status: 500 });
   }
 }

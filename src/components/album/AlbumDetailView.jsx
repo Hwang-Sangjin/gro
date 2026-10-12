@@ -143,9 +143,9 @@ export default function AlbumDetailView({ album }) {
             <span aria-hidden="true" className="pointer-events-none absolute bottom-full left-0 w-full origin-bottom-left -skew-x-45" style={{ height: SLEEVE_DEPTH, backgroundColor: sleeve.top }} />
             <span aria-hidden="true" className="pointer-events-none absolute left-full top-0 h-full origin-top-left -skew-y-45" style={{ width: SLEEVE_DEPTH, backgroundColor: sleeve.side }} />
             <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute inset-0 flex items-center justify-center border border-current/20 text-sm">커버 이미지가 없습니다</div>
+            <div className="absolute inset-0 flex items-center justify-center border border-current/20 text-sm">No cover image</div>
             {album.thumbUrl && <img src={album.thumbUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" onError={event => { event.currentTarget.style.visibility = "hidden"; }} />}
-            {album.coverUrl && !failed && <img src={album.coverUrl} alt={`${album.title} 앨범 커버`} onLoad={() => setLoaded(true)} onError={() => setFailed(true)} className="absolute inset-0 h-full w-full object-cover" style={{ opacity: loaded ? 1 : 0 }} />}
+            {album.coverUrl && !failed && <img src={album.coverUrl} alt={`${album.title} album cover`} onLoad={() => setLoaded(true)} onError={() => setFailed(true)} className="absolute inset-0 h-full w-full object-cover" style={{ opacity: loaded ? 1 : 0 }} />}
             </div>
             </div>
           </div>
@@ -169,7 +169,7 @@ export default function AlbumDetailView({ album }) {
             className={`block h-px origin-left bg-current/25 transition-transform duration-[1200ms] ${EASE} data-[show=false]:scale-x-0 motion-reduce:transition-none`} />
           <div className="grid items-start gap-16 pt-10 md:grid-cols-[1.2fr_1fr] md:gap-20 md:pt-12">
           <div className="flex min-w-0 flex-col gap-16">
-            <section aria-label="앨범 정보">
+            <section aria-label="Album details">
               <Fade show={discReady} delay={150}>
                 <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium uppercase tracking-[.24em] text-[var(--album-muted)]">
                   {[album.format, album.releaseYear, album.label].filter(Boolean).map((item, i) => (
@@ -181,7 +181,7 @@ export default function AlbumDetailView({ album }) {
                 <Rise show={discReady} delay={220}>{album.title}</Rise>
               </h1>
               <p className="mt-4 text-[clamp(20px,2vw,28px)] font-medium tracking-[-.015em]">
-                <Rise show={discReady} delay={340}>{album.artistNames || "아티스트 정보가 없습니다"}</Rise>
+                <Rise show={discReady} delay={340}>{album.artistNames || "Unknown artist"}</Rise>
               </p>
               {album.description && <Fade show={discReady} delay={460}>
                 <p className="mt-6 max-w-xl whitespace-pre-line text-[15px] leading-7 text-[var(--album-muted)]">{album.description}</p>
@@ -191,7 +191,7 @@ export default function AlbumDetailView({ album }) {
               </Fade>
             </section>
             <Fade show={discReady} delay={520}>
-            <section aria-label="앨범 수록곡">
+            <section aria-label="Tracklist">
               <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-b border-current/25 pb-5">
                 <div className="flex items-baseline gap-4">
                   <h2 className="text-[11px] font-medium uppercase tracking-[.24em]">Tracklist</h2>
@@ -199,7 +199,7 @@ export default function AlbumDetailView({ album }) {
                     {visibleTracks.length} tracks · {duration(visibleTracks.reduce((sum, track) => sum + (track.durationSec || 0), 0))}
                   </span>}
                 </div>
-                {sides.length > 1 && <div className="flex flex-wrap gap-2" aria-label="LP 면 선택">
+                {sides.length > 1 && <div className="flex flex-wrap gap-2" aria-label="Choose a side">
                   {sides.map(side => {
                     const [disc, face] = side.split(":");
                     const multi = new Set((album.tracks || []).map(track => track.discNo)).size > 1;
@@ -220,7 +220,7 @@ export default function AlbumDetailView({ album }) {
                   <span className="min-w-0 break-words text-[clamp(17px,1.45vw,21px)] leading-snug tracking-[-.01em] transition-transform duration-300 group-hover:translate-x-1">{track.title}</span>
                   <span className="text-[13px] tabular-nums text-[var(--album-muted)]">{duration(track.durationSec)}</span>
                 </li>)}
-              </ol> : <p className="pt-5 text-[15px] text-[var(--album-muted)]">{album.tracksUnavailable ? "수록곡을 불러오지 못했어요." : "등록된 수록곡이 없습니다."}</p>}
+              </ol> : <p className="pt-5 text-[15px] text-[var(--album-muted)]">{album.tracksUnavailable ? "Couldn’t load the tracklist." : "No tracklist yet."}</p>}
             </section>
             </Fade>
           </div>

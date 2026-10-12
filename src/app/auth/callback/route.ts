@@ -25,6 +25,6 @@ export async function GET(request: Request) {
     }
   }
   // 실패: 로그인 페이지에 이유를 붙여 돌려보냄
-  const fail = searchParams.get("error_description") || searchParams.get("error") || "로그인을 완료하지 못했어요.";
+  const fail = searchParams.get("error_description") || searchParams.get("error") || "Couldn’t finish signing in.";
   return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(fail)}&next=${encodeURIComponent(next)}`);
 }

@@ -168,7 +168,7 @@ export default function HomeStage() {
           <p id="nv-album" className="sr-only" />
         </div>
         {/* 앨범을 들어 올렸을 때만: 안내 */}
-        <p id="nv-hint" className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] text-center text-xs text-[var(--hs-muted)] opacity-0">커버를 한 번 더 누르면 앨범 상세로 · 바깥을 누르거나 Esc로 닫기</p>
+        <p id="nv-hint" className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] text-center text-xs text-[var(--hs-muted)] opacity-0">Tap the cover again to open the album · tap outside or press Esc to close</p>
       </section>
 
       {/* New Vinyls: 정면 앨범 제목 — 판·앨범 위 빈 자리에 또렷하게. 엔진이 바꿔 끼우며 아래에서 올라오게 함 */}
@@ -176,7 +176,7 @@ export default function HomeStage() {
         className={`pointer-events-none absolute inset-x-[6vw] top-[31%] h-[1em] -translate-y-1/2 select-none overflow-y-clip opacity-0 sm:top-[35%] ${SERIF} text-center text-[clamp(2.5rem,5.4vw,6.25rem)] font-black uppercase leading-[0.95] tracking-[-0.02em] text-(--nv-accent,var(--hs-text))`} />
 
       {/* 03 — Genre dial: 화면 왼쪽에 반쯤 걸친 원형 다이얼. 바늘(3시)에 온 장르가 선택됨 */}
-      <div id="gd" className="pointer-events-none invisible absolute inset-0 opacity-0" role="region" aria-label="장르 다이얼">
+      <div id="gd" className="pointer-events-none invisible absolute inset-0 opacity-0" role="region" aria-label="Genre dial">
         <svg id="gd-svg" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
           <circle id="gd-hit" fill="transparent" className="pointer-events-auto touch-none" />
         </svg>
@@ -248,7 +248,7 @@ export default function HomeStage() {
             </svg>
             {/* 제목처럼 줄마다 아래에서 스르륵 */}
             <p className="mt-2 text-[clamp(1.45rem,2.8vw,3.6rem)] font-medium leading-[1.28] tracking-[-0.03em] [word-break:keep-all]">
-              {["먼지를 털고,", "바늘을 올릴 시간."].map((line, k) => (
+              {["Dust it off,", "drop the needle."].map((line, k) => (
                 <span key={line} className="block overflow-y-clip">
                   <span className={`block translate-y-full transition-[translate] duration-[1100ms] ease-[cubic-bezier(0.22,1,0.36,1)] [#news.is-in_&]:translate-y-0 ${k ? "delay-[640ms]" : "delay-[520ms]"}`}>{line}</span>
                 </span>

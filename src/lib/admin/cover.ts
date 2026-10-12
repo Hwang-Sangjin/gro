@@ -21,7 +21,7 @@ export async function processCover(
   const { width = 0, height = 0 } = await sharp(buf).metadata();
   if (Math.min(width, height) < MIN_SIZE) {
     throw new Error(
-      `커버 이미지가 너무 작습니다 (${width}×${height}). 최소 ${MIN_SIZE}px 이상이어야 합니다.`,
+      `Cover image is too small (${width}×${height}). It needs to be at least ${MIN_SIZE}px.`,
     );
   }
 
@@ -54,7 +54,7 @@ export async function processCover(
     const { error } = await supabase.storage
       .from(BUCKET)
       .upload(p, body, { contentType: "image/webp", upsert: true });
-    if (error) throw new Error(`커버 업로드 실패: ${error.message}`);
+    if (error) throw new Error(`Cover upload failed: ${error.message}`);
   }
 
   return {

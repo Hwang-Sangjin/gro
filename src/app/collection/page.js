@@ -15,8 +15,8 @@ import closeGrid from "@/components/digging/closeGrid";
 
 const SERIF = "font-['Grooves_Bodoni',Georgia,serif]";
 const TABS = [
-  { kind: "owned", name: "Owned", empty: "아직 꽂힌 판이 없어요", hint: "앨범 페이지에서 ‘소장하기’를 누르면 여기에 꽂혀요." },
-  { kind: "wishlist", name: "Wishlist", empty: "갖고 싶은 판을 담아 보세요", hint: "앨범 페이지에서 ‘위시리스트’를 누르면 여기에 모여요." },
+  { kind: "owned", name: "Owned", empty: "Your shelf is empty", hint: "Tap ‘I own this’ on any album page to shelve it here." },
+  { kind: "wishlist", name: "Wishlist", empty: "Start a wishlist", hint: "Tap ‘Add to wishlist’ on any album page to save it here." },
 ];
 
 export default function Collection() {
@@ -97,8 +97,8 @@ export default function Collection() {
 
       {user === null ? (
         <div className="mt-6 flex flex-col items-start gap-6 border-t-[3px] border-(--ink) pt-10">
-          <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>로그인하고 내 판을 모아 보세요</p>
-          <p className="text-[15px] leading-7 text-(--ink)/70">소장한 판과 갖고 싶은 판을 한자리에 꽂아 둘 수 있어요.</p>
+          <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>Log in to start your shelf</p>
+          <p className="text-[15px] leading-7 text-(--ink)/70">Keep the records you own and the ones you want, all in one place.</p>
           <Link href="/login?next=/collection" className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-[#c8553d]">
             Login
           </Link>
@@ -111,7 +111,7 @@ export default function Collection() {
               <span>{name ? `${name}’s shelf` : "My shelf"}</span>
             </div>
             <div className="py-[clamp(0.75rem,1.4vw,1.25rem)]">
-              <div ref={barRef} data-revealed={barRevealed} role="tablist" aria-label="내 판 보기"
+              <div ref={barRef} data-revealed={barRevealed} role="tablist" aria-label="My shelves"
                 className={`${styles.filterReveal} flex flex-wrap items-baseline gap-x-[clamp(0.5rem,0.9vw,1.1rem)]`}>
                 {TABS.map((t, i) => {
                   const on = view.tab === t.kind;
@@ -139,16 +139,16 @@ export default function Collection() {
 
           <div ref={wrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
           {error ? (
-            <p className={styles.empty} role="status">내 판을 불러오지 못했어요. 새로고침해 주세요.</p>
+            <p className={styles.empty} role="status">Couldn’t load your shelves. Please refresh.</p>
           ) : !shelves ? (
-            <p className={styles.status} role="status">{user ? "불러오는 중…" : ""}</p>
+            <p className={styles.status} role="status">{user ? "Loading…" : ""}</p>
           ) : items.length ? (
             <AlbumGrid key={key} role="tabpanel" albums={items} />
           ) : term && inGenre.length ? (
-            <p className={styles.empty} role="status">검색한 앨범이 없어요.</p>
+            <p className={styles.empty} role="status">No records match your search.</p>
           ) : shown.genre && inShelf.length ? (
             <div key={key} role="tabpanel" className="flex flex-col items-center px-6 py-20 text-center transition-[opacity,translate] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-3 starting:opacity-0">
-              <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>{genreName} 판은 아직 없어요</p>
+              <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>No {genreName} records yet</p>
               <button type="button" onClick={() => change({ genre: null })} className="mt-8 inline-flex min-h-12 items-center rounded-full border border-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] transition-colors hover:bg-(--ink) hover:text-(--cream)">
                 All genres
               </button>

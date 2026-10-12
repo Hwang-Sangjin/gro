@@ -34,7 +34,7 @@ export default function DiggingGrid({ initial, genreId = null, query = "", onReq
       setCursor(next.cursor);
       setHasMore(next.hasMore);
     } catch {
-      setError("앨범을 더 불러오지 못했어요.");
+      setError("Couldn’t load more records.");
     } finally {
       busyRef.current = false;
       setLoading(false);
@@ -66,7 +66,7 @@ export default function DiggingGrid({ initial, genreId = null, query = "", onReq
   if (items.length === 0) {
     return (
       <div className="page-empty">
-        <p>아직 등록된 판이 없어요.</p>
+        <p>No records in the crate yet.</p>
       </div>
     );
   }
@@ -93,10 +93,10 @@ export default function DiggingGrid({ initial, genreId = null, query = "", onReq
         className={styles.status}
         role="status"
       >
-        {loading && "불러오는 중…"}
+        {loading && "Loading…"}
         {error && (
           <button type="button" className="chip" onClick={loadMore}>
-            다시 시도
+            Try again
           </button>
         )}
       </div>

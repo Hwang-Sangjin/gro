@@ -5,7 +5,7 @@ import { THEME_BOOT } from "@/lib/themeBoot";
 
 export const metadata = {
   title: "Grooves",
-  description: "LP 컬렉터를 위한 바이닐 디깅 — 판을 찾고, 듣고, 내 컬렉션에 꽂아 두기.",
+  description: "Vinyl digging for record collectors — find records, listen, and keep your collection.",
 };
 
 export default function RootLayout({ children }) {
