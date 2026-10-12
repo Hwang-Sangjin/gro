@@ -91,7 +91,7 @@ export const PRIVACY = [
           head={["Provider", "What they do", "Data involved"]}
           rows={[
             ["Supabase, Inc.", "Database, sign-in and file storage, on servers in Seoul, Korea", "Account details, collection, requests, uploaded covers"],
-            ["Vercel, Inc.", "Hosting and delivering the website", "Server logs (IP address, browser type)"],
+            ["Vercel, Inc.", "Hosting and delivering the website, on servers in Seoul, Korea", "Server logs (IP address, browser type)"],
             ["Google LLC", "Google sign-in; the YouTube player on album pages", "Sign-in details; the YouTube player loads only after you press play"],
           ]}
         />
@@ -104,12 +104,12 @@ export const PRIVACY = [
     title: "Where it’s stored",
     body: (
       <>
-        <p>Your account, collection, requests and uploaded covers are stored in <b>Korea</b> (Supabase, Seoul region).</p>
+        <p>Your account, collection, requests and uploaded covers are stored in <b>Korea</b> (Supabase, Seoul region), and the site runs on servers in Seoul (Vercel, Seoul region).</p>
         <p>A few things are processed outside Korea by the providers that deliver the site:</p>
         <Table
           head={["Recipient", "Country", "What and when", "Why · how long"]}
           rows={[
-            ["Vercel, Inc.", "United States and its global network", "IP address, browser type and request time — each time you load a page, over an encrypted connection", "Delivering the site and keeping it secure · kept under Vercel’s log retention"],
+            ["Vercel, Inc.", "Its global delivery network (the location nearest you)", "IP address and browser type — when images, fonts and scripts are delivered, over an encrypted connection", "Delivering the site quickly · kept under Vercel’s log retention"],
             ["Google LLC", "United States", "Email, name and profile photo — when you sign in; IP address — when you press play on a YouTube player", "Sign-in and video playback · kept under Google’s privacy policy"],
           ]}
         />
