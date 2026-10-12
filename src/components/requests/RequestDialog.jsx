@@ -68,13 +68,35 @@ const RequestDialog = forwardRef(function RequestDialog(_, ref) {
     try { await submitRequest(form); setState("sent"); setForm(EMPTY); setMore(false); loadMine(); }
     catch (err) { setError(err.message); setState("form"); }
   }
-  const close = () => dialog.current?.close();
+  // 닫기: 아래로 내려가는 애니메이션이 끝난 뒤 실제로 닫음 (움직임 줄이기면 바로)
+  const close = useCallback(() => {
+    const el = dialog.current;
+    if (!el?.open || el.dataset.closing) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { el.close(); return; }
+    el.dataset.closing = "true";
+    const done = (e) => {
+      if (e && (e.target !== el || e.animationName !== "sheet-down")) return;   // 여는 애니메이션·뒤 막 이벤트는 무시
+      el.removeEventListener("animationend", done);
+      clearTimeout(fallback);
+      delete el.dataset.closing;
+      el.close();
+    };
+    const fallback = setTimeout(done, 1200);   // 애니메이션 이벤트가 안 오더라도 닫힘 (바쁜 화면에서 애니메이션을 끊지 않게 넉넉히)
+    el.addEventListener("animationend", done);
+  }, []);
+  // Esc 도 같은 애니메이션으로
+  useEffect(() => {
+    const el = dialog.current;
+    const onCancel = (e) => { e.preventDefault(); close(); };
+    el?.addEventListener("cancel", onCancel);
+    return () => el?.removeEventListener("cancel", onCancel);
+  }, [close]);
   const here = typeof window === "undefined" ? "/digging" : location.pathname + location.search;
 
   return (
     <dialog ref={dialog} data-lenis-prevent aria-labelledby="request-title"
       onClick={(e) => { if (e.target === dialog.current) close(); }}
-      className="m-auto max-h-[min(90svh,860px)] w-[min(92vw,600px)] overflow-y-auto overscroll-contain rounded-[28px] border border-(--ink)/15 bg-(--cream) p-0 text-(--ink) shadow-[0_40px_80px_-30px_rgba(30,20,28,.55)] backdrop:bg-[#2a222a]/55 backdrop:backdrop-blur-[2px] open:animate-[request-in_.45s_cubic-bezier(.22,1,.36,1)]">
+      className="m-auto max-h-[min(90svh,860px)] w-[min(92vw,600px)] overflow-y-auto overscroll-contain rounded-[28px] border border-(--ink)/15 bg-(--cream) p-0 text-(--ink) shadow-[0_40px_80px_-30px_rgba(30,20,28,.55)] backdrop:bg-[#2a222a]/55 backdrop:backdrop-blur-[2px] open:animate-[sheet-up_.7s_cubic-bezier(.22,1,.36,1)_both] open:backdrop:animate-[veil-in_.45s_ease-out_both] data-[closing=true]:animate-[sheet-down_.5s_cubic-bezier(.55,0,.75,.2)_both] data-[closing=true]:backdrop:animate-[veil-out_.5s_ease-in_both] motion-reduce:animate-none motion-reduce:backdrop:animate-none">
       <div className="relative px-7 pb-7 pt-8 sm:px-9">
         <button type="button" onClick={close} aria-label="Close" className="absolute right-5 top-5 grid size-9 place-items-center rounded-full text-[22px] leading-none text-(--ink)/60 hover:bg-(--ink)/8 hover:text-(--ink)">×</button>
         <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-(--ink)/55">Digging · Request</p>
