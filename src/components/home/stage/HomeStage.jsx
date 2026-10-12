@@ -10,17 +10,24 @@ import { coverUrl } from "@/lib/albums";
 import { HOME_GENRES, GENRE_WAVE } from "./homeGenres";
 import { NEWS_ART, NEWS_ACCENT } from "./newsArt";
 import { createHomeEngine } from "./homeEngine";
+import { STORIES, categoryName } from "@/content/news";
 
 /* Home 4개 섹션을 한 화면(100svh)에서 전환하는 스테이지.
    0 Hero → 1 New Vinyls → 2 Genre dial → 3 News
    - 마크업은 여기, 3D·섹션 전환·입력은 homeEngine.js
    - 페이지 사이 이동은 기존 Crate Flip (아래 가운데 핸들, 메뉴), 앨범 상세는 기존 커버 이동 전환 */
 
-const POSTS = [
-  { no: "01", category: "Reissues", date: "Oct 02", kicker: "재발매 소식", title: "다시 만나는 명반", art: "reissue", href: "/news/reissues" },
-  { no: "02", category: "Vinyl Care", date: "Sep 28", kicker: "바이닐 관리법", title: "오래 듣기 위한 작은 습관", art: "care", href: "/news/care" },
-  { no: "03", category: "Vinyl News", date: "Sep 21", kicker: "새로운 바이닐 소식", title: "지금, 바이닐의 새로운 이야기", art: "press", href: "/news/latest" },
-];
+// News 카드 = 최신 스토리 3편 (src/content/news)
+const KICKER = { news: "From the scene", guide: "Learn the basics", picks: "What to play" };
+const POSTS = STORIES.slice(0, 3).map((s, i) => ({
+  no: String(i + 1).padStart(2, "0"),
+  category: categoryName(s.category),
+  date: new Date(`${s.date}T12:00:00+09:00`).toLocaleDateString("en-US", { month: "short", day: "2-digit", timeZone: "Asia/Seoul" }),
+  kicker: KICKER[s.category] ?? "",
+  title: s.title,
+  art: s.homeArt,
+  href: `/news/${s.slug}`,
+}));
 const META = ["Records", "People", "Culture", "And a slower tomorrow"];
 
 const SERIF = "font-['Grooves_Bodoni',Georgia,serif]";
@@ -224,7 +231,7 @@ export default function HomeStage() {
                 </div>
               </div>
             </div>
-            <aside className={`${NEWS_IN} order-last mt-10 flex flex-col items-center justify-center lg:order-none lg:mt-0`} style={delay(5)} aria-label="지금 도는 판">
+            <aside className={`${NEWS_IN} order-last mt-10 flex flex-col items-center justify-center lg:order-none lg:mt-0`} style={delay(5)} aria-label="Now spinning">
               <div id="news-disc" className="aspect-square w-[min(15rem,62vw)] lg:w-full" aria-hidden="true" />
               <p className="mt-2 font-[Georgia,serif] text-[clamp(1.1rem,1.6vw,2rem)] italic">Beyond the grooves.</p>
               <p className="mt-1 text-[clamp(10px,0.7vw,13px)] uppercase tracking-[0.24em] text-[var(--hs-muted)]">Now spinning · 33⅓ rpm</p>

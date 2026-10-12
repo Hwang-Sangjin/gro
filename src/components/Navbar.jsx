@@ -10,6 +10,8 @@ import Link from 'next/link';
 import {useEffect,useRef,useState} from 'react';
 import {useIntro} from './intro/intro-context';
 import {NAV} from './crate/routes';
+// 현재 메뉴: 정확히 같은 주소 + 하위 주소 (/news/어떤-글 → News)
+const isCurrent=(path,href)=>path===href||(href!=='/'&&!!path?.startsWith(href+'/'));
 import {useNowSpinning} from '@/lib/nowSpinning';
 import useAuthUser,{profileOf,signOut,useIsAdmin} from '@/lib/useAuthUser';
 import {useTheme,toggleTheme} from '@/lib/theme';
@@ -132,7 +134,7 @@ export default function Navbar({path}){
 
     <ul className="hidden items-center gap-[clamp(24px,3.2vw,56px)] md:flex">
       {NAV.map((item,i)=><li key={item.href}>
-        <Link href={item.href} aria-current={path===item.href?'page':undefined}
+        <Link href={item.href} aria-current={isCurrent(path,item.href)?'page':undefined}
           className="group relative block py-2 text-[clamp(15px,1.4vw,20px)] font-medium uppercase tracking-[.14em] opacity-60 transition-opacity duration-300 hover:opacity-100 aria-[current=page]:opacity-100">
           <Rise show={shown} delay={RISE_STEP*(i+1)}>
             <span className="flex items-baseline gap-2.5"><span className="text-[.55em] tabular-nums tracking-[.08em] opacity-55">{num(i)}</span>{item.label}</span>
@@ -181,7 +183,7 @@ export default function Navbar({path}){
       </div>
       <ul className="mt-auto flex flex-col">
         {NAV.map((item,i)=><li key={item.href} className="overflow-y-clip border-b border-[#f4e7cd]/15">
-          <Link href={item.href} onClick={()=>setOpen(false)} aria-current={path===item.href?'page':undefined}
+          <Link href={item.href} onClick={()=>setOpen(false)} aria-current={isCurrent(path,item.href)?'page':undefined}
             className={`flex items-baseline gap-4 py-3 transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] ${open?'translate-y-0':'translate-y-full'}`}
             style={{transitionDelay:open?`${180+i*70}ms`:'0ms'}}>
             <span className="text-[11px] tabular-nums tracking-[.1em] opacity-50">{num(i)}</span>

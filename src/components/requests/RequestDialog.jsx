@@ -4,7 +4,7 @@
 // - 요청 폼(앨범·아티스트 필수, 링크·메모 선택) → 보내면 "Request sent"
 // - More details(선택): 장르·발매일/연도·포맷·레이블·카탈로그·YouTube·트랙·커버 → 관리자 등록 폼에 그대로 채워짐
 // - 아래에 내 요청 목록과 상태 (대기 / 등록됨 → 앨범으로 / 반려 + 이유)
-// 열기: ref.current.open({ title }) — 검색 결과가 없을 때 검색어를 앨범명으로 채워서 열 수 있음
+// 열기: ref.current.open({ title, artist, releaseYear }) — 검색 결과가 없을 때 검색어를 앨범명으로 채워서 열 수 있음
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useAuthUser from "@/lib/useAuthUser";
@@ -42,9 +42,11 @@ const RequestDialog = forwardRef(function RequestDialog(_, ref) {
   useEffect(() => { if (user) loadMine(); else setMine(null); }, [user, loadMine]);
 
   useImperativeHandle(ref, () => ({
-    open({ title = "" } = {}) {
+    open({ title = "", artist = "", releaseYear = "" } = {}) {
       setState("form"); setError("");
-      setForm((f) => ({ ...EMPTY, title: title || (state === "sent" ? "" : f.title), artist: state === "sent" ? "" : f.artist }));
+      setForm((f) => (title
+        ? { ...EMPTY, title, artist, releaseYear: String(releaseYear || "") }
+        : { ...EMPTY, title: state === "sent" ? "" : f.title, artist: state === "sent" ? "" : f.artist }));
       dialog.current?.showModal();
       requestAnimationFrame(() => first.current?.focus());
       if (user) loadMine();

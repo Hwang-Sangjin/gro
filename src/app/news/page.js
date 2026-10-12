@@ -1,31 +1,16 @@
-"use client";
-
+// /news — News & Stories (스토리는 코드로 만든 글: src/content/news)
 import PageShell from "@/components/layout/PageShell";
+import NewsIndex from "@/components/news/NewsIndex";
 
-const POSTS = [
-  { no: "01", title: "재발매 소식", date: "2026.09.12" },
-  { no: "02", title: "바이닐 관리법 — 정전기", date: "2026.09.05" },
-  { no: "03", title: "이달의 신보", date: "2026.08.28" },
-];
+export const metadata = {
+  title: "News & Stories · Grooves",
+  description: "Vinyl news, the A to Z of records, and picks for what to play next.",
+};
 
 export default function News() {
   return (
-    <PageShell>
-      <header className="page-head ct-reveal">
-        <span className="page-label">03 — News</span>
-        <h1 className="page-title">소식과 관리법</h1>
-        <p className="page-desc">신보·재발매 소식과 판을 오래 쓰는 방법.</p>
-      </header>
-
-      <ul className="page-list">
-        {POSTS.map((post) => (
-          <li className="page-row ct-reveal" key={post.no}>
-            <span className="page-label">{post.no}</span>
-            <strong>{post.title}</strong>
-            <span className="page-label">{post.date}</span>
-          </li>
-        ))}
-      </ul>
+    <PageShell className="paper-textured [&>.page-content]:gap-0 [&>.page-content]:p-0">
+      <NewsIndex />
     </PageShell>
   );
 }

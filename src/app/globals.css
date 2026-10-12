@@ -96,6 +96,12 @@ html.theme-switching::view-transition-new(root) { animation: theme-reveal .75s c
 @keyframes sheet-down { from { opacity: 1; transform: none; } 70% { opacity: 1; } to { opacity: 0; transform: translateY(min(56vh, 460px)); } }
 @keyframes veil-in  { from { opacity: 0; } to { opacity: 1; } }
 @keyframes veil-out { from { opacity: 1; } to { opacity: 0; } }
+/* News 스토리 */
+@keyframes groove-run  { to { transform: translateX(-50%); } }
+@keyframes needle-buzz { 0%, 100% { transform: translate(-50%, 0); } 25% { transform: translate(calc(-50% - 1.5px), .5px); } 75% { transform: translate(calc(-50% + 1.5px), -.5px); } }
+@keyframes signal-flow { to { stroke-dashoffset: -28; } }
+@keyframes scroll-cue  { 0% { transform: scaleY(0); transform-origin: top; } 45% { transform: scaleY(1); transform-origin: top; } 55% { transform: scaleY(1); transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+@keyframes leaf-fall   { from { transform: translate3d(0, -12vh, 0) rotate(0deg); } to { transform: translate3d(var(--drift, 8vw), 112vh, 0) rotate(var(--turn, 540deg)); } }
 @keyframes theme-reveal {
   from { clip-path: circle(0 at var(--theme-x) var(--theme-y)); }
   to { clip-path: circle(var(--theme-r) at var(--theme-x) var(--theme-y)); }
