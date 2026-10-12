@@ -262,6 +262,8 @@ export default function HomeStage() {
           <footer className={`${NEWS_IN} mt-[clamp(1.5rem,3vh,3rem)] flex min-h-11 items-center gap-4 text-[clamp(10px,0.72vw,13px)] uppercase tracking-[0.22em]`} style={delay(7)}>
             <span className="font-semibold">Grooves</span>
             <span className="h-px flex-1 bg-[var(--hs-line)]" />
+            <Link href="/privacy" className="text-[var(--hs-muted)] transition-colors hover:text-[var(--hs-text)]">Privacy</Link>
+            <Link href="/terms" className="text-[var(--hs-muted)] transition-colors hover:text-[var(--hs-text)]">Terms</Link>
             <span className="hidden font-[Georgia,serif] text-[clamp(0.875rem,1vw,1.15rem)] normal-case italic tracking-normal sm:inline">Slow down. Listen closer.</span>
           </footer>
         </div>

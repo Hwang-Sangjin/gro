@@ -68,6 +68,7 @@ function UserMenu({user}){
       className="absolute right-0 top-[calc(100%+10px)] z-50 w-56 origin-top-right rounded-2xl border border-(--ink)/15 bg-(--cream) p-2 text-(--ink) shadow-[0_18px_40px_-18px_rgba(42,34,42,.45)] transition-[opacity,scale] duration-200 data-[open=false]:pointer-events-none data-[open=false]:scale-95 data-[open=false]:opacity-0">
       <p className="truncate px-3 pb-2 pt-1.5 text-[12px] text-(--ink)/60">{p.email}</p>
       <Link role="menuitem" href="/collection" onClick={()=>setOpen(false)} className="block rounded-xl px-3 py-2.5 text-[14px] hover:bg-(--ink)/8">My collection</Link>
+      <Link role="menuitem" href="/account" onClick={()=>setOpen(false)} className="block rounded-xl px-3 py-2.5 text-[14px] hover:bg-(--ink)/8">Account</Link>
       {admin&&<Link role="menuitem" href="/admin" onClick={()=>setOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-2.5 text-[14px] hover:bg-(--ink)/8">Admin<span className="rounded-full border border-current/30 px-1.5 text-[9px] uppercase tracking-[.15em] opacity-60">Staff</span></Link>}
       <button role="menuitem" type="button" onClick={()=>{setOpen(false);signOut();}} className="block w-full rounded-xl px-3 py-2.5 text-left text-[14px] hover:bg-(--ink)/8">Log out</button>
     </div>
@@ -199,6 +200,7 @@ export default function Navbar({path}){
       <div className={`flex items-center justify-between ${spinning?'mt-5':'mt-8'}`}>
         {user?<div className="flex min-w-0 items-center gap-3">
             <Link href="/collection" onClick={()=>setOpen(false)} className="min-w-0 truncate text-[13px]">{profileOf(user).name}</Link>
+            <Link href="/account" onClick={()=>setOpen(false)} className="text-[12px] font-medium uppercase tracking-[.2em] opacity-70">Account</Link>
             {isAdmin&&<Link href="/admin" onClick={()=>setOpen(false)} className="text-[12px] font-medium uppercase tracking-[.2em] opacity-70">Admin</Link>}
             <button type="button" onClick={()=>{setOpen(false);signOut();}} className="text-[12px] font-medium uppercase tracking-[.2em] opacity-70">Log out</button>
           </div>

@@ -88,7 +88,7 @@ export default function AuthPanel() {
     : "Tap the label to drop the needle";
 
   return (
-    <PageShell className="paper-textured">
+    <PageShell className="paper-textured" footer={false}>
       <section className="flex min-h-[calc(100svh-var(--ct-header-h,106px))] w-full flex-col items-center justify-center gap-[clamp(18px,2.6vh,32px)] px-5 pb-12 pt-6 text-center font-['PP_Neue_Montreal','Helvetica_Neue',Arial,sans-serif] text-(--ink)">
         <p className="text-[11px] font-medium uppercase tracking-[0.3em] opacity-60">Login</p>
         <h1 className={`${SERIF} text-[clamp(40px,6vw,76px)] leading-[0.95]`}>
@@ -173,7 +173,8 @@ export default function AuthPanel() {
           </div>
         ) : (
           <p className="max-w-[38ch] text-[12px] leading-6 opacity-60">
-            First time here? Your shelf is set up automatically.<br />We only receive your name, email and profile photo.
+            First time here? Your shelf is set up automatically.<br />We only receive your name, email and profile photo.<br />
+            By continuing you agree to our <Link href="/terms" className="underline underline-offset-4 hover:opacity-100">Terms</Link> and <Link href="/privacy" className="underline underline-offset-4 hover:opacity-100">Privacy Policy</Link>.
           </p>
         )}
       </section>

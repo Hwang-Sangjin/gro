@@ -996,3 +996,7 @@ html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 
 /* Digging: 헤더는 본문 종이색과 같게 */
 .ct-page[data-crate-path="/digging"] { --ct-header-bg: var(--cream); }
+
+/* 공통 Footer: 페이지 여백을 뚫고 화면 끝까지 (스크롤 컨테이너가 가로 넘침을 숨김), 아래 여백은 Footer 가 대신 */
+.page > .page-content:has(> .site-footer) { padding-bottom: 0; }
+.site-footer { margin-inline: calc(50% - 50vw); flex-shrink: 0; }

@@ -5,7 +5,7 @@ export const NAV = [
   { href: '/collection', label: 'Collection', doodle: '02' },
   { href: '/news', label: 'News', doodle: '04' },
 ];
-const extra = ['/login', '/info', '/projects', '/admin/albums/new', '/admin/albums/cover'];
+const extra = ['/login', '/account', '/privacy', '/terms', '/info', '/projects', '/admin/albums/new', '/admin/albums/cover'];
 export function rank(path) {
   const index = NAV.findIndex(p => p.href === path);
   if (index >= 0) return index;
