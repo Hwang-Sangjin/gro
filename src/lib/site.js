@@ -3,7 +3,7 @@ export const SITE = {
   name: "Grooves",
   tagline: "Records, people, culture — and a slower tomorrow.",
   owner: "Hwang Sangjin",                 // 운영자 = 개인정보 보호책임자
-  email: "tkdwls5640@gmail.com",          // 문의·개인정보 요청 받는 메일
+  email: "aosdb5640@naver.com",          // 문의·개인정보 요청 받는 메일
   city: "Seoul",
   legalUpdated: "2026-10-13",             // 방침·약관 시행일
 };
