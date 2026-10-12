@@ -7,30 +7,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GENRES } from "@/lib/genres";
 import { coverUrl } from "@/lib/albums";
+import { parseTracks, FORMATS } from "@/lib/tracks";
+import { requestCoverUrl } from "@/lib/requests";
 import { field, labelCls, btnPrimary, btnGhost, card } from "./ui";
 
-const FORMATS = ["LP", "2LP", "3LP", "EP", "7inch", "box"];
 const mmss = (sec) => (sec == null ? "" : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`);
-
-// "A | 제목 | 4:32" 한 줄씩 파싱. 시간은 생략 가능.
-function parseTracks(text) {
-  const rows = [];
-  const errors = [];
-  text.split("\n").map((l) => l.trim()).filter(Boolean).forEach((line, i) => {
-    const [sideRaw, titleRaw, durRaw] = line.split("|").map((s) => s?.trim());
-    const side = (sideRaw ?? "").toUpperCase();
-    if (!/^[A-H]$/.test(side)) return errors.push(`${i + 1}번째 줄: 면(A~H)이 올바르지 않습니다`);
-    if (!titleRaw) return errors.push(`${i + 1}번째 줄: 곡 제목이 없습니다`);
-    let duration = null;
-    if (durRaw) {
-      const m = durRaw.match(/^(\d+):(\d{1,2})$/);
-      if (!m) return errors.push(`${i + 1}번째 줄: 시간은 4:32 형식으로 적어주세요`);
-      duration = Number(m[1]) * 60 + Number(m[2]);
-    }
-    rows.push({ side, title: titleRaw, duration });
-  });
-  return { rows, errors };
-}
 
 const fromAlbum = (a) => ({
   slug: a?.slug ?? "",
@@ -52,9 +33,23 @@ export default function AlbumForm({ initial = null, prefill = null, requestId = 
   const editing = !!initial;
   const router = useRouter();
   // 새 앨범인데 요청에서 넘어왔으면 제목·아티스트·slug 를 채워 둠
-  const [form, setForm] = useState(() => (initial ? fromAlbum(initial) : { ...fromAlbum(null), ...(prefill && { title: prefill.title ?? "", artists: (prefill.artists ?? []).join(", "), slug: prefill.slug ?? "" }) }));
-  const [genres, setGenres] = useState(initial?.genres ?? []);
-  const [trackText, setTrackText] = useState(() => tracksText(initial));
+  const [form, setForm] = useState(() => {
+    if (initial) return fromAlbum(initial);
+    const base = fromAlbum(null);
+    if (!prefill) return base;
+    const keep = (v, d) => (v == null || v === "" ? d : v);
+    return {
+      ...base,
+      title: keep(prefill.title, ""), artists: (prefill.artists ?? []).join(", "), slug: keep(prefill.slug, ""),
+      releaseDate: keep(prefill.releaseDate, ""), releaseYear: keep(prefill.releaseYear, ""), format: keep(prefill.format, base.format),
+      label: keep(prefill.label, ""), catalogNo: keep(prefill.catalogNo, ""), youtubePlaylistId: keep(prefill.youtubePlaylistId, ""),
+      description: keep(prefill.description, ""),
+    };
+  });
+  // 요청자가 올린 커버 (새 파일을 고르지 않으면 이걸로 등록)
+  const [requestCover, setRequestCover] = useState(prefill?.requestCoverPath ?? null);
+  const [genres, setGenres] = useState(initial?.genres ?? prefill?.genres ?? []);
+  const [trackText, setTrackText] = useState(() => (initial ? tracksText(initial) : prefill?.tracks ?? ""));
   const [cover, setCover] = useState(null);
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -87,6 +82,7 @@ export default function AlbumForm({ initial = null, prefill = null, requestId = 
         releaseYear: Number(form.releaseYear) || null,
         artists: form.artists.split(",").map((s) => s.trim()).filter(Boolean),
         genres,
+        requestCoverPath: !cover && requestCover ? requestCover : null,
         tracks: parsed.rows,
       }));
       const res = await fetch("/api/admin/albums", { method: "POST", body: fd });
@@ -109,7 +105,7 @@ export default function AlbumForm({ initial = null, prefill = null, requestId = 
     }
   }
 
-  const currentCover = initial?.thumb_path ? coverUrl(initial.thumb_path) : null;
+  const currentCover = initial?.thumb_path ? coverUrl(initial.thumb_path) : requestCover ? requestCoverUrl(requestCover) : null;
 
   return (
     <form onSubmit={submit} className="grid gap-8 lg:grid-cols-[1fr_300px]">
@@ -199,8 +195,14 @@ export default function AlbumForm({ initial = null, prefill = null, requestId = 
           <div className="relative aspect-square overflow-hidden rounded-lg bg-(--ink)/8" style={{ backgroundColor: !preview && initial?.cover_color ? initial.cover_color : undefined }}>
             {(preview || currentCover) && <img src={preview || currentCover} alt="" className="size-full object-cover" />}
           </div>
-          <input type="file" accept="image/*" onChange={(e) => setCover(e.target.files?.[0] ?? null)} required={!editing}
+          <input type="file" accept="image/*" onChange={(e) => setCover(e.target.files?.[0] ?? null)} required={!editing && !requestCover}
             className="mt-3 w-full text-[12px] file:mr-3 file:rounded-full file:border file:border-(--ink)/30 file:bg-transparent file:px-3 file:py-1.5 file:text-[12px] file:text-(--ink)" />
+          {requestCover && !cover && (
+            <p className="mt-2 flex items-center justify-between gap-2 text-[11px] text-(--ink)/60">
+              Using the cover from the request.
+              <button type="button" onClick={() => setRequestCover(null)} className="underline underline-offset-4">Don’t use</button>
+            </p>
+          )}
           <p className="mt-2 text-[11px] text-(--ink)/50">Min 500×500. The cover color is picked automatically.</p>
         </div>
 

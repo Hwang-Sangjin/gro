@@ -75,7 +75,14 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const hasCover = cover instanceof File && cover.size > 0;
+    let coverFile: File | null = cover instanceof File && cover.size > 0 ? cover : null;
+    // 요청자가 올린 커버로 등록 (request-covers 버킷에서 가져옴)
+    if (!coverFile && payload.requestCoverPath) {
+      const { data: blob, error: dlErr } = await supabase.storage.from("request-covers").download(String(payload.requestCoverPath));
+      if (dlErr || !blob) return Response.json({ error: "요청에 첨부된 커버를 불러오지 못했습니다. 커버를 직접 올려 주세요." }, { status: 400 });
+      coverFile = new File([await blob.arrayBuffer()], "request-cover", { type: blob.type || "image/jpeg" });
+    }
+    const hasCover = !!coverFile;
     const { data: existing } = await supabase
       .from("albums").select("id, status").eq("slug", payload.slug).maybeSingle();
     if (!hasCover && !existing) {
@@ -106,7 +113,7 @@ export async function POST(req: Request) {
     }
 
     // 커버를 새로 올렸을 때만 이미지 처리 (수정에서 생략하면 기존 커버·대표색 유지)
-    const image = hasCover ? await processCover(supabase, cover as File, payload.slug) : {};
+    const image = coverFile ? await processCover(supabase, coverFile, payload.slug) : {};
 
     const { data: row, error } = await supabase
       .from("albums")

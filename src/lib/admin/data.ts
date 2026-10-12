@@ -58,8 +58,16 @@ export async function pendingRequestCount() {
 export async function listRequests() {
   const { data, error } = await serviceClient()
     .from("album_requests")
-    .select("id, title, artist, link, note, status, album_slug, admin_note, created_at, profiles(email, display_name)")
+    .select(`${REQUEST_COLS}, profiles(email, display_name)`)
     .order("created_at", { ascending: false }).limit(500);
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+const REQUEST_COLS = "id, title, artist, link, note, status, album_slug, admin_note, created_at, genres, release_date, release_year, format, label, catalog_no, youtube_playlist, tracks, cover_path";
+
+// "Add album" 에서 등록 폼을 채울 요청 한 건
+export async function getRequest(id: number) {
+  const { data } = await serviceClient().from("album_requests").select(REQUEST_COLS).eq("id", id).maybeSingle();
+  return data;
 }
