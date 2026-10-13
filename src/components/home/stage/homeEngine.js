@@ -252,10 +252,9 @@ export async function createHomeEngine(opts) {
   const SCROLL = {
     heroEnd: 0.03,                         // 이 지점까지는 Hero 기능(링·헤일로·누르기·뒤집기) 그대로
     fxOutEnd: 0.12,                        // 링·헤일로가 사라지는 시점
-    dropOutEnd: 0.42,                      // 이때까지 판이 아래로 떨어져 화면 밖으로
-    dropSwap: 0.46,                        // 화면 밖에서 Hero 자세 → 착륙 자세로 바꿔 끼움
-    dropInStart: 0.5,                      // 여기부터 위에서 내려와 자리에 섬
-    albumTrigger: 0.9,                     // 착륙하면 앨범 등장 시작 (이후는 시간으로 자동 재생)
+    standEnd: 0.35,                        // 이때까지 판이 일어서서 정면(원)을 보며 맨 앞 슬리브 위로
+    spinStart: 0.35, spinEnd: 0.85,        // 이 구간에서 세로축으로 한 바퀴 (원 → 세로 1자 → 원)
+    albumTrigger: 0.4,                     // 착륙하면 앨범 등장 시작 (이후는 시간으로 자동 재생)
   };
   const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
   const easeOut = (t) => 1 - Math.pow(1 - t, 3);
@@ -981,17 +980,22 @@ export async function createHomeEngine(opts) {
   // 릴 등장·퇴장은 스크롤이 아니라 '착륙 후 시간'으로 자동 재생. 다시 위/아래로 떠나면 거꾸로 감기며 빠짐
   const AUTO = {
     total: 1.4,         // 릴이 다 들어오는 시간(초)
+    sinkAt: 0.55,       // 이 비율부터 판이 슬리브로 들어감
     titleAt: 0.5, titleDur: 0.7,
     infoAt: 0.8, infoDur: 0.6,
   };
   let albumClock = 0;   // 착륙 후 흐른 시간(초)
   // 판 자리(엔진 좌표): 릴이 들어오는 만큼 '슬리브 위' → '슬리브 안(오른쪽으로 빠져나옴)'
   const nvTarget = { x: 0, y: 0, s: 1 };
+  let nvSide = 'hero';   // 판이 슬리브 밖에서 기다리는 쪽: 'hero' = 위, 'genre' = 오른쪽
   function nvDiscTarget() {
-    const sink = easeInOut(clamp01(albumClock / AUTO.total));
-    const a = nvReel.disc.above, b = nvReel.disc.inside;
+    // 릴이 거의 다 들어온 뒤(AUTO.sinkAt~) 슬리브에 들어감. 떠날 땐 먼저 빠져나옴
+    const sink = easeInOut(seg(albumClock, AUTO.total * AUTO.sinkAt, AUTO.total));
+    const a = nvSide === 'genre' ? nvReel.disc.right : nvReel.disc.above, b = nvReel.disc.inside;
     const w = canvas.clientWidth, h = canvas.clientHeight;
-    const px = a.x + (b.x - a.x) * sink, py = a.y + (b.y - a.y) * sink, r = a.r + (b.r - a.r) * sink;
+    // 위에서 기다릴 땐 판 전체가 헤더 아래로 보이게 (슬리브 윗부분과 겹쳐도 됨: 슬리브가 앞에 그려짐)
+    const ay = nvSide === 'genre' ? a.y : Math.min(b.y, Math.max(a.y, headerTop + a.r + 16));
+    const px = a.x + (b.x - a.x) * sink, py = ay + (b.y - ay) * sink, r = a.r + (b.r - a.r) * sink;
     nvTarget.x = (px - w / 2) / ZOOM;
     nvTarget.y = (h / 2 - py) / ZOOM;
     nvTarget.s = Math.max(0.05, r / ZOOM);
@@ -1021,7 +1025,7 @@ export async function createHomeEngine(opts) {
       offsetX: (1 - enter) * REEL.enterX,
       hover: reelHoverEase,
       bg: reelBg,
-      show: albumClock > 0 && catP < 0.02 && p > SCROLL.albumTrigger - 0.1,   // 판이 떠나기 시작하면 확실히 숨김
+      show: albumClock > 0 && catP < 0.6 && p > SCROLL.albumTrigger - 0.1,    // 판이 다이얼로 가는 동안 릴은 오른쪽으로 빠짐
     });
 
     // 타이틀·정보·버튼
@@ -1947,8 +1951,34 @@ export async function createHomeEngine(opts) {
       return el;
     }));
   }
+  /* ---- 장르가 바뀌면: 지금 글자·커버가 위로 빠져 사라진 뒤(GENRE_EXIT) 새 장르가 아래에서 올라옴 ----
+     끄는 중처럼 빠르게 연달아 바뀌면 사라지는 동안 들어온 마지막 장르만 보여 줌 */
+  const GENRE_EXIT = { dur: 320, ease: 'cubic-bezier(0.55,0,0.75,0.4)' };
+  let genreExiting = false, pendingGenre = -1, genreExitTimer = 0;
+  cleanups.push(() => clearTimeout(genreExitTimer));
+  const genreParts = () => [q('gd-name-text'), q('gd-desc-text'), q('gd-link'), ...q('gd-covers').children];
   function showGenre(i) {
+    pendingGenre = i;
+    if (genreExiting) return;
     if (i === shownGenre) return;
+    // 처음이거나 다이얼이 안 보이면 바로 바꿈
+    if (shownGenre < 0 || reduceMotion || !dialRevealed) { applyGenre(i); return; }
+    genreExiting = true;
+    const out = { duration: GENRE_EXIT.dur, easing: GENRE_EXIT.ease, fill: 'forwards' };
+    q('gd-name-text').animate([{ transform: 'none' }, { transform: 'translateY(-110%)' }], out);
+    q('gd-desc-text').animate([{ transform: 'none' }, { transform: 'translateY(-105%)' }], { ...out, delay: 40 });
+    q('gd-link').animate([{ opacity: 1 }, { opacity: 0, translate: '0 -0.4em' }], out);
+    [...q('gd-covers').children].forEach((el, n) => {
+      el.animate([{ opacity: 1, translate: '0 0' }, { opacity: 0, translate: '0 -30%' }], { ...out, delay: n * 40 });
+    });
+    genreExitTimer = setTimeout(() => {
+      genreExiting = false;
+      genreParts().forEach((el) => el.getAnimations().forEach((an) => an.cancel()));
+      applyGenre(pendingGenre, true);
+    }, GENRE_EXIT.dur + 80);
+  }
+  function applyGenre(i, force = false) {
+    if (i === shownGenre && !force) return;
     shownGenre = i;
     const g = GENRES[i];
     q('gd-count-idx').textContent = `${String(i + 1).padStart(2, '0')} / ${GENRES.length}`;
@@ -2210,8 +2240,9 @@ export async function createHomeEngine(opts) {
       lockUntil = newsStart + newsDur + SECTION.cooldown;
       if (next === 2) dialIdleAt = newsStart + newsDur;
     } else if (prev === 1 && next === 2) {
-      // 앨범이 먼저 걷힌 뒤 판이 다이얼 자리로
-      const wait = reduceMotion ? 0 : albumClock / 1.8 + 0.05;   // 앨범이 걷히는 시간(속도 1.8배)만큼
+      // 판이 먼저 슬리브에서 오른쪽으로 빠져나온 뒤 왼쪽 다이얼 자리로 (릴은 그동안 오른쪽으로 빠짐)
+      nvSide = 'genre';
+      const wait = reduceMotion ? 0 : Math.max(0, albumClock - AUTO.total * AUTO.sinkAt) / 1.8 + 0.05;
       catFrom = catP; catTo = 1;
       catDur = reduceMotion ? 0 : SECTION.catDuration * Math.abs(catTo - catFrom);
       catStart = nowSec() + wait;
@@ -2219,6 +2250,7 @@ export async function createHomeEngine(opts) {
       lockUntil = catStart + catDur + SECTION.cooldown;
       dialIdleAt = catStart + catDur;      // 도착한 뒤부터 자동 넘김 대기
     } else if (prev === 2 && next === 1) {
+      nvSide = 'genre';           // 다이얼에서 오른쪽 자리로 와서 슬리브에 들어감
       catFrom = catP; catTo = 0;
       catDur = reduceMotion ? 0 : SECTION.catDuration * Math.abs(catTo - catFrom);
       catStart = nowSec();
@@ -2226,6 +2258,7 @@ export async function createHomeEngine(opts) {
       lockUntil = catStart + catDur + SECTION.cooldown;
     } else {
       // 0 ↔ 1
+      nvSide = 'hero';
       tweenFrom = scrollP; tweenTo = next;
       tweenDur = reduceMotion ? 0 : SECTION.duration * Math.abs(tweenTo - tweenFrom);
       // 위로 돌아갈 땐 앨범이 먼저 걷힌 뒤 판이 떠오르도록 잠깐 기다림
@@ -2393,26 +2426,16 @@ export async function createHomeEngine(opts) {
     //    스크롤 위치가 아니라 '섹션 전환 트윈'이 진행도를 시간에 따라 0 ↔ 1로 움직임
     updateSectionTween();
     const p = scrollP;
-    //  Hero → New Vinyls: 판이 아래로 떨어져 화면 밖으로 사라졌다가(그동안 배경색이 바뀜)
-    //  위에서 다시 내려와 릴 맨 앞 슬리브 위 자리에 섬. 되돌아갈 땐 거꾸로 (위로 빠졌다가 아래에서 올라옴)
-    //  New Vinyls 자리 = 릴 맨 앞 슬리브: 들어오기 전엔 그 위에 떠 있다가, 릴이 들어오면 슬리브에 꽂혀 오른쪽으로 빠져나온 채
+    //  Hero → New Vinyls: 기울어진 판이 일어서서 정면(원)을 보며 맨 앞 슬리브 위로 → 세로축으로 한 바퀴
+    //  → 릴이 들어오면 슬리브 안으로 쏙 (nvDiscTarget). 되돌아갈 땐 거꾸로
     const nvT = nvDiscTarget();
-    const settle = p >= SCROLL.dropSwap ? 1 : 0;                 // 화면 밖에 있을 때 Hero 자세 ↔ 착륙 자세를 바꿔 끼움
-    tumble.rotation.x = 0;
-    if (!settle) {
-      const t = seg(p, 0, SCROLL.dropOutEnd);
-      root.rotation.z = HERO_COMPOSITION.roll;
-      comp.rotation.x = HERO_COMPOSITION.tilt;
-      root.scale.setScalar(heroScale);
-      root.position.y = -(t * t * t) * (viewH / 2 + heroScale * 1.3);          // 점점 빨라지며 아래로
-    } else {
-      const t = 1 - Math.pow(1 - seg(p, SCROLL.dropInStart, 1), 3);            // 위에서 내려와 천천히 섬
-      root.rotation.z = LANDED_COMPOSITION.roll;
-      comp.rotation.x = LANDED_COMPOSITION.tilt;
-      root.scale.setScalar(nvT.s);
-      const top = viewH / 2 + nvT.s * 1.3;
-      root.position.y = top + (nvT.y - top) * t;
-    }
+    const settle = easeInOut(seg(p, 0, SCROLL.standEnd));
+    const spinT = easeInOut(seg(p, SCROLL.spinStart, SCROLL.spinEnd));
+    root.rotation.z = THREE.MathUtils.lerp(HERO_COMPOSITION.roll, LANDED_COMPOSITION.roll, settle);
+    comp.rotation.x = THREE.MathUtils.lerp(HERO_COMPOSITION.tilt, LANDED_COMPOSITION.tilt, settle);
+    root.scale.setScalar(THREE.MathUtils.lerp(heroScale, nvT.s, settle));
+    tumble.rotation.set(0, spinT * Math.PI * 2, 0);
+    root.position.y = THREE.MathUtils.lerp(0, nvT.y, settle);
     heroActive = p < SCROLL.heroEnd;
     //  New Vinyls → Genre dial: 판이 다이얼 가운데로 미끄러져 와서 정면을 보고 섬
     const catEase = easeInOut(catP);
@@ -2460,7 +2483,7 @@ export async function createHomeEngine(opts) {
     //  배경·글자·잉크 색: 판이 내려오는 동안 크림 → 플럼으로 자연스럽게
     applyTheme(easeInOut(seg(p, 0.15, 0.85)) * (1 - newsEase));   // News에서는 다시 크림
     updateReel(dt, p);
-    const vinylT = (p >= SCROLL.dropSwap ? 1 : 0) * (1 - catEase);   // 화면 밖에서 검은 판으로 바뀌어 내려옴
+    const vinylT = easeInOut(seg(p, 0.1, SCROLL.standEnd)) * (1 - catEase);   // 일어서는 동안 검은 판으로
     vinylBack.material.opacity = vinylT;
     vinylBack.visible = vinylT > 0.005;
     updateNvTint(dt, catEase);

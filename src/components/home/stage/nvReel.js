@@ -16,8 +16,9 @@ export const REEL_LAYOUT = {
   ROLL: -0.07,    // 릴 전체 기울기 (감김이 오른쪽 아래로 흐르게)
   SLOTS: 14,
   BEHIND: 2,      // 앞으로 지나간 슬리브 몇 장까지 그릴지
-  OUT: 0.42,      // 판이 슬리브에서 오른쪽으로 빠져나온 정도 (슬리브 폭 대비)
-  OUT_HOVER: 0.12,
+  OUT: 0,         // 판이 슬리브에서 오른쪽으로 빠져나온 정도 (슬리브 폭 대비). 0 = 슬리브 안에 쏙
+  OUT_HOVER: 0.3, // 맨 앞 앨범에 마우스를 올리면 이만큼 빠져나옴
+  OUT_EXIT: 1.08, // Genre로 떠날 때 판이 오른쪽으로 완전히 빠져나온 자리
   ABOVE: 0.95,    // 들어가기 전/나온 뒤 판이 떠 있는 높이 (슬리브 폭 대비)
 };
 const { CW, DEPTH, RC, STEP, LIFT, SLOTS, BEHIND } = REEL_LAYOUT;
@@ -78,6 +79,7 @@ export function createNvReel({ renderer }) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
   camera.position.set(0, 0, 12);
+  camera.updateMatrixWorld();   // 장면에 넣지 않은 카메라라 직접 갱신 (그리기 전에도 project/unproject가 맞게)
   const reel = new THREE.Group();
   reel.rotation.set(0, 0, REEL_LAYOUT.ROLL);
   scene.add(reel);
@@ -173,8 +175,8 @@ export function createNvReel({ renderer }) {
 
   // 맨 앞 슬리브 기준 판 자리 (화면 px): 슬리브에서 오른쪽으로 빠져나온 자리 / 위에 떠 있는 자리
   const localIn = new THREE.Vector3(), pa = new THREE.Vector3(), pb = new THREE.Vector3(), pr = new THREE.Vector3();
-  function slotScreen(up, f, hover, out) {
-    const outX = CW * (REEL_LAYOUT.OUT + REEL_LAYOUT.OUT_HOVER * hover);
+  function slotScreen(up, f, hover, out, outK = REEL_LAYOUT.OUT) {
+    const outX = CW * (outK + REEL_LAYOUT.OUT_HOVER * hover);
     localIn.set(outX, up, 0);           // 슬리브 두께 가운데에서 빠져나옴
     pa.copy(localIn).applyMatrix4(slots[BEHIND].pivot.matrixWorld);
     pb.copy(localIn).applyMatrix4(slots[BEHIND + 1].pivot.matrixWorld);
@@ -188,7 +190,7 @@ export function createNvReel({ renderer }) {
     return out;
   }
 
-  const disc = { inside: { x: 0, y: 0, r: 1 }, above: { x: 0, y: 0, r: 1 } };
+  const disc = { inside: { x: 0, y: 0, r: 1 }, above: { x: 0, y: 0, r: 1 }, right: { x: 0, y: 0, r: 1 } };
   let attachedK = 0, visible = false;
   const bgC = new THREE.Color();
   /**
@@ -198,7 +200,8 @@ export function createNvReel({ renderer }) {
    */
   function update({ pos, spinIn, offsetX, hover, bg, show }) {
     bgC.copy(bg);
-    const base = Math.floor(pos + spinIn);
+    // 들어올 땐 맨 앞 앨범이 오른쪽 안쪽(기다리는 자리)에서 감겨 나오고, 나갈 땐 그쪽으로 다시 감겨 들어감
+    const base = Math.floor(pos - spinIn);
     slots.forEach((it, j) => setSlot(it, base + j - BEHIND));
     // 판 자리는 릴이 "제자리에 있을 때" 기준
     reel.position.copy(reelHome);
@@ -206,10 +209,11 @@ export function createNvReel({ renderer }) {
     reel.updateMatrixWorld(true);
     const f = pos - Math.floor(pos);
     slotScreen(0, f, hover, disc.inside);
-    slotScreen(CW * REEL_LAYOUT.ABOVE, f, hover, disc.above);
+    slotScreen(CW * REEL_LAYOUT.ABOVE, f, 0, disc.above);
+    slotScreen(0, f, 0, disc.right, REEL_LAYOUT.OUT_EXIT);
     attachedK = Math.floor(pos) + (ss(0, 0.4, f) > 0.5 ? 1 : 0);
     // 실제로 그리는 자세
-    slots.forEach((it, j) => poseSlot(it, base + j - BEHIND - pos - spinIn, bgC));
+    slots.forEach((it, j) => poseSlot(it, base + j - BEHIND - pos + spinIn, bgC));
     reel.position.x = reelHome.x + offsetX;
     reel.updateMatrixWorld(true);
     visible = show && list.length > 0;
@@ -220,7 +224,7 @@ export function createNvReel({ renderer }) {
   function render(pass) {
     slots.forEach((it, j) => {
       savedVis[j] = it.pivot.visible;
-      const isFront = it.k <= attachedK;
+      const isFront = it.k <= attachedK && it.d < 1.5;   // 멀리 감겨 들어간 슬리브는 판 뒤로
       if ((pass === 'front') !== isFront) it.pivot.visible = false;
     });
     renderer.render(scene, camera);
@@ -254,7 +258,7 @@ export function createNvReel({ renderer }) {
   function resize(w, h) {
     viewW = w; viewH = h;
     narrow = w < 760;
-    camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix();
+    camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
     // 맨 앞 슬리브 자리: 넓은 화면은 가운데에서 살짝 왼쪽, 좁은 화면은 위쪽 가운데
     const v = new THREE.Vector3(narrow ? -0.12 : -0.06, narrow ? 0.24 : 0.04, 0.5).unproject(camera).sub(camera.position).normalize();
     const depth = narrow ? 15.5 : 11.6;
