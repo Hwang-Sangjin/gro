@@ -3,7 +3,8 @@
 // - 맨 아래로 내려오면: 상자(앞판에 GROOVES 도장) 뒤에서 마지막 슬리브가 올라오며 앞으로 기울어 서고,
 //   그 뒷면에 링크가 적혀 있음. 끝에 가까워지면 판이 슬리브의 반달 홈 뒤에서 위로 빠져나옴 (돌지 않음)
 // - 판은 Home·앨범과 같은 3D 잉크 판 (AlbumVinyl = vinyl.glb + inkShaders). Footer 가 화면 근처일 때만 그림
-// - "Flip to Side A": 판이 화면 가득 커지며 3D 로 뒤집히고, 그 순간 맨 위로 이동한 뒤 판이 작아지며 사라짐
+// - "Flip to Side A": Footer 의 판이 제자리에서 B → A 로 뒤집히고(라벨이 노랑으로), 판에서 종이색 원이 퍼져
+//   화면을 덮은 사이에 맨 위로(Home 은 Hero 로) 이동한 뒤 종이가 걷힘. 새 WebGL 을 만들지 않아 가벼움
 // - 진행도는 리렌더 없이 CSS 변수 --fp (0: Footer 윗변이 화면 바닥에 닿음 → 1: 페이지 끝)
 // - 움직임 줄이기: 슬리브·판은 다 올라온 상태로 고정, Flip 은 바로 맨 위로
 import { useEffect, useRef, useState } from "react";
@@ -22,7 +23,6 @@ const HEAD = "text-[11px] font-medium uppercase tracking-[0.26em] text-(--cream)
 const LINK = "group/l inline-flex items-center py-1 text-[15px] text-(--cream)/85 transition-colors hover:text-(--cream)";
 // --fp 의 a~b 구간을 0~1 로
 const seg = (a, b) => `clamp(0, (var(--fp, 1) - ${a}) / ${b - a}, 1)`;
-const EASE = [0.65, 0, 0.35, 1];
 // 슬리브 윗변 가운데 반달 홈 (손가락 걸이) — 배경색과 상관없이 뚫려 보이게 마스크로
 const NOTCH = "radial-gradient(ellipse clamp(46px, 6vw, 80px) 22px at 50% 0, transparent 97%, #000 100%)";
 
@@ -52,47 +52,29 @@ function useInk(ref) {
   return ink;
 }
 
-// 뒤집히는 판 (body 에 붙여서 페이지 변형·스크롤과 상관없이 화면 위에 뜸)
-// 화면 대각선 크기의 캔버스를 미리 만들고, 처음엔 Footer 판 크기로 줄여 그 자리에 둔 뒤 → 화면 가득 → 작아지며 사라짐
-function FlipOverlay({ from, ink, onCovered, onDone }) {
-  const wrap = useRef(null), box = useRef(null), back = useRef(null);
-  const [face, setFace] = useState(0);
-  const [label, setLabel] = useState(LABEL_B);
-  const D = Math.ceil(Math.hypot(innerWidth, innerHeight) * 1.04);
+// 판 가운데서 퍼져 화면을 덮는 종이 (body 에 붙여서 페이지 변형·스크롤과 상관없이 화면 위에 뜸)
+function PaperVeil({ at, onCovered, onDone }) {
+  const el = useRef(null);
   useEffect(() => {
-    const T = 1500, vw = innerWidth, vh = innerHeight;
-    const dx = from.x + from.width / 2 - vw / 2, dy = from.y + from.width / 2 - vh / 2, s0 = from.width / D;
-    // 구간마다 따로 감속 (전체에 easing 을 걸면 offset 이 실제 시간과 어긋나 종이 원·맨 위 이동 타이밍이 틀어짐)
-    const opts = { duration: T, easing: "linear", fill: "forwards" };
-    const ease = `cubic-bezier(${EASE})`;
-    const anims = [
-      box.current.animate([
-        { transform: `translate(${dx}px, ${dy}px) scale(${s0})`, easing: ease },
-        { transform: "translate(0, 0) scale(1) rotate(30deg)", offset: 0.42, easing: "linear" },
-        { transform: "translate(0, 0) scale(1) rotate(42deg)", offset: 0.6, easing: "cubic-bezier(.55,0,.75,.2)" },
-        { transform: "translate(0, 0) scale(0.04) rotate(200deg)" },
-      ], opts),
-      // 판 뒤 종이 원(테마의 바탕색): 화면을 덮는 동안만 (판이 옆으로 설 때는 숨김 — 둥근 판이 납작해져도 어색하지 않게)
-      back.current.animate([{ opacity: 0 }, { opacity: 0, offset: 0.34 }, { opacity: 1, offset: 0.42 }, { opacity: 1, offset: 0.62 }, { opacity: 0, offset: 0.7 }, { opacity: 0 }], opts),
-      wrap.current.animate([{ opacity: 1 }, { opacity: 1, offset: 0.88 }, { opacity: 0 }], opts),
-    ];
-    const timers = [
-      setTimeout(() => setFace(1), 40),                // 3D 로 반 바퀴 (B → A)
-      setTimeout(() => setLabel(LABEL_A), 0.3 * T),    // 옆으로 선 순간 라벨 색 바꿈
-      setTimeout(onCovered, 0.52 * T),                 // 화면을 다 덮은 순간 맨 위로
-    ];
-    anims[0].onfinish = onDone;
-    return () => { timers.forEach(clearTimeout); anims.forEach((a) => a.cancel()); };
+    const node = el.current;
+    const r = Math.hypot(Math.max(at.x, innerWidth - at.x), Math.max(at.y, innerHeight - at.y)) + 4;
+    const grow = node.animate(
+      [{ clipPath: `circle(0px at ${at.x}px ${at.y}px)` }, { clipPath: `circle(${r}px at ${at.x}px ${at.y}px)` }],
+      { duration: 520, easing: "cubic-bezier(.55,0,.75,.2)", fill: "forwards" });
+    let fade;
+    grow.onfinish = () => {
+      onCovered();
+      // 다음 프레임에 이동이 그려진 뒤 걷힘
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        fade = node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 480, easing: "ease-out", fill: "forwards" });
+        fade.onfinish = onDone;
+      }));
+    };
+    return () => { grow.cancel(); fade?.cancel(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from]);
-
+  }, []);
   return createPortal(
-    <div ref={wrap} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[9998] overflow-hidden">
-      <div ref={box} className="absolute will-change-transform" style={{ width: D, height: D, left: `calc(50% - ${D / 2}px)`, top: `calc(50% - ${D / 2}px)` }}>
-        <span ref={back} className="absolute inset-[2%] rounded-full opacity-0" style={{ backgroundColor: "var(--cream)" }} />
-        <AlbumVinyl ink={ink} label={label} rpm={33.333} playing={false} face={face} dpr={1} />
-      </div>
-    </div>,
+    <div ref={el} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[9998] bg-(--cream)" style={{ clipPath: "circle(0px at 50% 50%)" }} />,
     document.body,
   );
 }
@@ -106,7 +88,11 @@ export default function SiteFooter({ onSideA }) {
   const year = new Date(`${SITE.legalUpdated}T12:00:00+09:00`).getFullYear();
   const root = useRef(null);
   const disc = useRef(null);
-  const [flip, setFlip] = useState(null);       // { x, y, width } — 뒤집는 중
+  const [flip, setFlip] = useState(false);      // 뒤집는 중
+  const [veil, setVeil] = useState(null);       // { x, y } — 종이가 퍼지는 중심 (판 라벨 자리)
+  const [face, setFace] = useState({ side: 0, snap: true, label: LABEL_B });
+  const timers = useRef([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
   const [near, setNear] = useState(false);      // 화면 근처에 오면 3D 판을 만듦 (페이지마다 WebGL 을 미리 띄우지 않게)
   const ink = useInk(root);
 
@@ -134,13 +120,24 @@ export default function SiteFooter({ onSideA }) {
 
   const flipToA = () => {
     const scroller = scrollerOf(root.current);
-    if (!scroller) return;
+    if (!scroller || flip) return;
+    const jump = () => (onSideA ? onSideA() : scroller.scrollTo({ top: 0, behavior: "instant" }));
     const box = disc.current?.getBoundingClientRect();
-    if (!box || matchMedia("(prefers-reduced-motion: reduce)").matches) { onSideA ? onSideA() : scroller.scrollTo({ top: 0 }); return; }
-    setFlip({ x: box.left, y: box.top, width: box.width });
+    if (!box || matchMedia("(prefers-reduced-motion: reduce)").matches) { jump(); return; }
+    setFlip(true);
+    setFace({ side: 1, snap: false, label: LABEL_B });                                   // 판이 제자리에서 반 바퀴 (0.9초)
+    const later = (ms, fn) => timers.current.push(setTimeout(fn, ms));
+    later(430, () => setFace((f) => ({ ...f, label: LABEL_A })));                      // 옆으로 선 순간 라벨이 노랑으로
+    // 뒤집기가 끝날 즈음, 슬리브의 반달 홈(판이 들여다보이는 자리)에서 종이가 퍼짐
+    later(820, () => {
+      const b = disc.current.getBoundingClientRect();
+      const rise = parseFloat(getComputedStyle(root.current).getPropertyValue("--rise")) || 0.3;
+      const y = Math.min(Math.max(b.top + b.height * rise, 0), innerHeight * 0.9);
+      setVeil({ x: b.left + b.width / 2, y, jump });
+    });
   };
-  const covered = () => (onSideA ? onSideA() : scrollerOf(root.current)?.scrollTo({ top: 0, behavior: "instant" }));
-  const done = () => setFlip(null);
+  // 종이가 다 걷히면: 판을 B 면으로 조용히 되돌려 둠 (Footer 는 이미 화면 밖)
+  const veilDone = () => { setVeil(null); setFlip(false); setFace({ side: 0, snap: true, label: LABEL_B }); };
 
   return (
     <footer ref={root} style={{
@@ -163,10 +160,10 @@ export default function SiteFooter({ onSideA }) {
         <div className="relative origin-bottom will-change-transform"
           style={{ transform: `translateY(calc((1 - ${seg(0, 0.75)}) * 34%)) rotateX(calc((1 - ${seg(0, 0.75)}) * 16deg))` }}>
           {/* 반달 홈 뒤에서 위로 빠져나오는 판 — 슬리브 키에 맞춘 크기, 돌지 않음 */}
-          <div ref={disc} aria-hidden="true" data-flipping={!!flip}
-            className="absolute left-1/2 top-0 -z-10 aspect-square w-(--disc) transition-opacity duration-150 data-[flipping=true]:opacity-0"
+          <div ref={disc} aria-hidden="true" data-flipping={flip}
+            className="absolute left-1/2 top-0 -z-10 aspect-square w-(--disc)"
             style={{ translate: `-50% calc(${seg(0.45, 1)} * var(--rise) * -100%)` }}>
-            {near && <AlbumVinyl ink={ink} label={LABEL_B} rpm={33.333} playing={false} dpr={[1, 1.5]} />}
+            {near && <AlbumVinyl ink={ink} label={face.label} rpm={33.333} playing={false} face={face.side} snap={face.snap} dpr={[1, 1.5]} />}
           </div>
 
           <div style={{ WebkitMask: NOTCH, mask: NOTCH }} className="relative rounded-t-[10px] bg-(--ink) px-[clamp(20px,4vw,72px)] pb-[calc(var(--crate-h)+clamp(1.5rem,3vw,2.5rem))] pt-[clamp(2.75rem,6vw,5rem)] text-(--cream) shadow-[0_-30px_60px_-30px_rgba(0,0,0,.45)]">
@@ -204,7 +201,7 @@ export default function SiteFooter({ onSideA }) {
 
             <div className="mt-[clamp(2.5rem,6vw,4.5rem)] flex flex-wrap items-center justify-between gap-4 border-t border-(--cream)/20 pt-5 text-[11px] uppercase tracking-[0.22em] text-(--cream)/60">
               <p className="tabular-nums">© {year} {SITE.name} · {SITE.city}</p>
-              <button type="button" onClick={flipToA} disabled={!!flip}
+              <button type="button" onClick={flipToA} disabled={flip}
                 className="group/t inline-flex min-h-11 items-center gap-3 rounded-full border border-(--cream)/30 py-1 pl-5 pr-1.5 text-(--cream) transition-colors hover:border-(--cream) hover:bg-(--cream) hover:text-(--ink)">
                 Flip to Side A
                 <span aria-hidden="true" className="grid size-8 place-items-center rounded-full bg-(--cream) text-(--ink) transition-transform duration-500 [transform-style:preserve-3d] group-hover/t:[transform:rotateY(180deg)] group-hover/t:bg-(--ink) group-hover/t:text-(--cream)">
@@ -225,7 +222,7 @@ export default function SiteFooter({ onSideA }) {
         <p className="absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] uppercase tracking-[0.3em] text-(--ink)/45">Crate No. 1 · Handle with care</p>
       </div>
 
-      {flip && <FlipOverlay from={flip} ink={ink} onCovered={covered} onDone={done} />}
+      {veil && <PaperVeil at={veil} onCovered={veil.jump} onDone={veilDone} />}
     </footer>
   );
 }
