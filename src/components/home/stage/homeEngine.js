@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { createNvReel } from './nvReel';
 
 /**
  * @param {object} opts
@@ -241,26 +242,12 @@ export async function createHomeEngine(opts) {
   }
 
   /* ================= 착륙 구도 (New Vinyls 섹션) ================= */
-  // 스크롤하면 판이 따라 내려오며 한 바퀴 돌고, 거의 눕혀진 상태로 착륙
+  // 스크롤하면 판이 따라 내려오며 한 바퀴 돌고, 릴 맨 앞 슬리브 위에 정면을 보고 섬 → 릴이 들어오면 슬리브에 꽂힘
+  // 자리·크기는 매 프레임 릴(nvReel)의 맨 앞 슬리브에서 계산 (nvDiscTarget)
   const LANDED_COMPOSITION = {
-    tilt: (22 * Math.PI) / 180,   // 단축/장축 ≈ 0.37 → 넓게 누운 타원 (카메라를 조금 더 내려다보게)
-    roll: 0,
-    widthFraction: 0.56,          // 판(반지름 1) 지름이 화면 폭 기준 비율 — 화면을 채우게 크게
-    compactWidthFraction: 0.86,   // 세로 화면(모바일)에서는 폭을 더 씀
-    heightFraction: 0.42,
-    centerY: -0.26,              // 가로 화면
-    compactCenterY: -0.16,       // 세로 화면(모바일): 판이 작아 위쪽 빈자리가 크지 않게 조금 올림
-                 // 화면 높이 대비 중심 위치 (+ = 위). 위쪽은 앨범 제목(nv-big) 자리라 판은 아래로
+    tilt: Math.PI / 2,            // 판이 정면을 봄
+    roll: -0.07,                  // 릴 기울기와 같게 (nvReel REEL_LAYOUT.ROLL)
   };
-  function getLandedRecordScale(width, height) {
-    const { tilt, widthFraction, compactWidthFraction, heightFraction } = LANDED_COMPOSITION;
-    const ringR = 1.24;           // 링 바깥까지 화면에 들어오게
-    const projectedWidth = 2 * ringR;
-    const projectedHeight = 2 * ringR * Math.sin(tilt) + 0.06;
-    const portraitBlend = Math.min(1, Math.max(0, (1.25 - width / height) / 0.6));
-    const wf = widthFraction + (compactWidthFraction - widthFraction) * portraitBlend;
-    return Math.min((width * wf * ringR) / projectedWidth, (height * heightFraction) / projectedHeight);
-  }
   // 전환 타임라인 (진행도 0 = Hero, 1 = New Vinyls). 진행도는 '섹션 전환' 트윈이 시간에 따라 움직임
   const SCROLL = {
     heroEnd: 0.03,                         // 이 지점까지는 Hero 기능(링·헤일로·누르기·뒤집기) 그대로
@@ -311,6 +298,7 @@ export async function createHomeEngine(opts) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setClearColor(0x000000, 0);
+  renderer.autoClear = false;     // 루프에서 직접 지우고 여러 번 그림 (New Vinyls 릴)
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
   camera.zoom = ZOOM;
@@ -779,544 +767,280 @@ export async function createHomeEngine(opts) {
     dustGeo.attributes.aSize.needsUpdate = true;
   }
 
-  /* ================= New Vinyls: 판 위 360° 앨범 링 ================= */
-  // 배치 규칙
-  //  - 바퀴 살처럼 방사형으로 세움 (앨범 아래 모서리의 연장선 = 디스크 중심), 360° 균등
-  //  - 앞면은 모두 원주를 따라 같은 방향(반시계) → 화면 왼쪽은 뒷면, 오른쪽은 앞면이 보임
-  //  - 판(spin) 밖, comp 그룹의 albumGroup에 붙임 → 판은 계속 돌고, 앨범 링은 드래그로 돌림
-  // 커버 디자인(실제 이미지가 없거나 불러오는 동안 쓰는 임시 커버)
-  const LOOKS = ['sun', 'sunset', 'mono', 'circle', 'stripes', 'wave', 'type', 'stars', 'grid', 'dots'];
-  let ALBUM_LIST = [];
-  const ALBUM = {
-    size: 0.46,          // 정사각 앨범 한 변 (판 반지름 = 1)
-    inner: 0.46,         // 아래 모서리 안쪽 끝의 반지름 → 바깥 끝 = 0.92
-    depth: 0.0075,       // 두께 (얇은 종이 재킷)
-    dropHeight: 1.6,     // 떨어지기 시작하는 높이
-    hoverLift: 0.06,
+  /* ================= New Vinyls: 끝없는 앨범 릴 ================= */
+  // 릴(슬리브들)은 nvReel.js, 여기서는 입력·자동 넘김·색·글자
+  //  - 휠/끌기/화살표로 릴을 돌림. 한 바퀴(앨범 수)의 끝에서 더 굴리면 Genre로, 처음에서 위로 굴리면 Hero로
+  //  - 가만히 두면(REEL.idle초) REEL.every초마다 다음 앨범으로 저절로 넘어감. 마우스를 올리거나 끌면 멈춤
+  //  - 배경 = 맨 앞 앨범의 대표 색, 글자는 배경 밝기에 따라 크림/브라운
+  const nvReel = createNvReel({ renderer });
+  const REEL = {
+    wheel: 260,          // 휠 이만큼(px)에 한 장
+    ease: 0.18,          // 목표 자리로 따라가는 시간감(초)
+    idle: 3,             // 입력이 없으면 이만큼 뒤부터 자동 넘김(초)
+    every: 3.5,          // 자동 넘김 간격(초)
+    edge: 0.3,           // 한 바퀴 끝에서 더 밀리는 여유(장)
+    handoff: 0.7,        // 끝에서 이만큼 더 굴리면 다음/이전 섹션으로
+    enterSpin: 7,        // 들어오고 나갈 때 더 감기는 장 수
+    enterX: 6,           // 들어오고 나갈 때 오른쪽으로 밀려나는 거리
+    swipe: 40,           // 터치 스와이프 거리(px)
   };
-  let ALBUM_STEP = Math.PI * 2;   // 앨범 사이 각도 (앨범 수에 따라: 10장 → 36°, 7장 → 51°)
-
-  // --- 임시 커버 (실제 이미지로 교체 예정) ---
-  function coverCanvas(a, side) {
-    const c = document.createElement('canvas');
-    c.width = c.height = 512;
-    const g = c.getContext('2d');
-    const W = 512;
-    const font = (w, px, fam = '"Grooves Bodoni", Georgia, serif') => `${w} ${px}px ${fam}`;
-    if (side === 'back') {
-      // 뒷면: 트랙리스트 + 바코드
-      const dark = ['stars', 'mono', 'grid', 'wave', 'sunset'].includes(a.look);
-      g.fillStyle = dark ? '#1d1b22' : '#efe4cf'; g.fillRect(0, 0, W, W);
-      const ink = dark ? '#e9e1d3' : '#2a2430';
-      g.fillStyle = ink;
-      g.font = font('700', 26); g.fillText(a.artist.toUpperCase(), 36, 62);
-      g.font = font('400', 20); g.fillText(a.title, 36, 92);
-      g.font = "500 15px \"PP Neue Montreal\", Arial, sans-serif";
-      for (let i = 0; i < 10; i++) {
-        g.globalAlpha = 0.85;
-        g.fillText(`${i < 5 ? 'A' : 'B'}${(i % 5) + 1}`, 36, 140 + i * 26);
-        g.fillRect(76, 134 + i * 26, 120 + ((i * 53) % 140), 3);
-      }
-      g.globalAlpha = 1;
-      // 바코드
-      g.fillStyle = '#fff'; g.fillRect(360, 400, 120, 72);
-      g.fillStyle = '#111';
-      for (let x = 368, i = 0; x < 472; i++) { const w = 1 + ((i * 7) % 4); g.fillRect(x, 408, w, 50); x += w + 1 + (i % 3); }
-      return c;
-    }
-    // 앞면
-    const rnd = (n) => (Math.sin(n * 91.7 + a.title.length * 13.1) * 43758.5453) % 1;
-    switch (a.look) {
-      case 'stars': {
-        g.fillStyle = '#121218'; g.fillRect(0, 0, W, W);
-        for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(255,255,255,${0.3 + Math.abs(rnd(i)) * 0.7})`; g.fillRect(Math.abs(rnd(i * 2)) * W, Math.abs(rnd(i * 3)) * W * 0.6, 2, 2); }
-        g.fillStyle = '#0a0a0e'; g.beginPath(); g.moveTo(0, W);
-        for (let x = 0; x <= W; x += 16) g.lineTo(x, 330 + Math.sin(x * 0.04) * 26 + Math.abs(rnd(x)) * 40);
-        g.lineTo(W, W); g.fill();
-        g.fillStyle = '#f3ead8'; g.font = font('400', 40); g.fillText(a.title, 36, 470);
-        break;
-      }
-      case 'grid': {
-        g.fillStyle = '#2b2440'; g.fillRect(0, 0, W, W);
-        const cols = ['#e2725b', '#f2c14e', '#4f6d93', '#bbcbda', '#8f5f8a', '#f4e7cd'];
-        for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { g.fillStyle = cols[(x * 3 + y * 5) % cols.length]; g.fillRect(40 + x * 54, 40 + y * 54, 46, 46); }
-        g.fillStyle = '#f4e7cd'; g.fillRect(40, 452, 432, 44);
-        g.fillStyle = '#2b2440'; g.font = font('700', 28); g.fillText(a.title.toUpperCase(), 52, 484);
-        break;
-      }
-      case 'dots': {
-        g.fillStyle = '#1f4b9a'; g.fillRect(0, 0, W, W);
-        g.fillStyle = '#f2c94c';
-        for (let i = 0; i < 26; i++) { g.beginPath(); g.arc(Math.abs(rnd(i)) * W, Math.abs(rnd(i + 40)) * W, 6 + Math.abs(rnd(i + 80)) * 18, 0, Math.PI * 2); g.fill(); }
-        g.fillStyle = '#f4e7cd'; g.font = font('900', 46); g.fillText(a.title, 32, 80);
-        break;
-      }
-      case 'sun': {
-        const gr = g.createLinearGradient(0, 0, 0, W); gr.addColorStop(0, '#f08a24'); gr.addColorStop(1, '#c2361b');
-        g.fillStyle = gr; g.fillRect(0, 0, W, W);
-        g.fillStyle = '#ffd36b'; g.beginPath(); g.arc(256, 300, 120, 0, Math.PI * 2); g.fill();
-        g.fillStyle = '#7a1c12'; for (let i = 0; i < 6; i++) g.fillRect(0, 330 + i * 26, W, 10 + i * 2);
-        g.fillStyle = '#fff3dc'; g.font = font('900', 44); g.fillText(a.title.toUpperCase(), 32, 80);
-        break;
-      }
-      case 'sunset': {
-        g.fillStyle = '#b3121b'; g.fillRect(0, 0, W, W);
-        const gr = g.createRadialGradient(330, 330, 20, 330, 330, 260); gr.addColorStop(0, '#ff7a3d'); gr.addColorStop(1, 'rgba(179,18,27,0)');
-        g.fillStyle = gr; g.fillRect(0, 0, W, W);
-        g.fillStyle = '#3a0508'; g.beginPath(); g.ellipse(200, 420, 120, 70, -0.3, 0, Math.PI * 2); g.fill();
-        g.save(); g.translate(40, 60); g.rotate(0.12); g.fillStyle = '#ffe9d6'; g.font = font('900', 64); g.fillText(a.title.toUpperCase(), 0, 40); g.restore();
-        break;
-      }
-      case 'circle': {
-        g.fillStyle = '#e9dcc4'; g.fillRect(0, 0, W, W);
-        g.fillStyle = '#c4473a'; g.beginPath(); g.arc(256, 250, 150, 0, Math.PI * 2); g.fill();
-        g.strokeStyle = '#2a2430'; g.lineWidth = 6; g.beginPath(); g.arc(256, 250, 190, 0, Math.PI * 2); g.stroke();
-        g.fillStyle = '#2a2430'; g.font = font('900', 40); g.fillText(a.title.toUpperCase(), 36, 470);
-        break;
-      }
-      case 'stripes': {
-        const cols = ['#f2c14e', '#e2725b', '#4f6d93', '#3a5240', '#f4e7cd'];
-        for (let i = 0; i < 10; i++) { g.fillStyle = cols[i % cols.length]; g.fillRect(0, i * 52, W, 52); }
-        g.fillStyle = '#1d1b22'; g.fillRect(36, 36, 300, 70);
-        g.fillStyle = '#f4e7cd'; g.font = font('900', 34); g.fillText(a.title.toUpperCase(), 50, 84);
-        break;
-      }
-      case 'wave': {
-        g.fillStyle = '#0f3d4a'; g.fillRect(0, 0, W, W);
-        g.strokeStyle = '#9fd3c7'; g.lineWidth = 4;
-        for (let k = 0; k < 14; k++) { g.beginPath(); for (let x = 0; x <= W; x += 8) g.lineTo(x, 140 + k * 24 + Math.sin(x * 0.02 + k * 0.6) * 18); g.stroke(); }
-        g.fillStyle = '#f4e7cd'; g.font = font('400', 40); g.fillText(a.title, 36, 80);
-        break;
-      }
-      case 'type': {
-        g.fillStyle = '#f4e7cd'; g.fillRect(0, 0, W, W);
-        g.fillStyle = '#2a2430'; g.font = font('900', 120);
-        g.fillText('SIDE', 30, 170); g.fillStyle = '#e0602e'; g.fillText('STR', 30, 300); g.fillStyle = '#2a2430'; g.fillText('EETS', 30, 430);
-        break;
-      }
-      default: {
-        g.fillStyle = '#0d0d0d'; g.fillRect(0, 0, W, W);
-        g.strokeStyle = '#e8e8e8'; g.lineWidth = 3;
-        for (let i = 0; i < 40; i++) { g.globalAlpha = 0.15 + i / 60; g.beginPath(); g.moveTo(140 + i * 4, W); g.bezierCurveTo(200 + i * 3, 300, 330 - i * 2, 260, 300 + i * 2, 120 + i * 2); g.stroke(); }
-        g.globalAlpha = 1; g.fillStyle = '#f0f0f0'; g.font = font('400', 32); g.fillText(a.title.toUpperCase(), 36, 70);
-      }
-    }
-    g.fillStyle = 'rgba(255,255,255,0.75)'; g.font = "600 16px \"PP Neue Montreal\", Arial, sans-serif";
-    g.fillText(a.artist.toUpperCase(), 36, a.look === 'stars' ? 500 : 500);
-    return c;
+  let reelPos = 0, reelTarget = 0, reelOver = 0, reelSnapTimer = 0;
+  let reelHover = false, reelHoverFront = 0, reelHoverEase = 0;
+  let reelDrag = null;                 // { x, y, start, moved, id, mouse }
+  let reelLastInput = 0, reelLastAuto = 0, reelAutoMoved = false;
+  cleanups.push(() => clearTimeout(reelSnapTimer));
+  const reelN = () => nvReel.count;
+  const reelTouch = () => { reelLastInput = nowSec(); reelAutoMoved = false; };
+  function reelLap() { const k = Math.round(reelTarget); const lo = k - nvReel.wrap(k); return [lo, lo + reelN() - 1]; }
+  const reelReady = () => section === 1 && !tweening && !catTweening && albumClock >= AUTO.total * 0.8 && reelN() > 0;
+  function reelFlip(d) { reelTouch(); reelTarget = Math.round(reelTarget) + d; reelOver = 0; }
+  const frontK = () => Math.round(reelPos);
+  function openAlbumDetail(k) {
+    const a = nvReel.album(k);
+    if (!a) return;
+    opts.onOpenAlbum?.({ slug: a.slug, color: a.color, imageUrl: a.image, rect: nvReel.coverRect(k, canvas.getBoundingClientRect()) });
   }
-  function texFrom(canvasEl) {
-    const t = new THREE.CanvasTexture(canvasEl);
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    return t;
+  // 한 바퀴 끝에서는 조금만 더 밀리고, 더 굴리면 다음/이전 섹션으로
+  function reelWheel(d) {
+    reelTouch();
+    const [lo, hi] = reelLap();
+    reelTarget += d / REEL.wheel;
+    if (reelTarget > hi + REEL.edge) {
+      reelOver += reelTarget - (hi + REEL.edge); reelTarget = hi + REEL.edge;
+      if (reelOver > REEL.handoff) { reelOver = 0; reelTarget = hi; goSection(2); return; }
+    } else if (reelTarget < lo - REEL.edge) {
+      reelOver += (lo - REEL.edge) - reelTarget; reelTarget = lo - REEL.edge;
+      if (reelOver > REEL.handoff) { reelOver = 0; reelTarget = lo; goSection(0); return; }
+    } else reelOver = Math.max(0, reelOver - 0.05);
+    clearTimeout(reelSnapTimer);
+    reelSnapTimer = setTimeout(() => {
+      const [a, b] = reelLap();
+      reelTarget = Math.min(b, Math.max(a, Math.round(reelTarget))); reelOver = 0;
+    }, 180);
   }
-  // 뒷면: 박스 -z 면은 바깥에서 볼 때 그대로 바로 보임
-  const backTex = (a) => texFrom(coverCanvas(a, 'back'));
-  const albumGroup = new THREE.Group();
-  comp.add(albumGroup);
-  const albumGeo = new THREE.BoxGeometry(ALBUM.size, ALBUM.size, ALBUM.depth);
-  let albums = [], dropRank = [], albumMeshes = [];
-  const texLoader = new THREE.TextureLoader();
-  texLoader.setCrossOrigin('anonymous');
-  function disposeRing() {
-    for (const al of albums) {
-      albumGroup.remove(al.mesh);
-      for (const m of new Set(al.mats)) { m.map?.dispose(); m.dispose(); }
-    }
-    albums = []; dropRank = []; albumMeshes = [];
-  }
-  // New Vinyls 링을 (다시) 만듦. list = [{ slug, title, artist, image, color }]
-  function buildRing(list) {
-    disposeRing();
-    ALBUM_LIST = list.map((a, i) => ({ ...a, look: LOOKS[i % LOOKS.length] }));
-    ALBUM_STEP = (Math.PI * 2) / Math.max(1, ALBUM_LIST.length);
-    RING_OFFSET = ALBUM_STEP / 2;
-    ringAngle = RING_OFFSET; ringVel = 0; ringTurn = null;
-    focusIndex = -1; focusWant = false; focusT = 0; hoverAlbum = -1; featured = 0;
-    albums = ALBUM_LIST.map((a, i) => {
-      // 앨범마다 재질을 따로 둠 (포커스 때 나머지 앨범만 흐리게 하려고)
-      const edge = new THREE.MeshBasicMaterial({ color: new THREE.Color('#d9b98a'), toneMapped: false });   // 종이 재킷 윗면
-      const edgeDark = new THREE.MeshBasicMaterial({ color: new THREE.Color('#8a6a45'), toneMapped: false });
-      const mats = [
-        edgeDark, edgeDark,                // +x(바깥 모서리), -x(안쪽 모서리)
-        edge, edgeDark,                    // +y(위), -y(아래)
-        new THREE.MeshBasicMaterial({ map: texFrom(coverCanvas(a, 'front')), toneMapped: false }),   // +z 앞면 (실제 커버는 아래에서 불러와 교체)
-        new THREE.MeshBasicMaterial({ map: backTex(a), toneMapped: false }),                         // -z 뒷면
-      ];
-      const mesh = new THREE.Mesh(albumGeo, mats);
-      mesh.renderOrder = 2;
-      // 방사형 각도: i = 0이 정면(+z, 90°), i가 늘수록 화면 오른쪽(시계 방향)으로
-      const phi = Math.PI / 2 - i * ALBUM_STEP;
-      const radial = new THREE.Vector3(Math.cos(phi), 0, Math.sin(phi));
-      const tangent = new THREE.Vector3(-Math.sin(phi), 0, Math.cos(phi));   // 반시계 진행 방향 = 앞면 방향
-      const basis = new THREE.Matrix4().makeBasis(radial, new THREE.Vector3(0, 1, 0), tangent);
-      const restQuat = new THREE.Quaternion().setFromRotationMatrix(basis);
-      mesh.quaternion.copy(restQuat);
-      const rMid = ALBUM.inner + ALBUM.size / 2;
-      const rest = new THREE.Vector3(radial.x * rMid, ALBUM.size / 2 + 0.002, radial.z * rMid);
-      mesh.position.copy(rest);
-      mesh.visible = false;
-      albumGroup.add(mesh);
-      return { mesh, mats, rest, restQuat, phi, base: mats.map((m) => m.color.clone()), data: a, t: 0, lift: 0, opacity: 1 };
-    });
-    // 등장 순서: 정면부터 양옆으로 번갈아 퍼지며 떨어짐
-    dropRank = albums.map((_, i) => i)
-      .sort((a, b) => Math.min(a, albums.length - a) - Math.min(b, albums.length - b) || a - b)
-      .reduce((rank, idx, order) => { rank[idx] = order; return rank; }, []);
-    albumMeshes = albums.map((a) => a.mesh);
-    // 실제 커버 이미지: 불러오면 임시 커버를 교체
-    albums.forEach((al) => {
-      if (!al.data.image) return;
-      texLoader.load(al.data.image, (tex) => {
-        if (disposed || !albums.includes(al)) { tex.dispose(); return; }
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        const front = al.mats[4];
-        front.map?.dispose();
-        front.map = tex; front.needsUpdate = true;
-      }, undefined, () => {});
-    });
-    if (albums.length) setCaption(0);
-    else { q('nv-artist').textContent = ''; q('nv-album').textContent = ''; }
+  // 아래(다음)로: 한 바퀴의 마지막이면 Genre로 / 위(이전)로: 처음이면 Hero로
+  function reelStepOrLeave(dir) {
+    const i = nvReel.wrap(Math.round(reelTarget));
+    if (dir > 0 && i >= reelN() - 1) goSection(2);
+    else if (dir < 0 && i <= 0) goSection(0);
+    else reelFlip(dir);
   }
 
-  let hoverAlbum = -1;
-  let featured = 0;          // 캡션에 보여줄 앨범 (정면에 온 앨범)
-  function setCaption(i) {
-    if (!albums[i]) return;
-    q('nv-artist').textContent = albums[i].data.artist;
-    q('nv-album').textContent = albums[i].data.title;
-    setBigTitle(albums[i].data.title);
-  }
+  // 끌기(마우스) · 누르기(맨 앞 슬리브/판 = 앨범 열기, 다른 슬리브 = 그 앨범으로)
+  on(canvas, 'pointerdown', (e) => {
+    if (!reelReady() || e.button !== 0) return;
+    reelTouch();
+    reelDrag = { x: e.clientX, y: e.clientY, start: reelTarget, moved: false, id: e.pointerId, mouse: e.pointerType !== 'touch' };
+    if (reelDrag.mouse) canvas.setPointerCapture(e.pointerId);
+  });
+  on(canvas, 'pointermove', (e) => {
+    if (!reelDrag || e.pointerId !== reelDrag.id) return;
+    const dx = reelDrag.x - e.clientX, dy = reelDrag.y - e.clientY;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) reelDrag.moved = true;
+    // 터치는 끝난 뒤 스와이프로 처리 (touchend)
+    if (reelDrag.mouse && reelDrag.moved && reelReady()) { reelTouch(); reelTarget = reelDrag.start + (dx + dy) / 150; }
+  });
+  const endReelDrag = (e) => {
+    if (!reelDrag || e.pointerId !== reelDrag.id) return;
+    const d = reelDrag;
+    reelDrag = null;
+    if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+    if (e.type === 'pointercancel') return;
+    if (d.moved) { if (d.mouse) { const [a, b] = reelLap(); reelTarget = Math.min(b, Math.max(a, Math.round(reelTarget))); } return; }
+    if (!reelReady()) return;
+    const k = nvReel.pick(e.clientX, e.clientY, canvas.getBoundingClientRect());
+    if (k === null ? hitsDisc(e) : k === frontK()) openAlbumDetail(frontK());
+    else if (k !== null) { reelTouch(); reelTarget = k; }
+  };
+  on(canvas, 'pointerup', endReelDrag);
+  on(canvas, 'pointercancel', endReelDrag);
+  // 마우스를 올리면 자동 넘김을 멈추고, 맨 앞 앨범 위면 판이 조금 더 빠져나옴
+  on(window, 'pointermove', (e) => {
+    if (!reelReady() || reelDrag || e.pointerType !== 'mouse' || e.target !== canvas) { reelHover = false; reelHoverFront = 0; return; }
+    const k = nvReel.pick(e.clientX, e.clientY, canvas.getBoundingClientRect());
+    const onDisc = k === null && hitsDisc(e);
+    reelHover = k !== null || onDisc;
+    reelHoverFront = onDisc || (k !== null && k === frontK()) ? 1 : 0;
+    if (reelHover) reelTouch();
+  });
+  // 화면의 버튼들
+  on(q('nv-prev'), 'click', () => reelFlip(-1));
+  on(q('nv-next'), 'click', () => reelFlip(1));
+  on(q('nv-open'), 'click', () => { if (section === 1) openAlbumDetail(frontK()); });
+  on(q('nv-skip'), 'click', (e) => { e.preventDefault(); if (section === 1) goSection(2); });
+  on(q('new-vinyls'), 'pointerover', (e) => { if (e.target instanceof Element && e.target.closest('a, button')) reelTouch(); });
 
-  /* ---- 앨범 제목(판 위): 정면 앨범이 바뀌면 이전 제목은 위로, 새 제목은 아래에서 올라옴 ---- */
-  // (함수 선언만 사용: 앨범을 불러오는 시점과 상관없이 안전하게 호출되도록 상태는 DOM에 둠)
+  /* ---- 글자: 앨범이 바뀌면 이전 제목은 넘기는 방향으로 빠지고 새 제목이 들어옴 ---- */
   function cleanTitle(t) { return (t || '').replace(/\s*[([].*[)\]]\s*$/, '').trim() || t || ''; }
-  function fitBig(el) {
-    // 한 줄에 들어가게: 넘치면 글자 크기만 줄임 (부모 글자 크기가 상한)
-    const box = q('nv-big');
-    if (!box) return;
+  const hasKo = (s) => /[가-힣]/.test(s || '');
+  function fitTitle(el) {
+    const box = q('nv-ttl');
+    if (!box || !el) return;
     el.style.fontSize = '';
     const max = box.clientWidth;
-    if (max > 0 && el.scrollWidth > max) el.style.fontSize = `${Math.max(35, (max / el.scrollWidth) * 100).toFixed(1)}%`;
+    if (max > 0 && el.scrollWidth > max) el.style.fontSize = `${Math.max(50, (max / el.scrollWidth) * 100).toFixed(1)}%`;
   }
-  function setBigTitle(raw) {
-    const text = cleanTitle(raw);
-    const box = q('nv-big');
-    if (!box || box.dataset.text === text) return;
-    box.dataset.text = text;
+  function swapTitle(text, dir) {
+    const box = q('nv-ttl');
+    if (!box) return;
+    const slide = reduceMotion ? '' : 'transition-transform duration-[800ms] ease-[cubic-bezier(.22,1,.36,1)]';
     [...box.children].forEach((old) => {
-      old.style.transform = 'translateY(-110%)';
-      setTimeout(() => old.remove(), 1000);
+      old.style.transform = `translateY(${dir > 0 ? -110 : 110}%)`;
+      setTimeout(() => old.remove(), 850);
     });
     const el = document.createElement('span');
-    el.className = 'absolute inset-x-0 bottom-0 block whitespace-nowrap transition-transform duration-[1000ms] ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none';
+    el.className = `absolute inset-x-0 bottom-0 block whitespace-nowrap ${slide} ${hasKo(text) ? "font-['Gowun_Batang',serif]" : ''}`;
     el.textContent = text;
-    el.style.transform = 'translateY(110%)';
+    el.style.transform = box.children.length ? `translateY(${dir > 0 ? 110 : -110}%)` : 'none';
     box.appendChild(el);
-    fitBig(el);
-    requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transform = 'translateY(0)'; }));
+    fitTitle(el);
+    requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transform = 'none'; }));
+  }
+  let shownK = null;
+  function updateReelText() {
+    if (!reelN()) return;
+    const k = frontK(), i = nvReel.wrap(k);
+    if (k !== shownK) {
+      const a = nvReel.album(k), dir = shownK === null || k >= shownK ? 1 : -1;
+      shownK = k;
+      swapTitle(cleanTitle(a.title), dir);
+      q('nv-artist').textContent = a.artist || '';
+      q('nv-album').textContent = `${a.title} — ${a.artist || ''}`;
+      q('nv-idx').textContent = String(i + 1).padStart(2, '0');
+      q('nv-tot').textContent = String(reelN()).padStart(2, '0');
+      const $meta = q('nv-meta');
+      $meta.textContent = a.arrived ? `Arrived ${a.arrived}` : '';
+    }
+    q('nv-caught').dataset.on = String(section === 1 && reelReady() && i === reelN() - 1 && !reelAutoMoved);
   }
 
-  /* ---- 정면 앨범 색으로 섹션 물들이기 (배경 = --ink, 판 라벨) ---- */
+  /* ---- 배경 = 맨 앞 앨범의 대표 색 · 글자는 밝기에 따라 ---- */
   const NV_TINT = {
-    amount: 0.5,        // 잉크(#4c404a)에 앨범 색을 섞는 최대 비율
-    minContrast: 5,     // 크림 글자와의 최소 대비 (본문 AA 4.5 이상 유지, 낮아지면 덜 섞음)
-    tau: 0.8,           // 색이 따라가는 시간감(초)
+    tau: 0.35,          // 색이 따라가는 시간감(초)
     label: 0.85,        // 판 라벨이 앨범 색으로 바뀌는 정도
+    groove: 0.4,        // 판의 홈이 크림 쪽으로 밝아지는 정도 (검은 판 위)
   };
-  // 섹션 바탕(--ink 자리)과 글자색. 다크 모드면 맞바뀜 (바탕 크림, 글자 브라운)
-  const NV_INK = new THREE.Vector3(), NV_CREAM = new THREE.Vector3();
+  const C_INK = '#4c404a', C_CREAM = '#f4e7cd';
+  const nvBase = new THREE.Color(), nvBgCur = new THREE.Color(), nvBgGoal = new THREE.Color(), nvAlbumC = new THREE.Color();
+  const blackC = new THREE.Color('#000000'), whiteC = new THREE.Color('#ffffff');
   let nvBaseHex = '';
-  const setNvBase = () => {
-    NV_INK.copy(hexToVec3(siteDark ? '#f4e7cd' : '#4c404a'));
-    NV_CREAM.copy(hexToVec3(siteDark ? '#4c404a' : '#f4e7cd'));
-    nvBaseHex = siteDark ? '#f4e7cd' : '#4c404a';
-  };
+  const setNvBase = () => { nvBaseHex = siteDark ? C_CREAM : C_INK; nvBase.set(nvBaseHex); nvBgCur.copy(nvBase); };
   setNvBase();
-  const nvTintCur = NV_INK.clone(), nvTintGoal = new THREE.Vector3(), nvAlbumCol = new THREE.Vector3();
-  const nvLabelCur = new THREE.Vector3(), nvTmp = new THREE.Vector3();
-  let nvTintHex = '', nvLabelTouched = false, nvLabelInit = false;
-  const nvAccent = new THREE.Vector3();
-  let nvAccentHex = '';
-  const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-  const lumOf = (v) => 0.2126 * lin(v.x) + 0.7152 * lin(v.y) + 0.0722 * lin(v.z);
-  const contrastOf = (a, b) => { const x = lumOf(a), y = lumOf(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
-  const vecHex = (v) => '#' + [v.x, v.y, v.z].map((c) => Math.round(clamp01(c) * 255).toString(16).padStart(2, '0')).join('');
-  function tintFor(hex, out) {
-    nvAlbumCol.copy(hexToVec3(hex || '#4c404a'));
-    for (let k = NV_TINT.amount; k > 0.01; k -= 0.04) {
-      out.copy(NV_INK).lerp(nvAlbumCol, k);
-      if (contrastOf(out, NV_CREAM) >= NV_TINT.minContrast) return out;
-    }
-    return out.copy(NV_INK);
+  const lumHex = (h) => { const n = parseInt(h.replace('#', '').slice(0, 6), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; };
+  // 너무 밝거나 어두운 색은 살짝 눌러 줌
+  function albumBg(hex, out) {
+    const h = /^#[0-9a-f]{6}/i.test(hex || '') ? hex : '#4c404a';
+    const l = lumHex(h);
+    out.set(h);
+    if (l > 0.7) out.lerp(blackC, 0.12); else if (l < 0.15) out.lerp(whiteC, 0.08);
+    return out;
   }
+  const textOn = (c) => (0.299 * c.r + 0.587 * c.g + 0.114 * c.b > 0.58 ? C_INK : C_CREAM);
+  let nvTouched = false, nvBgHex = '', nvFgHex = '';
+  const nvLabelCur = new THREE.Vector3(), nvLabelGoal = new THREE.Vector3(), creamVec = hexToVec3(C_CREAM);
+  let nvLabelTouched = false, nvLabelInit = false;
   function updateNvTint(dt, catEase) {
-    // 앨범이 보이는 정도(착륙 후 시간) × 다이얼로 넘어가지 않은 정도
     const vis = clamp01(albumClock / AUTO.total) * (1 - catEase);
-    const al = albums[featured];
-    if (al && vis > 0) tintFor(al.data.color, nvTmp); else nvTmp.copy(NV_INK);
-    nvTintGoal.copy(NV_INK).lerp(nvTmp, vis);
-    nvTintCur.lerp(nvTintGoal, 1 - Math.exp(-dt / NV_TINT.tau));
-    const hex = vecHex(nvTintCur);
-    if (hex !== nvTintHex) {
-      nvTintHex = hex;
-      const page = host.closest('.ct-page');
-      if (hex === nvBaseHex) page?.style.removeProperty('--ink'); else page?.style.setProperty('--ink', hex);
-    }
-    // 판 라벨: 다이얼이 아닐 때만 (다이얼은 장르 색을 따로 칠함)
-    if (catEase < 0.01 && al && vis > 0.001) {
-      if (!nvLabelInit) { nvLabelCur.copy(hexToVec3(al.data.color || '#4d5f74')); nvLabelInit = true; }
-      nvLabelCur.lerp(nvAlbumCol.copy(hexToVec3(al.data.color || '#4d5f74')), 1 - Math.exp(-dt / NV_TINT.tau));
-      uniforms.uLabel.value.copy(heroLabel3).lerp(baseLabel, themeT).lerp(nvLabelCur, NV_TINT.label * vis);
-      nvLabelTouched = true;
-      // 앨범 제목·아티스트 글자색 = 앨범 대표색. 배경과 대비(4.5:1)가 모자라면 크림 쪽으로 밝힘
-      for (let k = 0; k <= 1.001; k += 0.05) {
-        nvAccent.copy(nvLabelCur).lerp(NV_CREAM, k);
-        if (contrastOf(nvAccent, nvTintCur) >= 4.5) break;
+    const fa = reelN() ? nvReel.album(frontK()) : null;
+    nvBgGoal.copy(nvBase);
+    if (fa && vis > 0) nvBgGoal.lerp(albumBg(fa.color, nvAlbumC), vis);
+    nvBgCur.lerp(nvBgGoal, reduceMotion ? 1 : 1 - Math.exp(-dt / NV_TINT.tau));
+    const page = host.closest('.ct-page');
+    const settled = vis <= 0.001 && Math.abs(nvBgCur.r - nvBase.r) + Math.abs(nvBgCur.g - nvBase.g) + Math.abs(nvBgCur.b - nvBase.b) < 0.004;
+    if (!settled) {
+      nvTouched = true;
+      const bg = '#' + nvBgCur.getHexString(), fg = textOn(nvBgCur);
+      if (bg !== nvBgHex || fg !== nvFgHex) {
+        nvBgHex = bg; nvFgHex = fg;
+        // 페이지 바탕(= --ink, 내비게이션 글자 = --cream)과 스테이지 글자색
+        page?.style.setProperty('--ink', bg);
+        page?.style.setProperty('--cream', fg);
+        host.style.setProperty('--hs-paper', bg);
+        host.style.setProperty('--hs-text', fg);
+        host.style.setProperty('--hs-muted', `color-mix(in srgb, ${fg} 64%, ${bg})`);
+        host.style.setProperty('--hs-line', `color-mix(in srgb, ${fg} 30%, transparent)`);
       }
-      const ah = vecHex(nvAccent);
-      if (ah !== nvAccentHex) { nvAccentHex = ah; host.style.setProperty('--nv-accent', ah); }
+    } else if (nvTouched) {
+      nvTouched = false; nvBgHex = nvFgHex = ''; nvBgCur.copy(nvBase);
+      page?.style.removeProperty('--ink'); page?.style.removeProperty('--cream');
+      const t = Math.max(0, themeT); themeT = -1; applyTheme(t);    // 섹션 테마 색으로 되돌림
+    }
+    // 판: 검은 바이닐 위 크림 홈, 라벨은 앨범 색 (다이얼에서는 장르 색을 따로 칠함)
+    if (catEase < 0.01 && fa && vis > 0.001) {
+      nvLabelGoal.copy(hexToVec3(/^#[0-9a-f]{6}/i.test(fa.color || '') ? fa.color : '#4d5f74'));
+      if (!nvLabelInit) { nvLabelCur.copy(nvLabelGoal); nvLabelInit = true; }
+      nvLabelCur.lerp(nvLabelGoal, 1 - Math.exp(-dt / NV_TINT.tau));
+      uniforms.uLabel.value.copy(heroLabel3).lerp(baseLabel, themeT).lerp(nvLabelCur, NV_TINT.label * vis);
+      uniforms.uInk.value.copy(heroInk3).lerp(baseInk, themeT).lerp(creamVec, NV_TINT.groove * vis);
+      nvLabelTouched = true;
     } else if (nvLabelTouched && catEase < 0.01) {
       nvLabelTouched = false; nvLabelInit = false; applyColors();
     }
   }
 
-  /* ---- 링 회전 (드래그 · 관성 · 스냅) ---- */
-  const RING = {
-    dragK: 2.6,          // 화면 폭만큼 끌면 몇 라디안 도는지
-    friction: 0.35,      // 관성 감쇠 시간(초)
-    snapTau: 0.2,        // 가장 가까운 앨범으로 붙는 속도
-    focusTurn: 0.75,     // 클릭한 앨범을 정면으로 돌리는 시간(초)
-  };
-  // 기본 자세: 앨범 사이(반 칸)가 정면 → 정면 양옆 두 장이 비스듬히 서서 커버가 살짝 보임
-  let RING_OFFSET = ALBUM_STEP / 2;
-  let ringAngle = RING_OFFSET, ringVel = 0;
-  let ringDragging = false, ringPointer = null, ringLastX = 0, ringDownX = 0, ringDownY = 0, ringDownT = 0, ringMoved = false;
-  let ringTurn = null;   // { from, to, start } 클릭 포커스 회전 트윈
-
-  /* ---- 포커스 (클릭한 앨범이 정면으로 와서 들려 올라오며 확대) ---- */
-  const FOCUS = {
-    pos: new THREE.Vector3(0, 0.3, 0.62),    // comp 좌표: 판 앞쪽 위 (앞 앨범들보다 카메라 쪽)
-    scale: 1.6,
-    dur: 0.8,
-    dim: 0.72,           // 나머지 앨범 흐림 정도
-  };
-  let focusIndex = -1;
-  let focusT = 0;        // 0 = 링에 서 있음, 1 = 들려서 정면
-  let focusWant = false; // 회전이 끝나면 들어 올림
-  const focusQuatComp = (() => {
-    // 착륙 구도에서 카메라를 정면으로 보는 자세 (앞면 +z가 시선 쪽)
-    const v = new THREE.Vector3(0, Math.sin(LANDED_COMPOSITION.tilt), Math.cos(LANDED_COMPOSITION.tilt));
-    const up = new THREE.Vector3(0, 1, 0).addScaledVector(v, -v.y).normalize();
-    const x = new THREE.Vector3().crossVectors(up, v);
-    return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, up, v));
-  })();
-  const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion(), tmpV = new THREE.Vector3();
-
-  const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
-  const frontIndex = () => {
-    // 정면 바로 오른쪽(앞면이 보이는 쪽) 앨범
-    const k = Math.round(-(ringAngle - RING_OFFSET) / ALBUM_STEP);
-    return albums.length ? ((k % albums.length) + albums.length) % albums.length : 0;
-  };
-  function focusAlbum(i) {
-    focusIndex = i;
-    focusWant = true;
-    const target = -i * ALBUM_STEP;
-    const to = ringAngle + wrapPi(target - ringAngle);   // 가장 짧은 방향으로
-    ringTurn = { from: ringAngle, to, start: performance.now() / 1000 };
-    ringVel = 0;
-    featured = i; setCaption(i);
-  }
-  function unfocus() {
-    focusWant = false;
-  }
-  const ringReady = () => section === 1 && !tweening && !catTweening && albumClock >= AUTO.captionAt;
-
-  on(canvas, 'pointerdown', (e) => {
-    if (!ringReady() || e.button !== 0) return;
-    ringDragging = true; ringMoved = false;
-    ringPointer = e.pointerId;
-    ringLastX = ringDownX = e.clientX; ringDownY = e.clientY; ringDownT = performance.now();
-    ringVel = 0; ringTurn = null;
-    canvas.setPointerCapture(e.pointerId);
-  });
-  on(canvas, 'pointermove', (e) => {
-    if (!ringDragging || e.pointerId !== ringPointer) return;
-    if (!ringMoved && Math.hypot(e.clientX - ringDownX, e.clientY - ringDownY) > 6) {
-      ringMoved = true;
-      if (focusWant) unfocus();          // 끌기 시작하면 포커스 해제
-    }
-    if (!ringMoved) return;
-    const dx = e.clientX - ringLastX;
-    ringLastX = e.clientX;
-    const dAng = (dx / innerWidth) * RING.dragK;     // 오른쪽으로 끌면 앞쪽 앨범이 오른쪽으로
-    ringAngle += dAng;
-    const dt = Math.max(1 / 240, e.timeStamp ? 1 / 60 : 1 / 60);
-    ringVel += ((dAng / dt) - ringVel) * 0.35;        // 손 속도 (관성용)
-  });
-  const endRing = (e) => {
-    if (!ringDragging || e.pointerId !== ringPointer) return;
-    ringDragging = false;
-    if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-    if (ringMoved) return;
-    // 클릭: 앨범을 맞췄는지
-    setNdc(e);
-    const hit = raycaster.intersectObjects(albumMeshes, false)[0];
-    const i = hit ? albumMeshes.indexOf(hit.object) : -1;
-    if (i >= 0 && i === focusIndex && focusWant && focusT > 0.95) openAlbumDetail(i);
-    else if (i >= 0) focusAlbum(i);
-    else if (focusWant) unfocus();
-  };
-  on(canvas, 'pointerup', endRing);
-  on(canvas, 'pointercancel', endRing);
-  on(window, 'keydown', (e) => { if (e.key === 'Escape' && focusWant) unfocus(); });
-  // 트랙패드 가로 스와이프로도 링 회전
-  on(layer, 'wheel', (e) => {
-    if (!ringReady() || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-    e.preventDefault();
-    if (focusWant) unfocus();
-    ringAngle -= (e.deltaX / innerWidth) * RING.dragK;
-    ringVel = 0;
-  }, { passive: false });
-
-  // 확대된 앨범을 한 번 더 누르면 → 앨범 상세로 (기존 커버 이동 전환에 화면 위치를 넘김)
-  const corner = new THREE.Vector3();
-  function albumScreenRect(i) {
-    const mesh = albums[i].mesh, h = ALBUM.size / 2, z = ALBUM.depth / 2;
-    mesh.updateWorldMatrix(true, false);
-    const rect = canvas.getBoundingClientRect();
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const [x, y] of [[-h, -h], [h, -h], [h, h], [-h, h]]) {
-      corner.set(x, y, z).applyMatrix4(mesh.matrixWorld).project(camera);
-      const px = rect.left + (corner.x * 0.5 + 0.5) * rect.width, py = rect.top + (-corner.y * 0.5 + 0.5) * rect.height;
-      x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
-    }
-    return { left: x0, top: y0, width: x1 - x0, height: y1 - y0 };
-  }
-  function openAlbumDetail(i) {
-    const a = albums[i]?.data;
-    if (!a) return;
-    opts.onOpenAlbum?.({ slug: a.slug, color: a.color, imageUrl: a.image, rect: albumScreenRect(i) });
-  }
-
-  function updateRing(dt) {
-    if (ringTurn) {
-      const t = clamp01((performance.now() / 1000 - ringTurn.start) / RING.focusTurn);
-      ringAngle = ringTurn.from + (ringTurn.to - ringTurn.from) * easeInOutSine(t);
-      if (t >= 1) ringTurn = null;
-    } else if (!ringDragging) {
-      // 관성 → 느려지면 가장 가까운 앨범 자리로 스냅
-      ringAngle += ringVel * dt;
-      ringVel *= Math.exp(-dt / RING.friction);
-      if (Math.abs(ringVel) < 0.8) {
-        const snap = Math.round((ringAngle - RING_OFFSET) / ALBUM_STEP) * ALBUM_STEP + RING_OFFSET;
-        ringAngle += (snap - ringAngle) * (1 - Math.exp(-dt / RING.snapTau));
-      }
-    }
-    albumGroup.rotation.y = ringAngle;
-    // 정면 앨범 → 캡션 (포커스 중엔 포커스 앨범 유지)
-    if (!focusWant && focusT < 0.01) {
-      const f = frontIndex();
-      if (f !== featured) { featured = f; setCaption(f); }
-    }
-  }
-
-  // 앨범·타이틀·캡션은 스크롤이 아니라 '착륙 후 시간'으로 자동 재생
-  // 다시 위로 올라가면 거꾸로 사라짐
+  // 릴 등장·퇴장은 스크롤이 아니라 '착륙 후 시간'으로 자동 재생. 다시 위/아래로 떠나면 거꾸로 감기며 빠짐
   const AUTO = {
-    stagger: 0.09,      // 앨범 사이 간격(초)
-    each: 0.7,          // 앨범 하나가 떨어져 서는 시간(초)
-    titleAt: 0.6, titleDur: 0.7,
-    captionAt: 1.1, captionDur: 0.6,
-    total: 1.9,
+    total: 1.4,         // 릴이 다 들어오는 시간(초)
+    titleAt: 0.5, titleDur: 0.7,
+    infoAt: 0.8, infoDur: 0.6,
   };
   let albumClock = 0;   // 착륙 후 흐른 시간(초)
-  function updateAlbums(dt, p) {
-    const on = p >= SCROLL.albumTrigger && section === 1 && catP < 0.02;
+  // 판 자리(엔진 좌표): 릴이 들어오는 만큼 '슬리브 위' → '슬리브 안(오른쪽으로 빠져나옴)'
+  const nvTarget = { x: 0, y: 0, s: 1 };
+  function nvDiscTarget() {
+    const sink = easeInOut(clamp01(albumClock / AUTO.total));
+    const a = nvReel.disc.above, b = nvReel.disc.inside;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const px = a.x + (b.x - a.x) * sink, py = a.y + (b.y - a.y) * sink, r = a.r + (b.r - a.r) * sink;
+    nvTarget.x = (px - w / 2) / ZOOM;
+    nvTarget.y = (h / 2 - py) / ZOOM;
+    nvTarget.s = Math.max(0.05, r / ZOOM);
+    return nvTarget;
+  }
+  const reelBg = new THREE.Color();
+  let nvVis = 0;        // 릴이 보이는 정도 (판 자리·검은 판 정도에 씀)
+  function updateReel(dt, p) {
+    const on = p >= SCROLL.albumTrigger && section === 1 && catP < 0.02 && reelN() > 0;
+    const before = albumClock;
     albumClock = THREE.MathUtils.clamp(albumClock + (on ? dt : -dt * 1.8), 0, AUTO.total);
-    if (!on && focusWant) unfocus();
-    updateRing(dt);
+    if (on && before < AUTO.total && albumClock >= AUTO.total) reelTouch();   // 다 들어오면 그때부터 대기
+    const enter = easeInOut(albumClock / AUTO.total);
+    nvVis = enter;
 
-    // 포커스: 링 회전이 끝난 뒤 들어 올림 / 해제는 바로 내려놓음
-    const lifting = focusWant && !ringTurn;
-    focusT = clamp01(focusT + (lifting ? dt : -dt * 1.3) / FOCUS.dur);
-    if (!focusWant && focusT === 0) focusIndex = -1;
-    const fe = easeInOutSine(focusT);
-
-    // 포커스 자세를 albumGroup 로컬로 (링이 돌아가 있으니 역회전)
-    tmpQ.setFromAxisAngle(tmpV.set(0, 1, 0), -ringAngle);
-    albums.forEach((al, i) => {
-      // 정면부터 양옆으로: 위에서 곧게 떨어져 판 위에 세워짐 (반동 없음 → 판을 뚫지 않음)
-      const t = clamp01((albumClock - dropRank[i] * AUTO.stagger) / AUTO.each);
-      al.t = t;
-      al.mesh.visible = t > 0 && catP < 0.1;   // 다이얼로 넘어가면 확실히 숨김
-      if (t <= 0) return;
-      const drop = 1 - easeOut(t);
-      const liftTarget = hoverAlbum === i && focusIndex !== i ? ALBUM.hoverLift : 0;
-      al.lift += (liftTarget - al.lift) * (1 - Math.exp(-dt / 0.12));
-      al.mesh.position.set(al.rest.x, al.rest.y + drop * ALBUM.dropHeight + al.lift, al.rest.z);
-      al.mesh.quaternion.copy(al.restQuat);
-      al.mesh.scale.setScalar(1);
-
-      if (i === focusIndex && fe > 0) {
-        // 링 자리 → 판 앞쪽 위로 들려 올라와 카메라를 정면으로 보며 확대
-        tmpV.copy(FOCUS.pos).applyQuaternion(tmpQ);
-        al.mesh.position.lerp(tmpV, fe);
-        al.mesh.position.y += Math.sin(Math.PI * fe) * 0.08;      // 살짝 호를 그리며
-        tmpQ2.multiplyQuaternions(tmpQ, focusQuatComp);
-        al.mesh.quaternion.slerp(tmpQ2, fe);
-        al.mesh.scale.setScalar(1 + (FOCUS.scale - 1) * fe);
-      }
-      // 포커스된 앨범은 맨 마지막에, 다른 앨범·판에 가리지 않게 그림
-      const onTop = i === focusIndex && fe > 0.15;
-      al.mesh.renderOrder = onTop ? 10 : 2;
-      for (const m of al.mats) {
-        if (m.depthTest === onTop) { m.depthTest = !onTop; }
-        if (onTop && !m.transparent) { m.transparent = true; m.needsUpdate = true; }
-      }
-      // 거리감: 링 뒤쪽 앨범일수록 어둡게 (포커스된 앨범은 원래 밝기로)
-      const depth = Math.sin(al.phi - ringAngle);            // 1 = 정면 앞, -1 = 맨 뒤
-      let shade = 0.38 + 0.62 * Math.pow((depth + 1) / 2, 1.3);
-      if (i === focusIndex) shade += (1 - shade) * fe;
-      al.mats.forEach((m, k) => m.color.copy(al.base[k]).multiplyScalar(shade));
-      // 포커스 중 나머지 앨범은 흐리게
-      const targetOpacity = focusIndex >= 0 && i !== focusIndex ? 1 - FOCUS.dim * fe : 1;
-      if (Math.abs(targetOpacity - al.opacity) > 0.001) {
-        al.opacity = targetOpacity;
-        for (const m of al.mats) {
-          const tr = al.opacity < 0.999 || i === focusIndex;
-          if (m.transparent !== tr) { m.transparent = tr; m.needsUpdate = true; }   // 투명 전환은 재질 갱신 필요
-          m.opacity = al.opacity;
-          m.depthWrite = al.opacity > 0.5;
-        }
-      }
+    // 가만히 있으면 다음 앨범으로
+    const now = nowSec();
+    if (reelReady() && !reduceMotion && !reelHover && !reelDrag && now - reelLastInput > REEL.idle && now - reelLastAuto > REEL.every && !document.hidden) {
+      reelTarget = Math.round(reelTarget) + 1; reelLastAuto = now; reelAutoMoved = true;
+    }
+    reelPos += (reelTarget - reelPos) * (reduceMotion ? 1 : 1 - Math.exp(-dt / REEL.ease));
+    reelHoverEase += (reelHoverFront - reelHoverEase) * (1 - Math.exp(-dt / 0.2));
+    reelBg.copy(nvBgCur);
+    nvReel.update({
+      pos: reelPos,
+      spinIn: reduceMotion ? 0 : (1 - enter) * REEL.enterSpin,
+      offsetX: (1 - enter) * REEL.enterX,
+      hover: reelHoverEase,
+      bg: reelBg,
+      show: albumClock > 0 && catP < 0.02 && p > SCROLL.albumTrigger - 0.1,   // 판이 떠나기 시작하면 확실히 숨김
     });
 
-    // 타이틀·캡션·안내
-    const nvIn = easeOut(clamp01((albumClock - AUTO.titleAt) / AUTO.titleDur));
-    $nvHead.style.opacity = String(nvIn * (1 - 0.6 * fe));
-    $nvHead.style.visibility = nvIn > 0.01 ? 'visible' : 'hidden';
+    // 타이틀·정보·버튼
+    const headIn = easeOut(clamp01((albumClock - AUTO.titleAt) / AUTO.titleDur));
+    $nvHead.style.opacity = String(headIn);
+    $nvHead.style.visibility = headIn > 0.01 ? 'visible' : 'hidden';
     $nvLines.forEach((el, i) => {
       const t = easeOut(clamp01((albumClock - AUTO.titleAt - i * 0.1) / AUTO.titleDur));
       el.style.transform = `translateY(${((1 - t) * 110).toFixed(2)}%)`;   // 아래에서 스르륵 (부모가 잘라 줌)
     });
-    const capIn = easeOut(clamp01((albumClock - AUTO.captionAt) / AUTO.captionDur));
-    $nvCaption.style.opacity = String(capIn * (1 - fe));   // 앨범을 들어 올리면 제목과 함께 사라짐
-    // 앨범 제목: 앨범을 들어 올리면(포커스) 사라져 커버에 집중
-    const $nvBig = q('nv-big');
-    if ($nvBig) $nvBig.style.opacity = String(easeOut(clamp01((albumClock - AUTO.titleAt) / AUTO.titleDur)) * (1 - fe));
-    q('nv-hint').style.opacity = String(fe);
+    const infoIn = easeOut(clamp01((albumClock - AUTO.infoAt) / AUTO.infoDur));
+    for (const el of $nvInfo) {
+      el.style.opacity = String(infoIn);
+      el.style.visibility = infoIn > 0.01 ? 'visible' : 'hidden';
+      el.style.translate = `0 ${((1 - infoIn) * 18).toFixed(1)}px`;
+    }
+    if ($nvVig) $nvVig.style.opacity = String(enter * 0.9);
+    updateReelText();
   }
-  // 앨범 호버 → 살짝 들림 (New Vinyls에서만)
-  on(window, 'pointermove', (e) => {
-    if (!ringReady() || ringDragging || e.pointerType !== 'mouse') { hoverAlbum = -1; return; }
-    setNdc(e);
-    const hit = raycaster.intersectObjects(albumMeshes, false)[0];
-    hoverAlbum = hit ? albumMeshes.indexOf(hit.object) : -1;
-  });
 
   /* ================= 타이틀 속도 반응 ================= */
   // 빨라질수록 글자가 회전 방향으로 기울고 살짝 벌어짐. 글자마다 조금씩 늦게 따라와 물결처럼 번짐
@@ -1375,7 +1099,17 @@ export async function createHomeEngine(opts) {
   const spin = new THREE.Group();
   flip.add(spin);
   let disc = null;
-  let pickTargets = [];   // 드래그 판정용 레이캐스트 대상(디스크 메시)
+  let pickTargets = [];
+  // New Vinyls에서만: 잉크 선 아래 검은 바이닐 면 (종이 부분이 투명한 판을 '진짜 레코드'처럼)
+  const vinylBack = new THREE.Mesh(
+    new THREE.CircleGeometry(0.995, 128),
+    new THREE.MeshBasicMaterial({ color: '#1b1619', transparent: true, opacity: 0, side: THREE.DoubleSide, depthTest: false, depthWrite: false }),
+  );
+  vinylBack.rotation.x = -Math.PI / 2;
+  vinylBack.position.y = -0.019;
+  vinylBack.renderOrder = 1;          // 깊이 패스(0) 뒤, 잉크(2) 앞
+  vinylBack.visible = false;
+  spin.add(vinylBack);   // 드래그 판정용 레이캐스트 대상(디스크 메시)
 
   try {
     const gltf = await loadGLTF(opts.modelUrl);
@@ -1686,10 +1420,10 @@ export async function createHomeEngine(opts) {
       : flipping ? 'flip'
       : holding ? 'drag'
       : overDisc && heroActive ? 'disc'
-      : (ringDragging && ringMoved) || (dialDragging && dialMoved) ? 'ringdrag'
-      : hoverAlbum >= 0 && hoverAlbum === focusIndex && focusT > 0.95 ? 'open'
-      : hoverAlbum >= 0 ? 'album'
-      : ringReady() ? 'ring'
+      : (reelDrag?.moved && reelDrag.mouse) || (dialDragging && dialMoved) ? 'ringdrag'
+      : reelReady() && reelHoverFront ? 'open'
+      : reelReady() && reelHover ? 'album'
+      : reelReady() ? 'ring'
       : section === 2 && hoverGenre >= 0 && hoverGenre !== dialIndex && !catTweening ? 'link'
       : section === 2 && overDialArea && !overLink && !catTweening ? 'ring'
       : section === 3 && overRead ? 'read'
@@ -1718,7 +1452,7 @@ export async function createHomeEngine(opts) {
   }
 
   /* ================= 리사이즈 ================= */
-  let heroScale = 1, landedScale = 1, viewH = 10;
+  let heroScale = 1, viewH = 10;
   // 스테이지는 사이트 헤더 아래에서 시작 (헤더가 장면을 가리지 않게)
   const navbar = layer.querySelector?.('.ct-navbar');
   // 섹션 내용은 헤더 아래에서 시작하지만, 3D 캔버스는 헤더 뒤까지 화면 전체를 덮음 (헤더는 투명)
@@ -1731,8 +1465,7 @@ export async function createHomeEngine(opts) {
     canvas.style.height = `calc(100% + ${headerTop}px)`;
   };
   const resize = () => {
-    const bigNow = q('nv-big')?.lastElementChild;
-    if (bigNow) fitBig(bigNow);
+    fitTitle(q('nv-ttl')?.lastElementChild);
     placeStage();
     const w = canvas.clientWidth, h = canvas.clientHeight;
     renderer.setSize(w, h, false);
@@ -1741,7 +1474,7 @@ export async function createHomeEngine(opts) {
     camera.updateProjectionMatrix();
     // R3F viewport와 같은 값: 화면 크기 / zoom (월드 단위)
     heroScale = getHeroRecordScale(w / ZOOM, h / ZOOM, h);
-    landedScale = getLandedRecordScale(w / ZOOM, h / ZOOM);
+    nvReel.resize(w, h);
     viewH = h / ZOOM;
   };
   on(window, 'resize', resize); resize();
@@ -1824,7 +1557,8 @@ export async function createHomeEngine(opts) {
     siteDark = next;
     setDiscPalette();
     setNvBase();
-    nvTintCur.copy(NV_INK); nvTintHex = '';
+    nvTouched = false; nvBgHex = nvFgHex = '';
+    host.closest('.ct-page')?.style.removeProperty('--cream');
     host.closest('.ct-page')?.style.removeProperty('--ink');
     const t = Math.max(0, themeT); themeT = -1; applyTheme(t);
   });
@@ -2265,10 +1999,29 @@ export async function createHomeEngine(opts) {
     dialIndex = wrapIndex(k);
     showGenre(dialIndex);
   }
-  function dialStep(dir) {
+  function dialStep(dir, auto = false) {
+    if (!auto) dialTouch();
     if (nowSec() < dialLockUntil) return;
     dialLockUntil = nowSec() + DIAL.stepLock;
     setDial(Math.round(dialTarget / DIAL.step) + dir);
+  }
+
+  /* ---- 장르 자동 넘김: 가만히 두면 New Vinyls처럼 다음 장르로 ----
+     장르 글자·설명 칸에 마우스를 올리거나 다이얼을 끄는 동안은 멈춤. 모션 줄이기 설정이면 쓰지 않음 */
+  const GAUTO = {
+    idle: 4,            // 마지막 입력(또는 도착) 뒤 이만큼 지나면 시작(초)
+    every: 4.5,         // 넘기는 간격(초)
+  };
+  let dialIdleAt = 0, dialAutoAt = 0, gdPanelHover = false;
+  function dialTouch(at = nowSec()) { dialIdleAt = Math.max(dialIdleAt, at); }
+  on($gdPanel, 'pointerenter', () => { gdPanelHover = true; dialTouch(); });
+  on($gdPanel, 'pointerleave', () => { gdPanelHover = false; dialTouch(); });
+  on($gdPanel, 'focusin', () => dialTouch());
+  function updateDialAuto() {
+    if (section !== 2 || catP < 0.98 || catTweening || newsP > 0.01 || reduceMotion || document.hidden) return;
+    const now = nowSec();
+    if (dialDragging || gdPanelHover || hoverGenre >= 0) { dialTouch(now); return; }
+    if (now - dialIdleAt > GAUTO.idle && now - dialAutoAt > GAUTO.every) { dialAutoAt = now; dialStep(1, true); }
   }
 
   // 다이얼 끌기: 가로 화면은 위아래, 세로 화면은 좌우로
@@ -2298,6 +2051,7 @@ export async function createHomeEngine(opts) {
   const endDial = (e) => {
     if (!dialDragging || e.pointerId !== dialPointer) return;
     dialDragging = false;
+    dialTouch();
     if ($gdHit.hasPointerCapture(e.pointerId)) $gdHit.releasePointerCapture(e.pointerId);
     // 끌지 않고 눌렀다 뗐으면 = 클릭 → 누른 장르로 바로 (가까운 방향으로 돌아감)
     const hr = host.getBoundingClientRect();
@@ -2323,6 +2077,7 @@ export async function createHomeEngine(opts) {
   }
   // 장르 i로 이동: 지금 각도에서 가장 짧은 방향으로 (무한 회전이라 ±6칸 이내)
   function selectGenre(i) {
+    dialTouch();
     const cur = Math.round(dialTarget / DIAL.step);
     let delta = wrapIndex(i - cur);
     if (delta > GENRES.length / 2) delta -= GENRES.length;
@@ -2453,6 +2208,7 @@ export async function createHomeEngine(opts) {
       newsTweening = newsDur > 0; if (!newsTweening) newsP = newsTo;
       if (next === 3) $news.scrollTop = 0;
       lockUntil = newsStart + newsDur + SECTION.cooldown;
+      if (next === 2) dialIdleAt = newsStart + newsDur;
     } else if (prev === 1 && next === 2) {
       // 앨범이 먼저 걷힌 뒤 판이 다이얼 자리로
       const wait = reduceMotion ? 0 : albumClock / 1.8 + 0.05;   // 앨범이 걷히는 시간(속도 1.8배)만큼
@@ -2461,6 +2217,7 @@ export async function createHomeEngine(opts) {
       catStart = nowSec() + wait;
       catTweening = catDur > 0; if (!catTweening) catP = 1;
       lockUntil = catStart + catDur + SECTION.cooldown;
+      dialIdleAt = catStart + catDur;      // 도착한 뒤부터 자동 넘김 대기
     } else if (prev === 2 && next === 1) {
       catFrom = catP; catTo = 0;
       catDur = reduceMotion ? 0 : SECTION.catDuration * Math.abs(catTo - catFrom);
@@ -2505,7 +2262,15 @@ export async function createHomeEngine(opts) {
   // 휠: 기본 스크롤을 막고 의도만 읽음
   on(layer, 'wheel', (e) => {
     if (e.ctrlKey) return;                          // 핀치 줌은 그대로
-    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;   // 가로 스와이프는 앨범 링 회전에 사용
+    // New Vinyls: 휠(세로·가로 모두)로 릴을 돌림. 한 바퀴 끝에서 더 굴리면 다음/이전 섹션 (reelWheel)
+    if (section === 1 && reelN() > 0 && !tweening && !catTweening) {
+      e.preventDefault();
+      if (inputLocked() || !reelReady()) { wheelAcc = 0; return; }   // 릴이 들어오는 동안은 기다림
+      const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      reelWheel(d * (e.deltaMode === 1 ? 16 : 1));
+      return;
+    }
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;   // 가로 스와이프는 섹션 이동에 쓰지 않음
     const dy = e.deltaY * (e.deltaMode === 1 ? 16 : 1);
     if (section === 3 && !newsTweening && e.target instanceof Node && $news.contains(e.target) && newsCanScroll(Math.sign(dy))) {
       wheelAcc = 0;               // News 안에서 그냥 스크롤 (브라우저 기본 동작)
@@ -2523,11 +2288,12 @@ export async function createHomeEngine(opts) {
   }, { passive: false });
 
   // 터치: 세로 스와이프 의도 (Hero에서 판을 누르고 있을 땐 무시)
-  let touchY0 = null;
+  let touchY0 = null, touchX0 = 0;
   let touchOnDial = false;
   let touchInNews = false, touchNewsTop = 0;
   on(layer, 'touchstart', (e) => {
     touchY0 = e.touches[0]?.clientY ?? null;
+    touchX0 = e.touches[0]?.clientX ?? 0;
     touchInNews = section === 3 && e.target instanceof Node && $news.contains(e.target);
     touchNewsTop = $news.scrollTop;
     touchOnDial = e.target === $gdHit;   // 다이얼을 끄는 손가락은 섹션 이동으로 보지 않음
@@ -2540,8 +2306,16 @@ export async function createHomeEngine(opts) {
   on(layer, 'touchend', (e) => {
     if (touchY0 === null) return;
     const dy = touchY0 - (e.changedTouches[0]?.clientY ?? touchY0);
+    const dx = touchX0 - (e.changedTouches[0]?.clientX ?? touchX0);
     touchY0 = null;
     if (pressed || dialDragging || touchOnDial || inputLocked()) return;
+    // New Vinyls: 위/왼쪽으로 쓸면 다음 앨범, 아래/오른쪽은 이전 (한 바퀴 끝이면 섹션 이동)
+    if (section === 1 && reelN() > 0) {
+      if (!reelReady()) return;
+      const d = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+      if (Math.abs(d) > REEL.swipe) reelStepOrLeave(Math.sign(d));
+      return;
+    }
     if (section === 3) {
       // 맨 위에서 아래로 끌어내리면 Genre dial로
       if (dy < -SECTION.touchThreshold && touchNewsTop <= 0) goSection(2);
@@ -2562,6 +2336,15 @@ export async function createHomeEngine(opts) {
     }
     const down = ['ArrowDown', 'PageDown', ' ', 'Spacebar'].includes(e.key) && !e.shiftKey;
     const up = ['ArrowUp', 'PageUp'].includes(e.key) || (e.key === ' ' && e.shiftKey);
+    // New Vinyls: ←/→는 앨범 한 장씩, ↓/↑는 한 장씩 넘기다 끝이면 섹션 이동
+    if (section === 1 && reelN() > 0 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || down || up)) {
+      if (e.target instanceof HTMLElement && e.target.closest('a, button') && e.key === ' ') return;
+      e.preventDefault();
+      if (inputLocked() || !reelReady()) return;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') reelFlip(e.key === 'ArrowRight' ? 1 : -1);
+      else reelStepOrLeave(down ? 1 : -1);
+      return;
+    }
     if (!down && !up) return;
     e.preventDefault();
     if (inputLocked()) return;
@@ -2595,7 +2378,8 @@ export async function createHomeEngine(opts) {
   let heroActive = true;   // Hero 구간에서만 누르기·뒤집기·링 호버 동작
   const $nvHead = q('nv-head');
   const $nvLines = [...host.querySelectorAll('#nv-title .nv-line')];
-  const $nvCaption = q('nv-caption');
+  const $nvInfo = [...host.querySelectorAll('[data-nv-info]')];
+  const $nvVig = q('nv-vig');
 
   let dragWeight = 1;
   let fxLevel = 0;
@@ -2611,14 +2395,15 @@ export async function createHomeEngine(opts) {
     const p = scrollP;
     const settle = easeInOut(seg(p, 0.0, SCROLL.settleEnd));      // 구도 보간
     const tumbleT = easeInOut(seg(p, SCROLL.tumbleStart, SCROLL.tumbleEnd));
+    //  New Vinyls 자리 = 릴 맨 앞 슬리브: 들어오기 전엔 그 위에 떠 있다가, 릴이 들어오면 슬리브에 꽂혀 오른쪽으로 빠져나온 채
+    const nvT = nvDiscTarget();
     root.rotation.z = THREE.MathUtils.lerp(HERO_COMPOSITION.roll, LANDED_COMPOSITION.roll, settle);
     comp.rotation.x = THREE.MathUtils.lerp(HERO_COMPOSITION.tilt, LANDED_COMPOSITION.tilt, settle);
-    root.scale.setScalar(THREE.MathUtils.lerp(heroScale, landedScale, settle));
+    root.scale.setScalar(THREE.MathUtils.lerp(heroScale, nvT.s, settle));
     //  화면 가로축 기준으로 한 바퀴(360°) — 끝나면 원래 자세와 같아서 그대로 착륙
     tumble.rotation.x = tumbleT * Math.PI * 2;
     //  도는 동안 살짝 떠올랐다가 내려앉음
-    const portraitK = Math.min(1, Math.max(0, (1.25 - canvas.clientWidth / Math.max(1, canvas.clientHeight)) / 0.6));
-    const landY = (LANDED_COMPOSITION.centerY + (LANDED_COMPOSITION.compactCenterY - LANDED_COMPOSITION.centerY) * portraitK) * viewH;
+    const landY = nvT.y;
     const lift = Math.sin(Math.PI * seg(p, SCROLL.tumbleStart, SCROLL.settleEnd)) * SCROLL.lift * viewH;
     root.position.y = THREE.MathUtils.lerp(0, landY, settle) + lift;
     heroActive = p < SCROLL.heroEnd;
@@ -2631,10 +2416,10 @@ export async function createHomeEngine(opts) {
       comp.rotation.x = THREE.MathUtils.lerp(comp.rotation.x, Math.PI / 2, catEase);
       root.rotation.z = THREE.MathUtils.lerp(root.rotation.z, 0, catEase);
       root.scale.setScalar(THREE.MathUtils.lerp(root.scale.x, dialScale, catEase));
-      root.position.x = THREE.MathUtils.lerp(0, dx, catEase);
+      root.position.x = THREE.MathUtils.lerp(nvT.x * settle, dx, catEase);
       root.position.y = THREE.MathUtils.lerp(root.position.y, dy, catEase);
     } else {
-      root.position.x = 0;
+      root.position.x = nvT.x * settle;
     }
     //  Genre dial → News: 판이 오른쪽 칸(news-disc)으로 옮겨 가 턴테이블 위처럼 비스듬히 눕고 돎
     const newsEase = easeInOut(newsP);
@@ -2667,9 +2452,13 @@ export async function createHomeEngine(opts) {
     title.style.opacity = String(1 - heroOut);
     //  배경·글자·잉크 색: 판이 내려오는 동안 크림 → 플럼으로 자연스럽게
     applyTheme(easeInOut(seg(p, 0.15, 0.85)) * (1 - newsEase));   // News에서는 다시 크림
-    updateAlbums(dt, p);
+    updateReel(dt, p);
+    const vinylT = easeInOut(seg(p, 0.3, 1)) * (1 - catEase);
+    vinylBack.material.opacity = vinylT;
+    vinylBack.visible = vinylT > 0.005;
     updateNvTint(dt, catEase);
     updateDial(dt, dialVis);
+    updateDialAuto();
     updateNews(newsEase);
 
     // 1) 패럴랙스: 현재값이 목표(마우스 위치)를 부드럽게 따라감
@@ -2765,11 +2554,16 @@ export async function createHomeEngine(opts) {
 
     // 4) 빛줄기
     updateLight();
+    // 릴 뒤쪽 슬리브 → 판 → 맨 앞 슬리브 (카메라가 달라 깊이를 나눠 그림)
+    renderer.clear();
+    const reelOn = nvReel.visible;
+    if (reelOn) { nvReel.render('back'); renderer.clearDepth(); }
     renderer.render(scene, camera);
+    if (reelOn) { renderer.clearDepth(); nvReel.render('front'); }
   });
 
   /* ================= 시작 상태 · 외부 API ================= */
-  if (opts.albums) buildRing(opts.albums);
+  if (opts.albums) nvReel.setAlbums(opts.albums);
   ready = true;
   resize(); layoutDial();   // 불러오는 동안 창 크기가 바뀌었을 수 있음
 
@@ -2777,10 +2571,11 @@ export async function createHomeEngine(opts) {
     /** New Vinyls 앨범 목록 (Supabase에서 받은 뒤) */
     setAlbums(list, { frontSlug } = {}) {
       if (disposed) return;
-      buildRing(list);
+      nvReel.setAlbums(list);
+      shownK = null;
       // 앨범 상세에서 돌아왔으면 그 앨범이 정면에 오게
-      const i = frontSlug ? albums.findIndex((a) => a.data.slug === frontSlug) : -1;
-      if (i > 0) { ringAngle = RING_OFFSET - i * ALBUM_STEP; featured = i; setCaption(i); }
+      const i2 = frontSlug ? list.findIndex((a) => a.slug === frontSlug) : -1;
+      if (i2 > 0) { reelPos = reelTarget = i2; }
     },
     /** 인트로가 끝나면 회전 대기 시작 + 입력 허용 */
     setIntroDone(done) {
@@ -2818,7 +2613,7 @@ export async function createHomeEngine(opts) {
       disposed = true;
       renderer.setAnimationLoop(null);
       cleanups.forEach((fn) => fn());
-      disposeRing();
+      nvReel.dispose();
       scene.traverse((o) => {
         o.geometry?.dispose?.();
         const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
@@ -2834,6 +2629,7 @@ export async function createHomeEngine(opts) {
       host.classList.remove('custom-cursor');
       host.closest('.ct-page')?.style.removeProperty('--wire-t');
       host.closest('.ct-page')?.style.removeProperty('--ink');
+      host.closest('.ct-page')?.style.removeProperty('--cream');
     },
   };
 }

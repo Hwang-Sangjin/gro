@@ -114,6 +114,7 @@ export default function HomeStage() {
         engine.setAlbums(rows.map((a) => ({
           slug: a.slug, title: a.title, artist: a.artist_names || "",
           image: coverUrl(a.cover_path || a.thumb_path), color: a.cover_color || "#bbcbda",
+          arrived: a.created_at ? new Date(a.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "Asia/Seoul" }) : "",
         })), { frontSlug });
       } catch (error) {
         if (!cancelled) console.error("New vinyls could not load", error);
@@ -150,31 +151,45 @@ export default function HomeStage() {
         {"Grooves".split("").map((ch, i) => <span key={i} aria-hidden="true" className="inline-block origin-bottom translate-y-[110%]">{ch}</span>)}
       </h1>
 
-      {/* 02 — New Vinyls (판 위 3D 앨범 링) */}
+      {/* 02 — New Vinyls: 끝없는 앨범 릴 (슬리브는 3D, 글자·버튼은 여기). 배경은 맨 앞 앨범의 대표 색 */}
+      {/* 가장자리 비네트 — 릴이 화면 밖 어둠 속으로 이어지는 느낌 (캔버스처럼 헤더 뒤까지) */}
+      <div id="nv-vig" aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 top-[calc(-1*var(--hs-top,0px))] bg-[radial-gradient(ellipse_75%_70%_at_45%_50%,transparent_55%,rgba(0,0,0,0.26))] opacity-0" />
       <section id="new-vinyls" className="pointer-events-none absolute inset-0" aria-labelledby="nv-title">
-        <div id="nv-head" className="absolute inset-x-0 top-[clamp(0.75rem,3vh,2.5rem)] flex items-start justify-between px-6 opacity-0 sm:px-[8vw]">
-          <h2 id="nv-title" className={`${SERIF} text-[clamp(3rem,6.4vw,8.5rem)] font-black uppercase leading-[0.86] tracking-[-0.02em]`}>
-            <span className="block overflow-y-clip pb-[0.04em]"><span className="nv-line block">New <span className="align-[0.5em] text-[0.55em] text-[var(--hs-ink3d)]" aria-hidden="true">✦</span></span></span>
-            <span className="block overflow-y-clip pb-[0.04em]"><span className="nv-line block">Vinyls</span></span>
-          </h2>
-          <Link href="/digging" className={`pointer-events-auto mt-6 border-b border-[var(--hs-text)] pb-1 ${SERIF} text-lg sm:text-xl`}>Browse all ↗</Link>
+        <div id="nv-head" className="absolute inset-x-0 top-[clamp(0.75rem,3vh,2.5rem)] flex items-start justify-between px-6 opacity-0 sm:px-[5vw]">
+          <div>
+            <h2 id="nv-title" className={`${SERIF} text-[clamp(2.75rem,5.6vw,6.25rem)] font-black uppercase leading-[0.86] tracking-[-0.01em]`}>
+              <span className="block overflow-y-clip pb-[0.04em]"><span className="nv-line block">New <span className="align-[0.5em] text-[0.45em] text-[var(--hs-ink3d)]" aria-hidden="true">✦</span></span></span>
+              <span className="block overflow-y-clip pb-[0.04em]"><span className="nv-line block">Vinyls</span></span>
+            </h2>
+            <p className="mt-4 text-[11px] uppercase tracking-[0.3em] text-[var(--hs-muted)]">Fresh in the crate</p>
+          </div>
+          <Link href="/digging" className={`pointer-events-auto mt-3 border-b border-current pb-1 ${SERIF} text-lg font-bold sm:mt-6 sm:text-xl`}>Browse all ↗</Link>
         </div>
-        {/* 아티스트: 앨범 제목(nv-big) 바로 아래 */}
-        <div id="nv-caption" className="absolute inset-x-0 top-[calc(31%+clamp(1.6rem,3.2vw,3.8rem))] text-center text-(--nv-accent,var(--hs-text)) opacity-0 sm:top-[calc(35%+clamp(1.6rem,3.2vw,3.8rem))]" aria-live="polite">
-          <p className="flex items-center justify-center gap-3 text-[clamp(11px,0.85vw,14px)] font-medium uppercase tracking-[0.32em]">
-            <span aria-hidden="true" className="h-px w-6 bg-current opacity-50" />
-            <span id="nv-artist" />
-            <span aria-hidden="true" className="h-px w-6 bg-current opacity-50" />
-          </p>
-          <p id="nv-album" className="sr-only" />
-        </div>
-        {/* 앨범을 들어 올렸을 때만: 안내 */}
-        <p id="nv-hint" className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] text-center text-xs text-[var(--hs-muted)] opacity-0">Tap the cover again to open the album · tap outside or press Esc to close</p>
-      </section>
 
-      {/* New Vinyls: 정면 앨범 제목 — 판·앨범 위 빈 자리에 또렷하게. 엔진이 바꿔 끼우며 아래에서 올라오게 함 */}
-      <div id="nv-big" aria-hidden="true"
-        className={`pointer-events-none absolute inset-x-[6vw] top-[31%] h-[1em] -translate-y-1/2 select-none overflow-y-clip opacity-0 sm:top-[35%] ${SERIF} text-center text-[clamp(2.5rem,5.4vw,6.25rem)] font-black uppercase leading-[0.95] tracking-[-0.02em] text-(--nv-accent,var(--hs-text))`} />
+        {/* 한 바퀴를 다 봤을 때 (자동 넘김이 아니라 직접 넘겼을 때만) */}
+        <p id="nv-caught" data-on="false" className="absolute left-1/2 top-[clamp(5.5rem,14vh,9rem)] -translate-x-1/2 -translate-y-2 whitespace-nowrap rounded-full border border-current px-[18px] py-2.5 text-[11px] uppercase tracking-[0.24em] opacity-0 transition-[opacity,translate] duration-500 data-[on=true]:translate-y-0 data-[on=true]:opacity-85 max-sm:top-auto max-sm:bottom-[19rem]">
+          You’re all caught up · keep scrolling for genres ↓
+        </p>
+
+        {/* 맨 앞 앨범 정보 */}
+        <div data-nv-info className="invisible absolute bottom-[calc(env(safe-area-inset-bottom,0px)+6rem)] left-6 right-6 opacity-0 sm:bottom-[clamp(1.75rem,8vh,5.5rem)] sm:left-[5vw] sm:right-auto sm:w-[min(30vw,26rem)]" aria-live="polite">
+          <p className="text-xs uppercase tracking-[0.3em] text-[var(--hs-muted)] tabular-nums"><b id="nv-idx" className="font-medium text-[var(--hs-text)]">01</b> / <span id="nv-tot">01</span> · New arrivals</p>
+          <div id="nv-ttl" aria-hidden="true" className={`relative mt-2.5 h-[1.3em] overflow-hidden ${SERIF} text-[clamp(1.875rem,3.2vw,3.5rem)] font-black leading-[1.3] tracking-[-0.015em]`} />
+          <p id="nv-album" className="sr-only" />
+          <p id="nv-artist" className="mt-2 text-[17px]" />
+          <p id="nv-meta" className="mt-1.5 text-xs uppercase tracking-[0.22em] text-[var(--hs-muted)]" />
+          <div className="mt-5 flex flex-wrap gap-2.5">
+            <button id="nv-open" type="button" className="pointer-events-auto inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--hs-text)] px-[22px] text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--hs-paper)] transition-[background-color,scale] duration-300 hover:bg-[#c8553d] active:scale-95">Open record ↗</button>
+          </div>
+        </div>
+
+        {/* 넘기기 */}
+        <div data-nv-info className="invisible absolute bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] right-6 flex items-center gap-3.5 opacity-0 sm:bottom-[clamp(1.75rem,8vh,5.5rem)] sm:right-[6vw]">
+          <span className="hidden text-[11px] uppercase tracking-[0.24em] text-[var(--hs-muted)] lg:inline">Scroll to dig · <a id="nv-skip" href="#genres" className="pointer-events-auto underline-offset-4 hover:underline">Skip to genres ↓</a></span>
+          <button id="nv-prev" type="button" aria-label="Previous record" className="pointer-events-auto size-11 rounded-full border border-[color-mix(in_srgb,var(--hs-text)_45%,transparent)] text-lg transition-colors hover:bg-[color-mix(in_srgb,var(--hs-text)_12%,transparent)] sm:size-13">←</button>
+          <button id="nv-next" type="button" aria-label="Next record" className="pointer-events-auto size-11 rounded-full border border-[color-mix(in_srgb,var(--hs-text)_45%,transparent)] text-lg transition-colors hover:bg-[color-mix(in_srgb,var(--hs-text)_12%,transparent)] sm:size-13">→</button>
+        </div>
+      </section>
 
       {/* 03 — Genre dial: 화면 왼쪽에 반쯤 걸친 원형 다이얼. 바늘(3시)에 온 장르가 선택됨 */}
       <div id="gd" className="pointer-events-none invisible absolute inset-0 opacity-0" role="region" aria-label="Genre dial">
