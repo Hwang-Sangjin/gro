@@ -252,10 +252,10 @@ export async function createHomeEngine(opts) {
   const SCROLL = {
     heroEnd: 0.03,                         // 이 지점까지는 Hero 기능(링·헤일로·누르기·뒤집기) 그대로
     fxOutEnd: 0.12,                        // 링·헤일로가 사라지는 시점
-    tumbleStart: 0.06, tumbleEnd: 0.8,     // 이 구간에서 한 바퀴
-    settleEnd: 0.92,                       // 이때까지 착륙 자세로
+    dropOutEnd: 0.42,                      // 이때까지 판이 아래로 떨어져 화면 밖으로
+    dropSwap: 0.46,                        // 화면 밖에서 Hero 자세 → 착륙 자세로 바꿔 끼움
+    dropInStart: 0.5,                      // 여기부터 위에서 내려와 자리에 섬
     albumTrigger: 0.9,                     // 착륙하면 앨범 등장 시작 (이후는 시간으로 자동 재생)
-    lift: 0.07,                            // 도는 동안 살짝 떠오르는 높이(화면 높이 대비)
   };
   const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
   const easeOut = (t) => 1 - Math.pow(1 - t, 3);
@@ -2009,8 +2009,8 @@ export async function createHomeEngine(opts) {
   /* ---- 장르 자동 넘김: 가만히 두면 New Vinyls처럼 다음 장르로 ----
      장르 글자·설명 칸에 마우스를 올리거나 다이얼을 끄는 동안은 멈춤. 모션 줄이기 설정이면 쓰지 않음 */
   const GAUTO = {
-    idle: 4,            // 마지막 입력(또는 도착) 뒤 이만큼 지나면 시작(초)
-    every: 4.5,         // 넘기는 간격(초)
+    idle: 2,            // 마지막 입력(또는 도착) 뒤 이만큼 지나면 시작(초)
+    every: 2,           // 넘기는 간격(초)
   };
   let dialIdleAt = 0, dialAutoAt = 0, gdPanelHover = false;
   function dialTouch(at = nowSec()) { dialIdleAt = Math.max(dialIdleAt, at); }
@@ -2393,19 +2393,26 @@ export async function createHomeEngine(opts) {
     //    스크롤 위치가 아니라 '섹션 전환 트윈'이 진행도를 시간에 따라 0 ↔ 1로 움직임
     updateSectionTween();
     const p = scrollP;
-    const settle = easeInOut(seg(p, 0.0, SCROLL.settleEnd));      // 구도 보간
-    const tumbleT = easeInOut(seg(p, SCROLL.tumbleStart, SCROLL.tumbleEnd));
+    //  Hero → New Vinyls: 판이 아래로 떨어져 화면 밖으로 사라졌다가(그동안 배경색이 바뀜)
+    //  위에서 다시 내려와 릴 맨 앞 슬리브 위 자리에 섬. 되돌아갈 땐 거꾸로 (위로 빠졌다가 아래에서 올라옴)
     //  New Vinyls 자리 = 릴 맨 앞 슬리브: 들어오기 전엔 그 위에 떠 있다가, 릴이 들어오면 슬리브에 꽂혀 오른쪽으로 빠져나온 채
     const nvT = nvDiscTarget();
-    root.rotation.z = THREE.MathUtils.lerp(HERO_COMPOSITION.roll, LANDED_COMPOSITION.roll, settle);
-    comp.rotation.x = THREE.MathUtils.lerp(HERO_COMPOSITION.tilt, LANDED_COMPOSITION.tilt, settle);
-    root.scale.setScalar(THREE.MathUtils.lerp(heroScale, nvT.s, settle));
-    //  화면 가로축 기준으로 한 바퀴(360°) — 끝나면 원래 자세와 같아서 그대로 착륙
-    tumble.rotation.x = tumbleT * Math.PI * 2;
-    //  도는 동안 살짝 떠올랐다가 내려앉음
-    const landY = nvT.y;
-    const lift = Math.sin(Math.PI * seg(p, SCROLL.tumbleStart, SCROLL.settleEnd)) * SCROLL.lift * viewH;
-    root.position.y = THREE.MathUtils.lerp(0, landY, settle) + lift;
+    const settle = p >= SCROLL.dropSwap ? 1 : 0;                 // 화면 밖에 있을 때 Hero 자세 ↔ 착륙 자세를 바꿔 끼움
+    tumble.rotation.x = 0;
+    if (!settle) {
+      const t = seg(p, 0, SCROLL.dropOutEnd);
+      root.rotation.z = HERO_COMPOSITION.roll;
+      comp.rotation.x = HERO_COMPOSITION.tilt;
+      root.scale.setScalar(heroScale);
+      root.position.y = -(t * t * t) * (viewH / 2 + heroScale * 1.3);          // 점점 빨라지며 아래로
+    } else {
+      const t = 1 - Math.pow(1 - seg(p, SCROLL.dropInStart, 1), 3);            // 위에서 내려와 천천히 섬
+      root.rotation.z = LANDED_COMPOSITION.roll;
+      comp.rotation.x = LANDED_COMPOSITION.tilt;
+      root.scale.setScalar(nvT.s);
+      const top = viewH / 2 + nvT.s * 1.3;
+      root.position.y = top + (nvT.y - top) * t;
+    }
     heroActive = p < SCROLL.heroEnd;
     //  New Vinyls → Genre dial: 판이 다이얼 가운데로 미끄러져 와서 정면을 보고 섬
     const catEase = easeInOut(catP);
@@ -2453,7 +2460,7 @@ export async function createHomeEngine(opts) {
     //  배경·글자·잉크 색: 판이 내려오는 동안 크림 → 플럼으로 자연스럽게
     applyTheme(easeInOut(seg(p, 0.15, 0.85)) * (1 - newsEase));   // News에서는 다시 크림
     updateReel(dt, p);
-    const vinylT = easeInOut(seg(p, 0.3, 1)) * (1 - catEase);
+    const vinylT = (p >= SCROLL.dropSwap ? 1 : 0) * (1 - catEase);   // 화면 밖에서 검은 판으로 바뀌어 내려옴
     vinylBack.material.opacity = vinylT;
     vinylBack.visible = vinylT > 0.005;
     updateNvTint(dt, catEase);

@@ -9,6 +9,7 @@ import * as THREE from 'three';
 
 export const REEL_LAYOUT = {
   CW: 3.2,        // 슬리브 한 변
+  DEPTH: 0.09,    // 슬리브 두께 (판이 든 LP 재킷)
   RC: 9,          // 원통 반지름
   STEP: 0.125,    // 슬리브 사이 각도
   LIFT: 1.15,     // 맨 앞 슬리브가 앞으로 나오는 거리
@@ -19,40 +20,37 @@ export const REEL_LAYOUT = {
   OUT_HOVER: 0.12,
   ABOVE: 0.95,    // 들어가기 전/나온 뒤 판이 떠 있는 높이 (슬리브 폭 대비)
 };
-const { CW, RC, STEP, LIFT, SLOTS, BEHIND } = REEL_LAYOUT;
+const { CW, DEPTH, RC, STEP, LIFT, SLOTS, BEHIND } = REEL_LAYOUT;
 const DISC_R = CW * 0.47;
 
-const CREAM = '#f4e7cd', INK = '#4c404a', VINYL = '#1b1619';
+const CREAM = '#f4e7cd', VINYL = '#1b1619';
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const hasKo = (s) => /[가-힣]/.test(s || '');
 const lumHex = (h) => { const n = parseInt((h || '#888888').slice(1, 7), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; };
 
-// 슬리브: 커버 + 크림 종이 테두리 + 잉크 선 (Grooves 인쇄물 느낌)
-const SLEEVE_PX = 640, SLEEVE_M = 24;
-export const COVER_INSET = SLEEVE_M / SLEEVE_PX;    // 테두리 비율 (커버 이동 전환 위치 계산용)
+// 슬리브 앞면 = 앨범 커버 이미지 그대로 (테두리 없음). 옆면·뒷면은 대표 색 (setSlot)
+const SLEEVE_PX = 640;
+export const COVER_INSET = 0;    // 커버가 앞면 전체 (커버 이동 전환 위치 계산용)
 function paintSleeve(g, a, img) {
-  const S = SLEEVE_PX, m = SLEEVE_M, w = S - m * 2;
-  g.fillStyle = CREAM; g.fillRect(0, 0, S, S);
+  const S = SLEEVE_PX;
   if (img) {
     // 정사각이 아니면 가운데를 잘라 채움
     const s = Math.min(img.naturalWidth, img.naturalHeight);
-    g.drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, m, m, w, w);
-  } else {
-    // 이미지를 불러오기 전/실패: 대표 색 + 제목
-    const light = lumHex(a.color) > 0.55;
-    g.fillStyle = a.color || '#bbcbda'; g.fillRect(m, m, w, w);
-    g.fillStyle = light ? '#2a2228' : CREAM; g.textBaseline = 'top';
-    g.font = `900 ${Math.round(w * 0.085)}px ${hasKo(a.title) ? '"Gowun Batang",' : ''}"Grooves Bodoni", Georgia, serif`;
-    const words = (a.title || '').toUpperCase().split(' ');
-    const lines = []; let line = '';
-    for (const wd of words) { const t = line ? `${line} ${wd}` : wd; if (g.measureText(t).width > w * 0.84 && line) { lines.push(line); line = wd; } else line = t; }
-    lines.push(line);
-    lines.slice(0, 3).forEach((l, i) => g.fillText(l, m + w * 0.07, m + w * 0.07 + i * w * 0.1));
-    g.font = `500 ${Math.round(w * 0.04)}px "PP Neue Montreal", Arial, sans-serif`;
-    g.fillText((a.artist || '').toUpperCase(), m + w * 0.07, m + w * 0.88);
+    g.drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, S, S);
+    return;
   }
-  g.strokeStyle = INK; g.lineWidth = 3; g.strokeRect(m - 1.5, m - 1.5, w + 3, w + 3);
-  g.lineWidth = 6; g.strokeRect(3, 3, S - 6, S - 6);
+  // 이미지를 불러오기 전/실패: 대표 색 + 제목
+  const light = lumHex(a.color) > 0.55;
+  g.fillStyle = a.color || '#bbcbda'; g.fillRect(0, 0, S, S);
+  g.fillStyle = light ? '#2a2228' : CREAM; g.textBaseline = 'top';
+  g.font = `900 ${Math.round(S * 0.08)}px ${hasKo(a.title) ? '"Gowun Batang",' : ''}"Grooves Bodoni", Georgia, serif`;
+  const words = (a.title || '').toUpperCase().split(' ');
+  const lines = []; let line = '';
+  for (const wd of words) { const t = line ? `${line} ${wd}` : wd; if (g.measureText(t).width > S * 0.84 && line) { lines.push(line); line = wd; } else line = t; }
+  lines.push(line);
+  lines.slice(0, 3).forEach((l, i) => g.fillText(l, S * 0.07, S * 0.07 + i * S * 0.095));
+  g.font = `500 ${Math.round(S * 0.038)}px "PP Neue Montreal", Arial, sans-serif`;
+  g.fillText((a.artist || '').toUpperCase(), S * 0.07, S * 0.88);
 }
 // 판의 홈 (흰 선 → 재질 색). 라벨 자리는 비움
 function drawGrooves() {
@@ -87,14 +85,14 @@ export function createNvReel({ renderer }) {
   let narrow = false, viewW = 1, viewH = 1;
 
   const grooveTex = texOf(drawGrooves());
-  const sleeveGeo = new THREE.BoxGeometry(CW, CW, 0.035);
+  const sleeveGeo = new THREE.BoxGeometry(CW, CW, DEPTH);
   const peekDiscGeo = new THREE.CircleGeometry(DISC_R, 96);
   const peekLabelGeo = new THREE.CircleGeometry(DISC_R * 0.34, 48);
   const slots = Array.from({ length: SLOTS }, () => {
     const pivot = new THREE.Group(); reel.add(pivot);
-    const edge = new THREE.MeshBasicMaterial({ color: CREAM });
+    const edge = new THREE.MeshBasicMaterial();     // 옆면(책등) = 대표 색을 조금 어둡게
     const front = new THREE.MeshBasicMaterial({ color: '#ffffff' });
-    const back = new THREE.MeshBasicMaterial({ color: '#d9ccb2' });
+    const back = new THREE.MeshBasicMaterial();     // 뒷면 = 대표 색
     const sleeve = new THREE.Mesh(sleeveGeo, [edge, edge, edge, edge, front, back]);
     pivot.add(sleeve);
     // 슬리브 뒤로 위쪽에 살짝 보이는 판 (LP가 꽂힌 느낌). 맨 앞은 홈 엔진의 판이 대신함
@@ -105,7 +103,7 @@ export function createNvReel({ renderer }) {
     [[peekDiscGeo, pVinyl], [peekDiscGeo, pLines], [peekLabelGeo, pLabel]].forEach(([geo, mat], j) => {
       const mesh = new THREE.Mesh(geo, mat); mesh.position.z = -0.03 + j * 0.002; peek.add(mesh);
     });
-    return { pivot, sleeve, peek, mats: [edge, front, back], pmats: [pVinyl, pLines, pLabel], k: null, d: 0 };
+    return { pivot, sleeve, peek, mats: [edge, front, back], pmats: [pVinyl, pLines, pLabel], edgeC: new THREE.Color(), backC: new THREE.Color(), labelC: new THREE.Color(), k: null, d: 0 };
   });
 
   /* ---- 앨범 ---- */
@@ -137,11 +135,15 @@ export function createNvReel({ renderer }) {
     it.k = k;
     const s = sleeves[wrap(k)];
     it.mats[1].map = s?.tex ?? null; it.mats[1].needsUpdate = true;
+    const col = list[wrap(k)]?.color;
+    it.labelC.set(/^#[0-9a-f]{6}/i.test(col || '') ? col : '#bbcbda');
+    it.backC.copy(it.labelC).multiplyScalar(0.82);
+    it.edgeC.copy(it.labelC).multiplyScalar(0.62);
     it.sleeve.userData.k = k;
   }
 
   /* ---- 자리 ---- */
-  const tmpC = new THREE.Color(), creamC = new THREE.Color(CREAM), backC = new THREE.Color('#d9ccb2'), vinylC = new THREE.Color(VINYL), whiteC = new THREE.Color('#ffffff');
+  const vinylC = new THREE.Color(VINYL), whiteC = new THREE.Color('#ffffff');
   // d = 맨 앞에서 몇 번째(소수). 0 = 맨 앞, 양수 = 기다리는 판, 음수 = 지나간 판
   function poseSlot(it, d, bg) {
     it.d = d;
@@ -158,13 +160,13 @@ export function createNvReel({ renderer }) {
       m.opacity = o;
     }
     it.mats[1].color.copy(whiteC).lerp(bg, fog);
-    it.mats[0].color.copy(creamC).lerp(bg, fog);
-    it.mats[2].color.copy(backC).lerp(bg, fog);
-    it.peek.position.set(0, CW * (0.1 + 0.05 * Math.sin(d * 1.7 + 1)), -0.03);
+    it.mats[0].color.copy(it.edgeC).lerp(bg, fog);
+    it.mats[2].color.copy(it.backC).lerp(bg, fog);
+    it.peek.position.set(0, CW * (0.1 + 0.05 * Math.sin(d * 1.7 + 1)), 0);   // 슬리브 안에 든 판
     const po = o * ss(0.45, 0.95, Math.abs(d));
     it.pmats[0].opacity = po; it.pmats[1].opacity = po * 0.35; it.pmats[2].opacity = po;
     it.pmats[0].color.copy(vinylC).lerp(bg, fog);
-    it.pmats[2].color.copy(tmpC.set(list[wrap(it.k)]?.color || '#bbcbda')).lerp(bg, fog);
+    it.pmats[2].color.copy(it.labelC).lerp(bg, fog);
     it.peek.visible = po > 0.01;
     pv.visible = o > 0.01 && list.length > 0;
   }
@@ -173,7 +175,7 @@ export function createNvReel({ renderer }) {
   const localIn = new THREE.Vector3(), pa = new THREE.Vector3(), pb = new THREE.Vector3(), pr = new THREE.Vector3();
   function slotScreen(up, f, hover, out) {
     const outX = CW * (REEL_LAYOUT.OUT + REEL_LAYOUT.OUT_HOVER * hover);
-    localIn.set(outX, up, -0.05);
+    localIn.set(outX, up, 0);           // 슬리브 두께 가운데에서 빠져나옴
     pa.copy(localIn).applyMatrix4(slots[BEHIND].pivot.matrixWorld);
     pb.copy(localIn).applyMatrix4(slots[BEHIND + 1].pivot.matrixWorld);
     pa.lerp(pb, ss(0, 0.4, f));                  // 다음 슬리브로 일찍 옮겨 감 (커버를 가리지 않게)
@@ -238,7 +240,7 @@ export function createNvReel({ renderer }) {
   const corner = new THREE.Vector3();
   function coverRect(k, rect) {
     const it = slots.find((s) => s.k === k) ?? slots[BEHIND];
-    const h = (CW / 2) * (1 - 2 * COVER_INSET), z = 0.0175;
+    const h = (CW / 2) * (1 - 2 * COVER_INSET), z = DEPTH / 2;
     it.sleeve.updateWorldMatrix(true, false);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const [x, y] of [[-h, -h], [h, -h], [h, h], [-h, h]]) {
