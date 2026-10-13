@@ -260,7 +260,7 @@ export default function HomeStage() {
             </Link>
           </div>
 
-          {/* 사이트 공통 Footer (상자의 마지막 판). Flip to Side A 는 스테이지를 Hero 로 바로 돌림 */}
+          {/* 사이트 공통 Footer (상자의 마지막 판). Back to top 은 스테이지를 Hero 로 돌림 */}
           <div aria-hidden="true" className="h-[clamp(4rem,8vw,7rem)] shrink-0" />
           <SiteFooter onSideA={() => engineRef.current?.jumpTo(0)} />
         </div>

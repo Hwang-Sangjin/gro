@@ -3,9 +3,10 @@
 // - 맨 아래로 내려오면: 상자(앞판에 GROOVES 도장) 뒤에서 마지막 슬리브가 올라오며 앞으로 기울어 서고,
 //   그 뒷면에 링크가 적혀 있음. 끝에 가까워지면 판이 슬리브의 반달 홈 뒤에서 위로 빠져나옴 (돌지 않음)
 // - 판은 Home·앨범과 같은 3D 잉크 판 (AlbumVinyl = vinyl.glb + inkShaders). Footer 가 화면 근처일 때만 그림
-// - "Flip to Side A": 연출 없이 맨 위로 부드럽게 스크롤 (Home 은 Hero 로)
+// - "Back to top": 맨 위로 부드럽게 스크롤 (Home 은 Hero 로)
 // - 진행도는 리렌더 없이 CSS 변수 --fp (0: Footer 윗변이 화면 바닥에 닿음 → 1: 페이지 끝)
-// - 움직임 줄이기: 슬리브·판은 다 올라온 상태로 고정, Flip 은 바로 맨 위로
+// - 움직임 줄이기: 슬리브·판은 다 올라온 상태로 고정, Back to top 은 바로 맨 위로
+// - 판 모델은 인트로 동안 미리 받아 둠 (lib/vinylModel). 3D 는 Footer 가 화면 두 개 거리 안에 오면 미리 그려 둠
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -74,7 +75,7 @@ export default function SiteFooter({ onSideA }) {
       const top = box.top - view.top, vh = scroller.clientHeight;
       const p = Math.min(1, Math.max(0, (vh - top) / Math.max(1, box.height)));
       el.style.setProperty("--fp", p.toFixed(4));
-      if (top < vh + 600) setNear(true);
+      if (top < vh * 3) setNear(true);
     };
     const queue = () => { if (!raf) raf = requestAnimationFrame(measure); };
     scroller.addEventListener("scroll", queue, { passive: true });
@@ -153,7 +154,7 @@ export default function SiteFooter({ onSideA }) {
               <p className="tabular-nums">© {year} {SITE.name} · {SITE.city}</p>
               <button type="button" onClick={toTop}
                 className="group/t inline-flex min-h-11 items-center gap-3 rounded-full border border-(--cream)/30 py-1 pl-5 pr-1.5 text-(--cream) transition-colors hover:border-(--cream) hover:bg-(--cream) hover:text-(--ink)">
-                Flip to Side A
+                Back to top
                 <span aria-hidden="true" className="grid size-8 place-items-center rounded-full bg-(--cream) text-(--ink) transition-transform duration-500 [transform-style:preserve-3d] group-hover/t:[transform:rotateY(180deg)] group-hover/t:bg-(--ink) group-hover/t:text-(--cream)">
                   <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 13V3M4 7l4-4 4 4" /></svg>
                 </span>

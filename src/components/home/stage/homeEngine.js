@@ -2799,7 +2799,7 @@ export async function createHomeEngine(opts) {
       }
     },
     goSection(n) { if (!disposed && !inputLocked()) goSection(n); },
-    /** 애니메이션 없이 그 섹션으로 바로 (Footer 의 Flip to Side A: 판이 화면을 덮은 사이에 Hero 로) */
+    /** 애니메이션 없이 그 섹션으로 바로 (Footer 의 Back to top: Hero 로) */
     jumpTo(n) {
       if (disposed) return;
       n = Math.max(0, Math.min(3, n));

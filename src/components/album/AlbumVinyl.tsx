@@ -9,6 +9,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { discFrag, discVert, hexToRgb, inkDefaults } from "../vinyl/inkShaders";
+import { VINYL_URL, DRACO_PATH } from "@/lib/vinylModel";
 
 // face: 0 = 앞면(A·C), 1 = 뒷면(B·D). 바뀌면 판을 세로축으로 반 바퀴 뒤집음. snap이면 애니메이션 없이 바로
 type Props = { ink: string; label: string; rpm: number; playing: boolean; face?: number; snap?: boolean };
@@ -19,7 +20,7 @@ const FLIP = { duration: 0.9, lift: 0.07 };  // 뒤집기 시간(초), 뒤집는
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 function Disc({ ink, label, rpm, playing, face = 0, snap = false }: Props) {
-  const { scene } = useGLTF("/models/vinyl.glb", "/draco/");
+  const { scene } = useGLTF(VINYL_URL, DRACO_PATH);
   const { camera, pointer, invalidate, size } = useThree();
   const comp = useRef<THREE.Group>(null);
   const spin = useRef<THREE.Group>(null);
