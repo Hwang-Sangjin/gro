@@ -139,25 +139,29 @@ export default function SiteFooter() {
   const done = () => setFlip(null);
 
   return (
-    <footer ref={root} style={{ "--fp": 0, "--crate-h": "clamp(104px, 17vw, 270px)" }}
-      className="site-footer group/footer relative isolate mt-auto overflow-hidden pt-[clamp(7rem,16vw,15rem)] text-(--ink) [perspective:1600px]">
+    <footer ref={root} style={{
+      "--fp": 0, "--crate-h": "clamp(104px, 17vw, 270px)",
+      // 판 지름 = 슬리브 너비의 80%, 올라오는 높이 = 지름의 30% → 그만큼 위 여백을 둬서 판이 잘리지 않게
+      "--gutter": "clamp(16px, 3vw, 56px)", "--disc": "calc((100vw - 2 * var(--gutter)) * 0.8)", "--rise": "0.3",
+    }}
+      className="site-footer group/footer relative isolate mt-auto overflow-hidden pt-[calc(var(--disc)*var(--rise)+clamp(1.5rem,4vw,3.5rem))] text-(--ink) [perspective:1600px]">
 
       {/* 상자 안 다른 판들의 윗부분 (마지막 판이 올라오면 그 앞을 가림) */}
-      <div aria-hidden="true" className="absolute inset-x-0 bottom-[var(--crate-h)] -z-10 mx-auto flex h-[clamp(3rem,6vw,5rem)] max-w-[1500px] items-end gap-[1.5%] px-[clamp(28px,5vw,90px)]">
+      <div aria-hidden="true" className="absolute inset-x-0 bottom-[var(--crate-h)] -z-10 flex h-[clamp(3rem,6vw,5rem)] items-end gap-[1.5%] px-[calc(var(--gutter)+clamp(12px,2vw,34px))]">
         {[["#c8553d", 92, 0], ["#4f6d93", 70, 3], ["#e3b04b", 100, -2], ["#bbcbda", 80, 2], ["#8a5a3c", 64, -3]].map(([c, h, r], i) => (
           <span key={i} className="flex-1 rounded-t-[3px]" style={{ backgroundColor: c, height: `${h}%`, rotate: `${r}deg` }} />
         ))}
       </div>
 
-      <div className="relative mx-auto max-w-[1500px] px-[clamp(16px,3vw,56px)]">
+      <div className="relative px-(--gutter)">
         {/* 마지막 슬리브: 상자 안에 잠겨 뒤로 누워 있다가 → 올라오며 앞으로 섬 */}
         <div className="relative origin-bottom will-change-transform"
           style={{ transform: `translateY(calc((1 - ${seg(0, 0.75)}) * 34%)) rotateX(calc((1 - ${seg(0, 0.75)}) * 16deg))` }}>
           {/* 반달 홈 뒤에서 위로 빠져나오는 판 — 슬리브 키에 맞춘 크기, 돌지 않음 */}
           <div ref={disc} aria-hidden="true" data-flipping={!!flip}
-            className="absolute left-1/2 top-0 -z-10 aspect-square w-[clamp(220px,36vw,540px)] transition-opacity duration-150 data-[flipping=true]:opacity-0"
-            style={{ translate: `-50% calc(${seg(0.45, 1)} * -52%)` }}>
-            {near && <AlbumVinyl ink={ink} label={LABEL_B} rpm={33.333} playing={false} />}
+            className="absolute left-1/2 top-0 -z-10 aspect-square w-(--disc) transition-opacity duration-150 data-[flipping=true]:opacity-0"
+            style={{ translate: `-50% calc(${seg(0.45, 1)} * var(--rise) * -100%)` }}>
+            {near && <AlbumVinyl ink={ink} label={LABEL_B} rpm={33.333} playing={false} dpr={[1, 1.5]} />}
           </div>
 
           <div style={{ WebkitMask: NOTCH, mask: NOTCH }} className="relative rounded-t-[10px] bg-(--ink) px-[clamp(20px,4vw,72px)] pb-[calc(var(--crate-h)+clamp(1.5rem,3vw,2.5rem))] pt-[clamp(2.75rem,6vw,5rem)] text-(--cream) shadow-[0_-30px_60px_-30px_rgba(0,0,0,.45)]">
