@@ -11,6 +11,7 @@ import { HOME_GENRES, GENRE_WAVE } from "./homeGenres";
 import { NEWS_ART, NEWS_ACCENT } from "./newsArt";
 import { createHomeEngine } from "./homeEngine";
 import { STORIES, categoryName } from "@/content/news";
+import SiteFooter from "@/components/layout/SiteFooter";
 
 /* Home 4개 섹션을 한 화면(100svh)에서 전환하는 스테이지.
    0 Hero → 1 New Vinyls → 2 Genre dial → 3 News
@@ -192,8 +193,8 @@ export default function HomeStage() {
 
       {/* 04 — News & Stories: 다시 크림. 판은 오른쪽 칸(news-disc)으로 옮겨 와 턴테이블처럼 비스듬히 돎.
            화면보다 길면 이 안에서 스크롤 (맨 위에서 위로 스크롤하면 Genre dial로) */}
-      <div id="news" data-lenis-prevent className="invisible absolute inset-0 overflow-y-auto overscroll-contain opacity-0" role="region" aria-labelledby="news-title">
-        <div className="mx-auto flex min-h-full w-full max-w-[min(120rem,100%)] flex-col px-6 pb-3 pt-[clamp(1rem,3.5vh,3rem)] sm:px-10 lg:px-[5vw]">
+      <div id="news" data-lenis-prevent data-scroll-root className="invisible absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-contain opacity-0" role="region" aria-labelledby="news-title">
+        <div className="mx-auto flex min-h-full w-full max-w-[min(120rem,100%)] flex-col px-6 pt-[clamp(1rem,3.5vh,3rem)] sm:px-10 lg:px-[5vw]">
           <div className="my-auto grid grid-cols-1 items-center gap-x-[4vw] lg:grid-cols-[minmax(0,1fr)_clamp(14rem,18vw,25rem)]">
             <div>
               <div className={`${NEWS_IN} flex items-baseline justify-between text-[clamp(10px,0.7vw,13px)] font-medium uppercase tracking-[0.24em]`} style={delay(0)}>
@@ -259,13 +260,9 @@ export default function HomeStage() {
             </Link>
           </div>
 
-          <footer className={`${NEWS_IN} mt-[clamp(1.5rem,3vh,3rem)] flex min-h-11 items-center gap-4 text-[clamp(10px,0.72vw,13px)] uppercase tracking-[0.22em]`} style={delay(7)}>
-            <span className="font-semibold">Grooves</span>
-            <span className="h-px flex-1 bg-[var(--hs-line)]" />
-            <Link href="/privacy" className="text-[var(--hs-muted)] transition-colors hover:text-[var(--hs-text)]">Privacy</Link>
-            <Link href="/terms" className="text-[var(--hs-muted)] transition-colors hover:text-[var(--hs-text)]">Terms</Link>
-            <span className="hidden font-[Georgia,serif] text-[clamp(0.875rem,1vw,1.15rem)] normal-case italic tracking-normal sm:inline">Slow down. Listen closer.</span>
-          </footer>
+          {/* 사이트 공통 Footer (상자의 마지막 판). Flip to Side A 는 스테이지를 Hero 로 바로 돌림 */}
+          <div aria-hidden="true" className="h-[clamp(4rem,8vw,7rem)] shrink-0" />
+          <SiteFooter onSideA={() => engineRef.current?.jumpTo(0)} />
         </div>
       </div>
 

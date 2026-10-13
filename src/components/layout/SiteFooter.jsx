@@ -97,7 +97,11 @@ function FlipOverlay({ from, ink, onCovered, onDone }) {
   );
 }
 
-export default function SiteFooter() {
+// 스크롤 컨테이너: 보통 페이지(.page), Home 은 News 칸(#news, data-scroll-root)
+const scrollerOf = (el) => el?.closest("[data-scroll-root]") ?? el?.closest(".page") ?? null;
+
+// onSideA: Flip 때 "맨 위로" 대신 할 일 (Home 은 스테이지를 Hero 로 바로 돌림)
+export default function SiteFooter({ onSideA }) {
   const user = useAuthUser();
   const year = new Date(`${SITE.legalUpdated}T12:00:00+09:00`).getFullYear();
   const root = useRef(null);
@@ -109,7 +113,7 @@ export default function SiteFooter() {
   // 스크롤 진행도 → --fp, 화면에 있을 때만 판이 돎
   useEffect(() => {
     const el = root.current;
-    const scroller = el?.closest(".page");
+    const scroller = scrollerOf(el);
     if (!el || !scroller) return;
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) { el.style.setProperty("--fp", "1"); setNear(true); return; }
     let raf = 0;
@@ -129,13 +133,13 @@ export default function SiteFooter() {
   }, []);
 
   const flipToA = () => {
-    const scroller = root.current?.closest(".page");
+    const scroller = scrollerOf(root.current);
     if (!scroller) return;
     const box = disc.current?.getBoundingClientRect();
-    if (!box || matchMedia("(prefers-reduced-motion: reduce)").matches) { scroller.scrollTo({ top: 0 }); return; }
+    if (!box || matchMedia("(prefers-reduced-motion: reduce)").matches) { onSideA ? onSideA() : scroller.scrollTo({ top: 0 }); return; }
     setFlip({ x: box.left, y: box.top, width: box.width });
   };
-  const covered = () => root.current?.closest(".page")?.scrollTo({ top: 0, behavior: "instant" });
+  const covered = () => (onSideA ? onSideA() : scrollerOf(root.current)?.scrollTo({ top: 0, behavior: "instant" }));
   const done = () => setFlip(null);
 
   return (

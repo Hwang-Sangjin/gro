@@ -2799,6 +2799,18 @@ export async function createHomeEngine(opts) {
       }
     },
     goSection(n) { if (!disposed && !inputLocked()) goSection(n); },
+    /** 애니메이션 없이 그 섹션으로 바로 (Footer 의 Flip to Side A: 판이 화면을 덮은 사이에 Hero 로) */
+    jumpTo(n) {
+      if (disposed) return;
+      n = Math.max(0, Math.min(3, n));
+      tweening = catTweening = newsTweening = false;
+      section = n; wheelAcc = 0;
+      scrollP = n >= 1 ? 1 : 0; albumClock = n >= 1 ? AUTO.total : 0;
+      catP = n >= 2 ? 1 : 0; newsP = n >= 3 ? 1 : 0;
+      $news.scrollTop = 0;
+      lockUntil = nowSec() + SECTION.cooldown;
+      opts.onSectionChange?.(n);
+    },
     get section() { return section; },
     get dialIndex() { return dialIndex; },
     dispose() {
