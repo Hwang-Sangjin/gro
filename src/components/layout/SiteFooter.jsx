@@ -1,16 +1,21 @@
 "use client";
 // 사이트 공통 Footer = "상자의 마지막 판" — PageShell 맨 아래 (footer={false} 로 끌 수 있음)
 // - 맨 아래로 내려오면: 상자(앞판에 GROOVES 도장) 뒤에서 마지막 슬리브가 올라오며 앞으로 기울어 서고,
-//   그 뒷면에 링크가 적혀 있음. 끝에 가까워지면 판(Side B)이 슬리브 위로 빠져나와 돔
-// - "Flip to Side A": 판이 화면 가득 커지며 뒤집히고(B → A), 그 순간 맨 위로 이동한 뒤 판이 작아지며 사라짐
+//   그 뒷면에 링크가 적혀 있음. 끝에 가까워지면 판이 슬리브의 반달 홈 뒤에서 위로 빠져나옴 (돌지 않음)
+// - 판은 Home·앨범과 같은 3D 잉크 판 (AlbumVinyl = vinyl.glb + inkShaders). Footer 가 화면 근처일 때만 그림
+// - "Flip to Side A": 판이 화면 가득 커지며 3D 로 뒤집히고, 그 순간 맨 위로 이동한 뒤 판이 작아지며 사라짐
 // - 진행도는 리렌더 없이 CSS 변수 --fp (0: Footer 윗변이 화면 바닥에 닿음 → 1: 페이지 끝)
 // - 움직임 줄이기: 슬리브·판은 다 올라온 상태로 고정, Flip 은 바로 맨 위로
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { NAV } from "@/components/crate/routes";
 import useAuthUser from "@/lib/useAuthUser";
 import { SITE } from "@/lib/site";
+
+const AlbumVinyl = dynamic(() => import("@/components/album/AlbumVinyl"), { ssr: false });
+const LABEL_B = "#bbcbda", LABEL_A = "#e3b04b";
 
 const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035em]";
 const HEAD = "text-[11px] font-medium uppercase tracking-[0.26em] text-(--cream)/55";
@@ -31,59 +36,61 @@ function FootLink({ href, children }) {
   );
 }
 
-// 판 한 면 (홈 + 라벨). side 글자가 라벨에 찍힘
-function DiscFace({ side, label = "#bbcbda", className = "" }) {
-  return (
-    <svg viewBox="0 0 200 200" className={className} aria-hidden="true">
-      <circle cx="100" cy="100" r="99" fill="#1b1619" />
-      {Array.from({ length: 20 }, (_, i) => (
-        <circle key={i} cx="100" cy="100" r={95 - i * 3.2} fill="none" stroke="#f4e7cd" strokeWidth={i % 6 === 0 ? 0.9 : 0.45} opacity={i % 6 === 3 ? 0.05 : 0.15} />
-      ))}
-      <path d="M100 5a95 95 0 0 1 82 47" fill="none" stroke="#fff" strokeWidth="12" opacity=".05" />
-      <circle cx="100" cy="100" r="32" fill={label} />
-      <text x="100" y="92" textAnchor="middle" fontSize="6" fontWeight="700" letterSpacing="1.6" fill="#2a222a">GROOVES</text>
-      <text x="100" y="114" textAnchor="middle" fontSize="11" fontWeight="900" letterSpacing="1" fill="#2a222a" fontFamily="Grooves Bodoni, Georgia, serif">SIDE {side}</text>
-      <circle cx="100" cy="100" r="2.6" fill="#1b1619" />
-    </svg>
-  );
+// 판의 잉크색 = 지금 테마의 --ink (다크 모드면 크림 선). 테마가 바뀌면 다시 읽음
+function useInk(ref) {
+  const [ink, setInk] = useState("#4c404a");
+  useEffect(() => {
+    const read = () => {
+      const v = ref.current && getComputedStyle(ref.current).getPropertyValue("--ink").trim();
+      if (v) setInk(v);
+    };
+    read();
+    const mo = new MutationObserver(read);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => mo.disconnect();
+  }, [ref]);
+  return ink;
 }
 
 // 뒤집히는 판 (body 에 붙여서 페이지 변형·스크롤과 상관없이 화면 위에 뜸)
-function FlipOverlay({ from, onCovered, onDone }) {
-  const wrap = useRef(null), spin = useRef(null), faceB = useRef(null), faceA = useRef(null);
+// 화면 대각선 크기의 캔버스를 미리 만들고, 처음엔 Footer 판 크기로 줄여 그 자리에 둔 뒤 → 화면 가득 → 작아지며 사라짐
+function FlipOverlay({ from, ink, onCovered, onDone }) {
+  const wrap = useRef(null), box = useRef(null), back = useRef(null);
+  const [face, setFace] = useState(0);
+  const [label, setLabel] = useState(LABEL_B);
+  const D = Math.ceil(Math.hypot(innerWidth, innerHeight) * 1.04);
   useEffect(() => {
-    if (!spin.current) return;
-    const vw = innerWidth, vh = innerHeight, size = from.width, D = 1500;
-    const cx = vw / 2 - size / 2, cy = vh / 2 - size / 2;
-    const cover = (Math.hypot(vw, vh) / size) * 1.06;            // 판(원)이 화면 대각선을 덮는 배율
-    const at = (x, y, s, ry, rz = 0) => `translate3d(${x}px, ${y}px, 0) perspective(1800px) rotateY(${ry}deg) rotateZ(${rz}deg) scale(${s})`;
-    const opts = { duration: D, easing: `cubic-bezier(${EASE})`, fill: "forwards" };
+    const T = 1500, vw = innerWidth, vh = innerHeight;
+    const dx = from.x + from.width / 2 - vw / 2, dy = from.y + from.width / 2 - vh / 2, s0 = from.width / D;
+    // 구간마다 따로 감속 (전체에 easing 을 걸면 offset 이 실제 시간과 어긋나 종이 원·맨 위 이동 타이밍이 틀어짐)
+    const opts = { duration: T, easing: "linear", fill: "forwards" };
+    const ease = `cubic-bezier(${EASE})`;
     const anims = [
-      spin.current.animate([
-        { transform: at(from.x, from.y, 1, 0), offset: 0 },
-        { transform: at(cx, cy, cover * 0.55, 90, 40), offset: 0.28 },
-        { transform: at(cx, cy, cover, 180, 80), offset: 0.48 },
-        { transform: at(cx, cy, cover, 180, 96), offset: 0.58 },
-        { transform: at(cx, cy, 0.18, 180, 260), offset: 0.92 },
-        { transform: at(cx, cy, 0.05, 180, 300), offset: 1 },
+      box.current.animate([
+        { transform: `translate(${dx}px, ${dy}px) scale(${s0})`, easing: ease },
+        { transform: "translate(0, 0) scale(1) rotate(30deg)", offset: 0.42, easing: "linear" },
+        { transform: "translate(0, 0) scale(1) rotate(42deg)", offset: 0.6, easing: "cubic-bezier(.55,0,.75,.2)" },
+        { transform: "translate(0, 0) scale(0.04) rotate(200deg)" },
       ], opts),
-      // 판이 옆으로 선 순간(90°) 앞면 B → 뒷면 A 로 바꿔 끼움 (뒷면 그림은 미리 좌우 반전)
-      faceB.current.animate([{ opacity: 1 }, { opacity: 1, offset: 0.279 }, { opacity: 0, offset: 0.28 }, { opacity: 0 }], opts),
-      faceA.current.animate([{ opacity: 0 }, { opacity: 0, offset: 0.279 }, { opacity: 1, offset: 0.28 }, { opacity: 1 }], opts),
-      // 사라짐은 바깥 상자에서 (3D 상자에 투명도를 주면 평면으로 눌림)
-      wrap.current.animate([{ opacity: 1 }, { opacity: 1, offset: 0.9 }, { opacity: 0 }], opts),
+      // 판 뒤 종이 원(테마의 바탕색): 화면을 덮는 동안만 (판이 옆으로 설 때는 숨김 — 둥근 판이 납작해져도 어색하지 않게)
+      back.current.animate([{ opacity: 0 }, { opacity: 0, offset: 0.34 }, { opacity: 1, offset: 0.42 }, { opacity: 1, offset: 0.62 }, { opacity: 0, offset: 0.7 }, { opacity: 0 }], opts),
+      wrap.current.animate([{ opacity: 1 }, { opacity: 1, offset: 0.88 }, { opacity: 0 }], opts),
     ];
-    const t = setTimeout(onCovered, D * 0.5);                     // 화면을 다 덮은 순간 맨 위로
+    const timers = [
+      setTimeout(() => setFace(1), 40),                // 3D 로 반 바퀴 (B → A)
+      setTimeout(() => setLabel(LABEL_A), 0.3 * T),    // 옆으로 선 순간 라벨 색 바꿈
+      setTimeout(onCovered, 0.52 * T),                 // 화면을 다 덮은 순간 맨 위로
+    ];
     anims[0].onfinish = onDone;
-    return () => { clearTimeout(t); anims.forEach((a) => a.cancel()); };
+    return () => { timers.forEach(clearTimeout); anims.forEach((a) => a.cancel()); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [from]);
 
   return createPortal(
-    <div ref={wrap} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[9998]">
-      <div ref={spin} className="absolute left-0 top-0 will-change-transform" style={{ width: from.width, height: from.width }}>
-        <div ref={faceB} className="absolute inset-0"><DiscFace side="B" className="size-full" /></div>
-        <div ref={faceA} className="absolute inset-0 -scale-x-100 opacity-0"><DiscFace side="A" label="#e3b04b" className="size-full" /></div>
+    <div ref={wrap} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[9998] overflow-hidden">
+      <div ref={box} className="absolute will-change-transform" style={{ width: D, height: D, left: `calc(50% - ${D / 2}px)`, top: `calc(50% - ${D / 2}px)` }}>
+        <span ref={back} className="absolute inset-[2%] rounded-full opacity-0" style={{ backgroundColor: "var(--cream)" }} />
+        <AlbumVinyl ink={ink} label={label} rpm={33.333} playing={false} face={face} dpr={1} />
       </div>
     </div>,
     document.body,
@@ -96,13 +103,15 @@ export default function SiteFooter() {
   const root = useRef(null);
   const disc = useRef(null);
   const [flip, setFlip] = useState(null);       // { x, y, width } — 뒤집는 중
+  const [near, setNear] = useState(false);      // 화면 근처에 오면 3D 판을 만듦 (페이지마다 WebGL 을 미리 띄우지 않게)
+  const ink = useInk(root);
 
   // 스크롤 진행도 → --fp, 화면에 있을 때만 판이 돎
   useEffect(() => {
     const el = root.current;
     const scroller = el?.closest(".page");
     if (!el || !scroller) return;
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { el.style.setProperty("--fp", "1"); return; }
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { el.style.setProperty("--fp", "1"); setNear(true); return; }
     let raf = 0;
     const measure = () => {
       raf = 0;
@@ -110,7 +119,7 @@ export default function SiteFooter() {
       const top = box.top - view.top, vh = scroller.clientHeight;
       const p = Math.min(1, Math.max(0, (vh - top) / Math.max(1, box.height)));
       el.style.setProperty("--fp", p.toFixed(4));
-      el.dataset.spin = p > 0.55 ? "on" : "off";
+      if (top < vh + 600) setNear(true);
     };
     const queue = () => { if (!raf) raf = requestAnimationFrame(measure); };
     scroller.addEventListener("scroll", queue, { passive: true });
@@ -130,7 +139,7 @@ export default function SiteFooter() {
   const done = () => setFlip(null);
 
   return (
-    <footer ref={root} data-spin="off" style={{ "--fp": 0, "--crate-h": "clamp(104px, 17vw, 270px)" }}
+    <footer ref={root} style={{ "--fp": 0, "--crate-h": "clamp(104px, 17vw, 270px)" }}
       className="site-footer group/footer relative isolate mt-auto overflow-hidden pt-[clamp(7rem,16vw,15rem)] text-(--ink) [perspective:1600px]">
 
       {/* 상자 안 다른 판들의 윗부분 (마지막 판이 올라오면 그 앞을 가림) */}
@@ -144,11 +153,11 @@ export default function SiteFooter() {
         {/* 마지막 슬리브: 상자 안에 잠겨 뒤로 누워 있다가 → 올라오며 앞으로 섬 */}
         <div className="relative origin-bottom will-change-transform"
           style={{ transform: `translateY(calc((1 - ${seg(0, 0.75)}) * 34%)) rotateX(calc((1 - ${seg(0, 0.75)}) * 16deg))` }}>
-          {/* 슬리브에서 위로 빠져나오는 판 (Side B) */}
+          {/* 반달 홈 뒤에서 위로 빠져나오는 판 — 슬리브 키에 맞춘 크기, 돌지 않음 */}
           <div ref={disc} aria-hidden="true" data-flipping={!!flip}
-            className="absolute right-[clamp(28px,8vw,140px)] top-0 -z-10 aspect-square w-[min(44vw,400px)] data-[flipping=true]:opacity-0"
-            style={{ transform: `translateY(calc(${seg(0.5, 1)} * -58%))` }}>
-            <DiscFace side="B" className="size-full animate-[spin_1.8s_linear_infinite] [animation-play-state:paused] group-data-[spin=on]/footer:[animation-play-state:running] motion-reduce:animate-none" />
+            className="absolute left-1/2 top-0 -z-10 aspect-square w-[clamp(220px,36vw,540px)] transition-opacity duration-150 data-[flipping=true]:opacity-0"
+            style={{ translate: `-50% calc(${seg(0.45, 1)} * -52%)` }}>
+            {near && <AlbumVinyl ink={ink} label={LABEL_B} rpm={33.333} playing={false} />}
           </div>
 
           <div style={{ WebkitMask: NOTCH, mask: NOTCH }} className="relative rounded-t-[10px] bg-(--ink) px-[clamp(20px,4vw,72px)] pb-[calc(var(--crate-h)+clamp(1.5rem,3vw,2.5rem))] pt-[clamp(2.75rem,6vw,5rem)] text-(--cream) shadow-[0_-30px_60px_-30px_rgba(0,0,0,.45)]">
@@ -207,7 +216,7 @@ export default function SiteFooter() {
         <p className="absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] uppercase tracking-[0.3em] text-(--ink)/45">Crate No. 1 · Handle with care</p>
       </div>
 
-      {flip && <FlipOverlay from={flip} onCovered={covered} onDone={done} />}
+      {flip && <FlipOverlay from={flip} ink={ink} onCovered={covered} onDone={done} />}
     </footer>
   );
 }

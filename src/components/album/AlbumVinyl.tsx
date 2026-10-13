@@ -151,10 +151,11 @@ function Disc({ ink, label, rpm, playing, face = 0, snap = false }: Props) {
   );
 }
 
-export default function AlbumVinyl(props: Props) {
+// dpr: 아주 크게 그릴 때(Footer 뒤집기처럼 화면을 덮을 때) 픽셀 수를 줄이려고 낮춰 씀
+export default function AlbumVinyl({ dpr = [1, 2], ...props }: Props & { dpr?: number | [number, number] }) {
   return (
     <Canvas orthographic camera={{ position: [0, 0, 100], zoom: 100, near: 0.1, far: 400 }}
-      gl={{ alpha: true, antialias: true, premultipliedAlpha: true }} dpr={[1, 2]}
+      gl={{ alpha: true, antialias: true, premultipliedAlpha: true }} dpr={dpr}
       // 재생 중엔 매 프레임 그림(회전이 확실히 이어지게). 멈추면 demand로 돌아가 관성으로 서는 동안만 그림
       frameloop={props.playing ? "always" : "demand"}
       resize={{ offsetSize: true }} className="!absolute inset-0" aria-hidden="true">
