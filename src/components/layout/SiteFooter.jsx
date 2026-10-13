@@ -146,18 +146,19 @@ export default function SiteFooter({ onSideA }) {
     <footer ref={root} style={{
       "--fp": 0, "--crate-h": "clamp(104px, 17vw, 270px)",
       // 판 지름 = 슬리브 너비의 80%, 올라오는 높이 = 지름의 30% → 그만큼 위 여백을 둬서 판이 잘리지 않게
-      "--gutter": "clamp(16px, 3vw, 56px)", "--disc": "calc((100vw - 2 * var(--gutter)) * 0.8)", "--rise": "0.3",
+      // 넓은 화면에서는 슬리브가 1500px 에서 멈춤 (그보다 좁으면 좌우 여백만 두고 꽉 참)
+      "--gutter": "clamp(16px, 3vw, 56px)", "--disc": "calc((min(100vw, 1500px) - 2 * var(--gutter)) * 0.8)", "--rise": "0.3",
     }}
       className="site-footer group/footer relative isolate mt-auto overflow-hidden pt-[calc(var(--disc)*var(--rise)+clamp(1.5rem,4vw,3.5rem))] text-(--ink) [perspective:1600px]">
 
       {/* 상자 안 다른 판들의 윗부분 (마지막 판이 올라오면 그 앞을 가림) */}
-      <div aria-hidden="true" className="absolute inset-x-0 bottom-[var(--crate-h)] -z-10 flex h-[clamp(3rem,6vw,5rem)] items-end gap-[1.5%] px-[calc(var(--gutter)+clamp(12px,2vw,34px))]">
+      <div aria-hidden="true" className="absolute inset-x-0 bottom-[var(--crate-h)] -z-10 mx-auto flex h-[clamp(3rem,6vw,5rem)] max-w-[1500px] items-end gap-[1.5%] px-[calc(var(--gutter)+clamp(12px,2vw,34px))]">
         {[["#c8553d", 92, 0], ["#4f6d93", 70, 3], ["#e3b04b", 100, -2], ["#bbcbda", 80, 2], ["#8a5a3c", 64, -3]].map(([c, h, r], i) => (
           <span key={i} className="flex-1 rounded-t-[3px]" style={{ backgroundColor: c, height: `${h}%`, rotate: `${r}deg` }} />
         ))}
       </div>
 
-      <div className="relative px-(--gutter)">
+      <div className="relative mx-auto max-w-[1500px] px-(--gutter)">
         {/* 마지막 슬리브: 상자 안에 잠겨 뒤로 누워 있다가 → 올라오며 앞으로 섬 */}
         <div className="relative origin-bottom will-change-transform"
           style={{ transform: `translateY(calc((1 - ${seg(0, 0.75)}) * 34%)) rotateX(calc((1 - ${seg(0, 0.75)}) * 16deg))` }}>
