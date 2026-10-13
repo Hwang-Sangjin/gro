@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { createNvReel } from './nvReel';
+import { createNvReel, REEL_LAYOUT } from './nvReel';
 
 /**
  * @param {object} opts
@@ -252,9 +252,12 @@ export async function createHomeEngine(opts) {
   const SCROLL = {
     heroEnd: 0.03,                         // 이 지점까지는 Hero 기능(링·헤일로·누르기·뒤집기) 그대로
     fxOutEnd: 0.12,                        // 링·헤일로가 사라지는 시점
-    standEnd: 0.35,                        // 이때까지 판이 일어서서 정면(원)을 보며 맨 앞 슬리브 위로
-    spinStart: 0.35, spinEnd: 0.85,        // 이 구간에서 세로축으로 한 바퀴 (원 → 세로 1자 → 원)
-    albumTrigger: 0.4,                     // 착륙하면 앨범 등장 시작 (이후는 시간으로 자동 재생)
+    standEnd: 0.22,                        // 이때까지 판이 일어서서 정면(원)을 보며 앨범 위 기다리는 자리로
+    spinStart: 0.2, spinEnd: 0.46,         // 이 구간에서 세로축으로 한 바퀴 (원 → 세로 1자 → 원)
+    riseStart: 0.06, riseEnd: 0.46,        // 앨범 하나가 화면 아래에서 올라옴 (반시계 90° 누운 채: 열린 쪽이 위)
+    insertStart: 0.48, insertEnd: 0.7,     // 판이 위에서 앨범 안으로 스르륵
+    turnStart: 0.72, turnEnd: 0.9,         // 판이 든 앨범이 원래 방향으로 돌아서며 제자리로 올라감 (열린 쪽이 오른쪽)
+    albumTrigger: 0.9,                     // 그 뒤 나머지 앨범이 차례로 나타남 (이후는 시간으로 자동 재생)
   };
   const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
   const easeOut = (t) => 1 - Math.pow(1 - t, 3);
@@ -779,8 +782,6 @@ export async function createHomeEngine(opts) {
     every: 3.5,          // 자동 넘김 간격(초)
     edge: 0.3,           // 한 바퀴 끝에서 더 밀리는 여유(장)
     handoff: 0.7,        // 끝에서 이만큼 더 굴리면 다음/이전 섹션으로
-    enterSpin: 7,        // 들어오고 나갈 때 더 감기는 장 수
-    enterX: 6,           // 들어오고 나갈 때 오른쪽으로 밀려나는 거리
     swipe: 40,           // 터치 스와이프 거리(px)
   };
   let reelPos = 0, reelTarget = 0, reelOver = 0, reelSnapTimer = 0;
@@ -916,8 +917,6 @@ export async function createHomeEngine(opts) {
   /* ---- 배경 = 맨 앞 앨범의 대표 색 · 글자는 밝기에 따라 ---- */
   const NV_TINT = {
     tau: 0.35,          // 색이 따라가는 시간감(초)
-    label: 0.85,        // 판 라벨이 앨범 색으로 바뀌는 정도
-    groove: 0.4,        // 판의 홈이 크림 쪽으로 밝아지는 정도 (검은 판 위)
   };
   const C_INK = '#4c404a', C_CREAM = '#f4e7cd';
   const nvBase = new THREE.Color(), nvBgCur = new THREE.Color(), nvBgGoal = new THREE.Color(), nvAlbumC = new THREE.Color();
@@ -936,8 +935,6 @@ export async function createHomeEngine(opts) {
   }
   const textOn = (c) => (0.299 * c.r + 0.587 * c.g + 0.114 * c.b > 0.58 ? C_INK : C_CREAM);
   let nvTouched = false, nvBgHex = '', nvFgHex = '';
-  const nvLabelCur = new THREE.Vector3(), nvLabelGoal = new THREE.Vector3(), creamVec = hexToVec3(C_CREAM);
-  let nvLabelTouched = false, nvLabelInit = false;
   function updateNvTint(dt, catEase) {
     const vis = clamp01(albumClock / AUTO.total) * (1 - catEase);
     const fa = reelN() ? nvReel.album(frontK()) : null;
@@ -964,44 +961,44 @@ export async function createHomeEngine(opts) {
       page?.style.removeProperty('--ink'); page?.style.removeProperty('--cream');
       const t = Math.max(0, themeT); themeT = -1; applyTheme(t);    // 섹션 테마 색으로 되돌림
     }
-    // 판: 검은 바이닐 위 크림 홈, 라벨은 앨범 색 (다이얼에서는 장르 색을 따로 칠함)
-    if (catEase < 0.01 && fa && vis > 0.001) {
-      nvLabelGoal.copy(hexToVec3(/^#[0-9a-f]{6}/i.test(fa.color || '') ? fa.color : '#4d5f74'));
-      if (!nvLabelInit) { nvLabelCur.copy(nvLabelGoal); nvLabelInit = true; }
-      nvLabelCur.lerp(nvLabelGoal, 1 - Math.exp(-dt / NV_TINT.tau));
-      uniforms.uLabel.value.copy(heroLabel3).lerp(baseLabel, themeT).lerp(nvLabelCur, NV_TINT.label * vis);
-      uniforms.uInk.value.copy(heroInk3).lerp(baseInk, themeT).lerp(creamVec, NV_TINT.groove * vis);
-      nvLabelTouched = true;
-    } else if (nvLabelTouched && catEase < 0.01) {
-      nvLabelTouched = false; nvLabelInit = false; applyColors();
+    // 판은 Hero 색 그대로 (크림 종이 위 블루 잉크). 다이얼에서는 장르 색을 따로 칠함 (updateDial)
+    if (catEase < 0.01) {
+      uniforms.uInk.value.copy(heroInk3);
+      uniforms.uLabel.value.copy(heroLabel3);
     }
   }
 
   // 릴 등장·퇴장은 스크롤이 아니라 '착륙 후 시간'으로 자동 재생. 다시 위/아래로 떠나면 거꾸로 감기며 빠짐
   const AUTO = {
-    total: 1.4,         // 릴이 다 들어오는 시간(초)
-    sinkAt: 0.55,       // 이 비율부터 판이 슬리브로 들어감
+    total: 1.6,         // 나머지 앨범이 다 나타나는 시간(초) (nvReel REVEAL과 맞춤)
     titleAt: 0.5, titleDur: 0.7,
     infoAt: 0.8, infoDur: 0.6,
   };
   let albumClock = 0;   // 착륙 후 흐른 시간(초)
-  // 판 자리(엔진 좌표): 릴이 들어오는 만큼 '슬리브 위' → '슬리브 안(오른쪽으로 빠져나옴)'
+  // 판 자리(엔진 좌표). 맨 앞 앨범 기준:
+  //  - Hero에서 올 때: 앨범 열린 쪽(위, 앨범이 반시계 90° 누워 있음) 바깥에서 기다리다가 → 안으로 (insert)
+  //  - New Vinyls: 앨범 안 (마우스를 올리면 오른쪽으로 조금 빠져나옴)
+  //  - Genre로 갈 때: 오른쪽으로 완전히 빠져나옴 (catOut) → 그다음 다이얼로
   const nvTarget = { x: 0, y: 0, s: 1 };
-  let nvSide = 'hero';   // 판이 슬리브 밖에서 기다리는 쪽: 'hero' = 위, 'genre' = 오른쪽
-  function nvDiscTarget() {
-    // 릴이 거의 다 들어온 뒤(AUTO.sinkAt~) 슬리브에 들어감. 떠날 땐 먼저 빠져나옴
-    const sink = easeInOut(seg(albumClock, AUTO.total * AUTO.sinkAt, AUTO.total));
-    const a = nvSide === 'genre' ? nvReel.disc.right : nvReel.disc.above, b = nvReel.disc.inside;
+  const nvWait = { x: 0, y: 0, r: 1 }, nvIn = { x: 0, y: 0, r: 1 };
+  const CAT_OUT = 0.3;  // catP 중 판이 오른쪽으로 빠져나오는 앞부분
+  const nvFrontLow = (p) => REEL_LAYOUT.LOW * (1 - easeInOut(seg(p, SCROLL.turnStart, SCROLL.turnEnd)));
+  function nvDiscTarget(p, catOut) {
+    const ins = easeInOut(seg(p, SCROLL.insertStart, SCROLL.insertEnd));
+    // 앨범은 판을 받는 동안 조금 내려와 있다가(LOW) 돌아서며 제자리로 올라감 → 판도 같이
+    const low = nvFrontLow(p);
+    nvReel.discScreen(0, REEL_LAYOUT.OUT_EXIT - low, nvWait);
+    nvWait.y = Math.max(nvWait.y, headerTop + nvWait.r + 8);     // 그래도 화면이 낮으면 헤더 아래로
+    nvReel.discScreen(REEL_LAYOUT.OUT_HOVER * reelHoverEase + REEL_LAYOUT.OUT_EXIT * catOut, -low, nvIn);
     const w = canvas.clientWidth, h = canvas.clientHeight;
-    // 위에서 기다릴 땐 판 전체가 헤더 아래로 보이게 (슬리브 윗부분과 겹쳐도 됨: 슬리브가 앞에 그려짐)
-    const ay = nvSide === 'genre' ? a.y : Math.min(b.y, Math.max(a.y, headerTop + a.r + 16));
-    const px = a.x + (b.x - a.x) * sink, py = ay + (b.y - ay) * sink, r = a.r + (b.r - a.r) * sink;
+    const px = nvWait.x + (nvIn.x - nvWait.x) * ins, py = nvWait.y + (nvIn.y - nvWait.y) * ins, r = nvWait.r + (nvIn.r - nvWait.r) * ins;
     nvTarget.x = (px - w / 2) / ZOOM;
     nvTarget.y = (h / 2 - py) / ZOOM;
     nvTarget.s = Math.max(0.05, r / ZOOM);
     return nvTarget;
   }
   const reelBg = new THREE.Color();
+  const nvFront = { rise: 0, low: 0, turn: 1, alpha: 1 };
   let nvVis = 0;        // 릴이 보이는 정도 (판 자리·검은 판 정도에 씀)
   function updateReel(dt, p) {
     const on = p >= SCROLL.albumTrigger && section === 1 && catP < 0.02 && reelN() > 0;
@@ -1010,6 +1007,11 @@ export async function createHomeEngine(opts) {
     if (on && before < AUTO.total && albumClock >= AUTO.total) reelTouch();   // 다 들어오면 그때부터 대기
     const enter = easeInOut(albumClock / AUTO.total);
     nvVis = enter;
+    // 맨 앞 앨범: 화면 아래에서 반시계 90° 누운 채 올라와, 판이 들어간 뒤 돌아섬. Genre로 갈 땐 판이 빠져나온 뒤 사라짐
+    nvFront.rise = easeOut(seg(p, SCROLL.riseStart, SCROLL.riseEnd));
+    nvFront.turn = 1 - easeInOut(seg(p, SCROLL.turnStart, SCROLL.turnEnd));
+    nvFront.low = nvFrontLow(p);
+    nvFront.alpha = 1 - easeInOut(seg(catP, CAT_OUT + 0.05, CAT_OUT + 0.35));
 
     // 가만히 있으면 다음 앨범으로
     const now = nowSec();
@@ -1021,11 +1023,10 @@ export async function createHomeEngine(opts) {
     reelBg.copy(nvBgCur);
     nvReel.update({
       pos: reelPos,
-      spinIn: reduceMotion ? 0 : (1 - enter) * REEL.enterSpin,
-      offsetX: (1 - enter) * REEL.enterX,
-      hover: reelHoverEase,
+      clock: reduceMotion ? (albumClock > 0 ? 99 : 0) : albumClock,
+      front: nvFront,
       bg: reelBg,
-      show: albumClock > 0 && catP < 0.6 && p > SCROLL.albumTrigger - 0.1,    // 판이 다이얼로 가는 동안 릴은 오른쪽으로 빠짐
+      show: p > 0.001 && catP < 0.999,
     });
 
     // 타이틀·정보·버튼
@@ -1104,10 +1105,10 @@ export async function createHomeEngine(opts) {
   flip.add(spin);
   let disc = null;
   let pickTargets = [];
-  // New Vinyls에서만: 잉크 선 아래 검은 바이닐 면 (종이 부분이 투명한 판을 '진짜 레코드'처럼)
+  // Hero를 떠나면: 잉크 선 아래 크림 종이 면 (종이 부분이 투명한 판이 앨범 색 배경 위에서도 Hero 판처럼 보이게)
   const vinylBack = new THREE.Mesh(
     new THREE.CircleGeometry(0.995, 128),
-    new THREE.MeshBasicMaterial({ color: '#1b1619', transparent: true, opacity: 0, side: THREE.DoubleSide, depthTest: false, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ color: '#f4e7cd', transparent: true, opacity: 0, side: THREE.DoubleSide, depthTest: false, depthWrite: false }),
   );
   vinylBack.rotation.x = -Math.PI / 2;
   vinylBack.position.y = -0.019;
@@ -2170,8 +2171,8 @@ export async function createHomeEngine(opts) {
 
     // 판 색: 뒤집기(updateGenreFlip)가 정한 장르 색. 다이얼에 들어오는 동안은 기본 색에서 섞어 들어감
     // 기본 색은 지금 테마(플럼 ↔ 크림)의 잉크 → 장르 색으로
-    uniforms.uInk.value.copy(heroInk3).lerp(baseInk, themeT).lerp(tintInk, catEase);
-    uniforms.uLabel.value.copy(heroLabel3).lerp(baseLabel, themeT).lerp(tintLabel, catEase);
+    uniforms.uInk.value.copy(heroInk3).lerp(tintInk, catEase);
+    uniforms.uLabel.value.copy(heroLabel3).lerp(tintLabel, catEase);
     // 박동 때 판의 잉크가 잠깐 밝게 번쩍
     uniforms.uInk.value.lerp(beatWhite, Math.min(0.35, beatEnv * 5) * catEase);
     $gd.style.setProperty('--hs-genre', `rgb(${tintInk.toArray().map((v) => Math.round(v * 255)).join(',')})`);
@@ -2205,8 +2206,8 @@ export async function createHomeEngine(opts) {
   //  - 재생 중 추가 입력은 무시 (트랙패드 관성 스크롤이 다음 전환을 또 일으키지 않게)
   //  - Genre dial에서 스크롤은 장르를 바꾸지 않음: 위로 스크롤하면 New Vinyls로 돌아감
   const SECTION = {
-    duration: 1.8,       // Hero ↔ New Vinyls 전환 시간(초)
-    catDuration: 1.5,    // New Vinyls ↔ Genre 전환 시간(초)
+    duration: 5.5,       // Hero ↔ New Vinyls 전환 시간(초) — 판이 앨범에 들어가는 장면을 천천히
+    catDuration: 2.6,    // New Vinyls ↔ Genre 전환 시간(초) — 앞부분(CAT_OUT)은 판이 오른쪽으로 빠져나오는 시간
     newsDuration: 1.6,   // Genre ↔ News 전환 시간(초)
     wheelThreshold: 24,  // 이만큼 휠이 쌓이면 전환 (트랙패드 살짝 쓸기 수준)
     touchThreshold: 40,  // 터치 스와이프 거리(px)
@@ -2241,8 +2242,8 @@ export async function createHomeEngine(opts) {
       if (next === 2) dialIdleAt = newsStart + newsDur;
     } else if (prev === 1 && next === 2) {
       // 판이 먼저 슬리브에서 오른쪽으로 빠져나온 뒤 왼쪽 다이얼 자리로 (릴은 그동안 오른쪽으로 빠짐)
-      nvSide = 'genre';
-      const wait = reduceMotion ? 0 : Math.max(0, albumClock - AUTO.total * AUTO.sinkAt) / 1.8 + 0.05;
+      // 나머지 앨범이 먼저 사라지고 → 판이 맨 앞 앨범에서 오른쪽으로 빠져나와 → 왼쪽 다이얼 자리로
+      const wait = reduceMotion ? 0 : albumClock / 1.8 + 0.05;
       catFrom = catP; catTo = 1;
       catDur = reduceMotion ? 0 : SECTION.catDuration * Math.abs(catTo - catFrom);
       catStart = nowSec() + wait;
@@ -2250,7 +2251,6 @@ export async function createHomeEngine(opts) {
       lockUntil = catStart + catDur + SECTION.cooldown;
       dialIdleAt = catStart + catDur;      // 도착한 뒤부터 자동 넘김 대기
     } else if (prev === 2 && next === 1) {
-      nvSide = 'genre';           // 다이얼에서 오른쪽 자리로 와서 슬리브에 들어감
       catFrom = catP; catTo = 0;
       catDur = reduceMotion ? 0 : SECTION.catDuration * Math.abs(catTo - catFrom);
       catStart = nowSec();
@@ -2258,11 +2258,10 @@ export async function createHomeEngine(opts) {
       lockUntil = catStart + catDur + SECTION.cooldown;
     } else {
       // 0 ↔ 1
-      nvSide = 'hero';
       tweenFrom = scrollP; tweenTo = next;
       tweenDur = reduceMotion ? 0 : SECTION.duration * Math.abs(tweenTo - tweenFrom);
-      // 위로 돌아갈 땐 앨범이 먼저 걷힌 뒤 판이 떠오르도록 잠깐 기다림
-      const wait = next === 0 && !reduceMotion ? (albumClock / AUTO.total) * 0.85 : 0;
+      // 위로 돌아갈 땐 나머지 앨범이 먼저 사라진 뒤 거꾸로 (앨범이 눕고 → 판이 빠져나와 → 앨범은 아래로)
+      const wait = next === 0 && !reduceMotion ? albumClock / 1.8 + 0.05 : 0;
       tweenStart = nowSec() + wait;
       tweening = tweenDur > 0; if (!tweening) scrollP = tweenTo;
       lockUntil = tweenStart + tweenDur + SECTION.cooldown;
@@ -2428,7 +2427,8 @@ export async function createHomeEngine(opts) {
     const p = scrollP;
     //  Hero → New Vinyls: 기울어진 판이 일어서서 정면(원)을 보며 맨 앞 슬리브 위로 → 세로축으로 한 바퀴
     //  → 릴이 들어오면 슬리브 안으로 쏙 (nvDiscTarget). 되돌아갈 땐 거꾸로
-    const nvT = nvDiscTarget();
+    const catOut = easeInOut(seg(catP, 0, CAT_OUT));            // Genre로: 먼저 판이 오른쪽으로 빠져나옴
+    const nvT = nvDiscTarget(p, catOut);
     const settle = easeInOut(seg(p, 0, SCROLL.standEnd));
     const spinT = easeInOut(seg(p, SCROLL.spinStart, SCROLL.spinEnd));
     root.rotation.z = THREE.MathUtils.lerp(HERO_COMPOSITION.roll, LANDED_COMPOSITION.roll, settle);
@@ -2438,7 +2438,7 @@ export async function createHomeEngine(opts) {
     root.position.y = THREE.MathUtils.lerp(0, nvT.y, settle);
     heroActive = p < SCROLL.heroEnd;
     //  New Vinyls → Genre dial: 판이 다이얼 가운데로 미끄러져 와서 정면을 보고 섬
-    const catEase = easeInOut(catP);
+    const catEase = easeInOut(seg(catP, CAT_OUT, 1));           // 그다음 다이얼 자리로 (다이얼 색·글자도 이 진행도)
     if (catEase > 0) {
       const dialScale = (geo.R * 0.5) / ZOOM;                 // 판 반지름 = 다이얼 반지름의 절반
       // geo는 스테이지(헤더 아래) 좌표 → 캔버스(화면 전체) 좌표로
@@ -2483,8 +2483,11 @@ export async function createHomeEngine(opts) {
     //  배경·글자·잉크 색: 판이 내려오는 동안 크림 → 플럼으로 자연스럽게
     applyTheme(easeInOut(seg(p, 0.15, 0.85)) * (1 - newsEase));   // News에서는 다시 크림
     updateReel(dt, p);
-    const vinylT = easeInOut(seg(p, 0.1, SCROLL.standEnd)) * (1 - catEase);   // 일어서는 동안 검은 판으로
+    const vinylT = seg(p, 0, 0.04) * (1 - catEase);   // Hero의 크림 종이를 판에 붙여 어느 배경 위에서도 Hero 판 그대로
     vinylBack.material.opacity = vinylT;
+    // 판이 앨범 안에 완전히 들어가 있으면 그리지 않음 (앨범이 넘어갈 때 반투명해지는 앨범 너머로 비치지 않게)
+    spin.visible = !(p >= SCROLL.insertEnd && catP <= 0 && reelHoverEase < 0.02 && newsEase <= 0);
+    vinylBack.material.color.set(sectionPalette()[0].paper);
     vinylBack.visible = vinylT > 0.005;
     updateNvTint(dt, catEase);
     updateDial(dt, dialVis);
