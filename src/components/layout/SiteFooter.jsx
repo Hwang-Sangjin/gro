@@ -36,7 +36,7 @@ function FootLink({ href, children }) {
 }
 
 // 판의 잉크색 = 지금 테마의 --ink (다크 모드면 크림 선). 테마가 바뀌면 다시 읽음
-function useInk(ref) {
+function useInk(ref, key) {
   const [ink, setInk] = useState("#4c404a");
   useEffect(() => {
     const read = () => {
@@ -47,7 +47,7 @@ function useInk(ref) {
     const mo = new MutationObserver(read);
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     return () => mo.disconnect();
-  }, [ref]);
+  }, [ref, key]);
   return ink;
 }
 
@@ -55,12 +55,13 @@ function useInk(ref) {
 const scrollerOf = (el) => el?.closest("[data-scroll-root]") ?? el?.closest(".page") ?? null;
 
 // onSideA: "맨 위로" 대신 할 일 (Home 은 스테이지를 Hero 로 돌림)
-export default function SiteFooter({ onSideA }) {
+// palette: 페이지가 색을 정할 때 (앨범 상세) { sleeve, text, crate } — 슬리브·글자·상자 앞판 색
+export default function SiteFooter({ onSideA, palette }) {
   const user = useAuthUser();
   const year = new Date(`${SITE.legalUpdated}T12:00:00+09:00`).getFullYear();
   const root = useRef(null);
   const [near, setNear] = useState(false);      // 화면 근처에 오면 3D 판을 만듦 (페이지마다 WebGL 을 미리 띄우지 않게)
-  const ink = useInk(root);
+  const ink = useInk(root, palette?.sleeve);
 
   // 스크롤 진행도 → --fp, 화면에 있을 때만 판이 돎
   useEffect(() => {
@@ -92,6 +93,7 @@ export default function SiteFooter({ onSideA }) {
 
   return (
     <footer ref={root} style={{
+      ...(palette && { "--ink": palette.sleeve, "--cream": palette.text, "--crate-bg": palette.crate }),
       "--fp": 0, "--crate-h": "clamp(104px, 17vw, 270px)",
       // 판 지름 = 슬리브 너비의 80%, 올라오는 높이 = 지름의 30% → 그만큼 위 여백을 둬서 판이 잘리지 않게
       // 넓은 화면에서는 슬리브가 1500px 에서 멈춤 (그보다 좁으면 좌우 여백만 두고 꽉 참)
@@ -165,7 +167,7 @@ export default function SiteFooter({ onSideA }) {
       </div>
 
       {/* 상자 앞판: 맨 아래, 슬리브 위를 덮음. GROOVES 도장 */}
-      <div className="absolute inset-x-0 bottom-0 z-10 h-(--crate-h) border-t-[3px] border-(--ink) bg-(--cream) [box-shadow:0_-14px_30px_-18px_rgba(0,0,0,.35)]">
+      <div className="absolute inset-x-0 bottom-0 z-10 h-(--crate-h) border-t-[3px] border-(--ink) bg-(--crate-bg,var(--cream)) [box-shadow:0_-14px_30px_-18px_rgba(0,0,0,.35)]">
         <p aria-hidden="true" className={`${SERIF} relative mx-auto max-w-[1500px] select-none overflow-hidden whitespace-nowrap px-[clamp(16px,3vw,56px)] text-center text-[clamp(4.2rem,17vw,17rem)] leading-[0.9] text-(--ink) [-webkit-text-stroke:0]`}
           style={{ transform: `translateY(calc((1 - ${seg(0.2, 0.9)}) * 22%))` }}>
           {SITE.name}

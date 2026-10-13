@@ -36,3 +36,11 @@ export function getAlbumTheme(value) {
   }
   return { background, foreground, muted };
 }
+
+// 앨범 페이지 Footer 색: 바탕은 앨범 배경 그라디언트의 맨 아래 색(커버 색 84% + 검정)과 이어지고,
+// 슬리브는 그 바탕이 밝으면 브라운(INK), 어두우면 크림(CREAM). 슬리브 글자는 그 반대
+export function getFooterPalette(value) {
+  const bottom = mix(normalizeHex(value), "#000000", 0.16);
+  const light = contrastRatio(INK, bottom) >= contrastRatio(CREAM, bottom);
+  return { crate: bottom, sleeve: light ? INK : CREAM, text: light ? CREAM : INK };
+}

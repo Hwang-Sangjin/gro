@@ -6,8 +6,9 @@ import { useIntro } from "@/components/intro/intro-context";
 import YouTubeAlbumPlayer from "./YouTubeAlbumPlayer";
 import ShelfButtons from "./ShelfButtons";
 import AlbumBackLink from "@/components/albums/AlbumBackLink";
-import { getAlbumTheme } from "@/lib/album-theme";
+import { getAlbumTheme, getFooterPalette } from "@/lib/album-theme";
 import PageShell from "@/components/layout/PageShell";
+import SiteFooter from "@/components/layout/SiteFooter";
 import dynamic from "next/dynamic";
 import { setNowSpinning } from "@/lib/nowSpinning";
 
@@ -117,9 +118,10 @@ export default function AlbumDetailView({ album }) {
     };
   }, [ink, color]);
   return (
-    <PageShell className="album-detail-page paper-textured">
+    <PageShell className="album-detail-page paper-textured" footer={false}>
       {/* 배경: 커버 색 위에 커버·판 뒤 은은한 빛 + 아래로 갈수록 살짝 어두워짐. 맨 위는 헤더와 같은 단색이라 이음새가 없음 */}
       <div className="album-detail-surface relative isolate" style={{
+        paddingBottom: 0,
         backgroundColor: color, color: ink, "--album-muted": theme.muted,
         backgroundImage: `radial-gradient(ellipse min(62vw, 900px) 480px at 50% 470px, color-mix(in oklab, ${color} 84%, #fff) 0%, color-mix(in oklab, ${color} 94%, #fff) 38%, transparent 72%), linear-gradient(to bottom, ${color} 0, ${color} 360px, color-mix(in oklab, ${color} 84%, #000) 100%)`,
       }}>
@@ -230,6 +232,9 @@ export default function AlbumDetailView({ album }) {
           </div>
         </div>
         </div>
+        {/* 공통 Footer: 앨범 배경 안에 두어 색이 끊기지 않게. 밝은 배경이면 브라운 슬리브, 어두우면 크림 */}
+        <div aria-hidden="true" className="h-[clamp(5rem,10vw,9rem)]" />
+        <SiteFooter palette={getFooterPalette(album.coverColor)} />
       </div>
     </PageShell>
   );
