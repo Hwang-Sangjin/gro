@@ -7,8 +7,16 @@ export const ALBUM_ORIGINS = {
   "/digging": "Digging",
   "/collection": "Collection",
 };
+// 공개 컬렉션 (/collection/<아이디>) 도 목록 — 돌아갈 때 "Back to @아이디"
+const PUBLIC_COLLECTION = /^\/collection\/([^/]+)$/;
+export function originLabel(path) {
+  if (ALBUM_ORIGINS[path]) return ALBUM_ORIGINS[path];
+  const m = PUBLIC_COLLECTION.exec(path);
+  if (!m) return null;
+  try { return `@${decodeURIComponent(m[1])}`; } catch { return `@${m[1]}`; }
+}
 // 커버 이동 전환을 쓰는 페이지 (Home New Vinyls 는 돌아갈 곳은 Digging 그대로)
-export const COVER_FLIGHT_SOURCES = ["/", ...Object.keys(ALBUM_ORIGINS)];
+export const isCoverFlightSource = (path) => path === "/" || originLabel(path) !== null;
 
 const DEFAULT = { href: "/digging", label: "Digging" };
 const KEY = "grooves:album-origin";
@@ -17,7 +25,7 @@ const KEY = "grooves:album-origin";
 export function rememberAlbumOrigin(slug) {
   try {
     const path = location.pathname.replace(/\/+$/, "") || "/";
-    if (ALBUM_ORIGINS[path]) sessionStorage.setItem(KEY, JSON.stringify({ slug, href: path + location.search, path }));
+    if (originLabel(path)) sessionStorage.setItem(KEY, JSON.stringify({ slug, href: path + location.search, path }));
     else sessionStorage.removeItem(KEY);
   } catch {}
 }
@@ -29,7 +37,8 @@ export function useAlbumOrigin(slug) {
   useEffect(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem(KEY) || "null");
-      setOrigin(saved?.slug === slug && ALBUM_ORIGINS[saved.path] ? { href: saved.href, label: ALBUM_ORIGINS[saved.path] } : DEFAULT);
+      const label = saved?.slug === slug ? originLabel(saved.path) : null;
+      setOrigin(label ? { href: saved.href, label } : DEFAULT);
     } catch { setOrigin(DEFAULT); }
   }, [slug]);
   return origin;

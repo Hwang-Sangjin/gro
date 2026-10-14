@@ -38,6 +38,7 @@ export const PRIVACY = [
           rows={[
             ["Signing in with Google", "Email address, name, profile photo URL, and your Google account identifier", "Required to have an account"],
             ["Using your collection", "The records you mark as Owned or Wishlist, and when you added them", "Only if you use it"],
+            ["Sharing your collection", "A public ID for your link (made from the part of your email before the @; you can change it) and whether sharing is on", "The ID is created with your account; sharing is off unless you turn it on"],
             ["Requesting a record", "What you type in the request form (album, artist, notes, release details, tracks, links) and any cover image you upload", "Only if you send a request"],
             ["Using the site", "A sign-in session cookie, your light/dark theme choice, and short-lived navigation state stored in your browser", "Needed for the site to work"],
             ["Every visit", "Standard server logs kept by our hosting providers (IP address, browser type, time of request)", "Collected automatically for security"],
@@ -54,6 +55,7 @@ export const PRIVACY = [
       <ul>
         <li>To sign you in and show your name and photo in the menu.</li>
         <li>To save and show your collection and wishlist.</li>
+        <li>If you turn on sharing: to show your public ID and your Owned and Wishlist records to anyone with your link (collection/your-id). Your email, name and photo are never shown there, and you can turn sharing off at any time.</li>
         <li>To review your record requests, add records to the catalog, and show you each request’s status.</li>
         <li>To keep the service secure, prevent abuse, and fix problems.</li>
         <li>To meet legal obligations, if any apply.</li>
@@ -147,7 +149,7 @@ export const PRIVACY = [
     body: (
       <ul>
         <li>All traffic is encrypted (HTTPS).</li>
-        <li>Database rules make sure each person can only read their own collection and requests.</li>
+        <li>Database rules make sure each person can only read their own collection and requests. A shared collection shows only your public ID and records.</li>
         <li>Only staff accounts can open the admin area, and server keys are never sent to your browser.</li>
       </ul>
     ),

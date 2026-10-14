@@ -1,9 +1,11 @@
 import Providers from "@/components/Provider";
 import "./globals.css";
 import { THEME_BOOT } from "@/lib/themeBoot";
+import { SITE } from "@/lib/site";
 
 
 export const metadata = {
+  metadataBase: new URL(SITE.url),   // 상대 주소(canonical·공유 이미지)를 이 주소 기준으로
   title: "Grooves",
   description: "Vinyl digging for record collectors — find records, listen, and keep your collection.",
 };
