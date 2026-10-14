@@ -59,7 +59,7 @@ export default function AlbumCard({ album }) {
     art.current?.style.setProperty("--ry", "0deg");
   }
   return (
-    <Link data-crate-skip data-album-slug={album.slug} data-album-color={album.cover_color || "#bbcbda"} data-album-image={failed ? undefined : src} onClick={open}
+    <Link data-crate-skip data-album-card data-album-title={album.title} data-album-artist={album.artist_names} data-album-slug={album.slug} data-album-color={album.cover_color || "#bbcbda"} data-album-image={failed ? undefined : src} onClick={open}
       // 두께 면 색 = 앨범 대표색보다 조금 진하게 (위 면은 덜, 오른쪽 면은 더 — 빛이 왼쪽 위에서 오는 느낌)
       style={{ "--sleeve-top": sleeveColors(album.cover_color).top, "--sleeve-side": sleeveColors(album.cover_color).side }}
       data-revealed={revealed}

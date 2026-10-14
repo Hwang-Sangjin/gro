@@ -8,6 +8,7 @@ import GenreBar, { GENRE_ITEMS } from "@/components/albums/GenreBar";
 import useReveal from "@/components/digging/useReveal";
 import styles from "@/components/digging/Digging.module.css";
 import closeGrid from "@/components/digging/closeGrid";
+import CrateView, { ViewToggle } from "@/components/albums/crate/CrateView";
 
 const SERIF = "font-['Grooves_Bodoni',Georgia,serif]";
 export const SHELF_TABS = [
@@ -27,6 +28,7 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
   const [shown, setShown] = useState({ tab: "owned", genre: null });
   const [query, setQuery] = useState("");
   const [switching, setSwitching] = useState(false);
+  const [crateView, setCrateView] = useState("grid");   // 'grid' | 'crate' — 지금 탭(Owned / Wishlist)·장르·검색의 판들로
   const wanted = useRef(shown);
   const wrapRef = useRef(null);
   const [barRef, barRevealed] = useReveal({ ready });
@@ -106,8 +108,10 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
       {/* 장르 + 검색 (Digging 과 같은 바, + Request 없이) */}
       <GenreBar genre={view.genre} counts={counts} onPick={(slug) => change({ genre: slug })}
         hrefFor={(slug) => `${basePath}?${new URLSearchParams({ ...(view.tab === "wishlist" && { tab: "wishlist" }), ...(slug && { genre: slug }) })}`}
-        query={query} onQueryChange={setQuery} searchId="collection-search" />
+        query={query} onQueryChange={setQuery} searchId="collection-search"
+        extra={items.length ? <ViewToggle view={crateView} onChange={setCrateView} className="mr-1" /> : null} />
 
+      <CrateView gridRef={wrapRef} view={crateView} onViewChange={setCrateView} title={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} />
       <div ref={wrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         {error ? (
           <p className={styles.empty} role="status">{errorText}</p>

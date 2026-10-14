@@ -463,3 +463,6 @@ html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 /* 공통 Footer: 페이지 여백을 뚫고 화면 끝까지 (스크롤 컨테이너가 가로 넘침을 숨김), 아래 여백은 Footer 가 대신 */
 .page > .page-content:has(> .site-footer) { padding-bottom: 0; }
 .site-footer { margin-inline: calc(50% - 50vw); flex-shrink: 0; }
+
+/* Crate 보기: 맨 앞 앨범 제목이 바뀔 때 아래에서 올라옴 (CrateView) */
+@keyframes crate-title { from { transform: translateY(60%); opacity: 0; } }

@@ -9,6 +9,7 @@ import DiggingGrid from "./DiggingGrid";
 import useReveal from "./useReveal";
 import closeGrid from "./closeGrid";
 import styles from "./Digging.module.css";
+import CrateView, { ViewToggle } from "@/components/albums/crate/CrateView";
 
 // 장르별 앨범 수 (공개된 앨범만). 실패하면 숫자 없이 보여 줌
 let countsPromise = null;
@@ -71,6 +72,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
   }, [initial.seed]);
   const [titleRef, titleRevealed] = useReveal();
   const [query, setQuery] = useState("");
+  const [view, setView] = useState("grid");   // 'grid' | 'crate' (Crate 보기는 지금 그리드의 판들로)
   const request = useRef(null);
   const [counts, setCounts] = useState(null);
   useEffect(() => {
@@ -93,6 +95,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
         hrefFor={(slug) => (slug ? `/digging?genre=${slug}` : "/digging")}
         query={query} onQueryChange={setQuery} searchId="digging-search"
         extra={<>
+          <ViewToggle view={view} onChange={setView} className="mr-2" />
           <button className={styles.request} onClick={() => request.current?.open({ title: query.trim() })}>+ Request</button>
           <span className={styles.separator} aria-hidden="true" />
         </>} />
@@ -100,6 +103,8 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
       <div ref={gridWrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         <DiggingGrid key={current.key} initial={current.initial} genreId={current.genreId} query={query} onRequest={() => request.current?.open({ title: query.trim() })} />
       </div>
+      {/* Crate 보기: 그리드 위를 덮는 3D 크레이트 (Grid / Crate 버튼으로 전환) */}
+      <CrateView gridRef={gridWrapRef} view={view} onViewChange={setView} title="Digging" />
       {/* 없는 판 요청 (로그인 사용자) — 검색 결과가 없을 때도 여기로 */}
       <RequestDialog ref={request} />
     </>

@@ -25,10 +25,20 @@ export default function usePageLenis({
       smoothWheel: true,
     });
 
-    const stop = () => lenis.stop();
-    const start = () => lenis.start();
+    // 페이지 넘김 중 + 이 페이지가 잠금을 요청한 동안(예: Crate 보기)은 스크롤 멈춤
+    let pageLocked = false, flipping = false;
+    const sync = () => { if (pageLocked || flipping) lenis.stop(); else lenis.start(); };
+    const stop = () => { flipping = true; sync(); };
+    const start = () => { flipping = false; sync(); };
+    const lock = () => { pageLocked = true; sync(); };
+    const unlock = () => { pageLocked = false; sync(); };
+    // 다른 컴포넌트가 이 페이지의 스크롤 위치를 바로 옮길 때 (예: Crate → Grid 전에 맨 앞 판이 보이게)
+    const scrollTo = (e) => { lenis.scrollTo(e.detail?.top ?? 0, { immediate: true, force: true }); };
     window.addEventListener("crate:start", stop);
     window.addEventListener("crate:end", start);
+    wrapper.addEventListener("page:lock", lock);
+    wrapper.addEventListener("page:unlock", unlock);
+    wrapper.addEventListener("page:scrollto", scrollTo);
     if (document.documentElement.dataset.crateTransition === "true") stop();
 
     let raf = 0;
@@ -42,6 +52,9 @@ export default function usePageLenis({
       cancelAnimationFrame(raf);
       window.removeEventListener("crate:start", stop);
       window.removeEventListener("crate:end", start);
+      wrapper.removeEventListener("page:lock", lock);
+      wrapper.removeEventListener("page:unlock", unlock);
+      wrapper.removeEventListener("page:scrollto", scrollTo);
       lenis.destroy();
     };
   }, [wrapperRef, contentRef, enabled]);
