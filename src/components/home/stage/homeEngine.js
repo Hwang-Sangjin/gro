@@ -2466,7 +2466,7 @@ export async function createHomeEngine(opts) {
   const clock = new THREE.Clock();
   const DEG = Math.PI / 180;
   let fxSceneFade = 1;
-  let dustFade = 1;       // Genre dial에서는 먼지를 거의 숨김     // 1 = Hero(링·헤일로 보임), 0 = New Vinyls
+  let dustFade = 1;       // 먼지 보이는 정도: Hero 1, New Vinyls 0, Genre dial 0.15
   let heroActive = true;   // Hero 구간에서만 누르기·뒤집기·링 호버 동작
   const $nvHead = q('nv-head');
   const $nvLines = [...host.querySelectorAll('#nv-title .nv-line')];
@@ -2536,7 +2536,8 @@ export async function createHomeEngine(opts) {
       if (newsTweening) spin.rotation.y -= Math.sin(Math.PI * newsP) * 5 * dt;
     }
     const dialVis = catEase * (1 - newsEase);       // 다이얼(장르 색·파동·글자)이 보이는 정도
-    dustFade = 1 - 0.85 * dialVis;
+    // 먼지: Hero 그대로, New Vinyls에서는 없음(넘어가며 사라짐), Genre dial에서는 아주 옅게
+    dustFade = (1 - 0.85 * dialVis) * (1 - seg(p, 0, 0.3) * (1 - catEase));
     updateGenreFlip(dt, dialVis);
     //  바닥 그림자(판 아래 희미한 고리)는 쓰지 않음 — 다시 켜려면 아래 두 줄로
     //  shadowUniforms.uShadow.value = 0.45 * (1 - settle); shadow.visible = settle < 0.99;
