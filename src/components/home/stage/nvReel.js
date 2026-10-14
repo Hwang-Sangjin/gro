@@ -11,11 +11,17 @@ import * as THREE from 'three';
 
 export const REEL_LAYOUT = {
   CW: 3.2,        // 슬리브 한 변
-  DEPTH: 0.14,    // 앨범(상자) 두께 — 판이 든 LP 재킷
+  DEPTH: 0.3,     // 앨범(상자) 두께
+  TILT_X: 0.1,    // 앨범을 살짝 뒤로 젖혀 윗면이 보이게
+  TILT_Y: 0.14,   // 살짝 돌려 오른쪽 옆면이 보이게
   RC: 9,          // 원통 반지름
   STEP: 0.125,    // 슬리브 사이 각도
   LIFT: 1.15,     // 맨 앞 슬리브가 앞으로 나오는 거리
-  GAP: 0.55,      // 뒤의 앨범일수록 이만큼씩(앞에서 멀수록 조금 더) 뒤로 물러남 → 원통 안쪽에서 이웃 앨범끼리 서로 뚫고 지나가지 않게
+  GAP: 0.8,       // 뒤의 앨범일수록 이만큼씩(앞에서 멀수록 조금 더) 뒤로 물러남 → 두께·기울기까지 계산해 이웃 앨범끼리 뚫고 지나가지 않게
+  FOG: 0.13,      // 한 칸 멀어질 때마다 배경색에 묻히는 정도 (최대 FOG_MAX)
+  FOG_MAX: 0.86,
+  BLUR: 0.75,     // 한 칸 멀어질 때마다 커버가 흐려지는 정도 (밉맵 단계, 최대 BLUR_MAX)
+  BLUR_MAX: 4,
   ROLL: -0.07,    // 릴 전체 기울기 (감김이 오른쪽 아래로 흐르게)
   SLOTS: 14,
   BEHIND: 2,      // 앞으로 지나간 슬리브 몇 장까지 그릴지
@@ -76,12 +82,22 @@ export function createNvReel({ renderer }) {
   const sleeveGeo = new THREE.BoxGeometry(CW, CW, DEPTH);
   const slots = Array.from({ length: SLOTS }, () => {
     const pivot = new THREE.Group(); reel.add(pivot);
-    const edge = new THREE.MeshBasicMaterial();     // 옆면(책등) = 대표 색을 조금 어둡게
+    // 상자 면: 앞 = 커버 이미지, 윗면 = 대표 색(밝게), 오른쪽 옆면 = 대표 색(어둡게), 나머지 = 대표 색
+    const edge = new THREE.MeshBasicMaterial();
+    const top = new THREE.MeshBasicMaterial();
+    const right = new THREE.MeshBasicMaterial();
     const front = new THREE.MeshBasicMaterial({ color: '#ffffff' });
-    const back = new THREE.MeshBasicMaterial();     // 뒷면 = 대표 색
-    const sleeve = new THREE.Mesh(sleeveGeo, [edge, edge, edge, edge, front, back]);
+    const back = new THREE.MeshBasicMaterial();
+    // 멀리 있는 커버는 흐리게: 텍스처를 밉맵 bias로 뭉개서 읽음 (uBlur)
+    const blur = { value: 0 };
+    front.onBeforeCompile = (shader) => {
+      shader.uniforms.uBlur = blur;
+      shader.fragmentShader = 'uniform float uBlur;\n' + shader.fragmentShader.replace('texture2D( map, vMapUv )', 'texture2D( map, vMapUv, uBlur )');
+    };
+    const sleeve = new THREE.Mesh(sleeveGeo, [right, edge, top, edge, front, back]);   // +x, -x, +y, -y, +z, -z
+    sleeve.rotation.set(REEL_LAYOUT.TILT_X, -REEL_LAYOUT.TILT_Y, 0);
     pivot.add(sleeve);
-    return { pivot, sleeve, mats: [edge, front, back], edgeC: new THREE.Color(), backC: new THREE.Color(), labelC: new THREE.Color(), k: null, d: 0 };
+    return { pivot, sleeve, blur, mats: [edge, front, back, top, right], edgeC: new THREE.Color(), backC: new THREE.Color(), topC: new THREE.Color(), rightC: new THREE.Color(), labelC: new THREE.Color(), k: null, d: 0 };
   });
 
   /* ---- 앨범 ---- */
@@ -116,7 +132,9 @@ export function createNvReel({ renderer }) {
     const col = list[wrap(k)]?.color;
     it.labelC.set(/^#[0-9a-f]{6}/i.test(col || '') ? col : '#bbcbda');
     it.backC.copy(it.labelC).multiplyScalar(0.82);
-    it.edgeC.copy(it.labelC).multiplyScalar(0.62);
+    it.edgeC.copy(it.labelC).multiplyScalar(0.6);
+    it.topC.copy(it.labelC).lerp(whiteC, 0.18);          // 윗면: 빛을 받아 밝게
+    it.rightC.copy(it.labelC).multiplyScalar(0.48);      // 오른쪽 옆면: 그늘
     it.sleeve.userData.k = k;
   }
 
@@ -127,11 +145,13 @@ export function createNvReel({ renderer }) {
     it.d = d;
     const th = d * STEP, pv = it.pivot;
     const lift = LIFT * (1 - ss(0, 0.85, Math.abs(d)));
-    const back = REEL_LAYOUT.GAP * Math.pow(Math.max(0, Math.abs(d) - 0.5), 1.15);
+    const back = REEL_LAYOUT.GAP * Math.pow(Math.max(0, Math.abs(d) - 0.5), 1.1);
     pv.position.set(RC * Math.sin(th), -d * 0.06, RC * (1 - Math.cos(th)) + lift - back);
     pv.rotation.set(0, -th, 0);
     // 멀어질수록 배경색에 묻힘. 지나간 판은 왼쪽에 한두 장만 남기고 흐려짐
-    const fog = d > 0.5 ? Math.min(0.78, (d - 0.5) * 0.11) : d < -0.5 ? Math.min(0.7, (-d - 0.5) * 0.3) : 0;
+    const far = Math.max(0, Math.abs(d) - 0.5);
+    const fog = Math.min(REEL_LAYOUT.FOG_MAX, far * (d > 0 ? REEL_LAYOUT.FOG : 0.3));
+    it.blur.value = Math.min(REEL_LAYOUT.BLUR_MAX, far * REEL_LAYOUT.BLUR);   // 멀수록 흐릿하게 (원근감)
     const o = alpha * (d < 0 ? 0.55 * (1 - ss(0.15, 1.3, -d)) + 0.45 * (1 - ss(0, 0.5, -d)) : 1 - ss(SLOTS - BEHIND - 3, SLOTS - BEHIND - 1, d));
     for (const m of it.mats) {
       const tr = o < 1;
@@ -142,6 +162,8 @@ export function createNvReel({ renderer }) {
     it.mats[1].color.copy(whiteC).lerp(bg, fog);
     it.mats[0].color.copy(it.edgeC).lerp(bg, fog);
     it.mats[2].color.copy(it.backC).lerp(bg, fog);
+    it.mats[3].color.copy(it.topC).lerp(bg, fog);
+    it.mats[4].color.copy(it.rightC).lerp(bg, fog);
     pv.visible = o > 0.01 && list.length > 0;
   }
 
