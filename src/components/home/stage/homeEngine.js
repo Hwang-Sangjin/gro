@@ -2529,7 +2529,8 @@ export async function createHomeEngine(opts) {
     // 1) 패럴랙스: 현재값이 목표(마우스 위치)를 부드럽게 따라감
     // 드래그 중에는 패럴랙스를 약하게 (두 움직임이 싸우지 않도록)
     dragWeight += ((holding || flipping ? 0.3 : 1) - dragWeight) * (1 - Math.exp(-dt * 6));
-    parallaxTarget.copy(target).multiplyScalar(dragWeight);
+    // 패럴랙스는 Hero에서만: 다른 섹션은 판이 앨범·다이얼(다른 카메라/DOM 좌표)에 정확히 맞아야 해서 끔
+    parallaxTarget.copy(target).multiplyScalar(dragWeight * (1 - settle));
     current.lerp(parallaxTarget, 1 - Math.exp(-dt * PARALLAX.damping));
     // 카메라가 레코드 중심을 바라본 채 작은 궤도로 이동
     //  마우스 오른쪽 → 카메라가 오른쪽으로 → 판이 살짝 돌아 보임

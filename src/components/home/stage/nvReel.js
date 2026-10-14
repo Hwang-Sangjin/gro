@@ -26,13 +26,14 @@ export const REEL_LAYOUT = {
   ROLL: -0.07,    // 릴 전체 기울기 (감김이 오른쪽 아래로 흐르게)
   SLOTS: 14,
   BEHIND: 2,      // 앞으로 지나간 슬리브 몇 장까지 그릴지
+  DISC: 0.43,     // 판 반지름 (앨범 폭 대비) → 지름 0.86: 앨범 안에 여유 있게 들어감
   OUT_HOVER: 0.3, // 맨 앞 앨범에 마우스를 올리면 이만큼 빠져나옴
   OUT_EXIT: 1.08, // 판이 슬리브에서 완전히 빠져나온 자리 (들어가기 전 / Genre로 떠날 때)
   RISE: 9,        // 맨 앞 앨범이 화면 아래에서 올라오는 거리
   LOW: 0.9,       // 판을 받는 동안 맨 앞 앨범이 제자리보다 내려와 있는 거리 (슬리브 폭 대비) → 위에서 기다리는 판이 화면에 다 보이게
 };
 const { CW, DEPTH, RC, STEP, LIFT, SLOTS, BEHIND } = REEL_LAYOUT;
-const DISC_R = CW * 0.47;
+const DISC_R = CW * REEL_LAYOUT.DISC;
 
 const CREAM = '#f4e7cd';
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
