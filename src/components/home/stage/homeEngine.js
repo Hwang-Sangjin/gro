@@ -1035,8 +1035,9 @@ export async function createHomeEngine(opts) {
     return nvTarget;
   }
   const reelBg = new THREE.Color();
-  const nvFront = { rise: 0, low: 0, turn: 1, alpha: 1, flat: 0 };
+  const nvFront = { rise: 0, low: 0, turn: 1, alpha: 1, flat: 0, out: 0 };
   let reelOutSpeed = 2.7;    // 나머지 앨범이 사라지는 속도(배)
+  let reelSlide = false;     // Genre 쪽으로 오가는 중: 앨범이 투명해지지 않고 오른쪽으로 빠지고 들어옴
   let nvVis = 0;        // 릴이 보이는 정도 (판 자리·검은 판 정도에 씀)
   function updateReel(dt, p) {
     const on = p >= SCROLL.albumTrigger && section === 1 && catP < 0.02 && reelN() > 0;
@@ -1051,7 +1052,10 @@ export async function createHomeEngine(opts) {
     nvFront.low = nvFrontLow(p);
     // 판을 받는 동안·앨범을 열 때는 커버만 정면으로, 그 외엔 다른 앨범처럼 살짝 젖힘
     nvFront.flat = Math.max(nvFront.low / REEL_LAYOUT.LOW, updateOpen());
-    nvFront.alpha = 1 - easeInOutSine(seg(catP, 0.02, CAT_OUT));
+    // Genre로: 맨 앞 앨범(판이 든)도 마지막으로 오른쪽 밖으로 빠짐 (점점 빠르게)
+    const frontOut = seg(catP, 0.02, CAT_OUT);
+    nvFront.out = frontOut * frontOut;
+    nvFront.alpha = 1;
 
     // 가만히 있으면 다음 앨범으로
     const now = nowSec();
@@ -1070,6 +1074,7 @@ export async function createHomeEngine(opts) {
     nvReel.update({
       pos: reelPos,
       clock: reduceMotion ? (albumClock > 0 ? 99 : 0) : albumClock,
+      slide: reelSlide,
       front: nvFront,
       bg: reelBg,
       show: p > 0.001 && catP < 0.999,
@@ -2292,10 +2297,10 @@ export async function createHomeEngine(opts) {
       lockUntil = newsStart + newsDur + SECTION.cooldown;
       if (next === 2) dialIdleAt = newsStart + newsDur;
     } else if (prev === 1 && next === 2) {
-      // 판이 먼저 슬리브에서 오른쪽으로 빠져나온 뒤 왼쪽 다이얼 자리로 (릴은 그동안 오른쪽으로 빠짐)
-      // 나머지 앨범이 먼저 사라지고 → 맨 앞 앨범(판이 든)도 사라진 뒤 → 판이 화면 왼쪽에서 굴러 들어옴
+      // 나머지 앨범이 먼 것부터 오른쪽으로 빠지고 → 맨 앞 앨범(판이 든)도 빠진 뒤 → 판이 화면 왼쪽에서 굴러 들어옴
+      reelSlide = true;
       reelHoverFront = 0; reelHoverLock = true;
-      reelOutSpeed = 2.7;
+      reelOutSpeed = 1.6;          // 차례로 빠지는 게 보이게 조금 천천히
       const wait = reduceMotion ? 0 : albumClock / reelOutSpeed + 0.04;
       catFrom = catP; catTo = 1;
       catDur = reduceMotion ? 0 : SECTION.catDuration * Math.abs(catTo - catFrom);
@@ -2304,6 +2309,7 @@ export async function createHomeEngine(opts) {
       lockUntil = catStart + catDur + SECTION.cooldown;
       dialIdleAt = catStart + catDur;      // 도착한 뒤부터 자동 넘김 대기
     } else if (prev === 2 && next === 1) {
+      reelSlide = true;            // 판이 굴러 나간 뒤 앨범이 오른쪽에서 차례로 들어옴
       catFrom = catP; catTo = 0;
       catDur = reduceMotion ? 0 : SECTION.catDuration * Math.abs(catTo - catFrom);
       catStart = nowSec();
@@ -2315,6 +2321,7 @@ export async function createHomeEngine(opts) {
       tweenDur = reduceMotion ? 0 : SECTION.duration * Math.abs(tweenTo - tweenFrom);
       // 위로 돌아갈 땐 나머지 앨범이 먼저 사라진 뒤 거꾸로 (앨범이 눕고 → 판이 빠져나와 → 앨범은 아래로)
       reelOutSpeed = 2.7;
+      reelSlide = false;           // Hero 쪽은 원래대로 (흐려지며 사라지고 나타남)
       const wait = next === 0 && !reduceMotion ? albumClock / reelOutSpeed + 0.04 : 0;
       tweenStart = nowSec() + wait;
       tweening = tweenDur > 0; if (!tweening) scrollP = tweenTo;

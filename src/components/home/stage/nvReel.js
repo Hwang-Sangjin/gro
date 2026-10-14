@@ -30,6 +30,7 @@ export const REEL_LAYOUT = {
   OUT_HOVER: 0.3, // 맨 앞 앨범에 마우스를 올리면 이만큼 빠져나옴
   OUT_EXIT: 1.08, // 판이 슬리브에서 완전히 빠져나온 자리 (들어가기 전 / Genre로 떠날 때)
   RISE: 9,        // 맨 앞 앨범이 화면 아래에서 올라오는 거리
+  EXIT_X: 16,     // Genre 쪽으로 오갈 때 앨범이 오른쪽 화면 밖으로 빠지는 거리
   LOW: 0.9,       // 판을 받는 동안 맨 앞 앨범이 제자리보다 내려와 있는 거리 (슬리브 폭 대비) → 위에서 기다리는 판이 화면에 다 보이게
 };
 const { CW, DEPTH, RC, STEP, LIFT, SLOTS, BEHIND } = REEL_LAYOUT;
@@ -205,7 +206,7 @@ export function createNvReel({ renderer }) {
    *         · turn: 1 = 반시계 90°(열린 쪽이 위) · alpha }
    * hover는 판 쪽에서 처리 · bg: 배경색(먼 슬리브가 묻히는 색) · show: 릴을 그릴지
    */
-  function update({ pos, clock, front, bg, show }) {
+  function update({ pos, clock, front, bg, show, slide = false }) {
     bgC.copy(bg);
     const base = Math.floor(pos), fk = Math.round(pos);
     slots.forEach((it, j) => setSlot(it, base + j - BEHIND));
@@ -221,6 +222,7 @@ export function createNvReel({ renderer }) {
       if (k === fk) {
         poseSlot(it, d, bgC, front.alpha);
         it.pivot.position.y -= (1 - front.rise) * REEL_LAYOUT.RISE + front.low * CW;
+        it.pivot.position.x += (front.out ?? 0) * REEL_LAYOUT.EXIT_X;
         it.turn.rotation.z = front.turn * Math.PI / 2;
         // 판을 받는 동안(flat)은 앨범이 카메라를 정면으로 봄 → 커버만 보이고 윗면·옆면은 안 보임
         if (front.flat > 0.001) {
@@ -234,9 +236,15 @@ export function createNvReel({ renderer }) {
       it.tilt.quaternion.copy(TILT_Q);
       const rank = d > 0 ? d : -d * 1.5;
       const e = ss(0, 1, (clock - (rank - 1) * REVEAL.stagger) / REVEAL.each);
-      poseSlot(it, d, bgC, e);
-      it.pivot.position.x += (1 - e) * REVEAL.slide;
-      it.pivot.position.z -= (1 - e) * REVEAL.slide * 0.6;
+      if (slide) {
+        // Genre 쪽: 투명해지지 않고 오른쪽 화면 밖으로 차례대로 빠짐 (먼 앨범부터) / 돌아올 땐 가까운 앨범부터 들어옴
+        poseSlot(it, d, bgC, e > 0.002 ? 1 : 0);
+        it.pivot.position.x += (1 - e) * REEL_LAYOUT.EXIT_X;
+      } else {
+        poseSlot(it, d, bgC, e);
+        it.pivot.position.x += (1 - e) * REVEAL.slide;
+        it.pivot.position.z -= (1 - e) * REVEAL.slide * 0.6;
+      }
     });
     reel.updateMatrixWorld(true);
     visible = show && list.length > 0;
