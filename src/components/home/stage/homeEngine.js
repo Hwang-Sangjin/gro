@@ -2032,7 +2032,7 @@ export async function createHomeEngine(opts) {
     ease: 'cubic-bezier(0.22,1,0.36,1)',
     title: 750, descAt: 160, desc: 800, coversAt: 330, coverStagger: 110, cover: 750, linkAt: 640,
   };
-  let revealAt = 0;
+  let revealAt = 0, genreSettledAt = 0;
   function revealCovers(delay) {
     if (reduceMotion) return;
     [...q('gd-covers').children].forEach((el, n) => {
@@ -2043,6 +2043,8 @@ export async function createHomeEngine(opts) {
   }
   function revealGenre() {
     revealAt = performance.now();
+    // 등장 애니메이션이 끝나는 시각 (자동 넘김 간격은 여기서부터 셈)
+    genreSettledAt = nowSec() + (reduceMotion ? 0 : (REVEAL.coversAt + 2 * REVEAL.coverStagger + REVEAL.cover) / 1000);
     if (reduceMotion) return;
     const opt = (delay, duration) => ({ duration, delay, easing: REVEAL.ease, fill: 'backwards' });
     q('gd-name-text').animate([{ transform: 'translateY(110%)' }, { transform: 'none' }], opt(0, REVEAL.title));
@@ -2068,10 +2070,9 @@ export async function createHomeEngine(opts) {
   /* ---- 장르 자동 넘김: 가만히 두면 New Vinyls처럼 다음 장르로 ----
      장르 글자·설명 칸에 마우스를 올리거나 다이얼을 끄는 동안은 멈춤. 모션 줄이기 설정이면 쓰지 않음 */
   const GAUTO = {
-    idle: 3,            // 마지막 입력(또는 도착) 뒤 이만큼 지나면 시작(초)
-    every: 3,           // 넘기는 간격(초)
+    wait: 2.5,          // 장르가 다 나타난 뒤(퇴장·등장 애니메이션 시간 제외) 또는 마지막 입력 뒤 이만큼 머묾(초)
   };
-  let dialIdleAt = 0, dialAutoAt = 0, gdPanelHover = false;
+  let dialIdleAt = 0, gdPanelHover = false;
   function dialTouch(at = nowSec()) { dialIdleAt = Math.max(dialIdleAt, at); }
   on($gdPanel, 'pointerenter', () => { gdPanelHover = true; dialTouch(); });
   on($gdPanel, 'pointerleave', () => { gdPanelHover = false; dialTouch(); });
@@ -2080,7 +2081,8 @@ export async function createHomeEngine(opts) {
     if (section !== 2 || catP < 0.98 || catTweening || newsP > 0.01 || reduceMotion || document.hidden) return;
     const now = nowSec();
     if (dialDragging || gdPanelHover || hoverGenre >= 0) { dialTouch(now); return; }
-    if (now - dialIdleAt > GAUTO.idle && now - dialAutoAt > GAUTO.every) { dialAutoAt = now; dialStep(1, true); }
+    if (genreExiting) return;
+    if (now - Math.max(dialIdleAt, genreSettledAt) > GAUTO.wait) dialStep(1, true);
   }
 
   // 다이얼 끌기: 가로 화면은 위아래, 세로 화면은 좌우로
