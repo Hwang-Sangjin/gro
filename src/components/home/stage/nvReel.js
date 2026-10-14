@@ -222,7 +222,10 @@ export function createNvReel({ renderer }) {
       if (k === fk) {
         poseSlot(it, d, bgC, front.alpha);
         it.pivot.position.y -= (1 - front.rise) * REEL_LAYOUT.RISE + front.low * CW;
-        it.pivot.position.x += (front.out ?? 0) * REEL_LAYOUT.EXIT_X;
+        const out = front.out ?? 0;   // 다른 앨범과 같은 모양으로 빠짐
+        it.pivot.position.x += out * REEL_LAYOUT.EXIT_X;
+        it.pivot.position.z -= out * 1.2;
+        it.pivot.rotation.y -= out * 0.35;
         it.turn.rotation.z = front.turn * Math.PI / 2;
         // 판을 받는 동안(flat)은 앨범이 카메라를 정면으로 봄 → 커버만 보이고 윗면·옆면은 안 보임
         if (front.flat > 0.001) {
@@ -238,8 +241,13 @@ export function createNvReel({ renderer }) {
       const e = ss(0, 1, (clock - (rank - 1) * REVEAL.stagger) / REVEAL.each);
       if (slide) {
         // Genre 쪽: 투명해지지 않고 오른쪽 화면 밖으로 차례대로 빠짐 (먼 앨범부터) / 돌아올 땐 가까운 앨범부터 들어옴
+        // 천천히 출발해 점점 빨라지며 빠짐 (들어올 땐 거꾸로 점점 느려지며 섬) + 살짝 뒤로 물러나며 돌아감
+        const lin = Math.min(1, Math.max(0, (clock - (rank - 1) * REVEAL.stagger) / REVEAL.each));
+        const ease = 0.5 - 0.5 * Math.cos(Math.PI * (1 - lin));   // 사인 곡선: 출발·도착이 부드럽게
         poseSlot(it, d, bgC, e > 0.002 ? 1 : 0);
-        it.pivot.position.x += (1 - e) * REEL_LAYOUT.EXIT_X;
+        it.pivot.position.x += ease * REEL_LAYOUT.EXIT_X;
+        it.pivot.position.z -= ease * 1.2;
+        it.pivot.rotation.y -= ease * 0.35;
       } else {
         poseSlot(it, d, bgC, e);
         it.pivot.position.x += (1 - e) * REVEAL.slide;
