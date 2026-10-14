@@ -23,20 +23,22 @@ export default function NotFoundView() {
   }, [done]);
 
   // 숫자 '4': 아래에서 스르륵 올라옴 (부모가 잘라 줌)
-  const four = (delay) => (
-    <span aria-hidden="true" className="block overflow-y-clip pb-[0.04em]">
+  const four = (delay, extra = "") => (
+    <span aria-hidden="true" className={`block overflow-y-clip pb-[0.04em] ${extra}`}>
       <span className={`block transition-transform duration-[1100ms] ${EASE} motion-reduce:transition-none ${show ? "translate-y-0" : "translate-y-[110%]"}`}
         style={{ transitionDelay: `${delay}ms` }}>4</span>
     </span>
   );
 
   return (
-    <PageShell footer={false} className="paper-textured">
-      <main className="flex min-h-svh flex-col items-center justify-center overflow-hidden px-6 pb-16 pt-[calc(var(--ct-header-h,106px)+2rem)] text-center text-(--ink)">
+    // 한 화면짜리: 스크롤 없음. 헤더 아래 남은 높이의 정가운데에 '404'가 오도록 (위·아래 1fr 사이)
+    <PageShell footer={false} className="paper-textured overflow-hidden! [&>.page-content]:p-0! [&>.page-content]:min-h-0!">
+      <main className="grid h-svh grid-rows-[1fr_auto_1fr] justify-items-center overflow-hidden px-6 pt-(--ct-header-h,106px) text-center text-(--ink)">
         <h1 className="sr-only">Page not found (404)</h1>
 
         {/* 4 · 판 · 4 */}
-        <div className={`${SERIF} flex items-center justify-center gap-[0.04em] text-[clamp(8rem,30vw,26rem)] font-black leading-[0.86] tracking-[-0.04em]`}>
+        {/* 화면 크기에 맞춤: 폭의 34%와 (헤더 아래 높이)의 46% 중 작은 쪽 */}
+        <div className={`${SERIF} row-start-2 flex items-center justify-center gap-[0.04em] text-[min(34vw,calc((100svh-var(--ct-header-h,106px))*0.46))] font-black leading-[0.86] tracking-[-0.04em]`}>
           {four(900)}
           {/* 판: 화면 아래에서 올라와 '0'이 됨 — 글자 높이에 맞춘 크기, 33⅓ RPM으로 돎 */}
           <span aria-hidden="true"
@@ -44,10 +46,11 @@ export default function NotFoundView() {
             style={{ transitionDelay: "500ms" }}>
             <AlbumVinyl ink="#4f6d93" label="#bbcbda" rpm={33.333} playing={show} dpr={[1, 1.5]} />
           </span>
-          {four(1050)}
+          {/* 오른쪽 4는 글자 왼쪽 여백(사선 시작점)이 커서 판과 멀어 보임 → 그만큼 당김 */}
+          {four(1050, "-ml-[0.08em]")}
         </div>
 
-        <div className={`mt-[clamp(1.5rem,4vh,3rem)] flex flex-col items-center transition-[opacity,translate] duration-700 ${EASE} motion-reduce:transition-none ${show ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}
+        <div className={`row-start-3 self-start pt-[clamp(1rem,3vh,2.5rem)] flex flex-col items-center transition-[opacity,translate] duration-700 ${EASE} motion-reduce:transition-none ${show ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}
           style={{ transitionDelay: "1400ms" }}>
           <p className={`${SERIF} text-[clamp(1.6rem,3vw,2.6rem)] font-black leading-tight`}>This record isn’t in the crate.</p>
           <p className="mt-3 max-w-[40ch] text-[15px] leading-7 text-(--ink)/65">The page you’re looking for was moved, sold out, or never pressed.</p>
