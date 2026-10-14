@@ -154,7 +154,6 @@ export default function CrateView({ gridRef, view, onViewChange, title }) {
 
   useEffect(() => () => { engineRef.current?.dispose(); engineRef.current = null; lockPage(false); }, []);
 
-  const tint = front?.color ? `color-mix(in oklab, ${front.color} 14%, var(--bg))` : "var(--bg)";
   return (
     <>
       <div ref={hostRef} data-lenis-prevent tabIndex={view === "crate" ? 0 : -1}
@@ -162,9 +161,11 @@ export default function CrateView({ gridRef, view, onViewChange, title }) {
         role={shown ? "region" : undefined}
         className={`fixed inset-0 z-[25] isolate touch-none outline-none ${shown ? "visible" : "invisible pointer-events-none"} ${view === "crate" ? "cursor-grab active:cursor-grabbing" : ""}`}
         style={{ "--crate-m": 1 }}>
-        {/* 바탕: 맨 앞 앨범 색이 살짝 밴 종이. 그리드로 갈수록 투명해져 아래 그리드가 드러남 */}
-        <div aria-hidden="true" className="absolute inset-0 -z-10 transition-[background-color] duration-700"
-          style={{ backgroundColor: tint, opacity: "calc(1 - var(--crate-m))" }} />
+        {/* 바탕: 그리드와 같은 종이(페이지 색 + 종이 결) — 헤더와 이어짐. 그리드로 갈수록 투명해져 아래 그리드가 드러남 */}
+        <div aria-hidden="true" className="absolute inset-0 -z-10" style={{ opacity: "calc(1 - var(--crate-m))" }}>
+          <div className="absolute inset-0 bg-(--bg)" />
+          <div className="absolute inset-0 bg-(--paper-surface,var(--bg)) bg-(image:--paper-texture-image) bg-repeat bg-blend-soft-light opacity-(--paper-texture-opacity) [background-size:var(--paper-texture-size)_var(--paper-texture-size)]" />
+        </div>
         {/* 글자: 크레이트를 떠나자마자 빠지고, 돌아오면 판들이 거의 다 꽂힐 때 나타남 */}
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between px-[clamp(16px,4vw,56px)] pb-[clamp(20px,5vh,48px)] pt-[calc(var(--ct-header-h,106px)+0.5rem)] text-(--ink)"
           style={{ opacity: "max(0, 1 - var(--crate-m) * 5)" }}>

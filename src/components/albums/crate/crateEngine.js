@@ -10,7 +10,6 @@ export const CRATE = {
   DUR: 1.5,           // 전환 시간(초)
   WHEEL: 0.0045,      // 휠 1px 당 넘어가는 판 수
   DRAG: 0.008,        // 드래그 1px 당
-  TINT: 0.14,         // 배경이 맨 앞 앨범 색에 물드는 정도
 };
 const { SLOTS } = CRATE;
 const FOV = 32, CAM_Z = 10;
