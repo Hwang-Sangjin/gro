@@ -1,7 +1,32 @@
+import { cache } from "react";
 import { notFound } from "next/navigation";
+import { publicClient } from "@/lib/publicSupabase";
 import { createClient } from "@/utils/supabase/server";
 import { coverUrl } from "@/lib/albums";
 import AlbumDetailView from "@/components/album/AlbumDetailView";
+
+// 링크 카드용 제목·설명 (로그인과 상관없는 공개 조회)
+const loadMeta = cache(async (slug) => {
+  const { data } = await publicClient().from("albums")
+    .select("title, artist_names, release_year, format, description")
+    .eq("slug", slug).eq("status", "published").maybeSingle();
+  return data;
+});
+
+export async function generateMetadata({ params }) {
+  const { id: slug } = await params;
+  const a = await loadMeta(slug).catch(() => null);
+  if (!a) return { title: "Album · Grooves" };
+  const by = a.artist_names ? ` — ${a.artist_names}` : "";
+  const facts = [a.artist_names, a.release_year, a.format].filter(Boolean).join(" · ");
+  const blurb = (a.description || "").replace(/\s+/g, " ").trim();
+  const description = blurb ? (blurb.length > 150 ? `${blurb.slice(0, 149).trimEnd()}…` : blurb) : `${facts}. Listen and put it on your shelf on Grooves.`;
+  return {
+    title: `${a.title}${by} · Grooves`, description,
+    alternates: { canonical: `/album/${slug}` },
+    openGraph: { type: "music.album", siteName: "Grooves", title: `${a.title}${by}`, description },
+  };
+}
 
 export default async function Album({ params }) {
   // Existing links pass a slug despite the historical [id] folder name.

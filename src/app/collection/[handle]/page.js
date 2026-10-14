@@ -25,6 +25,10 @@ export async function generateMetadata({ params }) {
     title: `@${data.handle}’s collection · Grooves`,
     description: `${n} record${n === 1 ? "" : "s"} on the shelf${w ? ` and ${w} on the wishlist` : ""} — @${data.handle} on Grooves.`,
     alternates: { canonical: `/collection/${data.handle}` },
+    openGraph: {
+      type: "profile", siteName: "Grooves", title: `@${data.handle}’s collection`,
+      description: `${n} record${n === 1 ? "" : "s"} on the shelf${w ? ` and ${w} on the wishlist` : ""}.`,
+    },
   };
 }
 

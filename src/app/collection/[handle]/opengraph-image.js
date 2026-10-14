@@ -1,9 +1,8 @@
 // 공개 컬렉션 공유 미리보기 이미지 (카톡·SNS 링크 카드): 크림 종이 위 '@아이디’s shelf' + 커버 몇 장을 부채꼴로
 import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { publicClient } from "@/lib/publicSupabase";
 import { coverUrl } from "@/lib/albums";
+import { OG_FAMILY, coverData, ogFonts } from "@/lib/og";
 
 export const alt = "A record collection on Grooves";
 export const size = { width: 1200, height: 630 };
@@ -11,7 +10,6 @@ export const contentType = "image/png";
 export const revalidate = 3600;
 
 const CREAM = "#f4e7cd", INK = "#4c404a", RUST = "#c8553d";
-const font = (file) => readFile(join(process.cwd(), "src/assets/og", file));
 
 export default async function Image({ params }) {
   const { handle: raw } = await params;
@@ -25,7 +23,8 @@ export default async function Image({ params }) {
   }
   const owned = data?.owned ?? [], wishlist = data?.wishlist ?? [];
   const covers = [...owned, ...wishlist].slice(0, 5);
-  const [bold, regular] = await Promise.all([font("bodoni-moda-latin-900-normal.woff"), font("bodoni-moda-latin-500-normal.woff")]);
+  // 커버는 webp → next/og 가 못 그려서 jpeg 로 바꿔 넣음
+  const [fonts, ...images] = await Promise.all([ogFonts(handle), ...covers.map((a) => coverData(coverUrl(a.thumb_path), 600))]);
 
   // 커버: 오른쪽에 부채꼴로 겹쳐 놓음 (없으면 대표 색 슬리브)
   const N = Math.max(covers.length, 3);
@@ -34,7 +33,7 @@ export default async function Image({ params }) {
 
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", background: CREAM, color: INK, fontFamily: "Bodoni", position: "relative" }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", background: CREAM, color: INK, fontFamily: OG_FAMILY, position: "relative" }}>
         {/* 왼쪽: 글자 */}
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "64px 0 60px 72px", width: 560 }}>
           <div style={{ display: "flex", fontSize: 40, fontWeight: 900, letterSpacing: -1 }}>Grooves</div>
@@ -54,7 +53,7 @@ export default async function Image({ params }) {
         <div style={{ display: "flex", position: "relative", flex: 1, height: "100%" }}>
           {slots.map((a, i) => {
             const mid = (N - 1) / 2, k = i - mid;
-            const src = a ? coverUrl(a.thumb_path) : null;
+            const src = images[i] ?? null;
             return (
               <div key={i} style={{
                 position: "absolute", display: "flex", width: card, height: card,
@@ -70,12 +69,6 @@ export default async function Image({ params }) {
         </div>
       </div>
     ),
-    {
-      ...size,
-      fonts: [
-        { name: "Bodoni", data: bold, weight: 900, style: "normal" },
-        { name: "Bodoni", data: regular, weight: 500, style: "normal" },
-      ],
-    },
+    { ...size, fonts },
   );
 }
