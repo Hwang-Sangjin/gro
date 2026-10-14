@@ -1016,8 +1016,8 @@ export async function createHomeEngine(opts) {
   //  - Genre로 갈 때: 앨범 안에 숨은 채 앨범과 함께 사라지고, 다이얼 쪽은 화면 왼쪽에서 굴러 들어옴 (루프의 catP 구간)
   const nvTarget = { x: 0, y: 0, s: 1 };
   const nvWait = { x: 0, y: 0, r: 1 }, nvIn = { x: 0, y: 0, r: 1 };
-  const CAT_OUT = 0.3;  // catP 중 맨 앞 앨범이 사라지는 앞부분 (판이 굴러 들어오는 건 CAT_OVERLAP만큼 먼저 시작)
-  const CAT_OVERLAP = 0.04;
+  const CAT_OUT = 0.04;  // catP 중 맨 앞 앨범이 사라지는 앞부분 (판이 굴러 들어오는 건 CAT_OVERLAP만큼 먼저 시작)
+  const CAT_OVERLAP = 0.04;   // (CAT_OUT - CAT_OVERLAP = 0 → 앨범이 다 빠지자마자 판이 굴러 들어옴)
   let rollPrevX = null;   // 다이얼로 굴러 들어올 때 지난 프레임 위치
   const nvFrontLow = (p) => REEL_LAYOUT.LOW * (1 - easeInOutSine(seg(p, SCROLL.turnStart, SCROLL.turnEnd)));
   function nvDiscTarget(p, catOut) {
@@ -1053,10 +1053,7 @@ export async function createHomeEngine(opts) {
     // 판을 받는 동안·앨범을 열 때는 커버만 정면으로, 그 외엔 다른 앨범처럼 살짝 젖힘
     nvFront.flat = Math.max(nvFront.low / REEL_LAYOUT.LOW, updateOpen());
     // Genre로: 맨 앞 앨범(판이 든)도 마지막으로 오른쪽 밖으로 빠짐 (점점 빠르게)
-    // 다른 앨범과 같은 속도·곡선 (nvReel REVEAL.each ÷ reelOutSpeed ≈ 0.34초)
-    const frontOutDur = 0.55 / reelOutSpeed / SECTION.catDuration;
-    const frontOut = seg(catP, 0.01, 0.01 + frontOutDur);
-    nvFront.out = 0.5 - 0.5 * Math.cos(Math.PI * frontOut);
+    // 맨 앞 앨범도 다른 앨범과 같은 박자로 빠짐 — nvReel이 같은 시계(albumClock)로 처리
     nvFront.alpha = 1;
 
     // 가만히 있으면 다음 앨범으로
@@ -2265,7 +2262,7 @@ export async function createHomeEngine(opts) {
   //  - Genre dial에서 스크롤은 장르를 바꾸지 않음: 위로 스크롤하면 New Vinyls로 돌아감
   const SECTION = {
     duration: 3.7,       // Hero ↔ New Vinyls 전환 시간(초) — 판이 앨범에 들어가는 장면
-    catDuration: 2.0,    // New Vinyls ↔ Genre 전환 시간(초) — 앞부분(CAT_OUT)은 맨 앞 앨범이 오른쪽으로 빠지는 시간
+    catDuration: 1.5,    // New Vinyls ↔ Genre 전환 시간(초) — 앞부분(CAT_OUT)은 맨 앞 앨범이 오른쪽으로 빠지는 시간
     newsDuration: 1.6,   // Genre ↔ News 전환 시간(초)
     wheelThreshold: 24,  // 이만큼 휠이 쌓이면 전환 (트랙패드 살짝 쓸기 수준)
     touchThreshold: 40,  // 터치 스와이프 거리(px)
