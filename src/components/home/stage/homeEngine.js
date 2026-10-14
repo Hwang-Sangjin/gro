@@ -786,7 +786,7 @@ export async function createHomeEngine(opts) {
     swipe: 40,           // 터치 스와이프 거리(px)
   };
   let reelPos = 0, reelTarget = 0, reelOver = 0, reelSnapTimer = 0;
-  let reelHover = false, reelHoverFront = 0, reelHoverEase = 0;
+  let reelHover = false, reelHoverFront = 0, reelHoverEase = 0, reelHoverLock = false;
   let reelDrag = null;                 // { x, y, start, moved, id, mouse }
   let reelLastInput = 0, reelLastAuto = 0, reelAutoMoved = false;
   cleanups.push(() => clearTimeout(reelSnapTimer));
@@ -862,6 +862,7 @@ export async function createHomeEngine(opts) {
     const onDisc = k === null && hitsDisc(e);
     reelHover = k !== null || onDisc;
     reelHoverFront = onDisc || (k !== null && k === frontK()) ? 1 : 0;
+    if (reelHoverLock && Math.abs(reelTarget - reelPos) <= 0.01) reelHoverLock = false;   // 넘어간 뒤 다시 올리면 나옴
     if (reelHover) reelTouch();
   });
   // 화면의 버튼들
@@ -1037,8 +1038,14 @@ export async function createHomeEngine(opts) {
     if (reelReady() && !reduceMotion && !reelHover && !reelDrag && now - reelLastInput > REEL.idle && now - reelLastAuto > REEL.every && !document.hidden) {
       reelTarget = Math.round(reelTarget) + 1; reelLastAuto = now; reelAutoMoved = true;
     }
-    reelPos += (reelTarget - reelPos) * (reduceMotion ? 1 : 1 - Math.exp(-dt / REEL.ease));
-    reelHoverEase += (reelHoverFront - reelHoverEase) * (1 - Math.exp(-dt / 0.2));
+    // 앨범이 바뀔 때: 빠져나와 있던 판이 먼저 들어간 뒤 넘어감. 넘어간 뒤엔 마우스를 다시 움직여야 판이 나옴
+    const switching = Math.abs(reelTarget - reelPos) > 0.01;
+    if (switching) reelHoverLock = true;
+    const hoverWant = reelHoverLock ? 0 : reelHoverFront;
+    reelHoverEase += (hoverWant - reelHoverEase) * (1 - Math.exp(-dt / (hoverWant < reelHoverEase ? 0.1 : 0.2)));
+    if (!(switching && reelHoverEase > 0.04)) {
+      reelPos += (reelTarget - reelPos) * (reduceMotion ? 1 : 1 - Math.exp(-dt / REEL.ease));
+    }
     reelBg.copy(nvBgCur);
     nvReel.update({
       pos: reelPos,

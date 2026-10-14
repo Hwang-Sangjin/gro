@@ -14,6 +14,7 @@ export const REEL_LAYOUT = {
   DEPTH: 0.3,     // 앨범(상자) 두께
   TILT_X: 0.1,    // 앨범을 살짝 뒤로 젖혀 윗면이 보이게
   TILT_Y: 0.14,   // 살짝 돌려 오른쪽 옆면이 보이게
+  THIN: 0.4,      // 멀리 있는 앨범일수록 두께를 줄이는 정도
   RC: 9,          // 원통 반지름
   STEP: 0.125,    // 슬리브 사이 각도
   LIFT: 1.15,     // 맨 앞 슬리브가 앞으로 나오는 거리
@@ -148,6 +149,8 @@ export function createNvReel({ renderer }) {
     const back = REEL_LAYOUT.GAP * Math.pow(Math.max(0, Math.abs(d) - 0.5), 1.1);
     pv.position.set(RC * Math.sin(th), -d * 0.06, RC * (1 - Math.cos(th)) + lift - back);
     pv.rotation.set(0, -th, 0);
+    // 멀리(옆으로 많이 돈) 앨범일수록 두께가 화면에서 크게 보이니 얇게 → 옆면이 과하게 두꺼워 보이지 않게
+    it.sleeve.scale.z = 1 / (1 + REEL_LAYOUT.THIN * Math.max(0, Math.abs(d) - 0.5));
     // 멀어질수록 배경색에 묻힘. 지나간 판은 왼쪽에 한두 장만 남기고 흐려짐
     const far = Math.max(0, Math.abs(d) - 0.5);
     const fog = Math.min(REEL_LAYOUT.FOG_MAX, far * (d > 0 ? REEL_LAYOUT.FOG : 0.3));
