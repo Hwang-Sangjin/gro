@@ -48,6 +48,11 @@ export default function CrateView({ gridRef, view, onViewChange, title }) {
   const [shown, setShown] = useState(false);        // 덮개가 있음 (전환 중 포함)
   const [front, setFront] = useState(null);         // { i, n, title, artist, color }
   const transition = useAlbumTransition();
+  // 엔진은 한 번 만들고 계속 씀 → 전환 함수는 늘 최신 것을 ref 로 읽음
+  // (앨범 상세에서 돌아오는 페이지 넘김 중에 엔진이 만들어지면 그때의 '전환 중' 상태가 굳어 클릭이 막히던 문제)
+  const transitionRef = useRef(transition);
+  const openRef = useRef(null);
+  useEffect(() => { transitionRef.current = transition; });
   const modeRef = useRef("grid");
 
   const page = () => hostRef.current?.closest(".page");
@@ -60,7 +65,7 @@ export default function CrateView({ gridRef, view, onViewChange, title }) {
     engineRef.current = createCrateEngine({
       host: hostRef.current,
       onFront: (i, c) => setFront({ i, n: cardsRef.current.length, title: c.title, artist: c.artist, color: c.color, slug: c.slug }),
-      onOpen: (i, rect) => openAlbum(i, rect),
+      onOpen: (i, rect) => openRef.current?.(i, rect),
       onSettled: (m) => {
         if (m === "grid") { setShown(false); lockPage(false); }
       },
@@ -75,9 +80,12 @@ export default function CrateView({ gridRef, view, onViewChange, title }) {
     try { sessionStorage.setItem(storeKey(), JSON.stringify({ view: "crate", slug: c.slug })); } catch {}
     const src = sourceRef.current;
     Object.assign(src.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+    const transition = transitionRef.current;
     if (transition) transition.openAlbum({ slug: c.slug, color: c.color, imageUrl: c.image, source: src });
     else location.assign(`/album/${encodeURIComponent(c.slug)}`);
   }
+
+  useEffect(() => { openRef.current = openAlbum; });
 
   // 보기 바뀜 → 전환
   useEffect(() => {

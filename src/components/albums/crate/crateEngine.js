@@ -165,12 +165,17 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     syncRect();
     ndc.set(((e.clientX - hostRect.left) / hostRect.width) * 2 - 1, -((e.clientY - hostRect.top) / hostRect.height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
-    const hit = raycaster.intersectObjects(slots.filter((s) => s.mesh.visible).map((s) => s.mesh))[0];
+    // 1) 정면 판 위면 무조건 열기 — 앞으로 넘어가며 흐려지는 판·옆 판이 광선을 먼저 가로채도 정면 판이 이김
+    const fs = frontSlot();
+    if (fs.mesh.visible && raycaster.intersectObject(fs.mesh, false).length) { onOpen?.(wrap(Math.round(pos)), frontRect()); return; }
+    // 2) 뒤에 선 판을 누르면 그 판까지 넘김 (이미 넘어간 판은 무시)
+    const frac = pos - Math.floor(pos);
+    const back = slots.filter((s, j) => s.mesh.visible && j - 1 - frac > 0.5);
+    const hit = raycaster.intersectObjects(back.map((s) => s.mesh), false)[0];
     if (!hit) return;
     const j = slots.findIndex((s) => s.mesh === hit.object);
-    const d = Math.round(j - 1 - (pos - Math.floor(pos)));
-    if (d === 0) onOpen?.(wrap(Math.round(pos)), frontRect());
-    else { target = Math.round(target) + d; lastInput = performance.now(); }
+    const d = Math.round(j - 1 - frac);
+    if (d > 0) { target = Math.round(pos) + d; lastInput = performance.now(); }
   };
   const onKey = (e) => {
     if (!live() || (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable="true"]'))) return;
@@ -190,9 +195,11 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
 
   // 맨 앞 판의 화면 위치 (앨범 상세로 날아가는 커버 전환의 출발점)
   const corner = new THREE.Vector3();
+  // 지금 정면에 선 판 (넘기는 도중이면 반 넘게 들어온 쪽)
+  const frontSlot = () => slots[1 + Math.round(pos - Math.floor(pos))];
   function frontRect() {
     syncRect();
-    const slot = slots[1], h = 0.5;
+    const slot = frontSlot(), h = 0.5;
     slot.mesh.updateWorldMatrix(true, false);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const [x, y] of [[-h, -h], [h, -h], [h, h], [-h, h]]) {
