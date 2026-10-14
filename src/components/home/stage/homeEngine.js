@@ -2068,8 +2068,8 @@ export async function createHomeEngine(opts) {
   /* ---- 장르 자동 넘김: 가만히 두면 New Vinyls처럼 다음 장르로 ----
      장르 글자·설명 칸에 마우스를 올리거나 다이얼을 끄는 동안은 멈춤. 모션 줄이기 설정이면 쓰지 않음 */
   const GAUTO = {
-    idle: 2,            // 마지막 입력(또는 도착) 뒤 이만큼 지나면 시작(초)
-    every: 2,           // 넘기는 간격(초)
+    idle: 3,            // 마지막 입력(또는 도착) 뒤 이만큼 지나면 시작(초)
+    every: 3,           // 넘기는 간격(초)
   };
   let dialIdleAt = 0, dialAutoAt = 0, gdPanelHover = false;
   function dialTouch(at = nowSec()) { dialIdleAt = Math.max(dialIdleAt, at); }
