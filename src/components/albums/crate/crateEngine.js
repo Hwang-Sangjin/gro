@@ -105,9 +105,9 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   // 화면 사각형(그리드 칸) → z=0 평면 위 같은 크기·위치 (캔버스 기준)
   let hostRect = { left: 0, top: 0, width: 1, height: 1 };
   function rectPose(r, o) {
-    const visH = 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360), wpp = visH / H;
-    o.x = (r.left + r.width / 2 - (hostRect.left + W / 2)) * wpp;
-    o.y = -(r.top + r.height / 2 - (hostRect.top + H / 2)) * wpp;
+    const visH = 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360), wpp = visH / hostRect.height;
+    o.x = (r.left + r.width / 2 - (hostRect.left + hostRect.width / 2)) * wpp;
+    o.y = -(r.top + r.height / 2 - (hostRect.top + hostRect.height / 2)) * wpp;
     o.z = 0; o.rx = o.ry = o.rz = 0; o.s = (r.width * wpp) / CARD; o.o = 1; o.c = 1;
     return o;
   }
@@ -142,8 +142,11 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     const d = (Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX) * (e.deltaMode === 1 ? 16 : 1);
     target += d * CRATE.WHEEL; lastInput = performance.now();
   };
+  // 화면 위치는 매번 새로 잼: 페이지 넘김 중(페이지가 기울고 작아진 상태)에 열려도 클릭 위치가 어긋나지 않게
+  const syncRect = () => { hostRect = host.getBoundingClientRect(); };
   const onDown = (e) => {
     if (!live() || e.button !== 0) return;
+    syncRect();
     if (e.target instanceof Element && e.target.closest('button, a')) return;
     drag = { x: e.clientX, y: e.clientY, start: target, moved: false, id: e.pointerId, touch: e.pointerType === 'touch' };
     canvas.setPointerCapture?.(e.pointerId);
@@ -151,7 +154,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   const onMove = (e) => {
     if (!drag || e.pointerId !== drag.id) return;
     const dx = drag.x - e.clientX, dy = drag.y - e.clientY;
-    if (Math.hypot(dx, dy) > 6) drag.moved = true;
+    if (Math.hypot(dx, dy) > 10) drag.moved = true;   // 클릭하며 손이 조금 움직여도 클릭으로
     if (drag.moved) { target = drag.start + (drag.touch && Math.abs(dy) > Math.abs(dx) ? dy : dx) * CRATE.DRAG; lastInput = performance.now(); }
   };
   const raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -159,7 +162,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     if (!drag || e.pointerId !== drag.id) return;
     const was = drag; drag = null;
     if (was.moved || !live()) return;
-    ndc.set(((e.clientX - hostRect.left) / W) * 2 - 1, -((e.clientY - hostRect.top) / H) * 2 + 1);
+    syncRect();
+    ndc.set(((e.clientX - hostRect.left) / hostRect.width) * 2 - 1, -((e.clientY - hostRect.top) / hostRect.height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     const hit = raycaster.intersectObjects(slots.filter((s) => s.mesh.visible).map((s) => s.mesh))[0];
     if (!hit) return;
@@ -187,12 +191,13 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   // 맨 앞 판의 화면 위치 (앨범 상세로 날아가는 커버 전환의 출발점)
   const corner = new THREE.Vector3();
   function frontRect() {
+    syncRect();
     const slot = slots[1], h = 0.5;
     slot.mesh.updateWorldMatrix(true, false);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const [x, y] of [[-h, -h], [h, -h], [h, h], [-h, h]]) {
       corner.set(x, y, 0.011).applyMatrix4(slot.mesh.matrixWorld).project(camera);
-      const px = hostRect.left + (corner.x * 0.5 + 0.5) * W, py = hostRect.top + (-corner.y * 0.5 + 0.5) * H;
+      const px = hostRect.left + (corner.x * 0.5 + 0.5) * hostRect.width, py = hostRect.top + (-corner.y * 0.5 + 0.5) * hostRect.height;
       x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
     }
     return { left: x0, top: y0, width: x1 - x0, height: y1 - y0 };
@@ -200,8 +205,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
 
   /* ---- 크기 ---- */
   function resize() {
-    const r = host.getBoundingClientRect();
-    hostRect = r; W = Math.max(1, r.width); H = Math.max(1, r.height);
+    // 크기는 레이아웃 기준(변형 전), 화면 위치는 syncRect 로 따로
+    hostRect = host.getBoundingClientRect(); W = Math.max(1, host.clientWidth); H = Math.max(1, host.clientHeight);
     narrow = W < 820;
     renderer.setSize(W, H, false);
     camera.aspect = W / H; camera.updateProjectionMatrix();
@@ -234,12 +239,13 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     if (front !== shownFront && N()) { shownFront = front; onFront?.(front, cards[front]); }
 
     // 그리드 칸과 짝: cardOff(맨 앞과 짝인 칸)부터 화면 안에 보이는 칸들
+    if (m > 0) syncRect();
     const base = Math.floor(pos), frac = pos - base;
     let K = 0;
     if (m > 0) {
       for (let k = 0; k < SLOTS - 1 && cardOff + k < N(); k++) {
         const r = cards[cardOff + k].art?.getBoundingClientRect();
-        if (!r || r.top > hostRect.top + H) break;
+        if (!r || r.top > hostRect.top + hostRect.height) break;
         K++;
       }
     }
