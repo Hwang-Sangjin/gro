@@ -38,7 +38,13 @@ export default function NewsIndex() {
   return (
     <div className="mx-auto w-full max-w-[1500px] px-[clamp(20px,4vw,72px)] pb-24 pt-[clamp(8rem,12vw,11rem)] text-(--ink)">
       <header className="flex flex-wrap items-end justify-between gap-6">
-        <RiseText as="h1" lines={["News &", "Stories"]} className={`${SERIF} text-[clamp(4rem,11vw,11rem)] leading-[0.86]`} />
+        <div className="flex items-end gap-[clamp(0.5rem,2vw,2rem)]">
+          <RiseText as="h1" lines={["News &", "Stories"]} className={`${SERIF} text-[clamp(4rem,11vw,11rem)] leading-[0.86]`} />
+          {/* 제목 옆 움직이는 턴테이블 그림 (Digging·Collection 제목 옆 그림과 같은 계열) */}
+          <Reveal delay={250} className="shrink-0 pb-[0.4em]">
+            <img src="/images/grooves/title-turntable.gif" alt="" className="w-[clamp(84px,13vw,230px)]" />
+          </Reveal>
+        </div>
         <Reveal delay={300} className="max-w-xs pb-3 text-[14px] leading-6 text-(--ink)/70">
           News from the crates, the A to Z of how records work, and what to put on the platter next.
         </Reveal>

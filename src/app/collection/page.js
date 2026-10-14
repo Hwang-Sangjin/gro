@@ -41,7 +41,7 @@ export default function Collection() {
       <header className={styles.header}>
         <div ref={titleRef} className={`${styles.titleRow} ${styles.titleReveal}`} data-revealed={titleRevealed}>
           <span className={styles.titleMask}><h1 className={`${styles.title} text-[clamp(2.25rem,8.6vw,10rem)]!`}>COLLECTION</h1></span>
-          <img className={styles.mark} src="/images/grooves/vinyl-mark.png" alt="" />
+          <img className={`${styles.mark} w-[clamp(84px,11vw,200px)]! ml-[clamp(0.25rem,1vw,1rem)]!`} src="/images/grooves/title-vinyl.gif" alt="" />
         </div>
       </header>
 

@@ -85,7 +85,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
         <div ref={titleRef} className={`${styles.titleRow} ${styles.titleReveal}`} data-revealed={titleRevealed}>
           <span className={styles.titleMask}><h1 className={styles.title}>DIGGING</h1></span>
           {/* Existing transparent brand asset; no new artwork dependency. */}
-          <img className={styles.mark} src="/images/grooves/vinyl-mark.png" alt="" />
+          <img className={`${styles.mark} w-[clamp(84px,11vw,200px)]! ml-[clamp(0.25rem,1vw,1rem)]!`} src="/images/grooves/title-crate.gif" alt="" />
         </div>
       </header>
       {/* 장르 인덱스 (Collection 과 같은 컴포넌트). Digging 에만 + Request */}
