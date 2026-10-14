@@ -793,13 +793,30 @@ export async function createHomeEngine(opts) {
   const reelN = () => nvReel.count;
   const reelTouch = () => { reelLastInput = nowSec(); reelAutoMoved = false; };
   function reelLap() { const k = Math.round(reelTarget); const lo = k - nvReel.wrap(k); return [lo, lo + reelN() - 1]; }
-  const reelReady = () => section === 1 && !tweening && !catTweening && albumClock >= AUTO.total * 0.8 && reelN() > 0;
+  const reelReady = () => section === 1 && !tweening && !catTweening && albumClock >= AUTO.total * 0.8 && reelN() > 0 && !openReq;
   function reelFlip(d) { reelTouch(); reelTarget = Math.round(reelTarget) + d; reelOver = 0; }
   const frontK = () => Math.round(reelPos);
-  function openAlbumDetail(k) {
+  // 앨범 열기: 먼저 판이 들어가고 앨범이 카메라를 정면으로 바로 선 뒤(OPEN_DUR) → 그 커버 자리에서 상세로 날아감
+  const OPEN_DUR = 0.42;
+  let openReq = null;   // { k, t0, sent }
+  function emitOpenAlbum(k) {
     const a = nvReel.album(k);
     if (!a) return;
     opts.onOpenAlbum?.({ slug: a.slug, color: a.color, imageUrl: a.image, rect: nvReel.coverRect(k, canvas.getBoundingClientRect()) });
+  }
+  function openAlbumDetail(k) {
+    if (openReq || !nvReel.album(k)) return;
+    if (reduceMotion) { emitOpenAlbum(k); return; }
+    openReq = { k, t0: nowSec(), sent: false };
+    reelHoverLock = true;           // 빠져나와 있던 판은 들어감
+  }
+  // 바로 서는 정도 (0..1). 시간이 다 되면 상세로 출발. 출발이 막혔으면(다른 전환 중 등) 잠시 뒤 원래대로
+  function updateOpen() {
+    if (!openReq) return 0;
+    const t = nowSec() - openReq.t0;
+    if (!openReq.sent && t >= OPEN_DUR + 0.04) { openReq.sent = true; emitOpenAlbum(openReq.k); }
+    if (t > 2.5) { openReq = null; return 0; }
+    return easeInOutSine(clamp01(t / OPEN_DUR));
   }
   // 한 바퀴 끝에서는 조금만 더 밀리고, 더 굴리면 다음/이전 섹션으로
   function reelWheel(d) {
@@ -1031,7 +1048,8 @@ export async function createHomeEngine(opts) {
     nvFront.rise = easeInOutSine(seg(p, SCROLL.riseStart, SCROLL.riseEnd));
     nvFront.turn = 1 - easeInOutSine(seg(p, SCROLL.turnStart, SCROLL.turnEnd));
     nvFront.low = nvFrontLow(p);
-    nvFront.flat = nvFront.low / REEL_LAYOUT.LOW;   // 판을 받는 동안은 커버만 정면으로, 돌아서며 제자리로 갈 때 원래 기울기로
+    // 판을 받는 동안·앨범을 열 때는 커버만 정면으로, 그 외엔 다른 앨범처럼 살짝 젖힘
+    nvFront.flat = Math.max(nvFront.low / REEL_LAYOUT.LOW, updateOpen());
     nvFront.alpha = 1 - easeInOutSine(seg(catP, CAT_OUT - 0.04, CAT_OUT + 0.3));
 
     // 가만히 있으면 다음 앨범으로
