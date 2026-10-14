@@ -41,3 +41,10 @@ export async function setAlbumKind(userId, albumId, kind) {
     : await table.delete().eq("album_id", albumId);
   if (error) throw error;
 }
+
+// 이 판을 소장한 사람 수 (함수가 아직 DB에 없으면 null → 화면에 안 보임)
+export async function fetchOwnerCount(albumId) {
+  const { data, error } = await authClient().rpc("album_owner_count", { p_album_id: String(albumId) });
+  if (error || typeof data !== "number") return null;
+  return data;
+}

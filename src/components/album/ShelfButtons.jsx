@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import useAuthUser from "@/lib/useAuthUser";
-import { fetchAlbumKind, setAlbumKind } from "@/lib/userAlbums";
+import { fetchAlbumKind, setAlbumKind, fetchOwnerCount } from "@/lib/userAlbums";
 
 const OPTIONS = [
   { kind: "owned", on: "In your collection", off: "I own this", icon: "disc" },
@@ -31,6 +31,13 @@ export default function ShelfButtons({ albumId, slug, ink, color }) {
   const [kind, setKind] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [owners, setOwners] = useState(null);   // 이 판을 소장한 사람 수 (null = 모름)
+
+  useEffect(() => {
+    let alive = true;
+    fetchOwnerCount(albumId).then(n => { if (alive) setOwners(n); }).catch(() => {});
+    return () => { alive = false; };
+  }, [albumId]);
 
   useEffect(() => {
     if (!user) { setKind(null); return; }
@@ -44,9 +51,11 @@ export default function ShelfButtons({ albumId, slug, ink, color }) {
     if (!user) { router.push(`/login?next=${encodeURIComponent(`/album/${slug}`)}`); return; }
     const prev = kind;
     const target = prev === next ? null : next;
+    const delta = (target === "owned" ? 1 : 0) - (prev === "owned" ? 1 : 0);
     setKind(target); setBusy(true); setError("");          // 먼저 화면에 반영, 실패하면 되돌림
+    setOwners(n => (n == null ? n : Math.max(0, n + delta)));
     try { await setAlbumKind(user.id, albumId, target); }
-    catch { setKind(prev); setError("Couldn’t save that. Please try again in a moment."); }
+    catch { setKind(prev); setOwners(n => (n == null ? n : Math.max(0, n - delta))); setError("Couldn’t save that. Please try again in a moment."); }
     finally { setBusy(false); }
   }
 
@@ -65,6 +74,21 @@ export default function ShelfButtons({ albumId, slug, ink, color }) {
           );
         })}
       </div>
+      {/* 소장자 수 */}
+      {owners != null && (
+        <p className="mt-3 flex items-center gap-2 text-[13px] tracking-[.02em] transition-opacity duration-500 starting:opacity-0">
+          <span aria-hidden="true" className="flex -space-x-1.5">
+            {Array.from({ length: Math.min(3, Math.max(1, owners)) }, (_, i) => (
+              <span key={i} className="size-4 rounded-full border border-current/40" style={{ backgroundColor: owners ? ink : "transparent", opacity: 1 - i * 0.22 }} />
+            ))}
+          </span>
+          <span>
+            {owners === 0 ? "No one has this on their shelf yet — be the first."
+              : owners === 1 ? (kind === "owned" ? "You’re the only one with this on the shelf." : "1 collector has this on the shelf.")
+              : `${owners.toLocaleString("en-US")} collectors have this on the shelf.`}
+          </span>
+        </p>
+      )}
       <p role="status" className="mt-2 min-h-5 text-[12px] text-[var(--album-muted)]">
         {error || (user === null ? "Log in to add records to your collection." : "")}
       </p>
