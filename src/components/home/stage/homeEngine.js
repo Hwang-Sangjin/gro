@@ -1018,7 +1018,7 @@ export async function createHomeEngine(opts) {
   }
   const reelBg = new THREE.Color();
   const nvFront = { rise: 0, low: 0, turn: 1, alpha: 1 };
-  let reelOutSpeed = 2.25;   // 나머지 앨범이 사라지는 속도(배): Hero로 2.25, Genre로 2.7
+  let reelOutSpeed = 2.7;    // 나머지 앨범이 사라지는 속도(배)
   let nvVis = 0;        // 릴이 보이는 정도 (판 자리·검은 판 정도에 씀)
   function updateReel(dt, p) {
     const on = p >= SCROLL.albumTrigger && section === 1 && catP < 0.02 && reelN() > 0;
@@ -2235,7 +2235,7 @@ export async function createHomeEngine(opts) {
   //  - 재생 중 추가 입력은 무시 (트랙패드 관성 스크롤이 다음 전환을 또 일으키지 않게)
   //  - Genre dial에서 스크롤은 장르를 바꾸지 않음: 위로 스크롤하면 New Vinyls로 돌아감
   const SECTION = {
-    duration: 4.4,       // Hero ↔ New Vinyls 전환 시간(초) — 판이 앨범에 들어가는 장면
+    duration: 3.7,       // Hero ↔ New Vinyls 전환 시간(초) — 판이 앨범에 들어가는 장면
     catDuration: 1.75,   // New Vinyls ↔ Genre 전환 시간(초) — 앞부분(CAT_OUT)은 판이 오른쪽으로 빠져나오는 시간
     newsDuration: 1.6,   // Genre ↔ News 전환 시간(초)
     wheelThreshold: 24,  // 이만큼 휠이 쌓이면 전환 (트랙패드 살짝 쓸기 수준)
@@ -2291,7 +2291,7 @@ export async function createHomeEngine(opts) {
       tweenFrom = scrollP; tweenTo = next;
       tweenDur = reduceMotion ? 0 : SECTION.duration * Math.abs(tweenTo - tweenFrom);
       // 위로 돌아갈 땐 나머지 앨범이 먼저 사라진 뒤 거꾸로 (앨범이 눕고 → 판이 빠져나와 → 앨범은 아래로)
-      reelOutSpeed = 2.25;
+      reelOutSpeed = 2.7;
       const wait = next === 0 && !reduceMotion ? albumClock / reelOutSpeed + 0.04 : 0;
       tweenStart = nowSec() + wait;
       tweening = tweenDur > 0; if (!tweening) scrollP = tweenTo;

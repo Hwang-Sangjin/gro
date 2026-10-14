@@ -96,9 +96,12 @@ export function createNvReel({ renderer }) {
       shader.fragmentShader = 'uniform float uBlur;\n' + shader.fragmentShader.replace('texture2D( map, vMapUv )', 'texture2D( map, vMapUv, uBlur )');
     };
     const sleeve = new THREE.Mesh(sleeveGeo, [right, edge, top, edge, front, back]);   // +x, -x, +y, -y, +z, -z
-    sleeve.rotation.set(REEL_LAYOUT.TILT_X, -REEL_LAYOUT.TILT_Y, 0);
-    pivot.add(sleeve);
-    return { pivot, sleeve, blur, mats: [edge, front, back, top, right], edgeC: new THREE.Color(), backC: new THREE.Color(), topC: new THREE.Color(), rightC: new THREE.Color(), labelC: new THREE.Color(), k: null, d: 0 };
+    // pivot(릴 자리) → tilt(윗면·옆면이 보이게 살짝 젖힘, 항상 같은 방향) → turn(맨 앞 앨범이 판을 받을 때 눕는 회전) → 앨범
+    // 젖힘을 회전보다 바깥에 둬서, 앨범이 누워 있어도 화면에서 보는 기울기가 그대로 (비틀려 보이지 않게)
+    const tilt = new THREE.Group(); tilt.rotation.set(REEL_LAYOUT.TILT_X, -REEL_LAYOUT.TILT_Y, 0); pivot.add(tilt);
+    const turn = new THREE.Group(); tilt.add(turn);
+    turn.add(sleeve);
+    return { pivot, turn, sleeve, blur, mats: [edge, front, back, top, right], edgeC: new THREE.Color(), backC: new THREE.Color(), topC: new THREE.Color(), rightC: new THREE.Color(), labelC: new THREE.Color(), k: null, d: 0 };
   });
 
   /* ---- 앨범 ---- */
@@ -214,9 +217,10 @@ export function createNvReel({ renderer }) {
       if (k === fk) {
         poseSlot(it, d, bgC, front.alpha);
         it.pivot.position.y -= (1 - front.rise) * REEL_LAYOUT.RISE + front.low * CW;
-        it.pivot.rotation.z = front.turn * Math.PI / 2;
+        it.turn.rotation.z = front.turn * Math.PI / 2;
         return;
       }
+      it.turn.rotation.z = 0;
       const rank = d > 0 ? d : -d * 1.5;
       const e = ss(0, 1, (clock - (rank - 1) * REVEAL.stagger) / REVEAL.each);
       poseSlot(it, d, bgC, e);
