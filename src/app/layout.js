@@ -8,6 +8,8 @@ export const metadata = {
   metadataBase: new URL(SITE.url),   // 상대 주소(canonical·공유 이미지)를 이 주소 기준으로
   title: "Grooves",
   description: "Vinyl digging for record collectors — find records, listen, and keep your collection.",
+  // 검색엔진 소유 확인 (Google Search Console · 네이버 서치어드바이저는 받으면 other 에 추가)
+  verification: { google: "gkGSd-Emi1jRvFxJaebRQs9tqtp_0agkk0H9HmNOHP0" },
 };
 
 export default function RootLayout({ children }) {
