@@ -252,12 +252,13 @@ export async function createHomeEngine(opts) {
   const SCROLL = {
     heroEnd: 0.03,                         // 이 지점까지는 Hero 기능(링·헤일로·누르기·뒤집기) 그대로
     fxOutEnd: 0.12,                        // 링·헤일로가 사라지는 시점
-    standEnd: 0.22,                        // 이때까지 판이 일어서서 정면(원)을 보며 앨범 위 기다리는 자리로
-    spinStart: 0.2, spinEnd: 0.46,         // 이 구간에서 세로축으로 한 바퀴 (원 → 세로 1자 → 원)
-    riseStart: 0.06, riseEnd: 0.46,        // 앨범 하나가 화면 아래에서 올라옴 (반시계 90° 누운 채: 열린 쪽이 위)
-    insertStart: 0.48, insertEnd: 0.7,     // 판이 위에서 앨범 안으로 스르륵
-    turnStart: 0.72, turnEnd: 0.9,         // 판이 든 앨범이 원래 방향으로 돌아서며 제자리로 올라감 (열린 쪽이 오른쪽)
-    albumTrigger: 0.9,                     // 그 뒤 나머지 앨범이 차례로 나타남 (이후는 시간으로 자동 재생)
+    // 구간끼리 조금씩 겹쳐서 멈췄다 가는 느낌 없이 이어지게 (진행도 자체는 시간에 대해 일정 속도)
+    standEnd: 0.26,                        // 이때까지 판이 일어서서 정면(원)을 보며 앨범 위 기다리는 자리로
+    spinStart: 0.12, spinEnd: 0.47,        // 이 구간에서 세로축으로 한 바퀴 (원 → 세로 1자 → 원)
+    riseStart: 0.0, riseEnd: 0.46,         // 앨범 하나가 화면 아래에서 올라옴 (반시계 90° 누운 채: 열린 쪽이 위)
+    insertStart: 0.42, insertEnd: 0.7,     // 판이 위에서 앨범 안으로 스르륵
+    turnStart: 0.62, turnEnd: 0.92,        // 판이 든 앨범이 원래 방향으로 돌아서며 제자리로 올라감 (열린 쪽이 오른쪽)
+    albumTrigger: 0.84,                    // 그 뒤 나머지 앨범이 차례로 나타남 (이후는 시간으로 자동 재생)
   };
   const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
   const easeOut = (t) => 1 - Math.pow(1 - t, 3);
@@ -981,10 +982,11 @@ export async function createHomeEngine(opts) {
   //  - Genre로 갈 때: 오른쪽으로 완전히 빠져나옴 (catOut) → 그다음 다이얼로
   const nvTarget = { x: 0, y: 0, s: 1 };
   const nvWait = { x: 0, y: 0, r: 1 }, nvIn = { x: 0, y: 0, r: 1 };
-  const CAT_OUT = 0.3;  // catP 중 판이 오른쪽으로 빠져나오는 앞부분
-  const nvFrontLow = (p) => REEL_LAYOUT.LOW * (1 - easeInOut(seg(p, SCROLL.turnStart, SCROLL.turnEnd)));
+  const CAT_OUT = 0.34;  // catP 중 판이 오른쪽으로 빠져나오는 앞부분 (다이얼로 가는 움직임은 CAT_OVERLAP만큼 먼저 시작)
+  const CAT_OVERLAP = 0.1;
+  const nvFrontLow = (p) => REEL_LAYOUT.LOW * (1 - easeInOutSine(seg(p, SCROLL.turnStart, SCROLL.turnEnd)));
   function nvDiscTarget(p, catOut) {
-    const ins = easeInOut(seg(p, SCROLL.insertStart, SCROLL.insertEnd));
+    const ins = easeInOutSine(seg(p, SCROLL.insertStart, SCROLL.insertEnd));
     // 앨범은 판을 받는 동안 조금 내려와 있다가(LOW) 돌아서며 제자리로 올라감 → 판도 같이
     const low = nvFrontLow(p);
     nvReel.discScreen(0, REEL_LAYOUT.OUT_EXIT - low, nvWait);
@@ -1008,10 +1010,10 @@ export async function createHomeEngine(opts) {
     const enter = easeInOut(albumClock / AUTO.total);
     nvVis = enter;
     // 맨 앞 앨범: 화면 아래에서 반시계 90° 누운 채 올라와, 판이 들어간 뒤 돌아섬. Genre로 갈 땐 판이 빠져나온 뒤 사라짐
-    nvFront.rise = easeOut(seg(p, SCROLL.riseStart, SCROLL.riseEnd));
-    nvFront.turn = 1 - easeInOut(seg(p, SCROLL.turnStart, SCROLL.turnEnd));
+    nvFront.rise = easeInOutSine(seg(p, SCROLL.riseStart, SCROLL.riseEnd));
+    nvFront.turn = 1 - easeInOutSine(seg(p, SCROLL.turnStart, SCROLL.turnEnd));
     nvFront.low = nvFrontLow(p);
-    nvFront.alpha = 1 - easeInOut(seg(catP, CAT_OUT + 0.05, CAT_OUT + 0.35));
+    nvFront.alpha = 1 - easeInOutSine(seg(catP, CAT_OUT - 0.04, CAT_OUT + 0.3));
 
     // 가만히 있으면 다음 앨범으로
     const now = nowSec();
@@ -2271,12 +2273,12 @@ export async function createHomeEngine(opts) {
   function updateSectionTween() {
     if (tweening) {
       const t = clamp01((nowSec() - tweenStart) / tweenDur);
-      scrollP = tweenFrom + (tweenTo - tweenFrom) * easeInOutSine(t);
+      scrollP = tweenFrom + (tweenTo - tweenFrom) * t;      // 일정 속도 (구간마다 따로 이징)
       if (t >= 1) { scrollP = tweenTo; tweening = false; }
     }
     if (catTweening) {
       const t = clamp01((nowSec() - catStart) / catDur);
-      catP = catFrom + (catTo - catFrom) * easeInOutSine(t);
+      catP = catFrom + (catTo - catFrom) * t;
       if (t >= 1) { catP = catTo; catTweening = false; }
     }
     if (newsTweening) {
@@ -2427,10 +2429,10 @@ export async function createHomeEngine(opts) {
     const p = scrollP;
     //  Hero → New Vinyls: 기울어진 판이 일어서서 정면(원)을 보며 맨 앞 슬리브 위로 → 세로축으로 한 바퀴
     //  → 릴이 들어오면 슬리브 안으로 쏙 (nvDiscTarget). 되돌아갈 땐 거꾸로
-    const catOut = easeInOut(seg(catP, 0, CAT_OUT));            // Genre로: 먼저 판이 오른쪽으로 빠져나옴
+    const catOut = easeInOutSine(seg(catP, 0, CAT_OUT));        // Genre로: 먼저 판이 오른쪽으로 빠져나옴
     const nvT = nvDiscTarget(p, catOut);
-    const settle = easeInOut(seg(p, 0, SCROLL.standEnd));
-    const spinT = easeInOut(seg(p, SCROLL.spinStart, SCROLL.spinEnd));
+    const settle = easeInOutSine(seg(p, 0, SCROLL.standEnd));
+    const spinT = easeInOutSine(seg(p, SCROLL.spinStart, SCROLL.spinEnd));
     root.rotation.z = THREE.MathUtils.lerp(HERO_COMPOSITION.roll, LANDED_COMPOSITION.roll, settle);
     comp.rotation.x = THREE.MathUtils.lerp(HERO_COMPOSITION.tilt, LANDED_COMPOSITION.tilt, settle);
     root.scale.setScalar(THREE.MathUtils.lerp(heroScale, nvT.s, settle));
@@ -2438,7 +2440,7 @@ export async function createHomeEngine(opts) {
     root.position.y = THREE.MathUtils.lerp(0, nvT.y, settle);
     heroActive = p < SCROLL.heroEnd;
     //  New Vinyls → Genre dial: 판이 다이얼 가운데로 미끄러져 와서 정면을 보고 섬
-    const catEase = easeInOut(seg(catP, CAT_OUT, 1));           // 그다음 다이얼 자리로 (다이얼 색·글자도 이 진행도)
+    const catEase = easeInOutSine(seg(catP, CAT_OUT - CAT_OVERLAP, 1));   // 이어서 다이얼 자리로 (다이얼 색·글자도 이 진행도)
     if (catEase > 0) {
       const dialScale = (geo.R * 0.5) / ZOOM;                 // 판 반지름 = 다이얼 반지름의 절반
       // geo는 스테이지(헤더 아래) 좌표 → 캔버스(화면 전체) 좌표로

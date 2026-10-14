@@ -11,10 +11,11 @@ import * as THREE from 'three';
 
 export const REEL_LAYOUT = {
   CW: 3.2,        // 슬리브 한 변
-  DEPTH: 0.09,    // 슬리브 두께 (판이 든 LP 재킷)
+  DEPTH: 0.14,    // 앨범(상자) 두께 — 판이 든 LP 재킷
   RC: 9,          // 원통 반지름
   STEP: 0.125,    // 슬리브 사이 각도
   LIFT: 1.15,     // 맨 앞 슬리브가 앞으로 나오는 거리
+  GAP: 0.55,      // 뒤의 앨범일수록 이만큼씩(앞에서 멀수록 조금 더) 뒤로 물러남 → 원통 안쪽에서 이웃 앨범끼리 서로 뚫고 지나가지 않게
   ROLL: -0.07,    // 릴 전체 기울기 (감김이 오른쪽 아래로 흐르게)
   SLOTS: 14,
   BEHIND: 2,      // 앞으로 지나간 슬리브 몇 장까지 그릴지
@@ -126,7 +127,8 @@ export function createNvReel({ renderer }) {
     it.d = d;
     const th = d * STEP, pv = it.pivot;
     const lift = LIFT * (1 - ss(0, 0.85, Math.abs(d)));
-    pv.position.set(RC * Math.sin(th), -d * 0.06, RC * (1 - Math.cos(th)) + lift);
+    const back = REEL_LAYOUT.GAP * Math.pow(Math.max(0, Math.abs(d) - 0.5), 1.15);
+    pv.position.set(RC * Math.sin(th), -d * 0.06, RC * (1 - Math.cos(th)) + lift - back);
     pv.rotation.set(0, -th, 0);
     // 멀어질수록 배경색에 묻힘. 지나간 판은 왼쪽에 한두 장만 남기고 흐려짐
     const fog = d > 0.5 ? Math.min(0.78, (d - 0.5) * 0.11) : d < -0.5 ? Math.min(0.7, (-d - 0.5) * 0.3) : 0;
