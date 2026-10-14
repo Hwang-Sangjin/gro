@@ -81,6 +81,8 @@ export function createNvReel({ renderer }) {
   let narrow = false, viewW = 1, viewH = 1;
 
   const sleeveGeo = new THREE.BoxGeometry(CW, CW, DEPTH);
+  const TILT_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(REEL_LAYOUT.TILT_X, -REEL_LAYOUT.TILT_Y, 0));
+  const faceQ = new THREE.Quaternion();
   const slots = Array.from({ length: SLOTS }, () => {
     const pivot = new THREE.Group(); reel.add(pivot);
     // 상자 면: 앞 = 커버 이미지, 윗면 = 대표 색(밝게), 오른쪽 옆면 = 대표 색(어둡게), 나머지 = 대표 색
@@ -98,10 +100,10 @@ export function createNvReel({ renderer }) {
     const sleeve = new THREE.Mesh(sleeveGeo, [right, edge, top, edge, front, back]);   // +x, -x, +y, -y, +z, -z
     // pivot(릴 자리) → tilt(윗면·옆면이 보이게 살짝 젖힘, 항상 같은 방향) → turn(맨 앞 앨범이 판을 받을 때 눕는 회전) → 앨범
     // 젖힘을 회전보다 바깥에 둬서, 앨범이 누워 있어도 화면에서 보는 기울기가 그대로 (비틀려 보이지 않게)
-    const tilt = new THREE.Group(); tilt.rotation.set(REEL_LAYOUT.TILT_X, -REEL_LAYOUT.TILT_Y, 0); pivot.add(tilt);
+    const tilt = new THREE.Group(); tilt.quaternion.copy(TILT_Q); pivot.add(tilt);
     const turn = new THREE.Group(); tilt.add(turn);
     turn.add(sleeve);
-    return { pivot, turn, sleeve, blur, mats: [edge, front, back, top, right], edgeC: new THREE.Color(), backC: new THREE.Color(), topC: new THREE.Color(), rightC: new THREE.Color(), labelC: new THREE.Color(), k: null, d: 0 };
+    return { pivot, tilt, turn, sleeve, blur, mats: [edge, front, back, top, right], edgeC: new THREE.Color(), backC: new THREE.Color(), topC: new THREE.Color(), rightC: new THREE.Color(), labelC: new THREE.Color(), k: null, d: 0 };
   });
 
   /* ---- 앨범 ---- */
@@ -198,6 +200,7 @@ export function createNvReel({ renderer }) {
    * pos: 지금 맨 앞 앨범 번호(소수, 끝없이 누적)
    * clock: 나머지 앨범이 나타난 시간(초, 줄어들면 거꾸로 사라짐)
    * front: 맨 앞 앨범 { rise: 0 = 화면 아래, 1 = 올라옴 · low: 제자리보다 내려와 있는 정도(슬리브 폭 단위)
+   *         · flat: 1 = 카메라를 정면으로 봄(커버만 보임), 0 = 다른 앨범처럼 살짝 젖힘
    *         · turn: 1 = 반시계 90°(열린 쪽이 위) · alpha }
    * hover는 판 쪽에서 처리 · bg: 배경색(먼 슬리브가 묻히는 색) · show: 릴을 그릴지
    */
@@ -218,9 +221,16 @@ export function createNvReel({ renderer }) {
         poseSlot(it, d, bgC, front.alpha);
         it.pivot.position.y -= (1 - front.rise) * REEL_LAYOUT.RISE + front.low * CW;
         it.turn.rotation.z = front.turn * Math.PI / 2;
+        // 판을 받는 동안(flat)은 앨범이 카메라를 정면으로 봄 → 커버만 보이고 윗면·옆면은 안 보임
+        if (front.flat > 0.001) {
+          it.pivot.updateMatrixWorld();
+          it.tilt.lookAt(camera.position);
+          if (front.flat < 0.999) faceQ.copy(it.tilt.quaternion), it.tilt.quaternion.copy(TILT_Q).slerp(faceQ, front.flat);
+        } else it.tilt.quaternion.copy(TILT_Q);
         return;
       }
       it.turn.rotation.z = 0;
+      it.tilt.quaternion.copy(TILT_Q);
       const rank = d > 0 ? d : -d * 1.5;
       const e = ss(0, 1, (clock - (rank - 1) * REVEAL.stagger) / REVEAL.each);
       poseSlot(it, d, bgC, e);

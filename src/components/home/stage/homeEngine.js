@@ -1017,7 +1017,7 @@ export async function createHomeEngine(opts) {
     return nvTarget;
   }
   const reelBg = new THREE.Color();
-  const nvFront = { rise: 0, low: 0, turn: 1, alpha: 1 };
+  const nvFront = { rise: 0, low: 0, turn: 1, alpha: 1, flat: 0 };
   let reelOutSpeed = 2.7;    // 나머지 앨범이 사라지는 속도(배)
   let nvVis = 0;        // 릴이 보이는 정도 (판 자리·검은 판 정도에 씀)
   function updateReel(dt, p) {
@@ -1031,6 +1031,7 @@ export async function createHomeEngine(opts) {
     nvFront.rise = easeInOutSine(seg(p, SCROLL.riseStart, SCROLL.riseEnd));
     nvFront.turn = 1 - easeInOutSine(seg(p, SCROLL.turnStart, SCROLL.turnEnd));
     nvFront.low = nvFrontLow(p);
+    nvFront.flat = nvFront.low / REEL_LAYOUT.LOW;   // 판을 받는 동안은 커버만 정면으로, 돌아서며 제자리로 갈 때 원래 기울기로
     nvFront.alpha = 1 - easeInOutSine(seg(catP, CAT_OUT - 0.04, CAT_OUT + 0.3));
 
     // 가만히 있으면 다음 앨범으로
