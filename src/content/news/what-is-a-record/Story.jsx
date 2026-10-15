@@ -1,16 +1,18 @@
 "use client";
 // Vinyl A to Z · Chapter 01 — "What Is Vinyl?"
-// 히어로(도는 판 영상) → 01 Vinyl이란? → 02 무엇으로 만들어질까? → 03 저장과 재생 → (아래 Next story)
+// 히어로(위에서 본 3D 판) → 01 Vinyl이란? → 02 무엇으로 만들어질까? → 03 저장과 재생 → (아래 Next story)
 // - 섹션마다 배경·글자색이 있고, 경계가 화면 가운데를 지나는 동안 이어서 바뀜 (헤더·위 ← News·아래 Next story까지 같이)
 // - 휠·키 한 번에 한 섹션씩 넘어감 (Home 처럼). 화면보다 긴 섹션은 끝까지 보여 준 뒤 넘어감. 터치는 손가락 스크롤 그대로
 // - 사진·영상 자리는 점선 박스 (public/news/what-is-a-record/ 에 넣고 <img>/<video> 로 교체)
 import { useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import Reveal, { RiseText } from "@/components/story/Reveal";
+
+const AlbumVinyl = dynamic(() => import("@/components/album/AlbumVinyl"), { ssr: false });
 
 const BODONI = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.02em]";
 const KR = "font-['Noto_Serif_KR',Georgia,serif]";
 const WRAP = "mx-auto w-full max-w-[1240px] px-[clamp(20px,5vw,80px)]";
-const MEDIA = "/news/what-is-a-record";
 // 섹션 여백: 위는 헤더 높이만큼 비우고 위아래 같은 여백 → 내용이 '헤더 아래 화면'의 가운데에 옴
 const SECTION_PAD = "pt-[calc(var(--ct-header-h,106px)+clamp(16px,3vh,40px))] pb-[clamp(16px,3vh,40px)]";
 
@@ -180,7 +182,7 @@ export default function Story() {
       {/* 한글 본문용 명조 (이 글에서만 불러옴) */}
       <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;900&display=swap" />
 
-      {/* ── 히어로: 큰 영상 (오른쪽 넓게) + 제목 ── */}
+      {/* ── 히어로: 제목 + 크게 도는 3D 판 ── */}
       <section data-section aria-label="What Is Vinyl?" className={`flex min-h-svh items-center ${SECTION_PAD}`}>
         <div className="mx-auto grid w-full max-w-[1680px] items-center gap-[clamp(28px,4vw,72px)] px-[clamp(20px,4vw,72px)] md:grid-cols-[minmax(0,0.72fr)_minmax(0,1.5fr)]">
           <div className="max-md:order-2">
@@ -191,13 +193,10 @@ export default function Story() {
               소리를 홈의 굴곡으로 새기고, 바늘로 그 굴곡을 다시 읽어 소리로 되돌리는 음반. 바이닐이 무엇이고, 어떻게 음악을 담는지 알아봅니다.
             </Reveal>
           </div>
-          <Reveal delay={200} className="max-md:order-1">
-            {/* 16:9 원본 그대로(1280×720) · 10.6초 끊김 없는 반복(판 5바퀴 남짓) · 2MB. 포스터가 먼저 보이고 영상이 이어받음
-                높이는 헤더 아래 화면에 들어오게 제한 → 넓은 화면에선 가로를 꽉 채우고 위아래만 살짝 잘림 */}
-            <div className="relative aspect-video max-h-[calc(100svh-var(--ct-header-h,106px)-7rem)] w-full overflow-hidden rounded-[4px] bg-[#0b0a0b] shadow-[0_30px_60px_-30px_rgba(20,14,18,.55)]">
-              <video src={`${MEDIA}/hero.mp4`} poster={`${MEDIA}/hero-poster.webp`} autoPlay muted loop playsInline preload="auto"
-                aria-hidden="true" className="absolute inset-0 size-full object-cover" />
-              <span className="absolute bottom-4 left-4 text-[10px] uppercase tracking-[0.28em] text-[#f4e7cd]/70">Turntable · 33⅓ rpm</span>
+          <Reveal delay={200} className="flex justify-center max-md:order-1">
+            {/* Home 과 같은 3D 잉크 판 — 위에서 내려다본 정면으로 33⅓ RPM 으로 계속 돎. 검정 판 */}
+            <div className="relative aspect-square w-[min(100%,calc(100svh-var(--ct-header-h,106px)-6rem))]">
+              <AlbumVinyl ink="#171217" label="#2a222a" rpm={33.333} playing tilt={90} dpr={[1, 1.5]} />
             </div>
           </Reveal>
         </div>

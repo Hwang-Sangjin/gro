@@ -12,14 +12,14 @@ import { discFrag, discVert, hexToRgb, inkDefaults } from "../vinyl/inkShaders";
 import { VINYL_URL, DRACO_PATH } from "@/lib/vinylModel";
 
 // face: 0 = 앞면(A·C), 1 = 뒷면(B·D). 바뀌면 판을 세로축으로 반 바퀴 뒤집음. snap이면 애니메이션 없이 바로
-type Props = { ink: string; label: string; rpm: number; playing: boolean; face?: number; snap?: boolean };
+// tilt: 판을 눕힌 각도(도). 90 = 위에서 내려다본 정면, 기본 76 = 옆면이 살짝 보이게
+type Props = { ink: string; label: string; rpm: number; playing: boolean; face?: number; snap?: boolean; tilt?: number };
 
-const TILT = THREE.MathUtils.degToRad(76);   // 90 = 완전 정면. 조금 눕혀 옆면이 살짝 보이게
 const ORTHO_EYE = 1000;
 const FLIP = { duration: 0.9, lift: 0.07 };  // 뒤집기 시간(초), 뒤집는 동안 살짝 떠오르는 정도(배율)
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-function Disc({ ink, label, rpm, playing, face = 0, snap = false }: Props) {
+function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76 }: Props) {
   const { scene } = useGLTF(VINYL_URL, DRACO_PATH);
   const { camera, pointer, invalidate, size } = useThree();
   const comp = useRef<THREE.Group>(null);
@@ -143,7 +143,7 @@ function Disc({ ink, label, rpm, playing, face = 0, snap = false }: Props) {
 
   return (
     <group ref={flip}>
-      <group ref={comp} rotation={[TILT, 0, 0]}>
+      <group ref={comp} rotation={[THREE.MathUtils.degToRad(tilt), 0, 0]}>
         <group ref={spin}>
           <primitive object={model} dispose={null} />
         </group>
