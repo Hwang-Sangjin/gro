@@ -1,11 +1,10 @@
 "use client";
 // Vinyl A to Z · Chapter 01 — "What Is Vinyl?"
-// 히어로(도는 판 영상) → 01 Vinyl이란? → 02 무엇으로 만들어질까? → 03 저장과 재생 → 마무리
+// 히어로(도는 판 영상) → 01 Vinyl이란? → 02 무엇으로 만들어질까? → 03 저장과 재생 → (아래 Next story)
 // - 섹션마다 배경·글자색이 있고, 경계가 화면 가운데를 지나는 동안 이어서 바뀜 (헤더·위 ← News·아래 Next story까지 같이)
 // - 휠·키 한 번에 한 섹션씩 넘어감 (Home 처럼). 화면보다 긴 섹션은 끝까지 보여 준 뒤 넘어감. 터치는 손가락 스크롤 그대로
 // - 사진·영상 자리는 점선 박스 (public/news/what-is-a-record/ 에 넣고 <img>/<video> 로 교체)
 import { useEffect, useRef } from "react";
-import Link from "next/link";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 
 const BODONI = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.02em]";
@@ -22,14 +21,14 @@ const PALETTE = {
     { bg: "#dfe6e8", fg: "#3d3440", ac: "#c8553d" },   // 01: 옅은 하늘
     { bg: "#ead7b4", fg: "#4c404a", ac: "#b4472f" },   // 02: 모래
     { bg: "#17121a", fg: "#f4e7cd", ac: "#e0674c" },   // 03: 밤
-    { bg: "#f4e7cd", fg: "#4c404a", ac: "#c8553d" },   // 마무리: 다시 크림 (아래 Next story 와 이어짐)
+    { bg: "#f4e7cd", fg: "#4c404a", ac: "#c8553d" },   // 글 끝(아래 Next story): 다시 크림
   ],
   dark: [
     { bg: "#4c404a", fg: "#f4e7cd", ac: "#e0674c" },
     { bg: "#3a4148", fg: "#f4e7cd", ac: "#e0674c" },
     { bg: "#51432f", fg: "#f4e7cd", ac: "#e98a5f" },
     { bg: "#17121a", fg: "#f4e7cd", ac: "#e0674c" },
-    { bg: "#4c404a", fg: "#f4e7cd", ac: "#e0674c" },
+    { bg: "#4c404a", fg: "#f4e7cd", ac: "#e0674c" },   // 글 끝
   ],
 };
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -52,8 +51,10 @@ function useSectionStage(rootRef) {
       const pal = (document.documentElement.dataset.theme === "dark" ? PALETTE.dark : PALETTE.light).map((p) => ({ bg: hex(p.bg), fg: hex(p.fg), ac: hex(p.ac) }));
       const probe = page.scrollTop + H() * 0.5;
       let { bg, fg, ac } = pal[0];
-      for (let j = 1; j < sections.length; j++) {
-        const k = smooth(Math.min(1, Math.max(0, (probe - (top(sections[j]) - H() * 0.3)) / (H() * 0.6))));
+      // 경계: 각 섹션의 시작, 마지막은 글 끝(아래 Next story 가 시작하는 곳) — 거기서 다시 기본 색으로
+      const edges = [...sections.slice(1).map(top), root.offsetTop + root.offsetHeight];
+      for (let j = 1; j <= edges.length; j++) {
+        const k = smooth(Math.min(1, Math.max(0, (probe - (edges[j - 1] - H() * 0.3)) / (H() * 0.6))));
         if (k <= 0) break;
         const L = (a, b) => a.map((v, i) => v + (b[i] - v) * k);
         bg = L(bg, pal[j].bg); fg = L(fg, pal[j].fg); ac = L(ac, pal[j].ac);
@@ -90,7 +91,7 @@ function useSectionStage(rootRef) {
         // 긴 섹션: 남은 부분이 아래 여백(140px)보다 많으면 한 화면 더 읽기
         if (y + H() < bottom - 140) return scrollToY(Math.min(bottom - H(), y + H() * 0.85));
         if (i < sections.length - 1) return scrollToY(top(sections[i + 1]));
-        return scrollToY(root.offsetTop + root.offsetHeight - 24);   // 마지막 섹션 다음: 아래 Next story 가 화면 위에 오게 (그 아래는 보통 스크롤)
+        return scrollToY(root.offsetTop + root.offsetHeight - (layer?.querySelector(".ct-navbar")?.offsetHeight ?? 106) - 24);   // 마지막 섹션 다음: 아래 Next story 가 화면 위에 오게 (그 아래는 보통 스크롤)
       }
       if (y > bottom - 4 && i === sections.length - 1) return scrollToY(top(s));   // Next story 에서 위로
       if (y > top(s) + 140) return scrollToY(Math.max(top(s), y - H() * 0.85));
@@ -304,18 +305,6 @@ export default function Story() {
         </div>
       </section>
 
-      {/* ── 마무리 ── */}
-      <section data-section aria-label="Sound becomes a groove" className={`flex min-h-svh flex-col items-center justify-center text-center ${SECTION_PAD}`}>
-        <div className={WRAP}>
-          <RiseText as="p" lines={["Sound becomes a groove.", "A groove becomes sound."]} lineClassName="sm:whitespace-nowrap [&:last-child]:text-(--story-accent)"
-            className={`${BODONI} text-[clamp(2.2rem,6vw,6rem)] leading-[0.98]`} />
-          <Reveal delay={400} className="mt-12 flex flex-wrap justify-center gap-3">
-            <Link href="/digging" className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--cream) transition-colors hover:bg-(--story-accent)">
-              Start digging
-            </Link>
-          </Reveal>
-        </div>
-      </section>
     </div>
   );
 }
