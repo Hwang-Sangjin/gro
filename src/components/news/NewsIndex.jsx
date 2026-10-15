@@ -77,8 +77,9 @@ export default function NewsIndex() {
               <StoryCover name={lead.cover} className="aspect-[4/3] rounded-sm transition-[scale] duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-[1.015] [&_svg]:transition-transform [&_svg]:duration-[1200ms] group-hover:[&_svg]:scale-105" />
               <div>
                 <Meta s={lead} />
-                <h2 className={`${SERIF} mt-5 text-[clamp(2.6rem,5vw,5.2rem)] leading-[0.92]`}>
-                  <span className="bg-[linear-gradient(currentColor,currentColor)] bg-[length:0%_3px] bg-left-bottom bg-no-repeat pb-1 transition-[background-size] duration-700 group-hover:bg-[length:100%_3px]">{lead.title}</span>
+                <h2 className={`${SERIF} mt-5 text-[clamp(2.6rem,5vw,5.2rem)] leading-[1.02]`}>
+                  {/* 밑줄: 글자 박스 맨 아래가 아니라 기준선 바로 밑에 (줄마다 그려져 다음 줄 글자를 가리지 않게) */}
+                  <span className="box-decoration-clone bg-[linear-gradient(currentColor,currentColor)] bg-[length:0%_0.045em] bg-[position:0_calc(100%-0.16em)] bg-no-repeat transition-[background-size] duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover:bg-[length:100%_0.045em]">{lead.title}</span>
                 </h2>
                 <p className="mt-5 max-w-lg text-[16px] leading-7 text-(--ink)/75">{lead.dek}</p>
                 <span className="mt-8 inline-flex items-center gap-3 text-[12px] font-medium uppercase tracking-[0.2em]">
