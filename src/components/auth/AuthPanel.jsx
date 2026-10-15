@@ -174,7 +174,7 @@ export default function AuthPanel() {
         ) : (
           <p className="max-w-[38ch] text-[12px] leading-6 opacity-60">
             First time here? Your shelf is set up automatically.<br />We only receive your name, email and profile photo.<br />
-            By continuing you agree to our <Link href="/terms" className="underline underline-offset-4 hover:opacity-100">Terms</Link> and <Link href="/privacy" className="underline underline-offset-4 hover:opacity-100">Privacy Policy</Link>.
+            By continuing you agree to our <Link href="/terms" className="relative underline underline-offset-4 before:absolute before:-inset-x-1 before:-inset-y-3.5 before:content-[''] hover:opacity-100">Terms</Link> and <Link href="/privacy" className="relative underline underline-offset-4 before:absolute before:-inset-x-1 before:-inset-y-3.5 before:content-[''] hover:opacity-100">Privacy Policy</Link>.
           </p>
         )}
       </section>
