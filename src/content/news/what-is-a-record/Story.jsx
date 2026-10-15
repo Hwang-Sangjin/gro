@@ -12,6 +12,8 @@ const BODONI = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.02
 const KR = "font-['Noto_Serif_KR',Georgia,serif]";
 const WRAP = "mx-auto w-full max-w-[1240px] px-[clamp(20px,5vw,80px)]";
 const MEDIA = "/news/what-is-a-record";
+// 섹션 여백: 위는 헤더 높이만큼 비우고 위아래 같은 여백 → 내용이 '헤더 아래 화면'의 가운데에 옴
+const SECTION_PAD = "pt-[calc(var(--ct-header-h,106px)+clamp(16px,3vh,40px))] pb-[clamp(16px,3vh,40px)]";
 
 // 섹션 색 (라이트 / 다크 테마). bg 바탕 · fg 글자 · ac 강조
 const PALETTE = {
@@ -177,29 +179,31 @@ export default function Story() {
       {/* 한글 본문용 명조 (이 글에서만 불러옴) */}
       <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;900&display=swap" />
 
-      {/* ── 히어로 ── */}
-      <section data-section aria-label="What Is Vinyl?" className="flex min-h-svh items-center pb-16 pt-[calc(var(--ct-header-h,106px)+80px)]">
-        <div className={`${WRAP} grid items-center gap-12 md:grid-cols-[1fr_1.05fr]`}>
-          <div>
+      {/* ── 히어로: 큰 영상 (오른쪽 넓게) + 제목 ── */}
+      <section data-section aria-label="What Is Vinyl?" className={`flex min-h-svh items-center ${SECTION_PAD}`}>
+        <div className="mx-auto grid w-full max-w-[1680px] items-center gap-[clamp(28px,4vw,72px)] px-[clamp(20px,4vw,72px)] md:grid-cols-[minmax(0,0.72fr)_minmax(0,1.5fr)]">
+          <div className="max-md:order-2">
             <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--story-accent)">Vinyl A to Z · Chapter 01</Reveal>
-            <RiseText as="h1" lines={["What Is", "Vinyl?"]} delay={120} lineClassName="whitespace-nowrap" className={`${BODONI} mt-5 text-[clamp(3.4rem,8vw,8.4rem)] leading-[0.86]`} />
-            <Reveal delay={400} as="p" className="mt-6 text-[clamp(1.4rem,2.6vw,2.2rem)] font-black">바이닐이란 무엇인가?</Reveal>
-            <Reveal delay={550} as="p" className="mt-6 max-w-md text-[16px] leading-8 text-(--ink)/75">
+            <RiseText as="h1" lines={["What Is", "Vinyl?"]} delay={120} lineClassName="whitespace-nowrap" className={`${BODONI} mt-5 text-[clamp(3.2rem,6.2vw,7.6rem)] leading-[0.86]`} />
+            <Reveal delay={400} as="p" className="mt-6 text-[clamp(1.35rem,2.2vw,2rem)] font-black">바이닐이란 무엇인가?</Reveal>
+            <Reveal delay={550} as="p" className="mt-5 max-w-sm text-[16px] leading-8 text-(--ink)/75">
               소리를 홈의 굴곡으로 새기고, 바늘로 그 굴곡을 다시 읽어 소리로 되돌리는 음반. 바이닐이 무엇이고, 어떻게 음악을 담는지 알아봅니다.
             </Reveal>
           </div>
-          <Reveal delay={250}>
-            <Slot ratio="aspect-[4/3]" dark label="Turntable · 33⅓ rpm">
-              {/* 10.6초 끊김 없는 반복(판 5바퀴 남짓) · 960×720 · 1.2MB. 포스터가 먼저 보이고 영상이 이어받음 */}
+          <Reveal delay={200} className="max-md:order-1">
+            {/* 16:9 원본 그대로(1280×720) · 10.6초 끊김 없는 반복(판 5바퀴 남짓) · 2MB. 포스터가 먼저 보이고 영상이 이어받음
+                높이는 헤더 아래 화면에 들어오게 제한 → 넓은 화면에선 가로를 꽉 채우고 위아래만 살짝 잘림 */}
+            <div className="relative aspect-video max-h-[calc(100svh-var(--ct-header-h,106px)-7rem)] w-full overflow-hidden rounded-[4px] bg-[#0b0a0b] shadow-[0_30px_60px_-30px_rgba(20,14,18,.55)]">
               <video src={`${MEDIA}/hero.mp4`} poster={`${MEDIA}/hero-poster.webp`} autoPlay muted loop playsInline preload="auto"
                 aria-hidden="true" className="absolute inset-0 size-full object-cover" />
-            </Slot>
+              <span className="absolute bottom-4 left-4 text-[10px] uppercase tracking-[0.28em] text-[#f4e7cd]/70">Turntable · 33⅓ rpm</span>
+            </div>
           </Reveal>
         </div>
       </section>
 
       {/* ── 01 Vinyl이란? ── */}
-      <section data-section aria-label="01 Vinyl이란?" className="flex min-h-svh items-center py-24">
+      <section data-section aria-label="01 Vinyl이란?" className={`flex min-h-svh items-center ${SECTION_PAD}`}>
         <div className={`${WRAP} grid gap-12 md:grid-cols-[1fr_1.1fr] md:gap-20`}>
           <div className="self-center">
             <Reveal><Num n="01" /></Reveal>
@@ -219,7 +223,7 @@ export default function Story() {
       </section>
 
       {/* ── 02 무엇으로 만들어질까? ── */}
-      <section data-section aria-label="02 Vinyl은 무엇으로 만들어질까?" className="flex min-h-svh items-center py-24">
+      <section data-section aria-label="02 Vinyl은 무엇으로 만들어질까?" className={`flex min-h-svh items-center ${SECTION_PAD}`}>
         <div className={WRAP}>
           <div className="flex flex-wrap items-end gap-x-6">
             <Reveal><Num n="02" /></Reveal>
@@ -252,7 +256,7 @@ export default function Story() {
       </section>
 
       {/* ── 03 저장과 재생 ── */}
-      <section data-section aria-label="03 Vinyl은 어떻게 음악을 저장하고 재생할까?" className="flex min-h-svh items-center py-24">
+      <section data-section aria-label="03 Vinyl은 어떻게 음악을 저장하고 재생할까?" className={`flex min-h-svh items-center ${SECTION_PAD}`}>
         <div className={WRAP}>
           <div className="grid items-end gap-6 md:grid-cols-[1.1fr_1fr]">
             <div>
@@ -301,7 +305,7 @@ export default function Story() {
       </section>
 
       {/* ── 마무리 ── */}
-      <section data-section aria-label="Sound becomes a groove" className="flex min-h-svh flex-col items-center justify-center py-24 text-center">
+      <section data-section aria-label="Sound becomes a groove" className={`flex min-h-svh flex-col items-center justify-center text-center ${SECTION_PAD}`}>
         <div className={WRAP}>
           <RiseText as="p" lines={["Sound becomes a groove.", "A groove becomes sound."]} lineClassName="sm:whitespace-nowrap [&:last-child]:text-(--story-accent)"
             className={`${BODONI} text-[clamp(2.2rem,6vw,6rem)] leading-[0.98]`} />

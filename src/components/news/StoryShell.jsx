@@ -12,7 +12,7 @@ const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035
 export default function StoryShell({ meta }) {
   const next = nextStory(meta.slug);
   return (
-    <PageShell className="paper-textured [&>.page-content]:gap-0 [&>.page-content]:p-0">
+    <PageShell className="paper-textured [&>.page-content]:gap-0! [&>.page-content]:p-0!">
       <article className="relative text-(--ink)">
         <div className="pointer-events-none absolute inset-x-0 top-[calc(var(--ct-header-h,106px)+12px)] z-20 px-[clamp(20px,4vw,72px)]">
           <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 text-[11px] font-medium uppercase tracking-[0.24em]">
