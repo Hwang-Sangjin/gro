@@ -34,10 +34,10 @@ function useDiscTexture(ink, label) {
   }, [ink, label]);
 }
 
-function Rig({ progress }) {
+function Rig({ progress, ink, label, head }) {
   const disc = useRef(null), stylus = useRef(null);
   const { camera } = useThree();
-  const tex = useDiscTexture("187,203,218", "#bbcbda");
+  const tex = useDiscTexture(ink, label);
   const look = useMemo(() => new THREE.Vector3(), []);
   // 바늘이 닿는 자리 (판 오른쪽 바깥 홈)
   const tip = useMemo(() => new THREE.Vector3(...TIP), []);
@@ -88,7 +88,7 @@ function Rig({ progress }) {
         <group ref={stylus}>
           <mesh position={[0, 0.007, 0]} rotation={[Math.PI, 0, 0]}><coneGeometry args={[0.006, 0.014, 12]} /><meshStandardMaterial color="#e8f1ff" metalness={0.2} roughness={0.05} /></mesh>
           <mesh position={[0.03, 0.022, 0]} rotation={[0, 0, -1.05]}><cylinderGeometry args={[0.003, 0.003, 0.07, 8]} /><meshStandardMaterial color="#bfb8b0" metalness={0.9} roughness={0.2} /></mesh>
-          <mesh position={[0.11, 0.06, 0]}><boxGeometry args={[0.13, 0.06, 0.07]} /><meshStandardMaterial color="#c8553d" roughness={0.45} /></mesh>
+          <mesh position={[0.11, 0.06, 0]}><boxGeometry args={[0.13, 0.06, 0.07]} /><meshStandardMaterial color={head} roughness={0.45} /></mesh>
           <mesh position={[0.17, 0.097, 0]}><boxGeometry args={[0.24, 0.014, 0.1]} /><meshStandardMaterial color="#d8d2ca" metalness={0.85} roughness={0.25} /></mesh>
         </group>
       </group>
@@ -102,8 +102,9 @@ function Rig({ progress }) {
   );
 }
 
-// progress: { current: 0..1 } (ScrollScene onProgress 로 채움). 화면에 있을 때만 그림
-export default function NeedleScene({ progress, className = "" }) {
+// progress: { current: 0..1 } (ScrollScene onProgress 로 채우거나 고정값). 화면에 있을 때만 그림
+// ink: 홈 선 색 "r,g,b" · label: 라벨 색 · head: 카트리지(헤드) 색
+export default function NeedleScene({ progress, className = "", ink = "187,203,218", label = "#bbcbda", head = "#c8553d" }) {
   const box = useRef(null);
   const [live, setLive] = useState(false);
   useEffect(() => {
@@ -115,7 +116,7 @@ export default function NeedleScene({ progress, className = "" }) {
   return (
     <div ref={box} className={className}>
       <Canvas frameloop={live ? "always" : "never"} dpr={[1, 1.75]} camera={{ fov: 38, near: 0.01, far: 50, position: [0.4, 3.4, 3.3] }} gl={{ antialias: true, alpha: true }}>
-        <Rig progress={progress} />
+        <Rig progress={progress} ink={ink} label={label} head={head} />
       </Canvas>
     </div>
   );
