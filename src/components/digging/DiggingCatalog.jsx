@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { fetchDiggingPage } from "@/lib/albums";
 import { getGenreIds } from "@/lib/genreIds";
+import { GENRES } from "@/lib/genres";
 import GenreBar from "@/components/albums/GenreBar";
 import RequestDialog from "@/components/requests/RequestDialog";
 import DiggingGrid from "./DiggingGrid";
@@ -70,6 +71,12 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
       if (wanted.current === key) setSwitching(false);
     }
   }, [initial.seed]);
+  // 페이지는 캐시된 '전체' 화면 → 주소에 ?genre= 가 있으면 열리자마자 그 장르로 바꿈
+  useEffect(() => {
+    const slug = new URLSearchParams(location.search).get("genre");
+    if (slug && GENRES.some((g) => g.slug === slug)) selectGenre(slug);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [titleRef, titleRevealed] = useReveal();
   const [query, setQuery] = useState("");
   const [view, setView] = useState("grid");   // 'grid' | 'crate' (Crate 보기는 지금 그리드의 판들로)

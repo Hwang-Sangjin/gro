@@ -4,6 +4,7 @@
 //   published = 사이트에 보임, draft = 숨김 (Digging·Collection·앨범 페이지에서 안 보임, 데이터는 그대로)
 
 import { adminGuard, serviceClient } from "@/lib/admin/auth";
+import { revalidateAlbum } from "@/lib/revalidateAlbum";
 
 export const runtime = "nodejs";
 const STATUSES = ["published", "draft"];
@@ -20,6 +21,7 @@ export async function POST(req: Request) {
       .from("albums").update({ status }).eq("slug", slug).select("slug, status").maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) return Response.json({ error: `No album with slug '${slug}'.` }, { status: 404 });
+    revalidateAlbum(slug);
     return Response.json({ ok: true, ...data });
   } catch (e: any) {
     return Response.json({ error: e.message ?? "Unknown error" }, { status: 500 });

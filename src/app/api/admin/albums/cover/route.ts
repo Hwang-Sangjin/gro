@@ -7,6 +7,7 @@
 
 import { processCover, removeOldCovers } from "@/lib/admin/cover";
 import { adminGuard, serviceClient } from "@/lib/admin/auth";
+import { revalidateAlbum } from "@/lib/revalidateAlbum";
 
 export const runtime = "nodejs";
 
@@ -56,6 +57,7 @@ export async function POST(req: Request) {
       await removeOldCovers(supabase, [album.cover_path, album.thumb_path]);
     }
 
+    revalidateAlbum(slug);
     return Response.json({
       ok: true,
       title: album.title,

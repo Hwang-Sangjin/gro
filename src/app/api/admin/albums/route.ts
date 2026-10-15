@@ -6,6 +6,7 @@
 
 import { processCover } from "@/lib/admin/cover";
 import { adminGuard, serviceClient } from "@/lib/admin/auth";
+import { revalidateAlbum } from "@/lib/revalidateAlbum";
 
 export const runtime = "nodejs";
 
@@ -191,6 +192,7 @@ export async function POST(req: Request) {
       if (tErr) throw new Error(`Couldn’t save tracks: ${tErr.message}`);
     }
 
+    revalidateAlbum(payload.slug);
     return Response.json({
       ok: true,
       id: albumId,

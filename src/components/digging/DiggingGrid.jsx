@@ -63,7 +63,7 @@ export default function DiggingGrid({ initial, genreId = null, query = "", onReq
   const filtered = items.filter(album => !term ||
     `${album.title} ${album.artist_names}`.toLocaleLowerCase().includes(term));
 
-  if (items.length === 0) {
+  if (items.length === 0 && !hasMore && !loading) {   // 첫 화면이 비어 왔으면(서버가 못 읽음) 아래 sentinel 이 바로 불러옴
     return (
       <div className="page-empty">
         <p>No records in the crate yet.</p>

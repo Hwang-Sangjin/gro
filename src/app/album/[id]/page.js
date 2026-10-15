@@ -1,9 +1,13 @@
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { publicClient } from "@/lib/publicSupabase";
-import { createClient } from "@/utils/supabase/server";
 import { coverUrl } from "@/lib/albums";
 import AlbumDetailView from "@/components/album/AlbumDetailView";
+
+// 앨범 상세는 로그인과 상관없는 공개 데이터 → 처음 열릴 때 한 번 만들어 캐시(ISR)해 두고 5분마다 새로 고침
+// (관리자에서 고치면 revalidateAlbum 으로 바로 새로 만듦). 캐시된 페이지라 그리드에서 미리 받아 둘 수 있어 열리는 게 빠름
+export const revalidate = 300;
+export function generateStaticParams() { return []; }
 
 // 링크 카드용 제목·설명 (로그인과 상관없는 공개 조회)
 const loadMeta = cache(async (slug) => {
@@ -31,7 +35,7 @@ export async function generateMetadata({ params }) {
 export default async function Album({ params }) {
   // Existing links pass a slug despite the historical [id] folder name.
   const { id: slug } = await params;
-  const supabase = await createClient();
+  const supabase = publicClient();
   const { data, error } = await supabase.from("albums")
     .select("id, slug, title, artist_names, cover_path, thumb_path, cover_color, release_year, format, label, description, youtube_playlist_id, rpm")
     .eq("slug", slug).eq("status", "published").maybeSingle();

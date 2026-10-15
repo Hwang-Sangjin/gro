@@ -5,6 +5,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  // 로그인 쿠키가 없으면(로그아웃 상태·첫 방문) 확인할 세션이 없음 → 바로 통과 (Supabase 왕복 없음)
+  if (!request.cookies.getAll().some((c) => c.name.startsWith("sb-"))) return NextResponse.next({ request });
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -25,7 +28,9 @@ export async function proxy(request: NextRequest) {
   );
 
   // 이 호출이 세션을 확인·갱신함 (지우지 말 것)
-  await supabase.auth.getUser();
+  // getClaims: 토큰 서명을 이 자리에서 확인 → 페이지를 넘길 때마다 Supabase 인증 서버에 다녀오지 않음
+  // (만료가 가까우면 이때 새 토큰으로 갱신). 프로젝트가 예전 대칭 키(HS256)면 알아서 서버 확인으로 넘어감
+  await supabase.auth.getClaims();
 
   return response;
 }
