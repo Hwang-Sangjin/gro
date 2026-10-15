@@ -33,10 +33,10 @@ export const STORIES = [
   {
     slug: "what-is-a-record",
     category: "guide",
-    title: "What Is a Record?",
-    dek: "A single spiral, half a kilometre long, that wiggles exactly like sound. How a needle turns plastic into music — and how we got here.",
+    title: "What Is Vinyl?",
+    dek: "Sound becomes a groove, and a groove becomes sound — what a record is made of, and how it holds music. Vinyl A to Z, chapter one.",
     date: "2026-10-06",
-    read: "8 min",
+    read: "4 min",
     cover: "record",
     homeArt: "care",
   },

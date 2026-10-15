@@ -1,268 +1,317 @@
 "use client";
-// Vinyl A to Z — "What Is a Record?"
-// 1 히어로(도는 판) → 2 홈 확대(스크롤로 판에 파고들어 홈의 굴곡 = 소리) → 3 3D 바늘 매크로
-// → 4 소리가 나오기까지(신호 흐름) → 5 짧은 역사(가로 타임라인) → 6 세 가지 속도 → 7 마무리
-import { useCallback, useRef } from "react";
+// Vinyl A to Z · Chapter 01 — "What Is Vinyl?"
+// 히어로(도는 판 영상) → 01 Vinyl이란? → 02 무엇으로 만들어질까? → 03 저장과 재생 → 마무리
+// - 섹션마다 배경·글자색이 있고, 경계가 화면 가운데를 지나는 동안 이어서 바뀜 (헤더·위 ← News·아래 Next story까지 같이)
+// - 휠·키 한 번에 한 섹션씩 넘어감 (Home 처럼). 화면보다 긴 섹션은 끝까지 보여 준 뒤 넘어감. 터치는 손가락 스크롤 그대로
+// - 사진·영상 자리는 점선 박스 (public/news/what-is-a-record/ 에 넣고 <img>/<video> 로 교체)
+import { useEffect, useRef } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-import ScrollScene from "@/components/story/ScrollScene";
 import Reveal, { RiseText } from "@/components/story/Reveal";
-import { seg } from "@/components/story/scroll";
 
-const NeedleScene = dynamic(() => import("./NeedleScene"), { ssr: false });
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035em]";
-const WRAP = "mx-auto w-full max-w-[1500px] px-[clamp(20px,4vw,72px)]";
-// a~b 구간에서만 보이는 글 (앞뒤로 살짝 페이드)
-const shown = (a, b) => `min(${seg(a, a + 0.05)}, calc(1 - ${seg(b - 0.05, b)}))`;
+const BODONI = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.02em]";
+const KR = "font-['Noto_Serif_KR',Georgia,serif]";
+const WRAP = "mx-auto w-full max-w-[1240px] px-[clamp(20px,5vw,80px)]";
+const MEDIA = "/news/what-is-a-record";
 
-// 평면 판 그림 (홈은 조금씩 끊긴 동심원 — 첫 로딩 판과 같은 그림체)
-function RecordArt({ className = "", label = "#bbcbda", style }) {
-  const rings = Array.from({ length: 26 }, (_, i) => 190 - i * 5);
-  return (
-    <svg viewBox="0 0 400 400" className={className} style={style} aria-hidden="true">
-      <circle cx="200" cy="200" r="196" fill="currentColor" opacity=".06" />
-      {rings.map((r, i) => (
-        <circle key={r} cx="200" cy="200" r={r} fill="none" stroke="currentColor" strokeWidth={i % 7 === 0 ? 2.4 : 1.1}
-          opacity={i % 7 === 3 ? 0.25 : 0.85} pathLength="1" strokeDasharray={`${0.93 + (i % 5) * 0.012} 1`} transform={`rotate(${i * 47} 200 200)`} />
-      ))}
-      <circle cx="200" cy="200" r="62" fill={label} />
-      <circle cx="200" cy="200" r="62" fill="none" stroke="currentColor" strokeWidth="3" />
-      <circle cx="200" cy="200" r="5" fill="var(--cream)" />
-    </svg>
-  );
+// 섹션 색 (라이트 / 다크 테마). bg 바탕 · fg 글자 · ac 강조
+const PALETTE = {
+  light: [
+    { bg: "#f4e7cd", fg: "#4c404a", ac: "#c8553d" },   // 히어로: 크림
+    { bg: "#dfe6e8", fg: "#3d3440", ac: "#c8553d" },   // 01: 옅은 하늘
+    { bg: "#ead7b4", fg: "#4c404a", ac: "#b4472f" },   // 02: 모래
+    { bg: "#17121a", fg: "#f4e7cd", ac: "#e0674c" },   // 03: 밤
+    { bg: "#f4e7cd", fg: "#4c404a", ac: "#c8553d" },   // 마무리: 다시 크림 (아래 Next story 와 이어짐)
+  ],
+  dark: [
+    { bg: "#4c404a", fg: "#f4e7cd", ac: "#e0674c" },
+    { bg: "#3a4148", fg: "#f4e7cd", ac: "#e0674c" },
+    { bg: "#51432f", fg: "#f4e7cd", ac: "#e98a5f" },
+    { bg: "#17121a", fg: "#f4e7cd", ac: "#e0674c" },
+    { bg: "#4c404a", fg: "#f4e7cd", ac: "#e0674c" },
+  ],
+};
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const smooth = (t) => t * t * (3 - 2 * t);
+const easeIO = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+/* 섹션 색 이어 바꾸기 + 섹션 단위 스크롤 */
+function useSectionStage(rootRef) {
+  useEffect(() => {
+    const root = rootRef.current, page = root?.closest(".page"), layer = root?.closest(".ct-page");
+    if (!root || !page) return;
+    const sections = [...root.querySelectorAll("[data-section]")];
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const H = () => page.clientHeight;
+    const top = (s) => s.offsetTop;   // .page-content 안의 위치 = 스크롤 위치
+
+    /* 색: 경계마다 0→1 (경계가 화면 가운데를 지나는 동안) */
+    const KEYS = ["--bg", "--fg", "--ink", "--cream", "--paper-surface", "--story-accent"];
+    const paint = () => {
+      const pal = (document.documentElement.dataset.theme === "dark" ? PALETTE.dark : PALETTE.light).map((p) => ({ bg: hex(p.bg), fg: hex(p.fg), ac: hex(p.ac) }));
+      const probe = page.scrollTop + H() * 0.5;
+      let { bg, fg, ac } = pal[0];
+      for (let j = 1; j < sections.length; j++) {
+        const k = smooth(Math.min(1, Math.max(0, (probe - (top(sections[j]) - H() * 0.3)) / (H() * 0.6))));
+        if (k <= 0) break;
+        const L = (a, b) => a.map((v, i) => v + (b[i] - v) * k);
+        bg = L(bg, pal[j].bg); fg = L(fg, pal[j].fg); ac = L(ac, pal[j].ac);
+      }
+      const css = (c) => `rgb(${c.map(Math.round).join(",")})`;
+      const B = css(bg), F = css(fg);
+      // 페이지 전체(종이 결·← News·Next story)와 헤더가 같이 바뀜
+      page.style.setProperty("--bg", B); page.style.setProperty("--paper-surface", B); page.style.setProperty("--cream", B);
+      page.style.setProperty("--fg", F); page.style.setProperty("--ink", F);
+      page.style.setProperty("--story-accent", css(ac));
+      layer?.style.setProperty("--ct-header-bg", B); layer?.style.setProperty("--ct-header-fg", F);
+    };
+
+    /* 섹션 단위 스크롤 */
+    let anim = 0, quietUntil = 0;
+    const scrollToY = (y) => {
+      y = Math.max(0, Math.min(y, page.scrollHeight - H()));
+      const set = (v) => page.dispatchEvent(new CustomEvent("page:scrollto", { detail: { top: v } }));
+      cancelAnimationFrame(anim);
+      if (reduced) { set(y); return; }
+      const y0 = page.scrollTop, d = y - y0, dur = Math.min(1400, 700 + Math.abs(d) * 0.35), t0 = performance.now();
+      const step = (now) => {
+        const u = Math.min(1, (now - t0) / dur);
+        set(y0 + d * easeIO(u));
+        if (u < 1) anim = requestAnimationFrame(step);
+        else { anim = 0; quietUntil = performance.now() + 450; }   // 트랙패드 관성으로 한 번 더 넘어가지 않게
+      };
+      anim = requestAnimationFrame(step);
+    };
+    const indexAt = () => { let i = 0; sections.forEach((s, j) => { if (top(s) <= page.scrollTop + 4) i = j; }); return i; };
+    const step = (dir) => {
+      const i = indexAt(), s = sections[i], bottom = top(s) + s.offsetHeight, y = page.scrollTop;
+      if (dir > 0) {
+        // 긴 섹션: 남은 부분이 아래 여백(140px)보다 많으면 한 화면 더 읽기
+        if (y + H() < bottom - 140) return scrollToY(Math.min(bottom - H(), y + H() * 0.85));
+        if (i < sections.length - 1) return scrollToY(top(sections[i + 1]));
+        return scrollToY(root.offsetTop + root.offsetHeight - 24);   // 마지막 섹션 다음: 아래 Next story 가 화면 위에 오게 (그 아래는 보통 스크롤)
+      }
+      if (y > bottom - 4 && i === sections.length - 1) return scrollToY(top(s));   // Next story 에서 위로
+      if (y > top(s) + 140) return scrollToY(Math.max(top(s), y - H() * 0.85));
+      if (i > 0) { const p = sections[i - 1]; scrollToY(Math.max(top(p), top(p) + p.offsetHeight - H())); }
+    };
+    const onWheel = (e) => {
+      if (e.ctrlKey || document.documentElement.dataset.crateTransition === "true") return;
+      e.preventDefault(); e.stopPropagation();   // 페이지 Lenis 대신 여기서 섹션 단위로
+      if (anim || performance.now() < quietUntil) { if (!anim) quietUntil = performance.now() + 120; return; }
+      if (Math.abs(e.deltaY) < 3) return;
+      step(Math.sign(e.deltaY));
+    };
+    const onKey = (e) => {
+      if (e.defaultPrevented || e.target.closest?.("input,textarea,select,[contenteditable=true],.navbar")) return;
+      if (!root.closest(".ct-page")?.isConnected || root.closest("[inert]")) return;
+      const down = ["ArrowDown", "PageDown"].includes(e.key) || (e.key === " " && !e.shiftKey);
+      const up = ["ArrowUp", "PageUp"].includes(e.key) || (e.key === " " && e.shiftKey);
+      if (!down && !up) return;
+      e.preventDefault();
+      if (!anim) step(down ? 1 : -1);
+    };
+
+    let raf = 0;
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; paint(); }); };
+    const themeObs = new MutationObserver(paint);
+    themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    root.addEventListener("wheel", onWheel, { passive: false });
+    addEventListener("keydown", onKey);
+    page.addEventListener("scroll", onScroll, { passive: true });
+    addEventListener("resize", onScroll);
+    paint();
+    return () => {
+      cancelAnimationFrame(anim); cancelAnimationFrame(raf); themeObs.disconnect();
+      root.removeEventListener("wheel", onWheel);
+      removeEventListener("keydown", onKey);
+      page.removeEventListener("scroll", onScroll);
+      removeEventListener("resize", onScroll);
+      for (const k of KEYS) page.style.removeProperty(k);
+      layer?.style.removeProperty("--ct-header-bg"); layer?.style.removeProperty("--ct-header-fg");
+    };
+  }, [rootRef]);
 }
 
-// 홈 확대에서 쓰는 소리 파형 (한 주기가 반복되게 두 번 그림 → 왼쪽으로 흘려 보냄)
-function wavePath(width, height, seed = 1) {
-  const pts = [];
-  for (let x = 0; x <= width; x += 6) {
-    const k = x / width * Math.PI * 2;
-    const y = Math.sin(k * 6 + seed) * 0.5 + Math.sin(k * 15 + seed * 2) * 0.28 + Math.sin(k * 41) * 0.12 + Math.sin(k * 2) * 0.35;
-    pts.push(`${x},${(height / 2 + y * height * 0.32).toFixed(1)}`);
-  }
-  return `M${pts.join(" L")}`;
+/* 영상: 화면 근처에서만 받아 재생, 벗어나면 멈춤 */
+function useVideos(rootRef) {
+  useEffect(() => {
+    const root = rootRef.current, page = root?.closest(".page");
+    if (!root) return;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const io = new IntersectionObserver((es) => es.forEach(({ target: v, isIntersecting }) => {
+      if (isIntersecting) {
+        if (v.dataset.src && !v.getAttribute("src")) { v.src = v.dataset.src; v.load(); }
+        if (!reduced) v.play().catch(() => {});
+      } else v.pause();
+    }), { root: page, rootMargin: "50% 0px" });
+    root.querySelectorAll("video").forEach((v) => io.observe(v));
+    return () => io.disconnect();
+  }, [rootRef]);
 }
-const WAVE = wavePath(1200, 200);
 
-function GrooveZoom() {
-  const captions = [
-    [0.02, 0.2, "Look closer.", "Under the gloss there are no tracks, no lines — just one groove."],
-    [0.2, 0.42, "One spiral.", "It runs from the outer edge to the label, without a break. On one side of an LP, it’s roughly 450 metres long."],
-    [0.46, 0.72, "The wiggles are the sound.", "When the music gets louder, the groove swings wider. Higher notes wiggle faster. The shape of the wall is the waveform."],
-    [0.74, 1.01, "Two walls, two channels.", "The groove is V-shaped. In stereo, the inner wall carries the left channel and the outer wall the right — one needle reads both."],
-  ];
+// 사진·영상 자리 (점선 박스). 자료가 오면 children 으로 <img>/<video>
+function Slot({ ratio, label, dark = false, children, className = "" }) {
   return (
-    <ScrollScene height="460svh" aria-label="Zooming into the groove" innerClassName="grid place-items-center">
-      {/* 판: 오른쪽 홈 쪽으로 파고듦 */}
-      <div className="absolute inset-0 grid place-items-center" style={{ opacity: `calc(1 - ${seg(0.38, 0.47)})` }}>
-        <RecordArt className="size-[min(78vh,86vw)] origin-[88%_50%] text-(--ink)"
-          style={{ transform: `scale(calc(1 + ${seg(0.02, 0.44)} * 22))` }} />
+    <figure className={className}>
+      <div className={`relative overflow-hidden rounded-[4px] ${ratio} ${children ? "" : "outline-[1.5px] outline-dashed -outline-offset-[1.5px] outline-current/35 bg-[repeating-linear-gradient(135deg,color-mix(in_srgb,currentColor_7%,transparent)_0_12px,transparent_12px_24px)]"} ${dark ? "bg-[#0b0a0b]" : ""}`}>
+        {children}
       </div>
-
-      {/* 확대된 홈: 흘러가는 파형 벽 두 줄 + 바늘 끝 */}
-      <div className="absolute inset-0 grid place-items-center overflow-hidden" style={{ opacity: seg(0.4, 0.5) }}>
-        <div className="relative h-[46vh] w-full" style={{ transform: `scaleY(calc(0.35 + ${seg(0.46, 0.7)} * 1.15))` }}>
-          {[-1, 1].map((side) => (
-            <svg key={side} viewBox="0 0 1200 200" preserveAspectRatio="none" className="absolute inset-x-0 h-full w-[200%] animate-[groove-run_7s_linear_infinite] motion-reduce:animate-none"
-              style={{ top: `${side * 9}%` }} aria-hidden="true">
-              <path d={WAVE} fill="none" stroke="currentColor" strokeWidth={side < 0 ? 3 : 2} vectorEffect="non-scaling-stroke" opacity={side < 0 ? 0.95 : 0.55} />
-              <path d={WAVE} transform="translate(1200 0)" fill="none" stroke="currentColor" strokeWidth={side < 0 ? 3 : 2} vectorEffect="non-scaling-stroke" opacity={side < 0 ? 0.95 : 0.55} />
-            </svg>
-          ))}
-        </div>
-        {/* 바늘 */}
-        <svg viewBox="0 0 60 260" className="absolute left-1/2 top-[6vh] h-[44vh] -translate-x-1/2 animate-[needle-buzz_.09s_linear_infinite] motion-reduce:animate-none" aria-hidden="true">
-          <rect x="22" y="0" width="16" height="190" fill="var(--ink)" opacity=".9" />
-          <path d="M14 190h32l-10 52h-12z" fill="var(--ink)" />
-          <path d="M28 242l2 18 2-18z" fill="#c8553d" />
-        </svg>
-        {/* 홈 단면 (V) — 왼쪽/오른쪽 채널 */}
-        <div className="absolute bottom-[8vh] right-[clamp(20px,6vw,90px)] w-[min(240px,40vw)] text-center max-md:bottom-auto max-md:top-[calc(var(--ct-header-h,64px)+16px)]" style={{ opacity: seg(0.74, 0.8) }}>
-          <svg viewBox="0 0 200 120" className="w-full" aria-hidden="true">
-            <path d="M10 20h50l40 80 40-80h50" fill="none" stroke="currentColor" strokeWidth="3" />
-            <path d="M60 20l40 80" stroke="#4f6d93" strokeWidth="7" opacity=".85" /><path d="M140 20l-40 80" stroke="#c8553d" strokeWidth="7" opacity=".85" />
-            <circle cx="100" cy="72" r="13" fill="var(--ink)" />
-            <text x="58" y="72" fontSize="16" fontWeight="700" fill="#4f6d93">L</text><text x="134" y="72" fontSize="16" fontWeight="700" fill="#c8553d">R</text>
-          </svg>
-          <p className="mt-1 text-[11px] uppercase tracking-[0.2em] opacity-70">Groove cross-section · 45°/45°</p>
-        </div>
-      </div>
-
-      {/* 설명 글: 진행도에 따라 하나씩 */}
-      {captions.map(([a, b, title, body]) => (
-        <div key={title} className="pointer-events-none absolute bottom-[10vh] left-[clamp(20px,6vw,90px)] max-w-[min(440px,82vw)]" style={{ opacity: shown(a, b), transform: `translateY(calc((1 - ${seg(a, a + 0.06)}) * 24px))` }}>
-          <p className={`${SERIF} text-[clamp(2rem,4vw,3.6rem)] leading-[0.95]`}>{title}</p>
-          <p className="mt-3 rounded-xl bg-(--cream)/80 p-3 text-[15px] leading-7 backdrop-blur-[2px]">{body}</p>
-        </div>
-      ))}
-    </ScrollScene>
+      <figcaption className="mt-2.5 text-[11px] uppercase tracking-[0.24em] text-(--ink)/50">{label}</figcaption>
+    </figure>
   );
 }
 
-function Needle3D() {
-  const progress = useRef(0);
-  const box = useRef({ current: 0 });
-  const onProgress = useCallback((p) => { box.current.current = p; progress.current = p; }, []);
-  const lines = [
-    [0, 0.34, "Meet the stylus.", "A tiny diamond tip, a few hundredths of a millimetre across, rests in the groove with about two grams of weight."],
-    [0.34, 0.68, "It follows every wiggle.", "As the record turns at 33⅓ revolutions a minute, the walls push the tip side to side — thousands of times a second."],
-    [0.68, 1.01, "Motion becomes electricity.", "The tip’s cantilever moves a magnet or coil inside the cartridge, making a tiny voltage — just a few thousandths of a volt."],
-  ];
-  return (
-    <ScrollScene height="360svh" onProgress={onProgress} aria-label="The needle in the groove" className="bg-[#17121a] text-[#f4e7cd]">
-      <NeedleScene progress={box.current} className="absolute inset-0" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(23,18,26,.8))]" />
-      {lines.map(([a, b, title, body]) => (
-        <div key={title} className="pointer-events-none absolute left-[clamp(20px,6vw,90px)] top-1/2 max-w-[min(420px,84vw)] -translate-y-1/2 max-md:bottom-[7vh] max-md:top-auto max-md:translate-y-0" style={{ opacity: shown(a, b) }}>
-          <p className="text-[11px] uppercase tracking-[0.3em] text-[#bbcbda]">The needle</p>
-          <p className={`${SERIF} mt-3 text-[clamp(2.2rem,4.4vw,4rem)] leading-[0.95]`}>{title}</p>
-          <p className="mt-4 text-[15px] leading-7 text-[#f4e7cd]/80">{body}</p>
-        </div>
-      ))}
-    </ScrollScene>
-  );
-}
-
-const CHAIN = [
-  ["Stylus", "Reads the groove’s wiggles as movement."],
-  ["Cartridge", "Turns that movement into a tiny electrical signal."],
-  ["Phono preamp", "Boosts it — and restores the bass that was cut and the treble that was boosted when the record was made (the RIAA curve)."],
-  ["Amplifier", "Makes the signal strong enough to drive speakers."],
-  ["Speakers", "Push the air, and the wiggle becomes sound again."],
-];
-function SignalChain() {
-  return (
-    <section className={`${WRAP} py-[clamp(5rem,12vw,10rem)]`}>
-      <RiseText lines={["From groove", "to sound"]} className={`${SERIF} text-[clamp(3rem,7vw,7rem)] leading-[0.9]`} />
-      <ol className="relative mt-14 grid gap-10 md:grid-cols-5 md:gap-6">
-        {/* 흐르는 신호선 */}
-        <svg className="absolute left-0 top-[26px] hidden h-2 w-full md:block" preserveAspectRatio="none" viewBox="0 0 100 2" aria-hidden="true">
-          <line x1="0" y1="1" x2="100" y2="1" stroke="#c8553d" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeDasharray="6 8" className="animate-[signal-flow_1.6s_linear_infinite] motion-reduce:animate-none" />
-        </svg>
-        {CHAIN.map(([name, text], i) => (
-          <Reveal as="li" key={name} delay={i * 140} className="relative">
-            <span className={`${SERIF} relative z-10 grid size-[54px] place-items-center rounded-full border-2 border-(--ink) bg-(--cream) text-[22px]`}>{i + 1}</span>
-            <p className={`${SERIF} mt-5 text-[26px] leading-none`}>{name}</p>
-            <p className="mt-3 text-[14px] leading-6 text-(--ink)/75">{text}</p>
-          </Reveal>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-const HISTORY = [
-  ["1877", "The phonograph", "Thomas Edison records sound on tinfoil wrapped around a turning cylinder — and plays it back.", "cyl"],
-  ["1887", "The flat disc", "Emile Berliner patents the gramophone. Discs are flat, so they can be stamped out by the thousand.", 10],
-  ["1910s–50s", "The 78 era", "Brittle shellac discs spin at about 78 rpm and hold three to five minutes a side.", 10],
-  ["1948", "The long player", "Columbia launches the 12-inch vinyl LP at 33⅓ rpm — over twenty minutes a side. The album is born.", 12],
-  ["1949", "The single", "RCA Victor answers with the 7-inch 45 — one song a side, made for jukeboxes.", 7],
-  ["1958", "Stereo", "Stereo LPs arrive: two channels cut into the two walls of a single groove.", 12],
-  ["1982", "Enter the CD", "Compact discs go on sale. Over the next decade, vinyl nearly disappears from the shops.", "cd"],
-  ["2008", "Record Store Day", "Independent shops start an annual day of exclusive pressings — and the queues return.", 12],
-  ["2020s", "The comeback", "In the US, vinyl out-earns CDs in 2020 for the first time since the 1980s.", 12],
-];
-function Disc({ kind }) {
-  if (kind === "cyl") return <svg viewBox="0 0 120 120" className="size-24" aria-hidden="true"><ellipse cx="60" cy="30" rx="34" ry="10" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M26 30v60c0 6 15 10 34 10s34-4 34-10V30" fill="none" stroke="currentColor" strokeWidth="2" />{[42, 54, 66, 78].map((y) => <path key={y} d={`M26 ${y}c0 6 15 10 34 10s34-4 34-10`} fill="none" stroke="currentColor" opacity=".4" />)}</svg>;
-  if (kind === "cd") return <svg viewBox="0 0 120 120" className="size-24" aria-hidden="true"><defs><linearGradient id="cdg" x1="0" x2="1"><stop offset="0" stopColor="#bbcbda" /><stop offset=".5" stopColor="#f4e7cd" /><stop offset="1" stopColor="#c8553d" stopOpacity=".6" /></linearGradient></defs><circle cx="60" cy="60" r="44" fill="url(#cdg)" opacity=".7" /><circle cx="60" cy="60" r="8" fill="var(--cream)" stroke="currentColor" /></svg>;
-  const r = { 7: 26, 10: 38, 12: 46 }[kind];
-  return <svg viewBox="0 0 120 120" className="size-24" aria-hidden="true"><circle cx="60" cy="60" r={r} fill="currentColor" opacity=".9" />{[0.8, 0.62, 0.45].map((k) => <circle key={k} cx="60" cy="60" r={r * k} fill="none" stroke="var(--cream)" opacity=".25" />)}<circle cx="60" cy="60" r={r * 0.3} fill="#bbcbda" /></svg>;
-}
-function History() {
-  return (
-    <ScrollScene height={`${HISTORY.length * 55}svh`} aria-label="A short history" innerClassName="flex flex-col justify-center">
-      <div className={`${WRAP} mb-8 flex items-end justify-between gap-6`}>
-        <p className={`${SERIF} text-[clamp(2.6rem,6vw,6rem)] leading-[0.9]`}>A short history</p>
-        <p className="hidden pb-2 text-[12px] uppercase tracking-[0.24em] opacity-60 tabular-nums sm:block">1877 → today</p>
-      </div>
-      {/* 가로로 흐르는 타임라인: 스크롤하면 왼쪽으로 */}
-      <div className="relative">
-        <div className="absolute inset-x-0 top-[48px] h-px bg-(--ink)/25" />
-        <ol className="flex w-max gap-[clamp(2rem,5vw,5rem)] pl-[clamp(20px,6vw,90px)] pr-[30vw] will-change-transform"
-          style={{ transform: "translateX(calc((100vw - 100%) * var(--p)))" }}>
-          {HISTORY.map(([year, title, text, kind]) => (
-            <li key={year} className="w-[min(78vw,340px)] shrink-0">
-              <span className="relative z-10 block size-[14px] translate-y-[41px] rounded-full border-2 border-(--ink) bg-(--cream)" />
-              <p className={`${SERIF} mt-[60px] text-[clamp(2.6rem,4vw,4rem)] leading-none text-[#c8553d]`}>{year}</p>
-              <div className="mt-4 flex items-start gap-4">
-                <span className="shrink-0 text-(--ink)"><Disc kind={kind} /></span>
-                <div>
-                  <p className={`${SERIF} text-[24px] leading-tight`}>{title}</p>
-                  <p className="mt-2 text-[14px] leading-6 text-(--ink)/75">{text}</p>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </ScrollScene>
-  );
-}
-
-const SPEEDS = [
-  ["33⅓", "12-inch LP", "Long play: a whole side of an album.", 1.8, "size-[min(64vw,300px)]"],
-  ["45", "7-inch single", "One song a side, punchy and loud.", 4 / 3, "size-[min(40vw,170px)]"],
-  ["78", "10-inch shellac", "The old standard, heavy and brittle.", 60 / 78, "size-[min(52vw,230px)]"],
-];
-function Speeds() {
-  return (
-    <section className={`${WRAP} py-[clamp(5rem,12vw,10rem)]`}>
-      <RiseText lines={["Three speeds"]} className={`${SERIF} text-[clamp(3rem,7vw,7rem)] leading-[0.9]`} />
-      <p className="mt-4 max-w-xl text-[15px] leading-7 text-(--ink)/75">Revolutions per minute. Each disc below is turning at its real speed.</p>
-      <div className="mt-14 grid items-end gap-12 md:grid-cols-3">
-        {SPEEDS.map(([rpm, name, text, sec, size], i) => (
-          <Reveal key={rpm} delay={i * 150} className="flex flex-col items-center text-center">
-            <span className={`${size} text-(--ink)`}>
-              <RecordArt className="size-full animate-spin motion-reduce:animate-none" style={{ animationDuration: `${sec}s` }} label={["#bbcbda", "#e3b04b", "#c8553d"][i]} />
-            </span>
-            <p className={`${SERIF} mt-6 text-[clamp(3rem,5vw,4.6rem)] leading-none`}>{rpm}<span className="ml-1 font-sans text-[14px] font-medium tracking-[0.2em]">RPM</span></p>
-            <p className="mt-2 text-[12px] font-medium uppercase tracking-[0.22em] text-[#c8553d]">{name}</p>
-            <p className="mt-2 max-w-[24ch] text-[14px] leading-6 text-(--ink)/70">{text}</p>
-          </Reveal>
-        ))}
-      </div>
-    </section>
-  );
-}
+const Num = ({ n }) => <p className={`${BODONI} text-[clamp(4rem,9vw,8rem)] leading-none text-(--story-accent)`}>{n}</p>;
+const Chip = ({ children, end }) => (
+  <li className={`rounded-full px-4 py-2 ${end ? "bg-(--ink) font-semibold text-(--cream)" : "border border-(--ink)/40"}`}>{children}</li>
+);
+const Arrow = () => <li aria-hidden="true" className="text-(--story-accent)">→</li>;
 
 export default function Story() {
+  const root = useRef(null);
+  useSectionStage(root);
+  useVideos(root);
+
   return (
-    <>
-      {/* 1 히어로 */}
-      <section className={`${WRAP} grid min-h-svh items-center gap-10 pb-16 pt-[calc(var(--ct-header-h,106px)+90px)] md:grid-cols-[1.1fr_1fr]`}>
-        <div>
-          <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-[#c8553d]">Vinyl A to Z · No. 01</Reveal>
-          <RiseText as="h1" lines={["What is", "a record?"]} delay={120} lineClassName="whitespace-nowrap" className={`${SERIF} mt-5 text-[clamp(3.6rem,8.4vw,9rem)] leading-[0.86]`} />
-          <Reveal delay={500} as="p" className="mt-8 max-w-md text-[17px] leading-8 text-(--ink)/80">
-            A single spiral, about half a kilometre long, that wiggles exactly like sound. Drop a needle in it and the plastic sings. Here’s how — and how we got here.
-          </Reveal>
-          <Reveal delay={700} as="p" className="mt-10 flex items-center gap-3 text-[11px] uppercase tracking-[0.3em] opacity-60">
-            <span className="h-10 w-px animate-[scroll-cue_1.8s_ease-in-out_infinite] bg-current motion-reduce:animate-none" />Scroll
+    <div ref={root} className={`${KR} text-(--ink)`}>
+      {/* 한글 본문용 명조 (이 글에서만 불러옴) */}
+      <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;900&display=swap" />
+
+      {/* ── 히어로 ── */}
+      <section data-section aria-label="What Is Vinyl?" className="flex min-h-svh items-center pb-16 pt-[calc(var(--ct-header-h,106px)+80px)]">
+        <div className={`${WRAP} grid items-center gap-12 md:grid-cols-[1fr_1.05fr]`}>
+          <div>
+            <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--story-accent)">Vinyl A to Z · Chapter 01</Reveal>
+            <RiseText as="h1" lines={["What Is", "Vinyl?"]} delay={120} lineClassName="whitespace-nowrap" className={`${BODONI} mt-5 text-[clamp(3.4rem,8vw,8.4rem)] leading-[0.86]`} />
+            <Reveal delay={400} as="p" className="mt-6 text-[clamp(1.4rem,2.6vw,2.2rem)] font-black">바이닐이란 무엇인가?</Reveal>
+            <Reveal delay={550} as="p" className="mt-6 max-w-md text-[16px] leading-8 text-(--ink)/75">
+              소리를 홈의 굴곡으로 새기고, 바늘로 그 굴곡을 다시 읽어 소리로 되돌리는 음반. 바이닐이 무엇이고, 어떻게 음악을 담는지 알아봅니다.
+            </Reveal>
+          </div>
+          <Reveal delay={250}>
+            <Slot ratio="aspect-[4/3]" dark label="Turntable · 33⅓ rpm">
+              {/* 10.6초 끊김 없는 반복(판 5바퀴 남짓) · 960×720 · 1.2MB. 포스터가 먼저 보이고 영상이 이어받음 */}
+              <video src={`${MEDIA}/hero.mp4`} poster={`${MEDIA}/hero-poster.webp`} autoPlay muted loop playsInline preload="auto"
+                aria-hidden="true" className="absolute inset-0 size-full object-cover" />
+            </Slot>
           </Reveal>
         </div>
-        <Reveal delay={250} className="justify-self-center text-(--ink)">
-          <RecordArt className="size-[min(70vw,520px)] animate-[spin_1.8s_linear_infinite] motion-reduce:animate-none" />
-        </Reveal>
       </section>
 
-      {/* 2 홈 확대 */}
-      <GrooveZoom />
-      {/* 3 3D 바늘 */}
-      <Needle3D />
-      {/* 4 신호 흐름 */}
-      <SignalChain />
-      {/* 5 역사 */}
-      <History />
-      {/* 6 속도 */}
-      <Speeds />
-
-      {/* 7 마무리 */}
-      <section className={`${WRAP} pb-10 pt-[clamp(3rem,8vw,6rem)] text-center`}>
-        <RiseText lines={["Now you know", "what’s spinning."]} className={`${SERIF} text-[clamp(2.6rem,6vw,6rem)] leading-[0.92]`} />
-        <Reveal delay={300}>
-          <Link href="/digging" className="mt-10 inline-flex min-h-12 items-center rounded-full bg-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--cream) transition-colors hover:bg-[#c8553d]">Start digging</Link>
-        </Reveal>
+      {/* ── 01 Vinyl이란? ── */}
+      <section data-section aria-label="01 Vinyl이란?" className="flex min-h-svh items-center py-24">
+        <div className={`${WRAP} grid gap-12 md:grid-cols-[1fr_1.1fr] md:gap-20`}>
+          <div className="self-center">
+            <Reveal><Num n="01" /></Reveal>
+            <Reveal as="h2" delay={100} className="mt-2 text-[clamp(2rem,4vw,3.4rem)] font-black leading-tight">Vinyl이란?</Reveal>
+            <Reveal delay={200} className="mt-8 space-y-5 text-[17px] leading-8 text-(--ink)/80">
+              <p>바이닐 레코드(Vinyl Record)는 <b className="font-semibold text-(--ink)">PVC(폴리염화비닐)</b>라는 플라스틱 소재로 만든 아날로그 음반이다.</p>
+              <p>레코드 표면에는 미세한 <b className="font-semibold text-(--ink)">홈(Groove)</b>이 나선형으로 새겨져 있으며, 이 홈에 음악의 소리 정보가 기록되어 있다.</p>
+            </Reveal>
+            <Reveal as="blockquote" delay={300} className="mt-10 border-l-[3px] border-(--story-accent) pl-5 text-[clamp(1.2rem,1.9vw,1.6rem)] font-semibold leading-relaxed">
+              디지털 음원과 달리 소리를 <span className="text-(--story-accent)">물리적인 홈의 굴곡</span>으로 기록하고 재생한다.
+            </Reveal>
+          </div>
+          <Reveal delay={150} className="self-center">
+            <Slot ratio="aspect-[4/5] max-h-[70svh]" label="Photo · 레코드 표면, 나선형 홈 클로즈업 (4:5)" />
+          </Reveal>
+        </div>
       </section>
-    </>
+
+      {/* ── 02 무엇으로 만들어질까? ── */}
+      <section data-section aria-label="02 Vinyl은 무엇으로 만들어질까?" className="flex min-h-svh items-center py-24">
+        <div className={WRAP}>
+          <div className="flex flex-wrap items-end gap-x-6">
+            <Reveal><Num n="02" /></Reveal>
+            <Reveal as="h2" delay={100} className="mt-2 text-[clamp(2rem,4vw,3.4rem)] font-black leading-tight md:pb-3">Vinyl은 무엇으로 만들어질까?</Reveal>
+          </div>
+          <div className="mt-10 grid gap-12 md:grid-cols-[1.1fr_1fr] md:gap-16">
+            <Reveal delay={150} className="grid grid-cols-2 gap-4 self-start">
+              <Slot className="col-span-2" ratio="aspect-video" label="Photo · 레코드 프레스 공정 (16:9)" />
+              <Slot ratio="aspect-[4/3]" label="Photo · PVC 펠릿" />
+              <Slot ratio="aspect-[4/3]" label="Photo · 1948 Columbia LP" />
+            </Reveal>
+            <div>
+              <Reveal delay={200} className="space-y-4 text-[16px] leading-8 text-(--ink)/80">
+                <p>바이닐 레코드는 주로 <b className="font-semibold text-(--ink)">PVC(Polyvinyl Chloride, 폴리염화비닐)</b> 계열 소재로 제작된다.</p>
+                <p>PVC는 비교적 유연하고 내구성이 있는 플라스틱으로, 소리 정보를 담는 미세한 홈을 정밀하게 만들기에 적합하다.</p>
+                <p>1948년 컬럼비아 레코드가 발표한 현대적인 LP는 PVC 계열 소재와 <b className="font-semibold text-(--ink)">미세한 홈(Microgroove)</b> 기술을 활용해 한 면에 약 20분 이상의 음악을 담을 수 있었다.</p>
+                <p>오늘날에도 PVC 계열 소재는 바이닐 레코드 제작에 널리 사용되고 있다.</p>
+              </Reveal>
+              <Reveal as="dl" delay={300} className="mt-8 grid grid-cols-3 border-t-[3px] border-(--ink)">
+                {[["Year", "1948"], ["Per side", <>20<span key="m" className="text-[.45em]">+min</span></>], ["Material", "PVC"]].map(([k, v], i) => (
+                  <div key={k} className={`py-5 ${i ? "border-l border-(--ink)/20 pl-3" : "pr-3"}`}>
+                    <dt className="text-[10px] uppercase tracking-[0.24em] text-(--ink)/55">{k}</dt>
+                    <dd className={`${BODONI} mt-2 text-[clamp(1.9rem,3.2vw,2.8rem)] leading-none`}>{v}</dd>
+                  </div>
+                ))}
+              </Reveal>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 03 저장과 재생 ── */}
+      <section data-section aria-label="03 Vinyl은 어떻게 음악을 저장하고 재생할까?" className="flex min-h-svh items-center py-24">
+        <div className={WRAP}>
+          <div className="grid items-end gap-6 md:grid-cols-[1.1fr_1fr]">
+            <div>
+              <Reveal><Num n="03" /></Reveal>
+              <Reveal as="h2" delay={100} className="mt-2 text-[clamp(2rem,4vw,3.2rem)] font-black leading-tight">Vinyl은 어떻게 음악을<br className="hidden sm:block" /> 저장하고 재생할까?</Reveal>
+            </div>
+            <Reveal as="p" delay={200} className="text-[16px] leading-8 text-(--ink)/75">바이닐은 음악을 홈의 미세한 굴곡으로 기록하고, 그 굴곡을 다시 읽어서 소리로 재생하는 방식으로 작동한다.</Reveal>
+          </div>
+
+          {/* 흐르는 홈 (소리 = 굴곡) + 가운데 바늘 */}
+          <Reveal delay={250} className="relative my-10 h-20 overflow-hidden" aria-hidden="true">
+            <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="absolute inset-y-0 left-0 h-full w-[200%] animate-[groove-run_8s_linear_infinite] motion-reduce:animate-none">
+              <path id="wiv-wave" d="M0 60 C 40 20, 80 100, 120 60 S 200 30, 240 60 S 300 95, 340 60 S 400 10, 440 60 S 520 110, 560 60 S 620 40, 660 60 S 720 85, 760 60 S 820 15, 860 60 S 940 105, 980 60 S 1040 35, 1080 60 S 1160 90, 1200 60" fill="none" stroke="currentColor" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+              <use href="#wiv-wave" x="1200" />
+              <path d="M0 36 H2400 M0 84 H2400" stroke="currentColor" strokeOpacity=".15" vectorEffect="non-scaling-stroke" />
+            </svg>
+            <span className="absolute inset-y-0 left-1/2 w-px bg-(--story-accent)" />
+            <span className="absolute left-1/2 top-0 -translate-x-1/2 rounded-full bg-(--story-accent) px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-[#17121a]">Needle</span>
+          </Reveal>
+
+          <div className="grid gap-14 md:grid-cols-2 md:gap-12">
+            <Reveal as="article" delay={300}>
+              <p className="text-[11px] uppercase tracking-[0.3em] text-[#bbcbda]">Recording · 음악을 저장할 때</p>
+              <Slot className="mt-4" ratio="aspect-video" label="Video · 커팅 선반이 마스터 디스크에 홈을 새기는 장면 (16:9)" />
+              <div className="mt-5 space-y-3 text-[15px] leading-7 text-(--ink)/80">
+                <p>음악의 신호에 맞춰 특수한 <b className="font-semibold text-(--ink)">커팅 바늘</b>이 움직이며 마스터 디스크에 미세한 홈을 새긴다.</p>
+                <p>이 홈을 PVC 음반에 복제하여 우리가 사용하는 바이닐 레코드를 만든다.</p>
+              </div>
+              <ol aria-label="기록 과정" className="mt-6 flex flex-wrap items-center gap-2 text-[13px]">
+                <Chip>음악 신호</Chip><Arrow /><Chip>홈 제작</Chip><Arrow /><Chip end>바이닐 레코드</Chip>
+              </ol>
+            </Reveal>
+            <Reveal as="article" delay={420}>
+              <p className="text-[11px] uppercase tracking-[0.3em] text-[#bbcbda]">Playback · 음악을 재생할 때</p>
+              <Slot className="mt-4" ratio="aspect-video" label="Video · 홈을 따라가는 바늘 매크로 (16:9)" />
+              <div className="mt-5 space-y-3 text-[15px] leading-7 text-(--ink)/80">
+                <p>턴테이블에서 레코드가 회전하면 <b className="font-semibold text-(--ink)">바늘(Stylus)</b>이 홈의 굴곡을 따라 진동한다.</p>
+                <p>이 진동은 <b className="font-semibold text-(--ink)">카트리지(Cartridge)</b>를 통해 전기 신호로 변환되고, 앰프와 스피커를 거쳐 음악으로 재생된다.</p>
+              </div>
+              <ol aria-label="재생 과정" className="mt-6 flex flex-wrap items-center gap-2 text-[13px]">
+                <Chip>레코드의 홈</Chip><Arrow /><Chip>바늘의 진동</Chip><Arrow /><Chip>전기 신호</Chip><Arrow /><Chip end>스피커</Chip>
+              </ol>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 마무리 ── */}
+      <section data-section aria-label="Sound becomes a groove" className="flex min-h-svh flex-col items-center justify-center py-24 text-center">
+        <div className={WRAP}>
+          <RiseText as="p" lines={["Sound becomes a groove.", "A groove becomes sound."]} lineClassName="sm:whitespace-nowrap [&:last-child]:text-(--story-accent)"
+            className={`${BODONI} text-[clamp(2.2rem,6vw,6rem)] leading-[0.98]`} />
+          <Reveal delay={400} className="mt-12 flex flex-wrap justify-center gap-3">
+            <Link href="/digging" className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--cream) transition-colors hover:bg-(--story-accent)">
+              Start digging
+            </Link>
+          </Reveal>
+        </div>
+      </section>
+    </div>
   );
 }
