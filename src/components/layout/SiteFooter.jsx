@@ -19,7 +19,7 @@ const LABEL_B = "#bbcbda";
 
 const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035em]";
 const HEAD = "text-[11px] font-medium uppercase tracking-[0.26em] text-(--cream)/55";
-const LINK = "group/l inline-flex items-center py-1 text-[15px] text-(--cream)/85 transition-colors hover:text-(--cream)";
+const LINK = "group/l inline-flex min-h-11 items-center py-1 md:min-h-0 text-[15px] text-(--cream)/85 transition-colors hover:text-(--cream)";
 // --fp 의 a~b 구간을 0~1 로
 const seg = (a, b) => `clamp(0, (var(--fp, 1) - ${a}) / ${b - a}, 1)`;
 // 슬리브 윗변 가운데 반달 홈 (손가락 걸이) — 배경색과 상관없이 뚫려 보이게 마스크로

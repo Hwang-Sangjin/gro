@@ -7,7 +7,8 @@ const mail = <a href={`mailto:${SITE.email}`}>{SITE.email}</a>;
 
 function Table({ head, rows }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-(--ink)/20">
+    // 좁은 화면에선 옆으로 스크롤 → 키보드로도 스크롤할 수 있게 포커스를 받음
+    <div tabIndex={0} role="region" aria-label={`${head.join(", ")} table`} className="overflow-x-auto rounded-xl border border-(--ink)/20 outline-none focus-visible:ring-2 focus-visible:ring-(--ink)/40">
       <table className="w-full min-w-[520px] text-left text-[14px] leading-6">
         <thead className="bg-(--ink)/5 text-[11px] uppercase tracking-[0.18em] text-(--ink)/60">
           <tr>{head.map((h) => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr>

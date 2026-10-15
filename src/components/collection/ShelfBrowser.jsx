@@ -91,7 +91,7 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
               const n = shelves ? shelves[t.kind].length : null;
               return (
                 <button key={t.kind} type="button" role="tab" aria-selected={on} onClick={() => change({ tab: t.kind })} style={{ "--reveal-order": i }}
-                  className={`group/g relative shrink-0 whitespace-nowrap ${SERIF} font-black uppercase leading-[1.05] tracking-[-0.03em] transition-colors duration-500 text-[clamp(1.6rem,2.6vw,2.8rem)] ${on ? "text-(--ink)" : "text-(--ink)/25 hover:text-(--ink)/70 focus-visible:text-(--ink)/70"}`}>
+                  className={`group/g relative shrink-0 whitespace-nowrap before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] ${SERIF} font-black uppercase leading-[1.05] tracking-[-0.03em] transition-colors duration-500 text-[clamp(1.6rem,2.6vw,2.8rem)] ${on ? "text-(--ink)" : "text-(--ink)/25 hover:text-(--ink)/70 focus-visible:text-(--ink)/70"}`}>
                   <span className="relative">
                     {t.name}
                     <span aria-hidden="true" className={`absolute -bottom-[0.06em] left-0 h-[0.08em] min-h-[2px] bg-[#c8553d] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${on ? "w-full" : "w-0 group-hover/g:w-full group-focus-visible/g:w-full"}`} />

@@ -89,7 +89,7 @@ export default function AuthPanel() {
 
   return (
     <PageShell className="paper-textured" footer={false}>
-      <section className="flex min-h-[calc(100svh-var(--ct-header-h,106px))] w-full flex-col items-center justify-center gap-[clamp(18px,2.6vh,32px)] px-5 pb-12 pt-6 text-center font-['PP_Neue_Montreal','Helvetica_Neue',Arial,sans-serif] text-(--ink)">
+      <section className="flex min-h-[calc(100svh-var(--ct-header-h,106px))] w-full overflow-x-clip flex-col items-center justify-center gap-[clamp(18px,2.6vh,32px)] px-5 pb-12 pt-6 text-center font-['PP_Neue_Montreal','Helvetica_Neue',Arial,sans-serif] text-(--ink)">
         <p className="text-[11px] font-medium uppercase tracking-[0.3em] opacity-60">Login</p>
         <h1 className={`${SERIF} text-[clamp(40px,6vw,76px)] leading-[0.95]`}>
           {state === "done" ? <>Welcome back{p.name ? <>, <span className="whitespace-nowrap">{p.name.split(" ")[0]}</span></> : ""}</> : "Drop the needle"}

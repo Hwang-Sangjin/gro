@@ -41,7 +41,7 @@ export default function LegalPage({ path, title, intro, sections }) {
           <nav aria-label="Legal documents" className="flex gap-6 text-[11px] font-medium uppercase tracking-[0.26em]">
             {DOCS.map(([href, name]) => (
               <Link key={href} href={href} aria-current={href === path ? "page" : undefined}
-                className="border-b border-transparent pb-1 opacity-50 transition-opacity hover:opacity-100 aria-[current=page]:border-current aria-[current=page]:opacity-100">{name}</Link>
+                className="relative border-b border-transparent pb-1 opacity-50 transition-opacity before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[''] hover:opacity-100 aria-[current=page]:border-current aria-[current=page]:opacity-100">{name}</Link>
             ))}
           </nav>
           <RiseText as="h1" lines={[title]} className={`${SERIF} mt-8 text-[clamp(3rem,8vw,7.5rem)] leading-[0.9]`} />

@@ -84,7 +84,7 @@ export default function YouTubeAlbumPlayer({ playlistId, previewUrl, albumTitle,
     <div className="flex items-end justify-between gap-4 border-b border-current/25 pb-5">
       <h2 className="text-[11px] font-medium uppercase tracking-[.24em]">Listen</h2>
       <a href={`https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`} target="_blank" rel="noopener noreferrer"
-        className="group inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[.24em] text-[var(--album-muted)] transition-colors hover:text-current">
+        className="group relative inline-flex items-center gap-1.5 before:absolute before:-inset-x-2 before:-inset-y-3.5 before:content-[''] text-[11px] font-medium uppercase tracking-[.24em] text-[var(--album-muted)] transition-colors hover:text-current">
         YouTube
         <svg aria-hidden="true" viewBox="0 0 12 12" className="size-2.5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M3.5 8.5 8.5 3.5M4.5 3.5h4v4" /></svg>
         <span className="sr-only"> (opens in a new tab)</span>

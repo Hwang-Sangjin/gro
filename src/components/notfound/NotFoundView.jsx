@@ -33,7 +33,7 @@ export default function NotFoundView() {
   return (
     // 한 화면짜리: 스크롤 없음. 헤더 아래 남은 높이의 정가운데에 '404'가 오도록 (위·아래 1fr 사이)
     <PageShell footer={false} className="paper-textured overflow-hidden! [&>.page-content]:p-0! [&>.page-content]:min-h-0!">
-      <main className="grid h-svh grid-rows-[1fr_auto_1fr] justify-items-center overflow-hidden px-6 pt-(--ct-header-h,106px) text-center text-(--ink)">
+      <div className="grid h-svh grid-rows-[1fr_auto_1fr] justify-items-center overflow-hidden px-6 pt-(--ct-header-h,106px) text-center text-(--ink)">
         <h1 className="sr-only">Page not found (404)</h1>
 
         {/* 4 · 판 · 4 */}
@@ -63,7 +63,7 @@ export default function NotFoundView() {
             </Link>
           </div>
         </div>
-      </main>
+      </div>
     </PageShell>
   );
 }
