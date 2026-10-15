@@ -167,7 +167,7 @@ export default function HomeStage() {
         </div>
 
         {/* 한 바퀴를 다 봤을 때 (자동 넘김이 아니라 직접 넘겼을 때만) */}
-        <p id="nv-caught" data-on="false" className="absolute left-1/2 top-[clamp(5.5rem,14vh,9rem)] -translate-x-1/2 -translate-y-2 whitespace-nowrap rounded-full border border-current px-[18px] py-2.5 text-[11px] uppercase tracking-[0.24em] opacity-0 transition-[opacity,translate] duration-500 data-[on=true]:translate-y-0 data-[on=true]:opacity-85 max-sm:top-auto max-sm:bottom-[19rem]">
+        <p id="nv-caught" data-on="false" className="absolute left-1/2 top-[clamp(5.5rem,14vh,9rem)] -translate-x-1/2 -translate-y-2 whitespace-nowrap rounded-full border border-current px-[18px] py-2.5 text-[11px] uppercase tracking-[0.24em] opacity-0 transition-[opacity,translate] duration-500 data-[on=true]:translate-y-0 data-[on=true]:opacity-85 max-sm:top-auto max-sm:bottom-[19rem] max-sm:w-max max-sm:max-w-[calc(100vw-3rem)] max-sm:whitespace-normal max-sm:text-center max-sm:leading-5 max-sm:tracking-[0.18em]">
           You’re all caught up · keep scrolling for genres ↓
         </p>
 

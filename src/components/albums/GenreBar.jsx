@@ -75,16 +75,17 @@ export default function GenreBar({
           <span className="tabular-nums">{total != null ? `${total} record${total === 1 ? "" : "s"}` : ""}</span>
         </div>
       </div>
-      <div className="flex items-center gap-6 border-b border-(--ink)/60 py-[clamp(0.75rem,1.4vw,1.25rem)] transition-[padding] duration-500 group-data-[stuck=true]/bar:py-2">
+      {/* 모바일: 버튼들(Grid/Crate·Request·검색)은 위 줄 오른쪽, 장르는 아래 줄 전체 폭 — 한 줄에 몰아 장르가 가려지지 않게 */}
+      <div className="flex items-center gap-6 max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-2 border-b border-(--ink)/60 py-[clamp(0.75rem,1.4vw,1.25rem)] transition-[padding] duration-500 group-data-[stuck=true]/bar:py-2">
         <nav ref={filtersRef} data-revealed={filtersRevealed} aria-label="Genres"
-          className={`${styles.filterReveal} flex min-w-0 [&_sup]:transition-opacity group-data-[stuck=true]/bar:[&_sup]:opacity-0 flex-1 flex-nowrap items-baseline gap-x-[clamp(0.5rem,0.9vw,1.1rem)] gap-y-1 overflow-x-auto [scrollbar-width:none] md:flex-wrap group-data-[stuck=true]/bar:flex-nowrap`}>
+          className={`${styles.filterReveal} flex min-w-0 [&_sup]:transition-opacity group-data-[stuck=true]/bar:[&_sup]:opacity-0 flex-1 flex-nowrap items-baseline gap-x-[clamp(0.5rem,0.9vw,1.1rem)] gap-y-1 overflow-x-auto [scrollbar-width:none] max-md:order-2 max-md:basis-full max-md:-my-2.5 max-md:py-2.5 md:flex-wrap group-data-[stuck=true]/bar:flex-nowrap`}>
           {GENRE_ITEMS.map((it, i) => {
             const on = (genre ?? null) === it.slug;
             const n = counts ? (counts[it.slug ?? "all"] ?? 0) : null;
             return (
               <a key={it.slug ?? "all"} href={hrefFor(it.slug)} data-crate-skip onClick={pick(it.slug)}
                 aria-current={on ? "page" : undefined} style={{ "--reveal-order": i, "--line": lineOf(it.slug) }}
-                className={`group/g relative shrink-0 whitespace-nowrap font-['Grooves_Bodoni',Georgia,serif] font-black uppercase leading-[1.05] tracking-[-0.03em] transition-[color,font-size] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] text-[clamp(1.2rem,1.85vw,2.1rem)] group-data-[stuck=true]/bar:text-[clamp(0.9rem,1.05vw,1.15rem)] ${on ? "text-(--ink)" : "text-(--ink)/25 hover:text-(--ink)/70 focus-visible:text-(--ink)/70"}`}>
+                className={`group/g relative shrink-0 whitespace-nowrap before:absolute before:inset-x-0 before:-inset-y-2.5 before:content-[''] font-['Grooves_Bodoni',Georgia,serif] font-black uppercase leading-[1.05] tracking-[-0.03em] transition-[color,font-size] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] text-[clamp(1.2rem,1.85vw,2.1rem)] group-data-[stuck=true]/bar:text-[clamp(0.9rem,1.05vw,1.15rem)] ${on ? "text-(--ink)" : "text-(--ink)/25 hover:text-(--ink)/70 focus-visible:text-(--ink)/70"}`}>
                 <span className="relative">
                   {it.name}
                   {/* 장르 색 밑줄: 고른 장르는 꽉, 마우스를 올리면 왼쪽에서 그어짐 */}
@@ -96,7 +97,7 @@ export default function GenreBar({
             );
           })}
         </nav>
-        <div className={`${styles.actions} mt-0! shrink-0 self-center`}>
+        <div className={`${styles.actions} mt-0! shrink-0 self-center max-md:order-1 max-md:ml-auto`}>
           {extra}
           {onQueryChange && (
             <div className={styles.search} data-open={open}>
