@@ -14,7 +14,6 @@ const GIF = {
 };
 // 새 손그림 자리 (public/images/news/what-is-vinyl/… 에 넣고 경로 지정). null = 임시 스케치
 const ART = {
-  groove: null,    // Fig. 02 판 표면 + 돋보기
   wave: null,      // Fig. 03 홈의 두 벽 (가로로 긴 그림)
   pellets: null,   // Fig. 04 PVC 알갱이 더미
   lathe: null,     // Fig. 05 커팅 선반
@@ -66,13 +65,6 @@ function hatch(x, y, w, h, n = 10, ang = -0.9, sw = 1.6) {   // 빗금 음영
   return s;
 }
 const SKETCH = {
-  groove: { box: "0 0 400 300", draw: () => {
-    let s = "";
-    for (let i = 0; i < 9; i++) s += ellipse(250, 330, 260 - i * 18, 200 - i * 14, -0.15, i % 3 ? 1.6 : 2.6, 3, 1);
-    s += ellipse(150, 120, 70, 70, 0, 3, 3, 2) + line(200, 170, 250, 225, 5, 3, 2);
-    for (let i = 0; i < 4; i++) s += line(100, 95 + i * 18, 200, 105 + i * 18 + Math.sin(i) * 8, 1.6, 4, 1);
-    return s;
-  } },
   wave: { box: "0 0 1200 300", stretch: true, draw: () => {
     let s = "";
     for (const off of [-40, 40]) {
@@ -158,6 +150,7 @@ function Art({ kind, alt = "", className = "" }) {
   // eslint-disable-next-line @next/next/no-img-element
   return ART[kind] ? <img src={ART[kind]} alt={alt} className={`object-contain ${className}`} /> : <Sketch kind={kind} className={className} />;
 }
+// 움직이는(transform) GIF 는 꼭 div 로 감싸서 움직일 것 — img 에 바로 transform 을 주면 Chrome 이 GIF 프레임을 그림 틀 크기로 잘라 그림
 // eslint-disable-next-line @next/next/no-img-element
 const Gif = ({ src, alt = "", className = "", ...rest }) => <img src={src} alt={alt} draggable={false} className={`select-none ${className}`} {...rest} />;
 
@@ -178,12 +171,11 @@ function useScenes(rootRef) {
   useEffect(() => {
     const root = rootRef.current, page = root?.closest(".page");
     if (!root || !page) return;
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const q = (s) => root.querySelector(s), qa = (s) => [...root.querySelectorAll(s)];
     const scene = Object.fromEntries(qa("[data-scene]").map((s) => [s.dataset.scene, s]));
     const E = {
-      heroDisc: q("[data-hero-disc]"), heroTitle: q("[data-hero-title]"), pars: qa("[data-par]"),
-      zDisc: q("[data-zoom-disc]"), zWave: q("[data-zoom-wave]"), zQuote: q("[data-zoom-quote]"), zCap: q("[data-zoom-cap]"),
+      heroDisc: q("[data-hero-disc]"), heroTitle: q("[data-hero-title]"),
+      zDisc: q("[data-zoom-disc]"), zIntro: q("[data-zoom-intro]"), zWave: q("[data-zoom-wave]"), zQuote: q("[data-zoom-quote]"), zCap: q("[data-zoom-cap]"),
       lines: qa("[data-lines] > *"), stats: q("[data-stats]"), pellets: q("[data-pellets]"), pvcDisc: q("[data-pvc-disc]"), pvcCap: q("[data-pvc-cap]"),
       vline: q("[data-vline]"), words: qa("[data-words] > *"), sub: q("[data-sub]"),
       cutpath: q("[data-cutpath]"), cuttip: q("[data-cuttip]"), flow: qa("[data-flow] [data-chip]"),
@@ -200,22 +192,19 @@ function useScenes(rootRef) {
     const frame = (t) => {
       raf = requestAnimationFrame(frame);
       if (!root.isConnected || root.closest("[inert]")) return;
-      const spin = reduced ? 0 : t * 0.006;
       const narrow = innerWidth < 768;
 
-      // 히어로: 판이 돌며 작아져 오른쪽 아래로, 제목은 위로
+      // 히어로: 판이 작아지며 오른쪽 아래로 빠지고, 제목은 위로
+      // (판 손그림은 비스듬히 그린 그림이라 2D 로 돌리지 않음 — 돌리면 그림 틀 모서리가 대각선으로 잘려 보임)
       const h = progress(scene.hero);
-      style(E.heroDisc, "transform", `translate(${h * 18}vw, calc(-50% + ${h * 30}vh)) rotate(${spin + h * 90}deg) scale(${1 - 0.45 * ease(h)})`);
+      style(E.heroDisc, "transform", `translate(${h * 14}vw, calc(-50% + ${h * 30}vh)) scale(${1 - 0.45 * ease(h)})`);
       style(E.heroTitle, "transform", `translateY(${-h * 26}vh)`);
       style(E.heroTitle, "opacity", 1 - seg(h, 0.4, 0.8));
 
-      // 01 콜라주: 그림마다 다른 속도
-      const kr = scene.know.getBoundingClientRect(), kp = (H - (kr.top - pageTop)) / (kr.height + H);
-      E.pars.forEach((f) => { f.style.transform = `translateY(${(kp - 0.5) * parseFloat(f.dataset.par) * H * 2}px)`; });
-
-      // 홈 확대: 판이 화면 밖까지 커지며 사라지고 홈의 두 벽이 나타남
+      // 홈 확대: 가운데 큰 판(이 장면의 주인공)이 화면 밖까지 커지며 사라지고 홈의 두 벽이 나타남
       const z = progress(scene.zoom);
-      style(E.zDisc, "transform", `rotate(${spin * 0.5}deg) scale(${1 + 2.6 * ease(seg(z, 0.05, 0.42))})`);
+      style(E.zDisc, "transform", `scale(${1 + 2.6 * ease(seg(z, 0.08, 0.42))})`);
+      style(E.zIntro, "opacity", 1 - seg(z, 0.04, 0.16));
       style(E.zDisc, "opacity", 1 - seg(z, 0.22, 0.38));
       style(E.zWave, "opacity", seg(z, 0.32, 0.48));
       style(E.zWave, "transform", `translateY(-50%) scaleY(${0.4 + 0.6 * ease(seg(z, 0.35, 0.65))})`);
@@ -228,7 +217,7 @@ function useScenes(rootRef) {
       style(E.stats, "opacity", seg(pv, 0.78, 0.88));
       const m = ease(seg(pv, 0.7, 0.9));
       style(E.pellets, "opacity", 1 - m); style(E.pellets, "transform", `scale(${1 - 0.25 * m})`);
-      style(E.pvcDisc, "opacity", m); style(E.pvcDisc, "transform", `rotate(${spin}deg) scale(${0.7 + 0.3 * m})`);
+      style(E.pvcDisc, "opacity", m); style(E.pvcDisc, "transform", `scale(${0.7 + 0.3 * m})`);
       if (E.pvcCap) E.pvcCap.dataset.on = m > 0.5;
 
       // 한 줄 선언: 세로선이 내려오고 단어가 차례로
@@ -259,7 +248,7 @@ function useScenes(rootRef) {
       const ot = progress(scene.outro);
       style(E.mask, "transform", `scale(${1 + 6 * Math.pow(1 - ease(seg(ot, 0, 0.65)), 1.6)})`);
       style(E.oDisc, "opacity", seg(ot, 0.6, 0.75));
-      style(E.oDisc, "transform", `translateY(-24svh) rotate(${spin}deg) scale(.5)`);
+      style(E.oDisc, "transform", `translateY(-24svh) scale(.5)`);
       style(E.next, "opacity", seg(ot, 0.7, 0.82));
     };
     raf = requestAnimationFrame(frame);
@@ -268,21 +257,89 @@ function useScenes(rootRef) {
   }, [rootRef]);
 }
 
+/* ───────── 섹션 단위 스크롤 (Home 처럼): 휠·키 한 번에 다음 멈춤 자리까지 부드럽게 ─────────
+   장면마다 data-stops="0,0.5" — 그 장면 진행도(0~1)에서 멈춤. 스크롤이 지나가는 동안 장면 연출이 재생됨
+   마지막 멈춤 다음은 아래 Next story, 그 아래는 보통 스크롤. 터치는 손가락 스크롤 그대로 */
+const easeIO = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+function useSectionSteps(rootRef) {
+  useEffect(() => {
+    const root = rootRef.current, page = root?.closest(".page"), layer = root?.closest(".ct-page");
+    if (!root || !page) return;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const H = () => page.clientHeight;
+    const topOf = (el) => { let y = 0; for (let n = el; n && n !== page; n = n.offsetParent) y += n.offsetTop; return y; };
+    const rootEnd = () => topOf(root) + root.offsetHeight;
+    const stops = () => [...root.querySelectorAll("[data-stops]")].flatMap((s) => {
+      const t = topOf(s), span = Math.max(0, s.offsetHeight - H());
+      return s.dataset.stops.split(",").map((f) => Math.round(t + parseFloat(f) * span));
+    });
+
+    let anim = 0, quietUntil = 0;
+    const scrollToY = (y) => {
+      y = Math.max(0, Math.min(y, page.scrollHeight - H()));
+      const set = (v) => page.dispatchEvent(new CustomEvent("page:scrollto", { detail: { top: v } }));
+      cancelAnimationFrame(anim);
+      if (reduced) { set(y); return; }
+      const y0 = page.scrollTop, d = y - y0, dur = Math.min(1500, 750 + Math.abs(d) * 0.3), t0 = performance.now();
+      const tick = (now) => {
+        const u = Math.min(1, (now - t0) / dur);
+        set(y0 + d * easeIO(u));
+        if (u < 1) anim = requestAnimationFrame(tick);
+        else { anim = 0; quietUntil = performance.now() + 450; }   // 트랙패드 관성으로 한 번 더 넘어가지 않게
+      };
+      anim = requestAnimationFrame(tick);
+    };
+    const step = (dir) => {
+      const y = page.scrollTop, list = stops();
+      if (dir > 0) {
+        const next = list.find((v) => v > y + 4);
+        if (next != null) return scrollToY(next);
+        // 마지막 다음: 아래 Next story 가 헤더 바로 아래에 오게
+        return scrollToY(rootEnd() - (layer?.querySelector(".ct-navbar")?.offsetHeight ?? 106) - 24);
+      }
+      const prev = [...list].reverse().find((v) => v < y - 4);
+      scrollToY(prev ?? 0);
+    };
+    const onWheel = (e) => {
+      if (e.ctrlKey || document.documentElement.dataset.crateTransition === "true") return;
+      e.preventDefault(); e.stopPropagation();   // 페이지 Lenis 대신 여기서
+      if (anim || performance.now() < quietUntil) { if (!anim) quietUntil = performance.now() + 120; return; }
+      if (Math.abs(e.deltaY) < 3) return;
+      step(Math.sign(e.deltaY));
+    };
+    const onKey = (e) => {
+      if (e.defaultPrevented || e.target.closest?.("input,textarea,select,[contenteditable=true],.navbar")) return;
+      if (!root.isConnected || root.closest("[inert]")) return;
+      if (page.scrollTop > rootEnd() - H() * 0.5) return;   // Next story 아래에서는 보통 키 스크롤
+      const down = ["ArrowDown", "PageDown"].includes(e.key) || (e.key === " " && !e.shiftKey);
+      const up = ["ArrowUp", "PageUp"].includes(e.key) || (e.key === " " && e.shiftKey);
+      if (!down && !up) return;
+      e.preventDefault();
+      if (!anim) step(down ? 1 : -1);
+    };
+    root.addEventListener("wheel", onWheel, { passive: false });
+    addEventListener("keydown", onKey);
+    return () => { cancelAnimationFrame(anim); root.removeEventListener("wheel", onWheel); removeEventListener("keydown", onKey); };
+  }, [rootRef]);
+}
+
 /* ───────── 본문 ───────── */
 export default function Story() {
   const root = useRef(null);
   useScenes(root);
+  useSectionSteps(root);
 
   return (
-    <div ref={root} className={`${KR} text-(--ink)`}>
+    <div ref={root} className={`${KR} text-(--ink) [word-break:keep-all]`}>
       {/* 한글 본문용 명조 (이 글에서만 불러옴) */}
-      <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;900&display=swap" />
+      <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;900&display=swap" />
 
       {/* ── 히어로: 크게 도는 판 손그림 ── */}
-      <section data-scene="hero" aria-label="What Is Vinyl?" className="relative h-[200svh]">
+      <section data-scene="hero" data-stops="0" aria-label="What Is Vinyl?" className="relative h-[200svh]">
         <div className={`sticky top-0 h-svh overflow-hidden ${PADX}`}>
           <div className={FRAME}>
-          <Gif data-hero-disc src={GIF.disc} style={{ transform: "translateY(-50%)" }} className="absolute right-[-4%] top-1/2 w-[min(62%,900px)] will-change-transform max-md:right-[-30%] max-md:top-[68%] max-md:w-[110vw]" />
+          <div data-hero-disc style={{ transform: "translateY(-50%)" }} className="absolute right-0 top-1/2 w-[min(58%,860px)] will-change-transform max-md:right-[-12%] max-md:top-[70%] max-md:w-[100vw]"><Gif src={GIF.disc} className="block w-full" /></div>
           <div data-hero-title className={`relative pt-[calc(var(--ct-header-h,106px)+clamp(72px,11vh,130px))]`}>
             <Reveal as="p" className={`${LABEL} ${RUST}`}>Vinyl A to Z · Chapter 01</Reveal>
             <RiseText as="h1" lines={["What Is", "Vinyl?"]} delay={120} className={`${BODONI} mt-5 text-[clamp(3.8rem,9vw,10rem)] leading-[0.86] tracking-[-0.035em]`} />
@@ -296,38 +353,36 @@ export default function Story() {
       </section>
 
       {/* ── 01 What to know: 왼쪽 글, 오른쪽 손그림 콜라주 ── */}
-      <section data-scene="know" aria-label="01 Vinyl이란?" className={`relative ${PADX} pb-[12vh] pt-[6vh]`}>
-        <div className="mx-auto grid max-w-[1500px] gap-14 border-t-[3px] border-(--ink) pt-10 md:grid-cols-[minmax(0,.95fr)_minmax(0,1.05fr)]">
-          <div className="md:sticky md:top-[calc(var(--ct-header-h,106px)+8vh)] md:self-start">
-            <p className={`${LABEL} ${RUST}`}>01 — Vinyl이란?</p>
-            <h2 className={`${H2} mt-5`}>What to know</h2>
-            <ul className="mt-10 max-w-[30rem] space-y-6 text-[17px] leading-[1.9]">
+      <section data-scene="know" data-stops="0,1" aria-label="01 Vinyl이란?" className={`relative flex min-h-svh items-center ${PADX} pb-[6svh] pt-[calc(var(--ct-header-h,106px)+4svh)]`}>
+        <div className="mx-auto grid w-full max-w-[1240px] items-center gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,.85fr)] md:gap-16">
+          <div>
+            <Reveal as="p" className={`${LABEL} ${RUST}`}>01 — Vinyl이란?</Reveal>
+            <Reveal as="h2" delay={80} className={`${H2} mt-5`}>What to know</Reveal>
+            <ol className="mt-10 max-w-[36rem] border-t-[3px] border-(--ink) max-md:mt-7">
               {[
-                <>바이닐 레코드(Vinyl Record)는 <b className="font-semibold">PVC(폴리염화비닐)</b>라는 플라스틱 소재로 만든 아날로그 음반이다.</>,
-                <>레코드 표면에는 미세한 <b className="font-semibold">홈(Groove)</b>이 나선형으로 새겨져 있고, 이 홈에 음악의 소리 정보가 기록되어 있다.</>,
-                <>디지털 음원과 달리, 소리를 <b className="font-semibold">물리적인 홈의 굴곡</b>으로 기록하고 재생한다.</>,
+                <>바이닐 레코드(Vinyl Record)는 <b className="font-bold">PVC(폴리염화비닐)</b>라는 플라스틱 소재로 만든 아날로그 음반이다.</>,
+                <>레코드 표면에는 미세한 <b className="font-bold">홈(Groove)</b>이 나선형으로 새겨져 있고, 이 홈에 음악의 소리 정보가 기록되어 있다.</>,
+                <>디지털 음원과 달리, 소리를 <b className="font-bold">물리적인 홈의 굴곡</b>으로 기록하고 재생한다.</>,
               ].map((t, i) => (
-                <Reveal as="li" key={i} delay={i * 120} className="flex gap-4"><span className={RUST}>ㆍ</span><span>{t}</span></Reveal>
+                <Reveal as="li" key={i} delay={160 + i * 120} className="grid grid-cols-[2.6rem_minmax(0,1fr)] gap-3 border-b border-(--ink)/15 py-6 max-md:py-4">
+                  <span className={`${BODONI} pt-0.5 text-[1.5rem] leading-none ${RUST}`}>0{i + 1}</span>
+                  <p className="text-[clamp(1.05rem,1.3vw,1.2rem)] font-medium leading-[1.85]">{t}</p>
+                </Reveal>
               ))}
-            </ul>
+            </ol>
           </div>
-          <div className="relative h-[130svh] max-md:h-[90svh]">
-            <figure data-par="-0.1" className="absolute right-0 top-0 w-[72%]">
-              <Gif src={GIF.crate} alt="꽂혀 있는 레코드 손그림" className="w-full" />
-              <figcaption className={`${LABEL} mt-1 opacity-50`}>Fig. 01 — The collection</figcaption>
-            </figure>
-            <figure data-par="0.12" className="absolute bottom-[2%] left-0 w-[52%]">
-              <Art kind="groove" alt="판 표면의 홈을 돋보기로 본 손그림" className="aspect-[4/3] w-full" />
-              <figcaption className={`${LABEL} mt-1 opacity-50`}>Fig. 02 — One spiral, end to end</figcaption>
-            </figure>
-          </div>
+          <Reveal as="figure" delay={200} className="mx-auto w-full max-w-[560px] max-md:max-w-[340px]">
+            <Gif src={GIF.crate} alt="꽂혀 있는 레코드 손그림" className="w-full" />
+            <figcaption className={`${LABEL} -mt-4 text-center opacity-50`}>Fig. 01 — The collection</figcaption>
+          </Reveal>
         </div>
       </section>
 
       {/* ── 홈 확대: 판 속으로 들어가 굴곡진 홈이 됨 ── */}
-      <section data-scene="zoom" aria-label="홈 확대" className="relative h-[240svh]">
+      <section data-scene="zoom" data-stops="0,0.85" aria-label="홈 확대" className="relative h-[240svh]">
         <div className="sticky top-0 grid h-svh place-items-center overflow-hidden">
-          <Gif data-zoom-disc src={GIF.disc} className="absolute w-[min(70vw,820px)] will-change-transform max-md:w-[92vw]" />
+          <div data-zoom-disc className="absolute w-[min(84svh,72vw,920px)] will-change-transform max-md:w-[96vw]"><Gif src={GIF.disc} className="block w-full" /></div>
+          <p data-zoom-intro className={`${LABEL} absolute bottom-[8svh] left-1/2 -translate-x-1/2 whitespace-nowrap opacity-55`}>Fig. 02 — One spiral, end to end</p>
           <div data-zoom-wave style={{ transform: "translateY(-50%)" }} className="absolute left-0 top-1/2 h-[46svh] w-full opacity-0">
             <Art kind="wave" alt="홈의 굴곡 손그림" className="size-full" />
           </div>
@@ -341,7 +396,7 @@ export default function Story() {
       </section>
 
       {/* ── 02 Made of PVC: 오른쪽 그림 고정, 왼쪽 글은 한 줄씩 진해짐 ── */}
-      <section data-scene="pvc" aria-label="02 Vinyl은 무엇으로 만들어질까?" className="relative h-[300svh]">
+      <section data-scene="pvc" data-stops="0.12,0.55,0.95" aria-label="02 Vinyl은 무엇으로 만들어질까?" className="relative h-[300svh]">
         <div className={`sticky top-0 h-svh overflow-hidden ${PADX} pt-[var(--ct-header-h,106px)]`}>
         <div className={`${FRAME} grid items-center gap-6 md:grid-cols-2 md:gap-10`}>
           <div className="relative z-10 max-md:order-2 max-md:self-start">
@@ -365,7 +420,7 @@ export default function Story() {
           <div className="relative grid h-[70svh] place-items-center max-md:order-1 max-md:h-[30svh]">
             {/* 알갱이 더미 → (스크롤) → 판 한 장 */}
             <div data-pellets className="absolute w-[min(100%,620px)]"><Art kind="pellets" alt="PVC 알갱이 손그림" className="aspect-[5/4] w-full" /></div>
-            <Gif data-pvc-disc src={GIF.disc} className="absolute w-[min(90%,560px)] opacity-0 max-md:h-full max-md:w-auto" />
+            <div data-pvc-disc className="absolute w-[min(90%,560px)] opacity-0 max-md:w-[30svh]"><Gif src={GIF.disc} className="block w-full" /></div>
             <p data-pvc-cap className={`${LABEL} group absolute bottom-2 left-2 opacity-55`}>
               <span className="group-data-[on=true]:hidden">Fig. 04 — PVC pellets</span>
               <span className="hidden group-data-[on=true]:inline">Fig. 04 — …become a record</span>
@@ -376,7 +431,7 @@ export default function Story() {
       </section>
 
       {/* ── 한 줄 선언 ── */}
-      <section data-scene="say" aria-label="Sound becomes a groove" className="relative h-[220svh]">
+      <section data-scene="say" data-stops="0.95" aria-label="Sound becomes a groove" className="relative h-[220svh]">
         <div className="sticky top-0 flex h-svh flex-col items-center justify-center overflow-hidden px-6 text-center">
           <span data-vline style={{ transform: "scaleY(0)" }} className="absolute left-1/2 top-0 h-[36svh] w-px origin-top bg-(--ink)/50" />
           <p data-words className={`${BODONI} mt-[16svh] text-[clamp(2.8rem,7vw,7.4rem)] leading-[0.95] tracking-[-0.035em]`}>
@@ -387,7 +442,7 @@ export default function Story() {
       </section>
 
       {/* ── 03 저장: 커팅 선반 + 새겨지는 홈 + 흐름 칩 ── */}
-      <section data-scene="cut" aria-label="03 음악을 저장할 때" className="relative h-[240svh]">
+      <section data-scene="cut" data-stops="0.9" aria-label="03 음악을 저장할 때" className="relative h-[240svh]">
         <div className={`sticky top-0 h-svh overflow-hidden ${PADX} pt-[var(--ct-header-h,106px)]`}>
         <div className={`${FRAME} grid items-center gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)] md:gap-10`}>
           <figure className="relative grid place-items-center max-md:h-[28svh]">
@@ -419,7 +474,7 @@ export default function Story() {
       </section>
 
       {/* ── 03 재생: 턴테이블이 올라와 가운데 → 옆으로 비켜서며 글 → 바늘 → 스피커 ── */}
-      <section data-scene="play" aria-label="03 음악을 재생할 때" className="relative h-[340svh]">
+      <section data-scene="play" data-stops="0.2,0.55,0.72,0.92" aria-label="03 음악을 재생할 때" className="relative h-[340svh]">
         <div className={`sticky top-0 h-svh overflow-hidden ${PADX}`}>
           <div className={FRAME}>
           <div data-play-text className={`absolute inset-y-0 left-0 z-10 flex w-1/2 items-center pr-6 opacity-0 max-md:inset-x-0 max-md:bottom-auto max-md:top-[calc(var(--ct-header-h,106px)+16px)] max-md:w-full`}>
@@ -452,9 +507,9 @@ export default function Story() {
       </section>
 
       {/* ── 마무리: 화면보다 큰 글자가 작아지며 제자리 ── */}
-      <section data-scene="outro" aria-label="Vinyl A to Z" className="relative h-[260svh]">
+      <section data-scene="outro" data-stops="0.9" aria-label="Vinyl A to Z" className="relative h-[260svh]">
         <div className="sticky top-0 grid h-svh place-items-center overflow-hidden">
-          <Gif data-outro-disc src={GIF.disc} className="absolute w-[min(46vw,520px)] opacity-0 max-md:w-[80vw]" />
+          <div data-outro-disc className="absolute w-[min(46vw,520px)] opacity-0 max-md:w-[80vw]"><Gif src={GIF.disc} className="block w-full" /></div>
           <p data-mask className={`${BODONI} relative whitespace-nowrap text-[clamp(3.4rem,11vw,12rem)] leading-none tracking-[-0.04em] will-change-transform`}>Vinyl A to Z</p>
           <div data-next className="absolute inset-x-0 bottom-[12svh] flex flex-col items-center gap-3 px-6 text-center opacity-0">
             <p className={`${LABEL} opacity-55`}>Next — Chapter 02</p>
