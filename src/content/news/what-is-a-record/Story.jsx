@@ -26,7 +26,9 @@ const BODONI = "font-['Grooves_Bodoni',Georgia,serif] font-black";
 const KR = "font-['Noto_Serif_KR',Georgia,serif]";
 const LABEL = "font-sans text-[11px] font-medium uppercase tracking-[0.28em]";
 const RUST = "text-[#c8553d]";
-const PADX = "px-[clamp(20px,4vw,64px)]";
+const PADX = "px-[clamp(20px,4vw,72px)]";   // StoryShell 의 ← News 줄과 같은 여백
+// 내용 틀: 넓은 화면에서도 ← News 줄과 같은 1500px 폭으로 가운데
+const FRAME = "relative mx-auto h-full w-full max-w-[1500px]";
 const H2 = `${BODONI} text-[clamp(2.6rem,5vw,5.2rem)] leading-[0.9] tracking-[-0.03em]`;
 // 스크롤로 한 줄/한 단어씩 진해지는 글자 (JS 가 --o 를 바꿈)
 const LIT = "[--o:.2] opacity-(--o)";
@@ -246,7 +248,7 @@ function useScenes(rootRef) {
       const up = 1 - ease(seg(pl, 0, 0.2)), side = ease(seg(pl, 0.25, 0.45));
       style(E.pStage, "transform", narrow
         ? `translateY(${up * 100 + side * 24}vh) scale(${1 - side * 0.4})`
-        : `translate(${side * 25}vw, ${up * 100}vh) scale(${1 - side * 0.12})`);
+        : `translate(${side * 25}%, ${up * 100}vh) scale(${1 - side * 0.12})`);
       style(E.pText, "opacity", seg(pl, 0.38, 0.5));
       const stage = pl < 0.62 ? 0 : pl < 0.8 ? 1 : 2;
       E.pArt.forEach((a, i) => { a.style.opacity = i === stage ? 1 : 0; });
@@ -257,7 +259,7 @@ function useScenes(rootRef) {
       const ot = progress(scene.outro);
       style(E.mask, "transform", `scale(${1 + 6 * Math.pow(1 - ease(seg(ot, 0, 0.65)), 1.6)})`);
       style(E.oDisc, "opacity", seg(ot, 0.6, 0.75));
-      style(E.oDisc, "transform", `translateY(-30svh) rotate(${spin}deg) scale(.55)`);
+      style(E.oDisc, "transform", `translateY(-24svh) rotate(${spin}deg) scale(.5)`);
       style(E.next, "opacity", seg(ot, 0.7, 0.82));
     };
     raf = requestAnimationFrame(frame);
@@ -278,16 +280,18 @@ export default function Story() {
 
       {/* ── 히어로: 크게 도는 판 손그림 ── */}
       <section data-scene="hero" aria-label="What Is Vinyl?" className="relative h-[200svh]">
-        <div className="sticky top-0 h-svh overflow-hidden">
-          <Gif data-hero-disc src={GIF.disc} style={{ transform: "translateY(-50%)" }} className="absolute right-[-6vw] top-1/2 w-[min(78vw,980px)] will-change-transform max-md:right-[-24vw] max-md:top-[68%] max-md:w-[110vw]" />
-          <div data-hero-title className={`relative ${PADX} pt-[calc(var(--ct-header-h,106px)+clamp(72px,11vh,130px))]`}>
+        <div className={`sticky top-0 h-svh overflow-hidden ${PADX}`}>
+          <div className={FRAME}>
+          <Gif data-hero-disc src={GIF.disc} style={{ transform: "translateY(-50%)" }} className="absolute right-[-4%] top-1/2 w-[min(62%,900px)] will-change-transform max-md:right-[-30%] max-md:top-[68%] max-md:w-[110vw]" />
+          <div data-hero-title className={`relative pt-[calc(var(--ct-header-h,106px)+clamp(72px,11vh,130px))]`}>
             <Reveal as="p" className={`${LABEL} ${RUST}`}>Vinyl A to Z · Chapter 01</Reveal>
             <RiseText as="h1" lines={["What Is", "Vinyl?"]} delay={120} className={`${BODONI} mt-5 text-[clamp(3.8rem,9vw,10rem)] leading-[0.86] tracking-[-0.035em]`} />
             <Reveal as="p" delay={500} className="mt-7 max-w-md text-[clamp(1.1rem,1.5vw,1.35rem)] font-semibold leading-relaxed">
               바이닐이란 무엇인가 — 소리를 홈으로 새기고, 그 홈을 다시 소리로 되돌리는 음반에 대하여.
             </Reveal>
           </div>
-          <p className={`${LABEL} absolute bottom-8 left-[clamp(20px,4vw,64px)] opacity-60`}>Scroll</p>
+          <p className={`${LABEL} absolute bottom-8 left-0 opacity-60`}>Scroll</p>
+          </div>
         </div>
       </section>
 
@@ -327,16 +331,19 @@ export default function Story() {
           <div data-zoom-wave style={{ transform: "translateY(-50%)" }} className="absolute left-0 top-1/2 h-[46svh] w-full opacity-0">
             <Art kind="wave" alt="홈의 굴곡 손그림" className="size-full" />
           </div>
-          <blockquote data-zoom-quote className={`absolute bottom-[10svh] left-[clamp(20px,4vw,64px)] max-w-[34rem] pr-5 text-[clamp(1.4rem,2.6vw,2.4rem)] font-black leading-[1.35] opacity-0`}>
+          <div className={`pointer-events-none absolute inset-0 ${PADX}`}><div className={FRAME}>
+          <blockquote data-zoom-quote className={`absolute bottom-[10svh] left-0 max-w-[34rem] pr-5 text-[clamp(1.4rem,2.6vw,2.4rem)] font-black leading-[1.35] opacity-0`}>
             <span className={`${BODONI} text-[1.5em] leading-none ${RUST}`}>“</span>디지털 음원과 달리, 소리를 <span className={RUST}>물리적인 홈의 굴곡</span>으로 기록하고 재생한다.
           </blockquote>
-          <p data-zoom-cap className={`${LABEL} absolute right-[clamp(20px,4vw,64px)] top-[calc(var(--ct-header-h,106px)+80px)] opacity-0 md:bottom-[10svh] md:top-auto`}>Fig. 03 — The wiggles are the sound</p>
+          <p data-zoom-cap className={`${LABEL} absolute right-0 top-[calc(var(--ct-header-h,106px)+80px)] opacity-0 md:bottom-[10svh] md:top-auto`}>Fig. 03 — The wiggles are the sound</p>
+          </div></div>
         </div>
       </section>
 
       {/* ── 02 Made of PVC: 오른쪽 그림 고정, 왼쪽 글은 한 줄씩 진해짐 ── */}
       <section data-scene="pvc" aria-label="02 Vinyl은 무엇으로 만들어질까?" className="relative h-[300svh]">
-        <div className={`sticky top-0 grid h-svh items-center gap-6 overflow-hidden ${PADX} pt-[var(--ct-header-h,106px)] md:grid-cols-2 md:gap-10`}>
+        <div className={`sticky top-0 h-svh overflow-hidden ${PADX} pt-[var(--ct-header-h,106px)]`}>
+        <div className={`${FRAME} grid items-center gap-6 md:grid-cols-2 md:gap-10`}>
           <div className="relative z-10 max-md:order-2 max-md:self-start">
             <p className={`${LABEL} ${RUST}`}>02 — Vinyl은 무엇으로 만들어질까?</p>
             <h2 className={`${H2} mt-5`}>Made of PVC.</h2>
@@ -365,6 +372,7 @@ export default function Story() {
             </p>
           </div>
         </div>
+        </div>
       </section>
 
       {/* ── 한 줄 선언 ── */}
@@ -380,7 +388,8 @@ export default function Story() {
 
       {/* ── 03 저장: 커팅 선반 + 새겨지는 홈 + 흐름 칩 ── */}
       <section data-scene="cut" aria-label="03 음악을 저장할 때" className="relative h-[240svh]">
-        <div className={`sticky top-0 grid h-svh items-center gap-6 overflow-hidden ${PADX} pt-[var(--ct-header-h,106px)] md:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)] md:gap-10`}>
+        <div className={`sticky top-0 h-svh overflow-hidden ${PADX} pt-[var(--ct-header-h,106px)]`}>
+        <div className={`${FRAME} grid items-center gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)] md:gap-10`}>
           <figure className="relative grid place-items-center max-md:h-[28svh]">
             <Art kind="lathe" alt="커팅 선반 손그림" className="aspect-[52/38] w-[min(100%,640px)] max-md:h-full max-md:w-auto" />
             <figcaption className={`${LABEL} absolute bottom-0 left-0 opacity-55`}>Fig. 05 — Cutting lathe</figcaption>
@@ -406,12 +415,14 @@ export default function Story() {
             </ol>
           </div>
         </div>
+        </div>
       </section>
 
       {/* ── 03 재생: 턴테이블이 올라와 가운데 → 옆으로 비켜서며 글 → 바늘 → 스피커 ── */}
       <section data-scene="play" aria-label="03 음악을 재생할 때" className="relative h-[340svh]">
-        <div className="sticky top-0 h-svh overflow-hidden">
-          <div data-play-text className={`absolute inset-y-0 left-0 z-10 flex w-1/2 items-center ${PADX} opacity-0 max-md:inset-x-0 max-md:bottom-auto max-md:top-[calc(var(--ct-header-h,106px)+16px)] max-md:w-full`}>
+        <div className={`sticky top-0 h-svh overflow-hidden ${PADX}`}>
+          <div className={FRAME}>
+          <div data-play-text className={`absolute inset-y-0 left-0 z-10 flex w-1/2 items-center pr-6 opacity-0 max-md:inset-x-0 max-md:bottom-auto max-md:top-[calc(var(--ct-header-h,106px)+16px)] max-md:w-full`}>
             <div className="max-w-[30rem]">
               <p className={`${LABEL} ${RUST}`}>03 — Playback · 음악을 재생할 때</p>
               <h2 className={`${BODONI} mt-5 text-[clamp(2.2rem,4.6vw,4.8rem)] leading-[0.92] tracking-[-0.03em] max-md:mt-3`}>A groove becomes sound.</h2>
@@ -429,12 +440,13 @@ export default function Story() {
             </div>
           </div>
           <div data-play-stage style={{ transform: "translateY(100vh)" }} className="absolute inset-0 grid place-items-center will-change-transform">
-            <div className="relative aspect-square w-[min(78svh,82vw)]">
+            <div className="relative aspect-square w-[min(78svh,82vw,46rem)]">
               <Gif data-play-art src={GIF.turntable} alt="턴테이블 손그림" className="absolute inset-0 size-full" />
               <div data-play-art className="absolute inset-0 opacity-0"><Art kind="needle" alt="홈 위의 바늘 손그림" className="size-full" /></div>
               <div data-play-art className="absolute inset-0 opacity-0"><Art kind="speaker" alt="스피커 손그림" className="size-full" /></div>
             </div>
             <p data-play-cap className={`${LABEL} absolute bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap opacity-55`}>{PLAY_CAPS[0]}</p>
+          </div>
           </div>
         </div>
       </section>
