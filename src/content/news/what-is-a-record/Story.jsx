@@ -68,8 +68,8 @@ function Landing({ className = "" }) {
 }
 
 /* 바늘의 진동: 홈(물결선)이 옆으로 흘러가고, 바늘은 바늘 끝 자리의 홈 높이에 맞춰 오르내림
-   needle 그림의 바늘 끝 = 그림의 (30.6%, 98.3%). SVG 좌표 600×440 안에서 바늘 끝은 x=250 에 고정 */
-const NG = { w: 360, h: 360 * 748 / 800, tipX: 250, tipFx: 0.306, tipFy: 0.983, base: 372 };
+   needle 그림의 바늘 끝 = 그림의 (16.3%, 99.1%). SVG 좌표 600×440 안에서 바늘 끝은 x=210 에 고정 */
+const NG = { w: 380, h: 380 * 764 / 800, tipX: 210, tipFx: 0.163, tipFy: 0.991, base: 372 };
 const grooveY = (x, s) => NG.base + 22 * (0.62 * Math.sin((x + s) * 0.04) + 0.3 * Math.sin((x + s) * 0.097 + 1) + 0.08 * Math.sin((x + s) * 0.23));
 const groovePath = (s, dy = 0) => "M" + Array.from({ length: 101 }, (_, i) => `${i * 6} ${(grooveY(i * 6, s) + dy).toFixed(1)}`).join(" L");
 const needleY = (s) => grooveY(NG.tipX, s) - NG.h * NG.tipFy;
