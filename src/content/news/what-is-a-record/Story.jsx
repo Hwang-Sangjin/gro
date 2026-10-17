@@ -67,11 +67,16 @@ function Landing({ className = "" }) {
   );
 }
 
-// Fig.03 홈의 두 벽 (소리처럼 조용했다 커졌다 하는 파형) — pathLength=1 이라 스크롤로 그려짐
+// Fig.03 홈의 두 벽 (소리처럼 조용했다 커졌다 하는 파형) — 스크롤로 왼쪽부터 드러남
 const WAVE_UP = "M0 110 Q18 108 30 111 Q43 115 55 109 Q67 104 78 111 L91 106 L101 117 L113 97 L123 125 L136 88 L148 132 L161 77 L173 143 L185 101 Q198 92 210 111 Q227 119 242 108 Q257 103 272 112 Q290 115 307 109 Q324 106 338 111 L352 99 L363 124 L377 72 L389 148 L401 89 L414 130 L425 53 L439 163 L451 83 L465 135 L478 102 Q494 92 509 110 Q528 118 544 107 Q559 104 575 112 Q593 116 610 109 Q627 105 641 111 L655 102 L668 121 L680 91 L692 136 L706 65 L718 153 L730 95 L742 127 L756 81 L769 142 L783 105 Q800 98 815 111 Q833 116 849 108 Q864 105 879 112 L893 101 L905 120 L917 84 L929 139 L942 58 L955 159 L968 91 L981 132 L994 100 Q1010 93 1026 111 Q1044 116 1060 108 Q1075 105 1090 112 Q1105 115 1120 109 L1133 105 L1145 117 L1158 98 L1170 121 Q1185 105 1200 110";
 const WAVE_DOWN = WAVE_UP.replace(/(\d+(?:\.\d+)?) (\d+(?:\.\d+)?)/g, (_, x, y) => `${x} ${+y + 70}`);   // 아래 벽 = 위 벽을 70 내림
-// groove. 밑줄 물결
-const UNDERLINE = "M2 10 C8 5 14 4 20 10 S31 16 38 10 S50 3 57 9 S69 17 76 11 S88 4 95 9 S107 16 114 10 S126 3 133 9 S145 17 152 11 S164 5 171 10 S184 16 190 9 Q194 6 198 10";
+// groove. 밑줄 물결 (0~200 × 0~20) — 시간 t 에 따라 흐르며 위아래로 출렁임. 크기가 고르지 않게 두 사인을 섞음
+const waveAt = (t) => "M" + Array.from({ length: 51 }, (_, i) => {
+  const x = 2 + i * 3.92;
+  const y = 10 + 5 * (0.72 * Math.sin(x * 0.2 - t * 3.2) + 0.28 * Math.sin(x * 0.071 + t * 1.7));
+  return `${x.toFixed(1)} ${y.toFixed(2)}`;
+}).join(" L");
+const UNDERLINE = waveAt(0);
 
 // 커팅 바늘이 새긴 홈 (0~500 × 0~60)
 const CUT = Array.from({ length: 201 }, (_, i) => {
@@ -124,7 +129,9 @@ function useScrollFx(rootRef) {
       const sy = reduced ? 1 : enter(E.say, 0.95, 0.2);
       if (E.sayLine) E.sayLine.style.transform = `scaleY(${ease(seg(sy, 0.05, 0.5))})`;
       if (E.say) E.say.dataset.on = sy > 0.5;
-      E.sayWave?.style.setProperty("--d", (1 - ease(seg(sy, 0.62, 0.95))).toFixed(4));
+      E.sayWave?.parentNode.style.setProperty("--d", (1 - ease(seg(sy, 0.62, 0.95))).toFixed(4));
+      // 물결이 옆으로 흐르며 위아래로 출렁임 (화면 근처일 때만 다시 그림)
+      if (E.sayWave && !reduced && sy > 0 && sy < 1.0001 && E.say.getBoundingClientRect().bottom > 0) E.sayWave.setAttribute("d", waveAt(time));
 
       // 03 저장: 커팅 헤드가 안쪽으로, 홈이 그려지며 붉은 점이 따라감, 칩이 차례로 켜짐
       const k = reduced ? 1 : ease(seg(enter(E.cut, 0.95, 0.05), 0.2, 0.95));
@@ -157,8 +164,9 @@ function useScrollFx(rootRef) {
     return () => cancelAnimationFrame(raf);
   }, [rootRef]);
 }
-// 그려지는 선: pathLength=1 인 path 에 --d(1→0) 로 dashoffset
-const DRAW = "[&_path]:[stroke-dasharray:1] [&_path]:[stroke-dashoffset:var(--d,0)]";
+// 그려지는 선: --d(1→0) 만큼 오른쪽을 가렸다가 왼쪽부터 드러냄
+// (선 굵기를 고정하는 non-scaling-stroke 에서는 Chrome 이 dash 길이를 화면 기준으로 계산해 선이 중간에 끊기므로 clip-path 로)
+const DRAW = "[clip-path:inset(-60%_calc(var(--d,0)*100%)_-60%_0)]";
 
 // 03 재생 4단계 — 원고 문장을 단계별로 나눔
 const PLAY = [
@@ -258,8 +266,8 @@ export default function Story() {
         <Fig caption="Fig. 03 — The wiggles are the sound" className={`${WRAP} mt-[clamp(48px,8svh,96px)] overflow-x-clip`}>
           <svg data-fx-wave viewBox="0 30 1200 230" preserveAspectRatio="none" role="img" aria-label="홈의 두 벽이 소리처럼 굴곡진 손그림"
             fill="none" stroke="#BBCBDA" strokeLinecap="round" strokeLinejoin="round" className={`h-[clamp(140px,22svh,240px)] w-[106%] max-w-none ${DRAW}`}>
-            <path pathLength="1" d={WAVE_UP} strokeWidth="3" vectorEffect="non-scaling-stroke" />
-            <path pathLength="1" d={WAVE_DOWN} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            <path d={WAVE_UP} strokeWidth="3" vectorEffect="non-scaling-stroke" />
+            <path d={WAVE_DOWN} strokeWidth="2" vectorEffect="non-scaling-stroke" />
           </svg>
         </Fig>
       </section>
@@ -290,20 +298,20 @@ export default function Story() {
       <section data-fx-say aria-label="Sound becomes a groove" className={`group ${SECTION} text-center`}>
         {/* 세로선이 바늘대처럼 자라 내려오고, 닿으면 제목이 올라옴 */}
         <span data-fx-say-line aria-hidden="true" className="mx-auto block h-[clamp(60px,10svh,120px)] w-px origin-top bg-(--ink)/50" />
-        <p className={`${BODONI} mt-10 overflow-y-clip pb-[.12em] text-[clamp(2.8rem,7vw,7.4rem)] leading-[0.95] tracking-[-0.035em]`}>
-          <span className="block translate-y-[110%] transition-transform duration-[1000ms] ease-[cubic-bezier(.22,1,.36,1)] group-data-[on=true]:translate-y-0 motion-reduce:translate-y-0">
+        <p className={`${BODONI} mt-10 overflow-y-clip pb-[.55em] text-[clamp(2.8rem,7vw,7.4rem)] leading-[0.95] tracking-[-0.035em]`}>
+          <span className="block translate-y-[170%] transition-transform duration-[1000ms] ease-[cubic-bezier(.22,1,.36,1)] group-data-[on=true]:translate-y-0 motion-reduce:translate-y-0">
             Sound becomes a{" "}
             <span className={`relative inline-block ${RUST}`}>
               groove.
-              {/* groove 아래 물결이 그려짐 */}
-              <svg aria-hidden="true" viewBox="0 0 200 20" preserveAspectRatio="none" className="absolute inset-x-0 -bottom-[.18em] h-[.2em] w-full overflow-visible">
-                <path data-fx-say-wave pathLength="1" d={UNDERLINE}
-                  fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" className="[stroke-dasharray:1] [stroke-dashoffset:var(--d,1)]" />
+              {/* groove 아래 물결: g 의 꼬리보다 아래, 글자 폭 전체. 그려진 뒤에도 계속 출렁임 */}
+              <svg aria-hidden="true" viewBox="0 0 200 20" preserveAspectRatio="none" className="absolute inset-x-0 top-[calc(100%+.14em)] h-[.22em] w-full overflow-visible [clip-path:inset(-60%_calc(var(--d,1)*100%)_-60%_0)]">
+                <path data-fx-say-wave d={UNDERLINE}
+                  fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
               </svg>
             </span>
           </span>
         </p>
-        <p className="mt-7 text-[clamp(1rem,1.3vw,1.2rem)] font-semibold opacity-0 transition-opacity delay-300 duration-700 group-data-[on=true]:opacity-100 motion-reduce:opacity-100">소리는 어떻게 홈이 될까.</p>
+        <p className="mt-2 text-[clamp(1rem,1.3vw,1.2rem)] font-semibold opacity-0 transition-opacity delay-300 duration-700 group-data-[on=true]:opacity-100 motion-reduce:opacity-100">소리는 어떻게 홈이 될까.</p>
       </section>
 
       {/* ── 03 저장 ── */}
@@ -319,7 +327,7 @@ export default function Story() {
             </p>
             <svg className="mt-8 h-[60px] w-full max-w-[34rem]" viewBox="0 0 500 60" preserveAspectRatio="none" aria-hidden="true">
               <path d="M0 30 H500" stroke="currentColor" strokeOpacity=".18" />
-              <path data-fx-cut-path d={CUT_PATH} pathLength="1" fill="none" stroke="currentColor" strokeWidth="1.6" vectorEffect="non-scaling-stroke" className="[stroke-dasharray:1] [stroke-dashoffset:var(--d,0)]" />
+              <path data-fx-cut-path d={CUT_PATH} fill="none" stroke="currentColor" strokeWidth="1.6" vectorEffect="non-scaling-stroke" className={DRAW} />
               <circle data-fx-cut-dot r="4" fill="#c8553d" cx="500" cy="30" />
             </svg>
             <Chips label="기록 과정" items={[["음악 신호", "icon-wave"], ["홈 제작", "icon-cut"], ["바이닐 레코드", "icon-record"]]} />
@@ -372,7 +380,7 @@ export default function Story() {
                     <Img name="icon-cable" alt="케이블 손그림" className="w-[26%] shrink-0" />
                     <svg data-fx-play-sig viewBox="0 40 1200 140" preserveAspectRatio="none" aria-hidden="true" fill="none" stroke="#BBCBDA" strokeLinecap="round" strokeLinejoin="round"
                       className={`h-[clamp(110px,16svh,170px)] min-w-0 flex-1 ${DRAW}`}>
-                      <path pathLength="1" d={WAVE_UP} strokeWidth="3" vectorEffect="non-scaling-stroke" />
+                      <path d={WAVE_UP} strokeWidth="3" vectorEffect="non-scaling-stroke" />
                     </svg>
                   </div>
                 )}
