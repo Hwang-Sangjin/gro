@@ -109,7 +109,7 @@ const RequestDialog = forwardRef(function RequestDialog(_, ref) {
           <div className="mt-7 rounded-2xl border border-(--ink)/12 p-5">
             <p className="text-[14px]">Log in to send a request and follow its status.</p>
             <Link href={`/login?next=${encodeURIComponent(here)}`} onClick={close}
-              className="mt-4 inline-flex min-h-11 items-center rounded-full bg-(--ink) px-6 text-[12px] font-medium uppercase tracking-[0.16em] text-(--cream) hover:bg-[#c8553d]">Log in</Link>
+              className="mt-4 inline-flex min-h-11 items-center rounded-full bg-(--ink) px-6 text-[12px] font-medium uppercase tracking-[0.16em] text-(--cream) hover:bg-(--danger)">Log in</Link>
           </div>
         ) : state === "sent" ? (
           <div role="status" className="mt-7 rounded-2xl bg-[#4f9d69]/12 p-5">
@@ -193,7 +193,7 @@ const RequestDialog = forwardRef(function RequestDialog(_, ref) {
                   <label htmlFor="rq-tracks" className={labelCls}>Tracks <span className="normal-case tracking-normal opacity-70">(side | title | time)</span></label>
                   <textarea id="rq-tracks" className={`${field} min-h-28 resize-y font-mono text-[12px]`} value={form.tracks} onChange={set("tracks")} maxLength={6000} placeholder={TRACK_PLACEHOLDER} />
                   {form.tracks.trim() && (parsed.errors.length
-                    ? <p className="mt-1.5 text-[12px] text-[#c8553d]">{parsed.errors[0]}</p>
+                    ? <p className="mt-1.5 text-[12px] text-(--danger)">{parsed.errors[0]}</p>
                     : <p className="mt-1.5 text-[12px] text-(--ink)/55">{parsed.rows.length} tracks · A·B → LP1, C·D → LP2</p>)}
                 </div>
                 <div>
@@ -213,9 +213,9 @@ const RequestDialog = forwardRef(function RequestDialog(_, ref) {
               </div>
             </div>
 
-            {error && <p role="alert" className="text-[13px] text-[#c8553d]">{error}</p>}
+            {error && <p role="alert" className="text-[13px] text-(--danger)">{error}</p>}
             <button type="submit" disabled={state === "sending" || user === undefined}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-(--ink) text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-[#c8553d] disabled:opacity-50">
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-(--ink) text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--danger) disabled:opacity-50">
               {state === "sending" ? "Sending…" : "Send request"}
             </button>
           </form>

@@ -4,7 +4,7 @@
 function Fair() {
   return (
     <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
-      <rect width="400" height="400" fill="#c8553d" />
+      <rect width="400" height="400" fill="#2d6a6a" />
       <g fill="none" stroke="#f4e7cd" strokeOpacity=".22">{[160, 140, 120, 100, 80].map((r) => <circle key={r} cx="200" cy="230" r={r} />)}</g>
       <text x="200" y="250" textAnchor="middle" fontFamily="Grooves Bodoni, Georgia, serif" fontWeight="900" fontSize="230" letterSpacing="-12" fill="#f4e7cd">15</text>
       <g transform="translate(46 318)">{[0, 1, 2, 3, 4].map((i) => <rect key={i} x={i * 4} y={-i * 9} width="300" height="7" rx="2" fill={i % 2 ? "#4c404a" : "#2a222a"} />)}</g>
@@ -23,7 +23,7 @@ function Autumn() {
         <circle r="96" fill="#2a222a" /><g fill="none" stroke="#f4e7cd" strokeOpacity=".14">{[86, 74, 62, 50].map((r) => <circle key={r} r={r} />)}</g>
         <circle r="30" fill="#e3b04b" /><circle r="3" fill="#2a222a" />
       </g>
-      <path d="M92 318c18-26 46-34 70-26-10 24-38 38-70 26z" fill="#c8553d" /><path d="M92 318c24-6 48-12 70-26" stroke="#8a3b1f" fill="none" />
+      <path d="M92 318c18-26 46-34 70-26-10 24-38 38-70 26z" fill="#2d6a6a" /><path d="M92 318c24-6 48-12 70-26" stroke="#8a3b1f" fill="none" />
     </svg>
   );
 }
@@ -36,7 +36,7 @@ function Record() {
           d={`M-20 ${70 + i * 22} ${Array.from({ length: 22 }, (_, k) => `L${k * 20} ${70 + i * 22 + Math.sin(k * 0.9 + i) * (i > 5 && i < 9 ? 7 : 2)}`).join(" ")}`} />
       ))}</g>
       <g transform="translate(250 160) rotate(28)">
-        <rect x="-6" y="-170" width="12" height="150" fill="#f4e7cd" /><path d="M-14 -20h28l-10 26h-8z" fill="#f4e7cd" /><path d="M-1 6l1 14 1-14z" fill="#c8553d" />
+        <rect x="-6" y="-170" width="12" height="150" fill="#f4e7cd" /><path d="M-14 -20h28l-10 26h-8z" fill="#f4e7cd" /><path d="M-1 6l1 14 1-14z" fill="#2d6a6a" />
       </g>
     </svg>
   );

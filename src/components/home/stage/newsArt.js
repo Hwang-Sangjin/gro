@@ -1,6 +1,6 @@
 // News & Stories 카드 일러스트 (잉크 드로잉 톤 SVG). 기사마다 다른 장면이고, 카드에 마우스를 올리면 움직임.
 // 실제 기사 이미지가 생기면 HomeStage의 POSTS에 image를 넣어 교체할 수 있음.
-export const NEWS_ACCENT = '#c8553d';
+export const NEWS_ACCENT = '#2d6a6a';
 const SPARKLE = 'M0-15C1.6-4 4-1.6 15 0 4 1.6 1.6 4 0 15-1.6 4-4 1.6-15 0-4-1.6-1.6-4 0-15Z';
 // 판 하나: 연한 파랑 바탕 + 촘촘한 홈(잉크 선) + 빨간 라벨
 function newsDisc(R, { label = NEWS_ACCENT, base = '#b9cce2', groove = '#7f9ec4' } = {}) {

@@ -133,7 +133,7 @@ export default function AuthPanel() {
           {/* 라벨 = 로그인 버튼 (로그인 상태면 내 컬렉션으로) */}
           {state === "done" ? (
             <Link href={next !== "/" ? next : "/collection"} aria-label="Open my collection"
-              className="absolute left-1/2 top-1/2 grid aspect-square w-[36%] -translate-1/2 place-items-center rounded-full bg-[#bbcbda] text-[#4c404a] shadow-[0_0_0_calc(var(--size)*.008)_var(--ink),0_10px_30px_-12px_rgba(30,20,28,.45)] transition-[scale] duration-500 hover:scale-[1.035] focus-visible:outline-3 focus-visible:outline-offset-6 focus-visible:outline-[#c8553d]">
+              className="absolute left-1/2 top-1/2 grid aspect-square w-[36%] -translate-1/2 place-items-center rounded-full bg-[#bbcbda] text-[#4c404a] shadow-[0_0_0_calc(var(--size)*.008)_var(--ink),0_10px_30px_-12px_rgba(30,20,28,.45)] transition-[scale] duration-500 hover:scale-[1.035] focus-visible:outline-3 focus-visible:outline-offset-6 focus-visible:outline-(--accent)">
               <span className="grid justify-items-center gap-[calc(var(--size)*.014)]">
                 {p.avatar
                   ? <img src={p.avatar} alt="" referrerPolicy="no-referrer" className="size-[calc(var(--size)*.11)] rounded-full object-cover" />
@@ -145,7 +145,7 @@ export default function AuthPanel() {
             <button type="button" onClick={drop} disabled={user === undefined}
               onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)} onFocus={() => setHover(true)} onBlur={() => setHover(false)}
               aria-label="Continue with Google"
-              className="absolute left-1/2 top-1/2 grid aspect-square w-[36%] -translate-1/2 cursor-pointer place-items-center rounded-full bg-[#bbcbda] text-[#4c404a] shadow-[0_0_0_calc(var(--size)*.008)_var(--ink),0_10px_30px_-12px_rgba(30,20,28,.45)] transition-[scale] duration-500 ease-[cubic-bezier(.22,1,.36,1)] hover:scale-[1.035] active:scale-[.98] disabled:cursor-wait focus-visible:outline-3 focus-visible:outline-offset-6 focus-visible:outline-[#c8553d]">
+              className="absolute left-1/2 top-1/2 grid aspect-square w-[36%] -translate-1/2 cursor-pointer place-items-center rounded-full bg-[#bbcbda] text-[#4c404a] shadow-[0_0_0_calc(var(--size)*.008)_var(--ink),0_10px_30px_-12px_rgba(30,20,28,.45)] transition-[scale] duration-500 ease-[cubic-bezier(.22,1,.36,1)] hover:scale-[1.035] active:scale-[.98] disabled:cursor-wait focus-visible:outline-3 focus-visible:outline-offset-6 focus-visible:outline-(--accent)">
               <span className="grid justify-items-center gap-[calc(var(--size)*.012)]">
                 <span className="grid size-[calc(var(--size)*.075)] place-items-center rounded-full bg-white shadow-[0_1px_0_rgba(0,0,0,.08)]">
                   <GoogleMark className="size-[58%]" />
@@ -159,11 +159,11 @@ export default function AuthPanel() {
           )}
         </div>
 
-        <p role="status" className={`min-h-[1.6em] text-[13px] tracking-[0.02em] ${error ? "text-[#c8553d]" : "opacity-75"}`}>{user === undefined ? "" : status}</p>
+        <p role="status" className={`min-h-[1.6em] text-[13px] tracking-[0.02em] ${error ? "text-(--danger)" : "opacity-75"}`}>{user === undefined ? "" : status}</p>
 
         {state === "done" ? (
           <div className="flex flex-wrap justify-center gap-2.5">
-            <Link href={next !== "/" ? next : "/collection"} className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-[#c8553d]">
+            <Link href={next !== "/" ? next : "/collection"} className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
               {next !== "/" ? "Continue" : "My collection"}
             </Link>
             <button type="button" onClick={() => { setPhase("idle"); signOut(); }}

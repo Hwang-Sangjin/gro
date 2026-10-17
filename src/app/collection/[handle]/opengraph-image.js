@@ -9,7 +9,7 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const revalidate = 3600;
 
-const CREAM = "#f4e7cd", INK = "#4c404a", RUST = "#c8553d";
+const CREAM = "#f4e7cd", INK = "#4c404a", ACCENT = "#2d6a6a";
 
 export default async function Image({ params }) {
   const { handle: raw } = await params;
@@ -38,7 +38,7 @@ export default async function Image({ params }) {
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "64px 0 60px 72px", width: 560 }}>
           <div style={{ display: "flex", fontSize: 40, fontWeight: 900, letterSpacing: -1 }}>Grooves</div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 22, fontWeight: 500, letterSpacing: 6, textTransform: "uppercase", color: RUST }}>Collection</div>
+            <div style={{ display: "flex", fontSize: 22, fontWeight: 500, letterSpacing: 6, textTransform: "uppercase", color: ACCENT }}>Collection</div>
             <div style={{ display: "flex", fontSize: handle.length > 14 ? 58 : 76, fontWeight: 900, lineHeight: 1, letterSpacing: -2, marginTop: 14 }}>
               {data ? `@${data.handle}’s shelf` : "A shelf on Grooves"}
             </div>
@@ -59,7 +59,7 @@ export default async function Image({ params }) {
                 position: "absolute", display: "flex", width: card, height: card,
                 left: 120 + k * 74, top: 160 + Math.abs(k) * 14,
                 transform: `rotate(${k * 7}deg)`,
-                background: a?.cover_color || [INK, RUST, "#bbcbda", "#4f6d93", "#e3b04b"][i % 5],
+                background: a?.cover_color || [INK, ACCENT, "#bbcbda", "#4f6d93", "#e3b04b"][i % 5],
                 boxShadow: "0 24px 40px rgba(42,34,42,0.28)", borderRadius: 4, overflow: "hidden",
               }}>
                 {src && <img src={src} width={card} height={card} style={{ objectFit: "cover" }} />}

@@ -71,7 +71,7 @@ export default function LegalPage({ path, title, intro, sections }) {
             {sections.map((s, i) => (
               <section key={s.id} id={s.id} className="scroll-mt-32 border-b border-(--ink)/15 py-8 first:pt-0">
                 <h2 className="flex items-baseline gap-4">
-                  <span className="text-[12px] tabular-nums text-[#c8553d]">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="text-[12px] tabular-nums text-(--accent)">{String(i + 1).padStart(2, "0")}</span>
                   <span className={`${SERIF} text-[clamp(1.6rem,2.6vw,2.2rem)] leading-tight`}>{s.title}</span>
                 </h2>
                 <div className="mt-4 grid gap-4 text-[15px] leading-7 text-(--ink)/85 [&_a]:underline [&_a]:decoration-(--ink)/30 [&_a]:underline-offset-4 hover:[&_a]:decoration-(--ink) [&_b]:font-medium [&_b]:text-(--ink) [&_li]:pl-1 [&_ul]:grid [&_ul]:list-disc [&_ul]:gap-1.5 [&_ul]:pl-5 [&_li::marker]:text-(--ink)/40">

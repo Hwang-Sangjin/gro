@@ -6,6 +6,6 @@ export const field =
 export const labelCls = "mb-1.5 block text-[11px] font-medium uppercase tracking-[0.2em] text-(--ink)/55";
 export const btn =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 text-[12px] font-medium uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-40";
-export const btnPrimary = `${btn} bg-(--ink) text-(--cream) hover:bg-[#c8553d]`;
+export const btnPrimary = `${btn} bg-(--ink) text-(--cream) hover:bg-(--accent)`;
 export const btnGhost = `${btn} border border-(--ink)/30 hover:border-(--ink) hover:bg-(--ink)/5`;
 export const card = "rounded-2xl border border-(--ink)/12 bg-(--ink)/[0.03]";

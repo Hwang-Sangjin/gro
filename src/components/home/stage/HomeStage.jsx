@@ -179,7 +179,7 @@ export default function HomeStage() {
           <p id="nv-artist" className="mt-2 text-[17px]" />
           <p id="nv-meta" className="mt-1.5 text-xs uppercase tracking-[0.22em] text-[var(--hs-muted)]" />
           <div className="mt-5 flex flex-wrap gap-2.5">
-            <button id="nv-open" type="button" className="pointer-events-auto inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--hs-text)] px-[22px] text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--hs-paper)] transition-[background-color,scale] duration-300 hover:bg-[#c8553d] active:scale-95">Open record ↗</button>
+            <button id="nv-open" type="button" className="pointer-events-auto inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--hs-text)] px-[22px] text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--hs-paper)] transition-[background-color,scale] duration-300 hover:bg-(--accent) active:scale-95">Open record ↗</button>
           </div>
         </div>
 
@@ -238,10 +238,10 @@ export default function HomeStage() {
                         <span className="font-semibold tabular-nums">{post.no}</span><span className="text-[var(--hs-muted)]">/</span><span>{post.category}</span>
                         <span className="ml-auto tabular-nums text-[var(--hs-muted)]">{post.date}</span>
                       </p>
-                      <span className="mt-3 block h-px w-6 bg-[var(--hs-text)] opacity-40 transition-all duration-500 group-hover:w-14 group-hover:bg-[#c8553d] group-hover:opacity-100" />
+                      <span className="mt-3 block h-px w-6 bg-[var(--hs-text)] opacity-40 transition-all duration-500 group-hover:w-14 group-hover:bg-(--accent) group-hover:opacity-100" />
                       <p className="mt-3 text-[clamp(12px,0.85vw,15px)] text-[var(--hs-muted)]">{post.kicker}</p>
                       <h3 className="mt-1 text-[clamp(1.05rem,1.55vw,2.1rem)] font-medium leading-snug tracking-[-0.02em] [word-break:keep-all]">{post.title}</h3>
-                      <span className="mt-[clamp(1rem,1.6vh,1.5rem)] inline-flex w-fit items-center gap-1 border-b border-current pb-0.5 text-[clamp(10px,0.72vw,13px)] font-medium uppercase tracking-[0.2em] text-[#c8553d]">Read story <span className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5">↗</span></span>
+                      <span className="mt-[clamp(1rem,1.6vh,1.5rem)] inline-flex w-fit items-center gap-1 border-b border-current pb-0.5 text-[clamp(10px,0.72vw,13px)] font-medium uppercase tracking-[0.2em] text-(--accent)">Read story <span className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5">↗</span></span>
                     </article>
                   ))}
                 </div>
@@ -256,11 +256,11 @@ export default function HomeStage() {
 
           <div className={`${NEWS_IN} mt-[clamp(1.5rem,3.5vh,3.5rem)] flex flex-col items-center text-center`} style={delay(6)}>
             <svg className="h-[clamp(2.5rem,3.5vw,4rem)] w-auto" viewBox="0 0 96 40" fill="none" aria-hidden="true">
-              <path d="M14 14c.8 3.2 1.6 4 4.8 4.8-3.2.8-4 1.6-4.8 4.8-.8-3.2-1.6-4-4.8-4.8 3.2-.8 4-1.6 4.8-4.8Z" fill="#c8553d" />
-              <ellipse cx="60" cy="20" rx="28" ry="10.5" transform="rotate(-14 60 20)" stroke="#c8553d" strokeWidth="1" />
+              <path d="M14 14c.8 3.2 1.6 4 4.8 4.8-3.2.8-4 1.6-4.8 4.8-.8-3.2-1.6-4-4.8-4.8 3.2-.8 4-1.6 4.8-4.8Z" fill="#2d6a6a" />
+              <ellipse cx="60" cy="20" rx="28" ry="10.5" transform="rotate(-14 60 20)" stroke="#2d6a6a" strokeWidth="1" />
               <ellipse cx="60" cy="20" rx="21" ry="7.6" transform="rotate(-14 60 20)" fill="#a9c1db" />
               <ellipse cx="60" cy="20" rx="15" ry="5.4" transform="rotate(-14 60 20)" stroke="#8fb0d4" strokeWidth=".6" />
-              <ellipse cx="60" cy="20" rx="5.4" ry="2.1" transform="rotate(-14 60 20)" fill="#c8553d" />
+              <ellipse cx="60" cy="20" rx="5.4" ry="2.1" transform="rotate(-14 60 20)" fill="#2d6a6a" />
             </svg>
             {/* 제목처럼 줄마다 아래에서 스르륵 */}
             <p className="mt-2 text-[clamp(1.45rem,2.8vw,3.6rem)] font-medium leading-[1.28] tracking-[-0.03em] [word-break:keep-all]">
@@ -270,7 +270,7 @@ export default function HomeStage() {
                 </span>
               ))}
             </p>
-            <Link href="/digging" className="group/dig mt-[clamp(1.25rem,2.5vh,2.25rem)] inline-flex items-center gap-2 rounded-full bg-[var(--hs-text)] px-[clamp(1.5rem,1.8vw,2.5rem)] py-[clamp(0.75rem,1vw,1.25rem)] text-[clamp(11px,0.8vw,14px)] font-semibold uppercase tracking-[0.2em] text-[var(--hs-paper)] transition-[background-color,scale] duration-300 hover:bg-[#c8553d] active:scale-95">
+            <Link href="/digging" className="group/dig mt-[clamp(1.25rem,2.5vh,2.25rem)] inline-flex items-center gap-2 rounded-full bg-[var(--hs-text)] px-[clamp(1.5rem,1.8vw,2.5rem)] py-[clamp(0.75rem,1vw,1.25rem)] text-[clamp(11px,0.8vw,14px)] font-semibold uppercase tracking-[0.2em] text-[var(--hs-paper)] transition-[background-color,scale] duration-300 hover:bg-(--accent) active:scale-95">
               Start digging <span className="transition-transform duration-300 group-hover/dig:-translate-y-0.5 group-hover/dig:translate-x-0.5">↗</span>
             </Link>
           </div>

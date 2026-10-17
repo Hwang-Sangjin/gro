@@ -48,7 +48,7 @@ export default function RequestTable({ requests: initial }) {
           </button>
         ))}
       </div>
-      {error && <p role="alert" className="mb-4 rounded-xl bg-[#c8553d]/10 px-4 py-3 text-[13px] text-[#c8553d]">{error}</p>}
+      {error && <p role="alert" className="mb-4 rounded-xl bg-(--danger)/10 px-4 py-3 text-[13px] text-(--danger)">{error}</p>}
 
       <ul className="divide-y divide-(--ink)/10 border-y border-(--ink)/10">
         {shown.map((r) => {

@@ -35,7 +35,7 @@ export default function StoryShell({ meta }) {
               <Link href={`/news/${next.slug}`} className="group mt-6 grid items-center gap-6 sm:grid-cols-[180px_1fr]">
                 <StoryCover name={next.cover} className="aspect-square rounded-sm [&_svg]:transition-transform [&_svg]:duration-700 group-hover:[&_svg]:scale-105" />
                 <div>
-                  <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#c8553d]">{categoryName(next.category)}</p>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-(--accent)">{categoryName(next.category)}</p>
                   <p className={`${SERIF} mt-2 text-[clamp(2rem,4vw,3.6rem)] leading-[0.95]`}>{next.title} <span aria-hidden="true" className="inline-block transition-transform duration-500 group-hover:translate-x-2">→</span></p>
                 </div>
               </Link>

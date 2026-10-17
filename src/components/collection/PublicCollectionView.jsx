@@ -29,7 +29,7 @@ export default function PublicCollectionView({ data }) {
         renderEmpty={(tab) => (
           <>
             <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>{EMPTY[tab]}</p>
-            <Link href="/digging" className="mt-8 inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-[#c8553d]">
+            <Link href="/digging" className="mt-8 inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
               Start digging
             </Link>
           </>

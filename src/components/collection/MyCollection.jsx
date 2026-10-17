@@ -49,7 +49,7 @@ export default function Collection() {
         <div className="mt-6 flex flex-col items-start gap-6 border-t-[3px] border-(--ink) pt-10">
           <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>Log in to start your shelf</p>
           <p className="text-[15px] leading-7 text-(--ink)/70">Keep the records you own and the ones you want, all in one place.</p>
-          <Link href="/login?next=/collection" className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-[#c8553d]">
+          <Link href="/login?next=/collection" className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
             Login
           </Link>
         </div>
@@ -63,7 +63,7 @@ export default function Collection() {
             <>
               <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>{EMPTY[tab].title}</p>
               <p className="mt-3 text-[15px] leading-7 text-(--ink)/70">{EMPTY[tab].hint}</p>
-              <Link href="/digging" className="mt-8 inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-[#c8553d]">
+              <Link href="/digging" className="mt-8 inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
                 Start digging
               </Link>
             </>

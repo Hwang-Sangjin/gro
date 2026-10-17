@@ -32,7 +32,7 @@ export default function AdminShell({ email, pending = 0, children }) {
               <Link key={item.href} href={item.href} aria-current={active(item) ? "page" : undefined}
                 className="shrink-0 rounded-full px-3.5 py-2 text-[13px] tracking-[0.02em] text-(--ink)/65 transition-colors hover:bg-(--ink)/6 hover:text-(--ink) aria-[current=page]:bg-(--ink) aria-[current=page]:text-(--cream)">
                 {item.label}
-                {item.badge && pending > 0 && <span className="ml-2 inline-grid min-w-5 place-items-center rounded-full bg-[#c8553d] px-1.5 text-[10px] font-semibold tabular-nums text-[#f4e7cd]">{pending}</span>}
+                {item.badge && pending > 0 && <span className="ml-2 inline-grid min-w-5 place-items-center rounded-full bg-(--accent) px-1.5 text-[10px] font-semibold tabular-nums text-(--cream)">{pending}</span>}
               </Link>
             ))}
             {SOON.map((label) => (

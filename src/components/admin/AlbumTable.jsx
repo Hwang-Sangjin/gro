@@ -44,7 +44,7 @@ export default function AlbumTable({ albums: initial }) {
         </div>
         <span className="text-[12px] text-(--ink)/50 tabular-nums">{shown.length} shown</span>
       </div>
-      {error && <p role="alert" className="mb-4 rounded-xl bg-[#c8553d]/10 px-4 py-3 text-[13px] text-[#c8553d]">{error}</p>}
+      {error && <p role="alert" className="mb-4 rounded-xl bg-(--danger)/10 px-4 py-3 text-[13px] text-(--danger)">{error}</p>}
 
       <ul className="divide-y divide-(--ink)/10 border-y border-(--ink)/10">
         {shown.map((a) => (

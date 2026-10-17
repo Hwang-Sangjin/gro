@@ -55,7 +55,7 @@ export default function NotFoundView() {
           <p className={`${SERIF} text-[clamp(1.6rem,3vw,2.6rem)] font-black leading-tight`}>This record isn’t in the crate.</p>
           <p className="mt-3 max-w-[40ch] text-[15px] leading-7 text-(--ink)/65">The page you’re looking for was moved, sold out, or never pressed.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/" className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-[#c8553d]">
+            <Link href="/" className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
               Back home
             </Link>
             <Link href="/digging" className="inline-flex min-h-12 items-center rounded-full border border-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] transition-colors hover:bg-(--ink) hover:text-(--cream)">

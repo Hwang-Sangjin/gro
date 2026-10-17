@@ -17,10 +17,10 @@ export default function ErrorView({ error, reset, title = "The needle skipped.",
           <svg viewBox="0 0 120 120" className="mb-8 size-[clamp(88px,12vw,128px)]" aria-hidden="true">
             <circle cx="52" cy="64" r="44" fill="none" stroke="currentColor" strokeWidth="2.5" />
             {[34, 24, 14].map((r) => <circle key={r} cx="52" cy="64" r={r} fill="none" stroke="currentColor" strokeOpacity=".35" />)}
-            <circle cx="52" cy="64" r="5" fill="#c8553d" />
+            <circle cx="52" cy="64" r="5" fill="#2d6a6a" />
             <circle cx="104" cy="14" r="6" fill="none" stroke="currentColor" strokeWidth="2.5" />
             <path d="M104 20 L96 70 L80 86" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-            <path d="M74 80 l10 10" stroke="#c8553d" strokeWidth="5" strokeLinecap="round" />
+            <path d="M74 80 l10 10" stroke="#2d6a6a" strokeWidth="5" strokeLinecap="round" />
           </svg>
           <h1 className={`${SERIF} text-[clamp(2rem,4.4vw,3.6rem)] font-black leading-[1.02]`}>{title}</h1>
           <p className="mt-4 max-w-[42ch] text-[15px] leading-7 text-(--ink)/65">
@@ -29,7 +29,7 @@ export default function ErrorView({ error, reset, title = "The needle skipped.",
           <div className="mt-9 flex flex-wrap justify-center gap-3">
             {reset && (
               <button type="button" onClick={() => reset()}
-                className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-[#c8553d]">
+                className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
                 Try again
               </button>
             )}

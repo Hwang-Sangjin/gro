@@ -2,7 +2,7 @@
 import { ImageResponse } from "next/og";
 import { publicClient } from "@/lib/publicSupabase";
 import { coverUrl } from "@/lib/albums";
-import { OG_SIZE, OG_FAMILY, CREAM, INK, RUST, coverData, ogFonts, Disc } from "@/lib/og";
+import { OG_SIZE, OG_FAMILY, CREAM, INK, ACCENT, coverData, ogFonts, Disc } from "@/lib/og";
 
 export const alt = "Grooves — vinyl digging for record collectors";
 export const size = OG_SIZE;
@@ -22,17 +22,17 @@ export default async function Image() {
     ...albums.map((a) => coverData(coverUrl(a.cover_path || a.thumb_path), 520)),
   ]);
   const C = 230;
-  const fallback = [RUST, "#4f6d93", "#e3b04b"];
+  const fallback = [ACCENT, "#4f6d93", "#e3b04b"];
 
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", background: CREAM, color: INK, fontFamily: OG_FAMILY, position: "relative", overflow: "hidden" }}>
         {/* 오른쪽 가장자리로 걸친 큰 판 */}
-        <Disc size={760} label={RUST} style={{ left: 700, top: -65 }} />
+        <Disc size={760} label={ACCENT} style={{ left: 700, top: -65 }} />
 
         {/* 글자 */}
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "64px 0 60px 72px", width: 640, position: "relative" }}>
-          <div style={{ display: "flex", fontSize: 22, fontWeight: 500, letterSpacing: 7, textTransform: "uppercase", color: RUST }}>Records · People · Culture</div>
+          <div style={{ display: "flex", fontSize: 22, fontWeight: 500, letterSpacing: 7, textTransform: "uppercase", color: ACCENT }}>Records · People · Culture</div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", fontSize: 150, fontWeight: 900, lineHeight: 0.9, letterSpacing: -5 }}>Grooves</div>
             <div style={{ display: "flex", fontSize: 34, fontWeight: 500, marginTop: 26, lineHeight: 1.2, maxWidth: 520 }}>Vinyl digging for record collectors.</div>

@@ -2,7 +2,7 @@
 import { ImageResponse } from "next/og";
 import { publicClient } from "@/lib/publicSupabase";
 import { coverUrl } from "@/lib/albums";
-import { OG_SIZE, OG_FAMILY, CREAM, INK, RUST, coverData, ogFonts, inkOn, Disc } from "@/lib/og";
+import { OG_SIZE, OG_FAMILY, CREAM, INK, ACCENT, coverData, ogFonts, inkOn, Disc } from "@/lib/og";
 
 export const alt = "A record on Grooves";
 export const size = OG_SIZE;
@@ -38,7 +38,7 @@ export default async function Image({ params }) {
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "60px 0 58px 72px", width: 560, position: "relative" }}>
           <div style={{ display: "flex", fontSize: 36, fontWeight: 900, letterSpacing: -1 }}>Grooves</div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 20, fontWeight: 500, letterSpacing: 6, textTransform: "uppercase", color: fg === INK ? RUST : CREAM, opacity: fg === INK ? 1 : 0.75 }}>Now spinning</div>
+            <div style={{ display: "flex", fontSize: 20, fontWeight: 500, letterSpacing: 6, textTransform: "uppercase", color: fg === INK ? ACCENT : CREAM, opacity: fg === INK ? 1 : 0.75 }}>Now spinning</div>
             <div style={{ display: "flex", fontSize: veryLong ? 46 : long ? 56 : 72, fontWeight: 900, lineHeight: 1.02, letterSpacing: -1.5, marginTop: 14, maxHeight: 300, overflow: "hidden" }}>{title}</div>
             {artist && <div style={{ display: "flex", fontSize: 30, fontWeight: 500, marginTop: 20 }}>{artist}</div>}
           </div>
@@ -50,7 +50,7 @@ export default async function Image({ params }) {
 
         {/* 오른쪽: 슬리브 + 오른쪽으로 반쯤 나온 판 */}
         <div style={{ display: "flex", position: "relative", flex: 1, height: "100%" }}>
-          <Disc size={T - 16} label={a?.cover_color || RUST} style={{ left: 152, top: (630 - T) / 2 + 8 }} />
+          <Disc size={T - 16} label={a?.cover_color || ACCENT} style={{ left: 152, top: (630 - T) / 2 + 8 }} />
           <div style={{
             position: "absolute", display: "flex", left: 20, top: (630 - T) / 2, width: T, height: T,
             background: a?.cover_color || INK, boxShadow: "0 30px 60px rgba(20,14,18,0.38)", overflow: "hidden",

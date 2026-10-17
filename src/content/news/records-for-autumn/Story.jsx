@@ -135,7 +135,7 @@ function Pick({ pick, i, onRequest }) {
       </div>
 
       <Reveal className={flip ? "md:order-1" : ""}>
-        <p className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.28em] text-[#c8553d] tabular-nums">
+        <p className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.28em] text-(--accent) tabular-nums">
           <span className={`${SERIF} text-[15px] tracking-normal`}>No. {String(i + 1).padStart(2, "0")}</span>
           <span className="h-px w-8 bg-current" />{pick.time}
         </p>
@@ -143,17 +143,17 @@ function Pick({ pick, i, onRequest }) {
         <h2 className={`${SERIF} mt-2 text-[clamp(2.6rem,5vw,4.8rem)] leading-[0.9]`}>{pick.album}</h2>
         <p className="mt-6 flex items-center gap-3 text-[15px]">
           <span aria-hidden="true" className="flex h-4 items-end gap-[3px]">
-            {[0, 1, 2].map((b) => <span key={b} className="w-[3px] origin-bottom animate-eq bg-[#c8553d] motion-reduce:animate-none" style={{ height: "100%", animationDelay: `${b * -0.3}s` }} />)}
+            {[0, 1, 2].map((b) => <span key={b} className="w-[3px] origin-bottom animate-eq bg-(--accent) motion-reduce:animate-none" style={{ height: "100%", animationDelay: `${b * -0.3}s` }} />)}
           </span>
           <span><span className="text-(--ink)/60">Play</span> <span className="font-medium">“{pick.song}”</span></span>
         </p>
         <p className="mt-5 max-w-[46ch] text-[16px] leading-8 text-(--ink)/85">{pick.text}</p>
-        <p className="mt-5 max-w-[46ch] border-l-2 border-[#c8553d] pl-4 text-[14px] leading-7 text-(--ink)/70">
+        <p className="mt-5 max-w-[46ch] border-l-2 border-(--accent) pl-4 text-[14px] leading-7 text-(--ink)/70">
           <span className="font-medium uppercase tracking-[0.18em] text-[11px] text-(--ink)">Listen for · </span>{pick.listen}
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <a href={`https://www.youtube.com/results?search_query=${q}`} target="_blank" rel="noreferrer"
-            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-(--ink) px-6 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-[#c8553d]">
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-(--ink) px-6 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
             Hear it <span aria-hidden="true">↗</span>
           </a>
           <button type="button" onClick={() => onRequest(pick)}
@@ -178,7 +178,7 @@ function Mixtape() {
         <div className="mt-6 grid gap-8 sm:grid-cols-2">
           {sides.map(([side, list], s) => (
             <ol key={side} start={s * 4 + 1}>
-              <li className="mb-3 text-[11px] font-medium uppercase tracking-[0.3em] text-[#c8553d]">Side {side}</li>
+              <li className="mb-3 text-[11px] font-medium uppercase tracking-[0.3em] text-(--accent)">Side {side}</li>
               {list.map((p, j) => (
                 <li key={p.song} className="flex items-baseline gap-4 border-b border-(--ink)/15 py-3">
                   <span className="w-6 shrink-0 text-[12px] tabular-nums text-(--ink)/50">{side}{j + 1}</span>
@@ -206,7 +206,7 @@ export default function Story() {
       <section className="relative grid min-h-svh place-items-center overflow-hidden pb-16 pt-[calc(var(--ct-header-h,106px)+80px)]">
         <Leaves />
         <div className={`${WRAP} relative text-center`}>
-          <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-[#c8553d]">Picks · Autumn 2026</Reveal>
+          <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--accent)">Picks · Autumn 2026</Reveal>
           <RiseText as="h1" lines={["Records for an", "autumn evening"]} delay={120} className={`${SERIF} mt-6 text-[clamp(2.9rem,10vw,10rem)] leading-[0.86]`} />
           <Reveal delay={500} as="p" className="mx-auto mt-8 max-w-xl text-[17px] leading-8 text-(--ink)/80">
             Seven albums — and the one song from each — for the hours between golden light and lights out. Start at sunset, flip the last one near midnight.
@@ -230,7 +230,7 @@ export default function Story() {
         <RiseText lines={["Got one we missed?"]} className={`${SERIF} text-[clamp(2.4rem,5.5vw,5.4rem)] leading-[0.92]`} />
         <Reveal delay={250} as="p" className="mx-auto mt-5 max-w-md text-[15px] leading-7 text-(--ink)/75">Tell us the record that sounds like autumn to you — we might add it to the crates.</Reveal>
         <Reveal delay={400} className="mt-9 flex flex-wrap justify-center gap-3">
-          <button type="button" onClick={() => request.current?.open()} className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--cream) transition-colors hover:bg-[#c8553d]">Request a record</button>
+          <button type="button" onClick={() => request.current?.open()} className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--cream) transition-colors hover:bg-(--accent)">Request a record</button>
           <Link href="/digging" className="inline-flex min-h-12 items-center rounded-full border border-(--ink)/40 px-8 text-[12px] font-medium uppercase tracking-[0.2em] transition-colors hover:border-(--ink)">Start digging</Link>
         </Reveal>
       </section>

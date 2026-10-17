@@ -61,7 +61,7 @@ export default function ShareCollection({ user }) {
     <div ref={boxRef} className="relative shrink-0">
       <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((o) => !o)}
         className="inline-flex min-h-9 items-center gap-2 rounded-full border border-(--ink)/25 px-3.5 text-(--ink) transition-colors hover:border-(--ink) aria-expanded:border-(--ink)">
-        <span aria-hidden="true" className={`size-1.5 rounded-full ${share?.isPublic ? "bg-[#c8553d]" : "bg-(--ink)/30"}`} />
+        <span aria-hidden="true" className={`size-1.5 rounded-full ${share?.isPublic ? "bg-(--accent)" : "bg-(--ink)/30"}`} />
         {share?.isPublic ? "Shared" : "Share"}
       </button>
 
@@ -80,7 +80,7 @@ export default function ShareCollection({ user }) {
                 {/* 공개 스위치 */}
                 <button type="button" role="switch" aria-checked={share.isPublic} aria-label="Share my collection" disabled={busy}
                   onClick={() => save({ isPublic: !share.isPublic })}
-                  className="relative mt-1 h-7 w-12 shrink-0 rounded-full bg-(--ink)/20 transition-colors aria-checked:bg-[#c8553d] disabled:opacity-60">
+                  className="relative mt-1 h-7 w-12 shrink-0 rounded-full bg-(--ink)/20 transition-colors aria-checked:bg-(--accent) disabled:opacity-60">
                   <span aria-hidden="true" className={`absolute top-1 left-1 size-5 rounded-full bg-(--cream) shadow transition-transform duration-300 ${share.isPublic ? "translate-x-5" : ""}`} />
                 </button>
               </div>
@@ -89,7 +89,7 @@ export default function ShareCollection({ user }) {
                 <div className="mt-4 flex items-center gap-2 rounded-xl border border-(--ink)/15 py-1.5 pr-1.5 pl-3">
                   <a href={link} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-[13px] underline-offset-4 hover:underline">{shortLink}</a>
                   <button type="button" onClick={copy}
-                    className="inline-flex min-h-9 shrink-0 items-center rounded-full bg-(--ink) px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-(--cream) transition-colors hover:bg-[#c8553d]">
+                    className="inline-flex min-h-9 shrink-0 items-center rounded-full bg-(--ink) px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-(--cream) transition-colors hover:bg-(--accent)">
                     {copied ? "Copied" : "Copy"}
                   </button>
                 </div>

@@ -54,10 +54,10 @@ export default function CoverForm({ initialSlug = "" }) {
           <label className={labelCls} htmlFor="c-file">New cover</label>
           <input id="c-file" type="file" accept="image/*" onChange={(e) => setCover(e.target.files?.[0] ?? null)} required
             className="w-full text-[12px] file:mr-3 file:rounded-full file:border file:border-(--ink)/30 file:bg-transparent file:px-3 file:py-1.5 file:text-[12px] file:text-(--ink)" />
-          {size && <p className={`mt-2 text-[12px] ${tooSmall ? "text-[#c8553d]" : "text-(--ink)/55"}`}>{size.w}×{size.h}{tooSmall && " — needs at least 500px"}</p>}
+          {size && <p className={`mt-2 text-[12px] ${tooSmall ? "text-(--danger)" : "text-(--ink)/55"}`}>{size.w}×{size.h}{tooSmall && " — needs at least 500px"}</p>}
         </div>
         <button type="submit" disabled={busy || !cover || tooSmall} className={btnPrimary}>{busy ? "Replacing…" : "Replace cover"}</button>
-        {result?.error && <p role="alert" className="rounded-xl bg-[#c8553d]/10 px-4 py-3 text-[13px] text-[#c8553d]">{result.error}</p>}
+        {result?.error && <p role="alert" className="rounded-xl bg-(--danger)/10 px-4 py-3 text-[13px] text-(--danger)">{result.error}</p>}
         {result?.ok && (
           <p role="status" className="flex items-center gap-3 rounded-xl bg-[#4f9d69]/12 px-4 py-3 text-[13px]">
             <span className="size-4 rounded" style={{ background: result.ok.coverColor }} />

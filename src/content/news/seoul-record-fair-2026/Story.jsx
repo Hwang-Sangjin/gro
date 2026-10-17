@@ -56,7 +56,7 @@ function Countdown() {
   return (
     <div aria-live="off">
       <p className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.28em]">
-        {s?.kind === "open" && <span className="size-2 animate-pulse rounded-full bg-[#c8553d]" />}{head}
+        {s?.kind === "open" && <span className="size-2 animate-pulse rounded-full bg-(--accent)" />}{head}
       </p>
       {s?.kind !== "after" && (
         <div className="mt-3 flex gap-[clamp(.75rem,2vw,1.5rem)]">
@@ -88,7 +88,7 @@ function Spinner({ className = "", label = "#e3b04b" }) {
 
 // 2 상자 넘기기: 스크롤하면 앞의 판이 한 장씩 앞으로 넘어가고 뒤의 판이 보임
 const CRATE = [
-  ["Two days", "Saturday 31 October and Sunday 1 November.", "#c8553d", "#f4e7cd"],
+  ["Two days", "Saturday 31 October and Sunday 1 November.", "#2d6a6a", "#f4e7cd"],
   ["10 to 6", "Doors at 10:00, last digging at 18:00, both days.", "#e3b04b", "#2a222a"],
   ["Seongsu", "This year the fair sets up at PUBG Seongsu, in Seongdong-gu.", "#4f6d93", "#f4e7cd"],
   ["Fair-only", "Limited pressings made for the fair, sold through its official shop.", "#bbcbda", "#2a222a"],
@@ -178,7 +178,7 @@ function Pressings() {
     <span key={en} className="inline-flex items-baseline gap-3"><span className={SERIF}>{en}</span><span className="text-[0.4em] font-medium tracking-normal opacity-70">{ko}</span></span>
   ));
   return (
-    <section className="overflow-hidden border-y-[3px] border-(--ink) bg-[#c8553d] py-10 text-[#f4e7cd]">
+    <section className="overflow-hidden border-y-[3px] border-(--ink) bg-(--accent) py-10 text-(--cream)">
       <div className={`${WRAP} mb-6 flex flex-wrap items-end justify-between gap-4`}>
         <p className="text-[11px] font-medium uppercase tracking-[0.3em]">Fair-only pressings</p>
         <p className="max-w-md text-[14px] leading-6 opacity-90">Limited records released for the fair, on sale through the official shop. Artists include:</p>
@@ -206,7 +206,7 @@ function Tips() {
       <ol className="mt-10 border-t-[3px] border-(--ink)">
         {TIPS.map(([title, text], i) => (
           <Reveal as="li" key={title} delay={i * 90} className="group grid gap-2 border-b border-(--ink)/20 py-6 sm:grid-cols-[80px_minmax(0,320px)_1fr] sm:items-baseline sm:gap-8">
-            <span className="text-[12px] tabular-nums text-[#c8553d]">{String(i + 1).padStart(2, "0")}</span>
+            <span className="text-[12px] tabular-nums text-(--accent)">{String(i + 1).padStart(2, "0")}</span>
             <p className={`${SERIF} text-[clamp(1.8rem,3vw,2.6rem)] leading-none transition-transform duration-500 group-hover:translate-x-2`}>{title}</p>
             <p className="max-w-[52ch] text-[15px] leading-7 text-(--ink)/75">{text}</p>
           </Reveal>
@@ -223,7 +223,7 @@ export default function Story() {
       <section className="relative min-h-svh overflow-hidden pb-16 pt-[calc(var(--ct-header-h,106px)+56px)]">
         <Spinner className="pointer-events-none absolute -right-[38vmin] top-[58%] size-[96vmin] -translate-y-1/2 animate-[spin_9s_linear_infinite] text-(--ink) opacity-[.92] max-md:top-auto max-md:-bottom-[34vmin] max-md:translate-y-0 motion-reduce:animate-none md:-right-[30vmin]" />
         <div className={`${WRAP} relative`}>
-          <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-[#c8553d]">News · Fair</Reveal>
+          <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--accent)">News · Fair</Reveal>
           <p aria-hidden="true" className={`${SERIF} mt-2 text-[clamp(7rem,16vw,15rem)] leading-[0.78] text-transparent [-webkit-text-stroke:2px_var(--ink)]`}>
             <span className="inline-block animate-[sheet-up_1.2s_cubic-bezier(.22,1,.36,1)_both]">15</span>
           </p>
@@ -245,7 +245,7 @@ export default function Story() {
         <RiseText lines={["See you", "in the crates."]} className={`${SERIF} text-[clamp(2.6rem,6vw,6rem)] leading-[0.92]`} />
         <Reveal delay={300} as="p" className="mx-auto mt-5 max-w-md text-[14px] leading-6 text-(--ink)/65">Details as published by the organisers on 13 Oct 2026. Plans can change — the official site has the final word.</Reveal>
         <Reveal delay={400}>
-          <a href={SITE} target="_blank" rel="noreferrer" className="mt-9 inline-flex min-h-12 items-center gap-2 rounded-full bg-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--cream) transition-colors hover:bg-[#c8553d]">recordfair.kr <span aria-hidden="true">↗</span></a>
+          <a href={SITE} target="_blank" rel="noreferrer" className="mt-9 inline-flex min-h-12 items-center gap-2 rounded-full bg-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--cream) transition-colors hover:bg-(--accent)">recordfair.kr <span aria-hidden="true">↗</span></a>
         </Reveal>
       </section>
     </>

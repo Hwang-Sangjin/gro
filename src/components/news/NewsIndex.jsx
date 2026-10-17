@@ -12,7 +12,7 @@ const TABS = [{ key: "all", name: "All" }, ...CATEGORIES];
 function Meta({ s }) {
   return (
     <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium uppercase tracking-[0.22em] text-(--ink)/55">
-      <span className="text-[#c8553d]">{categoryName(s.category)}</span>
+      <span className="text-(--accent)">{categoryName(s.category)}</span>
       <span aria-hidden="true" className="h-px w-4 bg-current/50" />{formatDate(s.date)}
       <span aria-hidden="true" className="h-px w-4 bg-current/50" />{s.read}
     </p>
@@ -60,7 +60,7 @@ export default function NewsIndex() {
                 className={`group/t relative ${SERIF} text-[clamp(1.4rem,2.4vw,2.6rem)] uppercase leading-[1.05] transition-colors duration-500 ${on ? "text-(--ink)" : "text-(--ink)/25 hover:text-(--ink)/70"}`}>
                 <span className="relative">
                   {t.name}
-                  <span aria-hidden="true" className={`absolute -bottom-[0.06em] left-0 h-[0.08em] min-h-[2px] bg-[#c8553d] transition-[width] duration-500 ease-[cubic-bezier(.22,1,.36,1)] ${on ? "w-full" : "w-0 group-hover/t:w-full"}`} />
+                  <span aria-hidden="true" className={`absolute -bottom-[0.06em] left-0 h-[0.08em] min-h-[2px] bg-(--accent) transition-[width] duration-500 ease-[cubic-bezier(.22,1,.36,1)] ${on ? "w-full" : "w-0 group-hover/t:w-full"}`} />
                 </span>
                 <sup className="ml-[.15em] align-[1.1em] font-sans text-[max(.3em,10px)] font-semibold tracking-normal">{n}</sup>
                 {i < TABS.length - 1 && <span aria-hidden="true" className="ml-[clamp(.6rem,1.2vw,1.4rem)] font-normal text-(--ink)/20">/</span>}

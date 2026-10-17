@@ -6,7 +6,7 @@ import { join } from "node:path";
 import sharp from "sharp";
 
 export const OG_SIZE = { width: 1200, height: 630 };
-export const CREAM = "#f4e7cd", INK = "#4c404a", RUST = "#c8553d";
+export const CREAM = "#f4e7cd", INK = "#4c404a", ACCENT = "#2d6a6a";
 
 const font = (file) => readFile(join(process.cwd(), "src/assets/og", file));
 
@@ -63,7 +63,7 @@ export function inkOn(hex) {
 }
 
 /** 레코드 판 (홈·앨범 공용): 홈이 파인 검은 판 + 가운데 라벨 */
-export function Disc({ size, label = RUST, style }) {
+export function Disc({ size, label = ACCENT, style }) {
   return (
     <div style={{
       position: "absolute", display: "flex", alignItems: "center", justifyContent: "center",

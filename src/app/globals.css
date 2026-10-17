@@ -69,7 +69,8 @@
   );
 
   /* ── Hero ── */
-  --accent-rust: #c4573a;
+  --accent: #2d6a6a; /* 포인트 색 (청록) — 사이트 전체가 이 값을 씀 */
+  --danger: #8b3a45; /* 오류·삭제 경고 (버건디) */
   --accent-blue: #7fa3c7;
   --hero-title-size: 11vw;
 
@@ -83,6 +84,8 @@
 :root[data-theme="dark"] {
   --cream: #4c404a;
   --ink: #f4e7cd;
+  --accent: #7fc1bd; /* 어두운 바탕에서 읽히는 밝은 청록 */
+  --danger: #e09aa3;
   color-scheme: dark;
 }
 

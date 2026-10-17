@@ -181,7 +181,7 @@ export default function AlbumForm({ initial = null, prefill = null, requestId = 
           <textarea id="f-tracks" className={`${field} min-h-56 font-mono text-[13px]`} value={trackText} onChange={(e) => setTrackText(e.target.value)}
             placeholder={"A | Intro | 1:36\nA | Together | 3:42\nB | Legend | 5:10"} />
           <p className="mt-2 text-[12px] text-(--ink)/55">One per line: <code>side | title | time</code> (time optional). A·B → LP1, C·D → LP2.</p>
-          {parsed.errors.length > 0 && <ul className="mt-2 space-y-1 text-[12px] text-[#c8553d]">{parsed.errors.map((err) => <li key={err}>{err}</li>)}</ul>}
+          {parsed.errors.length > 0 && <ul className="mt-2 space-y-1 text-[12px] text-(--danger)">{parsed.errors.map((err) => <li key={err}>{err}</li>)}</ul>}
           {parsed.rows.length > 0 && parsed.errors.length === 0 && (
             <p className="mt-2 text-[12px] text-(--ink)/55">{parsed.rows.length} tracks ({[...new Set(parsed.rows.map((t) => t.side))].join(", ")})</p>
           )}
@@ -223,7 +223,7 @@ export default function AlbumForm({ initial = null, prefill = null, requestId = 
           <a href={`/album/${encodeURIComponent(form.slug)}`} target="_blank" rel="noreferrer" className={`${btnGhost} w-full`}>View on site ↗</a>
         )}
 
-        {result?.error && <p role="alert" className="rounded-xl bg-[#c8553d]/10 px-4 py-3 text-[13px] text-[#c8553d]">{result.error}</p>}
+        {result?.error && <p role="alert" className="rounded-xl bg-(--danger)/10 px-4 py-3 text-[13px] text-(--danger)">{result.error}</p>}
         {result?.ok && (
           <div role="status" className="flex items-start gap-3 rounded-xl bg-[#4f9d69]/12 px-4 py-3 text-[13px]">
             {result.ok.coverColor && <span className="mt-0.5 size-4 shrink-0 rounded" style={{ background: result.ok.coverColor }} />}
