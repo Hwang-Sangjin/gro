@@ -1,8 +1,11 @@
 "use client";
 // Vinyl A to Z · Chapter 01 — "What Is Vinyl?"
-// 사이트 손그림(하늘색 연필선) 으로 만든 정적인 섹션들 (스크롤 연출 없음, 보통 스크롤)
+// 사이트 손그림(하늘색 연필선) 으로 만든 섹션들. 보통 스크롤 + 가벼운 스크롤 연동 연출(고정 pin 없음)
+// 연출: 히어로(제목 줄 단위로 올라옴 · 판 회전/패럴랙스) · 한 줄(세로선 → 제목 → 물결) · 03 저장(커팅 헤드 · 홈 그려짐 · 칩 점등) · Fig.03 파형 그려짐
 // 히어로 → 01 What to know → 홈 → 02 Made of PVC → 한 줄 → 03 저장 → 03 재생 → 마무리 → (아래 Next story)
 // 손그림이 아직 없는 자리는 ART 에 경로가 없으면 같은 느낌의 임시 SVG 스케치 — 그림이 생기면 ART 에 경로만 넣으면 됨
+import { useEffect, useRef } from "react";
+import Reveal, { RiseText } from "@/components/story/Reveal";
 
 /* ───────── 그림 ───────── */
 const GIF = {
@@ -71,7 +74,7 @@ const SKETCH = {
         const y = 150 + off + (Math.sin(k * 6 + p * 0.1) * 0.55 + Math.sin(k * 15) * 0.25 + Math.sin(k * 37) * 0.1) * 60 + (rnd() - 0.5) * 3;
         d += (x ? "L" : "M") + x + " " + y.toFixed(1) + " ";
       }
-      s += `<path d="${d}" stroke-width="${off < 0 ? 3 : 2}"/>`;
+      s += `<path pathLength="1" d="${d}" stroke-width="${off < 0 ? 3 : 2}"/>`;   // pathLength=1 → 스크롤로 그려짐
     }
     return s;
   } },
@@ -91,11 +94,14 @@ const SKETCH = {
     let s = ellipse(240, 250, 190, 70, 0, 2.6, 3, 2) + ellipse(240, 250, 60, 22, 0, 2, 2, 2) + ellipse(240, 262, 190, 70, 0, 1.4, 3, 1);
     for (let i = 1; i < 6; i++) s += ellipse(240, 250, 60 + i * 24, 22 + i * 9, 0, 1.2, 2, 1);
     s += line(40, 80, 500, 80, 3, 3, 2) + line(40, 96, 500, 96, 1.6, 3, 1);
-    s += line(330, 96, 330, 150, 2.4) + line(390, 96, 390, 150, 2.4) + line(330, 150, 390, 150, 2.4) + line(330, 96, 390, 96, 2);
-    s += hatch(335, 105, 50, 40, 6);
-    s += line(360, 150, 352, 208, 2.6) + line(352, 208, 350, 222, 3.4, 1, 1);
-    for (let i = 0; i < 5; i++) s += line(400 + i * 8, 40 + i * 4, 420 + i * 8, 20 + i * 4, 1.4, 3, 1);
+    for (let i = 0; i < 5; i++) s += line(440 + i * 8, 40 + i * 4, 460 + i * 8, 20 + i * 4, 1.4, 3, 1);
     return s;
+  } },
+  // 커팅 헤드 (레일을 따라 안쪽으로 움직임)
+  latheHead: { box: "0 0 520 380", draw: () => {
+    let s = line(330, 96, 330, 150, 2.4) + line(390, 96, 390, 150, 2.4) + line(330, 150, 390, 150, 2.4) + line(330, 96, 390, 96, 2);
+    s += hatch(335, 105, 50, 40, 6);
+    return s + line(360, 150, 352, 208, 2.6) + line(352, 208, 350, 222, 3.4, 1, 1);
   } },
   needle: { box: "0 0 500 500", draw: () => {
     let s = line(120, 110, 360, 110, 2.6) + line(120, 110, 150, 230, 2.6) + line(360, 110, 330, 230, 2.6) + line(150, 230, 330, 230, 2.6);
@@ -118,12 +124,24 @@ const SKETCH = {
 const drawn = {};   // kind → SVG 내용 (seed 고정이라 서버·브라우저가 같은 그림)
 const drawOf = (kind) => drawn[kind] ??= (seed = 1 + kind.length * 131, SKETCH[kind].draw());
 
-function Sketch({ kind, className = "" }) {
+function Sketch({ kind, className = "", ...rest }) {
   const k = SKETCH[kind];
   return (
     <svg viewBox={k.box} preserveAspectRatio={k.stretch ? "none" : undefined} aria-hidden="true"
-      fill="none" stroke="#bbcbda" strokeLinecap="round" strokeLinejoin="round" className={className}
+      fill="none" stroke="#bbcbda" strokeLinecap="round" strokeLinejoin="round" className={className} {...rest}
       dangerouslySetInnerHTML={{ __html: drawOf(kind) }} />
+  );
+}
+// 커팅 선반: 판 + 레일은 고정, 헤드는 안쪽으로, 판 가장자리의 붉은 점이 돌며 회전을 보여 줌
+function Lathe({ className = "" }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  if (ART.lathe) return <img src={ART.lathe} alt="커팅 선반 손그림" className={`object-contain ${className}`} />;
+  return (
+    <svg viewBox={SKETCH.lathe.box} aria-hidden="true" fill="none" stroke="#bbcbda" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <g dangerouslySetInnerHTML={{ __html: drawOf("lathe") }} />
+      <circle data-fx-lathe-dot r="5" fill="#c8553d" stroke="none" cx="390" cy="250" />
+      <g data-fx-lathe-head dangerouslySetInnerHTML={{ __html: drawOf("latheHead") }} />
+    </svg>
   );
 }
 
@@ -136,10 +154,70 @@ function Art({ kind, alt = "", className = "" }) {
 const Gif = ({ src, alt = "", className = "" }) => <img src={src} alt={alt} draggable={false} className={`select-none ${className}`} />;
 
 // 커팅 바늘이 새긴 홈 (0~500 × 0~60)
-const CUT_PATH = "M" + Array.from({ length: 201 }, (_, i) => {
+const CUT = Array.from({ length: 201 }, (_, i) => {
   const x = (i / 200) * 500, k = (x / 500) * Math.PI * 2;
-  return `${x.toFixed(1)} ${(30 + (Math.sin(k * 7) * 0.5 + Math.sin(k * 19 + 1) * 0.3 + Math.sin(k * 47) * 0.15) * 22).toFixed(1)}`;
-}).join(" L");
+  return [x, 30 + (Math.sin(k * 7) * 0.5 + Math.sin(k * 19 + 1) * 0.3 + Math.sin(k * 47) * 0.15) * 22];
+});
+const CUT_PATH = "M" + CUT.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join(" L");
+
+/* ───────── 스크롤 연동 연출 (pin 없음 — 보통 스크롤 중 화면 위치에 따라 0→1) ───────── */
+const clamp = (x) => Math.min(1, Math.max(0, x));
+const seg = (p, a, b) => clamp((p - a) / (b - a));
+const ease = (t) => 1 - Math.pow(1 - t, 3);
+
+function useScrollFx(rootRef) {
+  useEffect(() => {
+    const root = rootRef.current, page = root?.closest(".page");
+    if (!root || !page) return;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const q = (k) => root.querySelector(`[data-fx-${k}]`), qa = (k) => [...root.querySelectorAll(`[data-fx-${k}]`)];
+    const E = {
+      hero: q("hero"), heroDisc: q("hero-disc"),
+      wave: q("wave"),
+      say: q("say"), sayLine: q("say-line"), sayWave: q("say-wave"),
+      cut: q("cut"), cutPath: q("cut-path"), cutDot: q("cut-dot"), chips: qa("chip"), head: q("lathe-head"), lDot: q("lathe-dot"),
+    };
+    // 요소 위가 화면 높이의 a 지점에 올 때 0, b 지점에 올 때 1 (a > b, 화면 비율)
+    const enter = (el, a, b) => {
+      if (!el) return 0;
+      const H = page.clientHeight, top = el.getBoundingClientRect().top - page.getBoundingClientRect().top;
+      return clamp((H * a - top) / (H * (a - b)));
+    };
+    let raf = 0;
+    const frame = (t) => {
+      raf = requestAnimationFrame(frame);
+      if (!root.isConnected || root.closest("[inert]")) return;
+      const time = reduced ? 0 : t / 1000;
+
+      // 히어로: 판이 늘 천천히 돌고, 스크롤하면 더 돌며 살짝 내려감
+      const h = reduced ? 0 : enter(E.hero, 0, -1);
+      if (E.heroDisc) E.heroDisc.style.transform = `translateY(${h * 14}%) rotate(${time * 6 + h * 90}deg)`;
+
+      // Fig.03 파형: 스크롤에 맞춰 왼쪽부터 그려지고 옆으로 살짝 흐름
+      const w = reduced ? 1 : enter(E.wave, 1, 0.3);
+      if (E.wave) { E.wave.style.setProperty("--d", (1 - ease(w)).toFixed(4)); E.wave.style.transform = `translateX(${-w * 4}%)`; }
+
+      // 한 줄: 세로선이 자라 내려옴 → 닿으면 제목이 올라옴 → groove 아래 물결이 그려짐
+      const sy = reduced ? 1 : enter(E.say, 0.95, 0.2);
+      if (E.sayLine) E.sayLine.style.transform = `scaleY(${ease(seg(sy, 0.05, 0.5))})`;
+      if (E.say) E.say.dataset.on = sy > 0.5;
+      E.sayWave?.style.setProperty("--d", (1 - ease(seg(sy, 0.62, 0.95))).toFixed(4));
+
+      // 03 저장: 커팅 헤드가 안쪽으로, 홈이 그려지며 붉은 점이 따라감, 칩이 차례로 켜짐
+      const k = reduced ? 1 : ease(seg(enter(E.cut, 0.95, 0.05), 0.2, 0.95));
+      E.cutPath?.style.setProperty("--d", (1 - k).toFixed(4));
+      const [cx, cy] = CUT[Math.round(k * 200)];
+      E.cutDot?.setAttribute("cx", cx); E.cutDot?.setAttribute("cy", cy);
+      E.chips.forEach((c, i) => { c.dataset.on = k > i / 3 + 0.05; });
+      E.head?.setAttribute("transform", `translate(${60 - 110 * k} 0)`);
+      if (E.lDot) { const a = time * 1.6; E.lDot.setAttribute("cx", 240 + Math.cos(a) * 150); E.lDot.setAttribute("cy", 250 + Math.sin(a) * 56); }
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [rootRef]);
+}
+// 그려지는 선: pathLength=1 인 path 에 --d(1→0) 로 dashoffset
+const DRAW = "[&_path]:[stroke-dasharray:1] [&_path]:[stroke-dashoffset:var(--d,0)]";
 
 const Head = ({ label, title, className = "" }) => (
   <div className={className}>
@@ -158,7 +236,8 @@ const Chips = ({ label, items }) => (
     {items.map((c, i) => (
       <li key={c} className="contents">
         {i > 0 && <span aria-hidden="true" className={RUST}>→</span>}
-        <span className={`rounded-full px-5 py-2.5 ${i === items.length - 1 ? "bg-(--ink) text-(--cream)" : "border border-(--ink)/35"}`}>{c}</span>
+        {/* 스크롤에 맞춰 차례로 켜짐 */}
+        <span data-fx-chip className="rounded-full border border-(--ink)/35 px-5 py-2.5 transition-colors duration-500 data-[on=true]:border-(--ink) data-[on=true]:bg-(--ink) data-[on=true]:text-(--cream)">{c}</span>
       </li>
     ))}
   </ol>
@@ -166,22 +245,28 @@ const Chips = ({ label, items }) => (
 
 /* ───────── 본문 ───────── */
 export default function Story() {
+  const root = useRef(null);
+  useScrollFx(root);
   return (
-    <div className={`${KR} text-(--ink) [word-break:keep-all]`}>
+    <div ref={root} className={`${KR} text-(--ink) [word-break:keep-all]`}>
       {/* 한글 본문용 명조 (이 글에서만 불러옴) */}
       <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;900&display=swap" />
 
       {/* ── 히어로 ── */}
-      <section aria-label="What Is Vinyl?" className={`flex min-h-svh items-center ${PADX} pb-[6svh] pt-[calc(var(--ct-header-h,106px)+60px)]`}>
+      <section data-fx-hero aria-label="What Is Vinyl?" className={`flex min-h-svh items-center ${PADX} pb-[6svh] pt-[calc(var(--ct-header-h,106px)+60px)]`}>
         <div className={`${WRAP} grid items-center gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:gap-12`}>
           <div>
-            <p className={`${LABEL} ${RUST}`}>Vinyl A to Z · Chapter 01</p>
-            <h1 className={`${BODONI} mt-5 text-[clamp(3.6rem,8vw,8.6rem)] leading-[0.86] tracking-[-0.035em]`}>What Is<br />Vinyl?</h1>
-            <p className="mt-7 max-w-md text-[clamp(1.1rem,1.5vw,1.35rem)] font-semibold leading-relaxed">
+            <Reveal as="p" className={`${LABEL} ${RUST}`}>Vinyl A to Z · Chapter 01</Reveal>
+            {/* 제목: 줄 단위로 마스크 아래에서 올라옴 */}
+            <RiseText as="h1" lines={["What Is", "Vinyl?"]} delay={120} className={`${BODONI} mt-5 text-[clamp(3.6rem,8vw,8.6rem)] leading-[0.86] tracking-[-0.035em]`} />
+            <Reveal as="p" delay={450} className="mt-7 max-w-md text-[clamp(1.1rem,1.5vw,1.35rem)] font-semibold leading-relaxed">
               바이닐이란 무엇인가 — 소리를 홈으로 새기고, 그 홈을 다시 소리로 되돌리는 음반에 대하여.
-            </p>
+            </Reveal>
           </div>
-          <Gif src={GIF.disc} className="mx-auto w-full max-w-[640px]" />
+          {/* 판: 늘 천천히 돌고 스크롤에 따라 더 돎. GIF 는 꼭 div 를 움직일 것 (img 에 transform 을 주면 Chrome 이 프레임을 잘라 그림) */}
+          <div className="mx-auto w-full max-w-[640px]">
+            <div data-fx-hero-disc className="will-change-transform"><Gif src={GIF.disc} className="block w-full" /></div>
+          </div>
         </div>
       </section>
 
@@ -219,8 +304,10 @@ export default function Story() {
             <span className={`${BODONI} text-[1.5em] leading-none ${RUST}`}>“</span>디지털 음원과 달리, 소리를 <span className={RUST}>물리적인 홈의 굴곡</span>으로 기록하고 재생한다.
           </blockquote>
         </div>
-        <Fig caption="Fig. 03 — The wiggles are the sound" className={`${WRAP} mt-[clamp(48px,8svh,96px)]`}>
-          <Art kind="wave" alt="홈의 굴곡 손그림" className="h-[clamp(140px,22svh,240px)] w-full" />
+        <Fig caption="Fig. 03 — The wiggles are the sound" className={`${WRAP} mt-[clamp(48px,8svh,96px)] overflow-x-clip`}>
+          {ART.wave
+            ? <Art kind="wave" alt="홈의 굴곡 손그림" className="h-[clamp(140px,22svh,240px)] w-full" />
+            : <Sketch data-fx-wave kind="wave" className={`h-[clamp(140px,22svh,240px)] w-[106%] max-w-none ${DRAW}`} />}
         </Fig>
       </section>
 
@@ -247,19 +334,30 @@ export default function Story() {
       </section>
 
       {/* ── 한 줄 ── */}
-      <section aria-label="Sound becomes a groove" className={`${SECTION} text-center`}>
-        <span aria-hidden="true" className="mx-auto block h-[clamp(60px,10svh,120px)] w-px bg-(--ink)/50" />
-        <p className={`${BODONI} mt-10 text-[clamp(2.8rem,7vw,7.4rem)] leading-[0.95] tracking-[-0.035em]`}>
-          Sound becomes a <span className={RUST}>groove.</span>
+      <section data-fx-say aria-label="Sound becomes a groove" className={`group ${SECTION} text-center`}>
+        {/* 세로선이 바늘대처럼 자라 내려오고, 닿으면 제목이 올라옴 */}
+        <span data-fx-say-line aria-hidden="true" className="mx-auto block h-[clamp(60px,10svh,120px)] w-px origin-top bg-(--ink)/50" />
+        <p className={`${BODONI} mt-10 overflow-y-clip pb-[.12em] text-[clamp(2.8rem,7vw,7.4rem)] leading-[0.95] tracking-[-0.035em]`}>
+          <span className="block translate-y-[110%] transition-transform duration-[1000ms] ease-[cubic-bezier(.22,1,.36,1)] group-data-[on=true]:translate-y-0 motion-reduce:translate-y-0">
+            Sound becomes a{" "}
+            <span className={`relative inline-block ${RUST}`}>
+              groove.
+              {/* groove 아래 물결이 그려짐 */}
+              <svg aria-hidden="true" viewBox="0 0 200 20" preserveAspectRatio="none" className="absolute inset-x-0 -bottom-[.18em] h-[.2em] w-full overflow-visible">
+                <path data-fx-say-wave pathLength="1" d="M2 10 Q 14 2 26 10 T 50 10 T 74 10 T 98 10 T 122 10 T 146 10 T 170 10 T 194 10"
+                  fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" className="[stroke-dasharray:1] [stroke-dashoffset:var(--d,1)]" />
+              </svg>
+            </span>
+          </span>
         </p>
-        <p className="mt-7 text-[clamp(1rem,1.3vw,1.2rem)] font-semibold">소리는 어떻게 홈이 될까.</p>
+        <p className="mt-7 text-[clamp(1rem,1.3vw,1.2rem)] font-semibold opacity-0 transition-opacity delay-300 duration-700 group-data-[on=true]:opacity-100 motion-reduce:opacity-100">소리는 어떻게 홈이 될까.</p>
       </section>
 
       {/* ── 03 저장 ── */}
-      <section aria-label="03 음악을 저장할 때" className={SECTION}>
+      <section data-fx-cut aria-label="03 음악을 저장할 때" className={SECTION}>
         <div className={`${WRAP} grid items-center gap-10 md:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)] md:gap-16`}>
           <Fig caption="Fig. 05 — Cutting lathe" className="mx-auto w-full max-w-[600px] max-md:order-2">
-            <Art kind="lathe" alt="커팅 선반 손그림" className="aspect-[52/38] w-full" />
+            <Lathe className="aspect-[52/38] w-full" />
           </Fig>
           <div>
             <Head label="03 — Recording · 음악을 저장할 때" title="Cut into the master." />
@@ -268,8 +366,8 @@ export default function Story() {
             </p>
             <svg className="mt-8 h-[60px] w-full max-w-[34rem]" viewBox="0 0 500 60" preserveAspectRatio="none" aria-hidden="true">
               <path d="M0 30 H500" stroke="currentColor" strokeOpacity=".18" />
-              <path d={CUT_PATH} fill="none" stroke="currentColor" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
-              <circle r="4" fill="#c8553d" cx="500" cy="30" />
+              <path data-fx-cut-path d={CUT_PATH} pathLength="1" fill="none" stroke="currentColor" strokeWidth="1.6" vectorEffect="non-scaling-stroke" className="[stroke-dasharray:1] [stroke-dashoffset:var(--d,0)]" />
+              <circle data-fx-cut-dot r="4" fill="#c8553d" cx="500" cy="30" />
             </svg>
             <Chips label="기록 과정" items={["음악 신호", "홈 제작", "바이닐 레코드"]} />
           </div>
