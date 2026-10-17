@@ -15,14 +15,14 @@ const GIF = {
   crate: "/images/grooves/title-crate.gif",
 };
 const IMG = Object.fromEntries([
-  "lathe-body", "lathe-disc", "lathe-head", "tonearm", "pellets", "stylus", "speaker",
+  "lathe-body", "lathe-disc", "lathe-head", "tonearm", "pellets", "needle", "speaker",
   "icon-wave", "icon-cut", "icon-record", "icon-grooves", "icon-needle", "icon-cable", "icon-speaker",
 ].map((n) => [n, `/images/news/what-is-vinyl/${n}.webp`]));
 
 const BODONI = "font-['Grooves_Bodoni',Georgia,serif] font-black";
 const KR = "font-['Noto_Serif_KR',Georgia,serif]";
 const LABEL = "font-sans text-[11px] font-medium uppercase tracking-[0.28em]";
-const RUST = "text-[#c8553d]";
+const RUST = "text-(--accent)";
 const PADX = "px-[clamp(20px,4vw,72px)]";   // StoryShell 의 ← News 줄과 같은 여백
 const WRAP = "mx-auto w-full max-w-[1240px]";
 const SECTION = `${PADX} py-[clamp(72px,12svh,150px)]`;
@@ -67,6 +67,24 @@ function Landing({ className = "" }) {
   );
 }
 
+/* 바늘의 진동: 홈(물결선)이 옆으로 흘러가고, 바늘은 바늘 끝 자리의 홈 높이에 맞춰 오르내림
+   needle 그림의 바늘 끝 = 그림의 (30.6%, 98.3%). SVG 좌표 600×440 안에서 바늘 끝은 x=250 에 고정 */
+const NG = { w: 360, h: 360 * 748 / 800, tipX: 250, tipFx: 0.306, tipFy: 0.983, base: 372 };
+const grooveY = (x, s) => NG.base + 22 * (0.62 * Math.sin((x + s) * 0.04) + 0.3 * Math.sin((x + s) * 0.097 + 1) + 0.08 * Math.sin((x + s) * 0.23));
+const groovePath = (s, dy = 0) => "M" + Array.from({ length: 101 }, (_, i) => `${i * 6} ${(grooveY(i * 6, s) + dy).toFixed(1)}`).join(" L");
+const needleY = (s) => grooveY(NG.tipX, s) - NG.h * NG.tipFy;
+function NeedleGroove({ className = "" }) {
+  return (
+    <svg viewBox="0 0 600 440" role="img" aria-label="홈의 굴곡을 따라 위아래로 움직이는 바늘 손그림" className={`overflow-visible ${className}`}>
+      <g fill="none" stroke="#BBCBDA" strokeLinecap="round" strokeLinejoin="round">
+        <path data-fx-groove-top d={groovePath(0)} strokeWidth="4" />
+        <path data-fx-groove-bot d={groovePath(0, 16)} strokeWidth="2" opacity=".6" />
+      </g>
+      <image data-fx-needle href={IMG.needle} width={NG.w} height={NG.h} x={NG.tipX - NG.w * NG.tipFx} y={needleY(0)} />
+    </svg>
+  );
+}
+
 // Fig.03 홈의 두 벽 (소리처럼 조용했다 커졌다 하는 파형) — 스크롤로 왼쪽부터 드러남
 const WAVE_UP = "M0 110 Q18 108 30 111 Q43 115 55 109 Q67 104 78 111 L91 106 L101 117 L113 97 L123 125 L136 88 L148 132 L161 77 L173 143 L185 101 Q198 92 210 111 Q227 119 242 108 Q257 103 272 112 Q290 115 307 109 Q324 106 338 111 L352 99 L363 124 L377 72 L389 148 L401 89 L414 130 L425 53 L439 163 L451 83 L465 135 L478 102 Q494 92 509 110 Q528 118 544 107 Q559 104 575 112 Q593 116 610 109 Q627 105 641 111 L655 102 L668 121 L680 91 L692 136 L706 65 L718 153 L730 95 L742 127 L756 81 L769 142 L783 105 Q800 98 815 111 Q833 116 849 108 Q864 105 879 112 L893 101 L905 120 L917 84 L929 139 L942 58 L955 159 L968 91 L981 132 L994 100 Q1010 93 1026 111 Q1044 116 1060 108 Q1075 105 1090 112 Q1105 115 1120 109 L1133 105 L1145 117 L1158 98 L1170 121 Q1185 105 1200 110";
 const WAVE_DOWN = WAVE_UP.replace(/(\d+(?:\.\d+)?) (\d+(?:\.\d+)?)/g, (_, x, y) => `${x} ${+y + 70}`);   // 아래 벽 = 위 벽을 70 내림
@@ -102,7 +120,8 @@ function useScrollFx(rootRef) {
       say: q("say"), sayLine: q("say-line"), sayWave: q("say-wave"),
       cut: q("cut"), cutPath: q("cut-path"), cutDot: q("cut-dot"), chips: qa("chip"), head: q("lathe-head"), lDisc: q("lathe-disc"),
       outro: q("outro"), arm: q("tonearm"), oDisc: q("outro-disc"),
-      panels: qa("play-panel"), steps: qa("play-step"), pDisc: q("play-disc"), stylus: q("play-stylus"), sig: q("play-sig"), spk: q("play-speaker"),
+      panels: qa("play-panel"), steps: qa("play-step"), pDisc: q("play-disc"), sig: q("play-sig"), spk: q("play-speaker"),
+      gTop: q("groove-top"), gBot: q("groove-bot"), needle: q("needle"),
     };
     let active = -1;
     // 요소 위가 화면 높이의 a 지점에 올 때 0, b 지점에 올 때 1 (a > b, 화면 비율)
@@ -156,7 +175,12 @@ function useScrollFx(rootRef) {
         if (best !== active) { active = best; E.steps.forEach((st, i) => { st.dataset.on = i === active; }); }
       }
       if (E.pDisc) E.pDisc.style.transform = `rotate(${time * 40}deg)`;
-      if (E.stylus) E.stylus.style.transform = active === 1 && !reduced ? `translate(${Math.sin(time * 70) * 1.6}px, ${Math.cos(time * 53) * 1.2}px)` : "";
+      // 바늘의 진동: 홈이 왼쪽으로 흘러가고(레코드가 돎), 바늘은 그 자리 홈 높이를 따라 오르내림
+      if (E.needle && !reduced && E.needle.getBoundingClientRect().bottom > 0 && E.needle.getBoundingClientRect().top < innerHeight) {
+        const sh = time * 110;
+        E.gTop.setAttribute("d", groovePath(sh)); E.gBot.setAttribute("d", groovePath(sh, 16));
+        E.needle.setAttribute("y", needleY(sh).toFixed(2));
+      }
       E.sig?.style.setProperty("--d", (1 - (reduced ? 1 : ease(enter(E.sig, 0.85, 0.4)))).toFixed(4));
       if (E.spk) E.spk.style.transform = active === 3 && !reduced ? `scale(${1 + 0.025 * Math.abs(Math.sin(time * 7))})` : "";
     };
@@ -328,7 +352,7 @@ export default function Story() {
             <svg className="mt-8 h-[60px] w-full max-w-[34rem]" viewBox="0 0 500 60" preserveAspectRatio="none" aria-hidden="true">
               <path d="M0 30 H500" stroke="currentColor" strokeOpacity=".18" />
               <path data-fx-cut-path d={CUT_PATH} fill="none" stroke="currentColor" strokeWidth="1.6" vectorEffect="non-scaling-stroke" className={DRAW} />
-              <circle data-fx-cut-dot r="4" fill="#c8553d" cx="500" cy="30" />
+              <circle data-fx-cut-dot r="4" cx="500" cy="30" className="fill-(--accent)" />
             </svg>
             <Chips label="기록 과정" items={[["음악 신호", "icon-wave"], ["홈 제작", "icon-cut"], ["바이닐 레코드", "icon-record"]]} />
           </div>
@@ -344,7 +368,7 @@ export default function Story() {
               {PLAY.map((st, i) => (
                 // 오른쪽에서 지금 보이는 그림의 단계가 켜짐
                 <li key={st.label} data-fx-play-step className="group/step grid grid-cols-[2.8rem_minmax(0,1fr)_3.4rem] items-center gap-4 border-b border-(--ink)/15 py-4 opacity-35 transition-opacity duration-500 data-[on=true]:opacity-100">
-                  <span className={`${BODONI} text-[1.7rem] leading-none transition-colors duration-500 group-data-[on=true]/step:text-[#c8553d]`}>0{i + 1}</span>
+                  <span className={`${BODONI} text-[1.7rem] leading-none transition-colors duration-500 group-data-[on=true]/step:text-(--accent)`}>0{i + 1}</span>
                   <div>
                     <p className="text-[15px] font-bold">{st.label}</p>
                     <p className="mt-1 text-[15px] font-medium leading-7">{st.text}</p>
@@ -369,10 +393,8 @@ export default function Story() {
                   </div></div>
                 )}
                 {i === 1 && (
-                  // 홈 속 바늘 — 이 단계일 때 떨림. 그림 오른쪽 끝(잘린 톤암)은 흐리게
-                  <div data-fx-play-stylus className="w-[min(100%,560px)]">
-                    <Img name="stylus" alt="카트리지 아래 바늘이 V자 홈에 앉은 손그림" className="block w-full [mask-image:linear-gradient(to_right,#000_78%,transparent)]" />
-                  </div>
+                  // 흘러가는 홈 위에서 바늘이 홈 높이를 따라 오르내림. 오른쪽 끝(잘린 톤암)은 흐리게
+                  <NeedleGroove className="w-[min(100%,560px)] [mask-image:linear-gradient(to_right,#000_80%,transparent)]" />
                 )}
                 {i === 2 && (
                   // 케이블 + 그려지는 신호 파형
