@@ -246,9 +246,12 @@ export default function Story() {
               바이닐이란 무엇인가 — 소리를 홈으로 새기고, 그 홈을 다시 소리로 되돌리는 음반에 대하여.
             </Reveal>
           </div>
-          {/* 판: 늘 천천히 돌고 스크롤에 따라 더 돎. GIF 는 꼭 div 를 움직일 것 (img 에 transform 을 주면 Chrome 이 프레임을 잘라 그림) */}
-          <div className="mx-auto w-full max-w-[640px]">
-            <div data-fx-hero-disc className="will-change-transform"><Gif src={GIF.disc} className="block w-full" /></div>
+          {/* 판: 썸네일과 같은 위에서 본 레코드. 그림의 알파를 마스크로 써서 테마 색(--cover-art)으로 칠함
+              늘 천천히 돌고 스크롤에 따라 더 돎 */}
+          <div className="mx-auto w-full max-w-[600px]">
+            <div data-fx-hero-disc className="will-change-transform">
+              <span role="img" aria-label="레코드 판 손그림" className="block aspect-square w-full bg-(--cover-art) [mask:url(/images/news/what-is-vinyl/lathe-disc.webp)_center/contain_no-repeat]" />
+            </div>
           </div>
         </div>
       </section>
