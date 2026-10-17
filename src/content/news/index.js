@@ -37,7 +37,7 @@ export const STORIES = [
     dek: "Sound becomes a groove, and a groove becomes sound — what a record is made of, and how it holds music. Vinyl A to Z, chapter one.",
     date: "2026-10-06",
     read: "4 min",
-    cover: "record",
+    cover: "a-to-z-01",
     homeArt: "care",
   },
 ];

@@ -1,5 +1,7 @@
-// 스토리 카드·헤더용 커버 그림 (SVG, 테마 색을 따라감)
+// 스토리 카드·헤더용 커버 그림 (SVG)
 // fair: 큰 "15" + 쌓인 판 / autumn: 가을색 슬리브와 낙엽 / record: 홈 확대 + 바늘
+// a-to-z-NN: Vinyl A to Z 시리즈 — 같은 틀에 회차 번호 + 그 회의 손그림. 바탕·그림 색은 테마를 따라감(--cover-bg / --cover-art)
+import { useId } from "react";
 
 function Fair() {
   return (
@@ -42,7 +44,24 @@ function Record() {
   );
 }
 
-const COVERS = { fair: Fair, autumn: Autumn, record: Record };
+/* Vinyl A to Z 시리즈 썸네일. art: 투명 배경 손그림(webp) — 알파를 마스크로 써서 테마 색으로 칠함 */
+function Series({ n, art, box = [70, 60, 260, 260] }) {
+  const id = `az${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  const [x, y, w, h] = box;
+  return (
+    <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
+      <rect width="400" height="400" style={{ fill: "var(--cover-bg)" }} />
+      <mask id={id} style={{ maskType: "alpha" }}><image href={art} x={x} y={y} width={w} height={h} preserveAspectRatio="xMidYMid meet" /></mask>
+      <rect width="400" height="400" mask={`url(#${id})`} style={{ fill: "var(--cover-art)" }} />
+      <text x="28" y="44" fontFamily="PP Neue Montreal, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" style={{ fill: "var(--accent)" }}>VINYL A TO Z</text>
+      <text x="374" y="376" textAnchor="end" fontFamily="Grooves Bodoni, Georgia, serif" fontWeight="900" fontSize="88" letterSpacing="-4" style={{ fill: "var(--ink)" }}>{n}</text>
+    </svg>
+  );
+}
+// 회차가 늘면 여기에 한 줄씩 (번호, 그림)
+const AtoZ01 = () => <Series n="01" art="/images/news/what-is-vinyl/lathe-disc.webp" />;
+
+const COVERS = { fair: Fair, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01 };
 export default function StoryCover({ name, className = "" }) {
   const C = COVERS[name] ?? Record;
   return <span className={`block overflow-hidden ${className}`}><C /></span>;

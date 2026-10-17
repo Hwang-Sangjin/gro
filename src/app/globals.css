@@ -71,6 +71,9 @@
   /* ── Hero ── */
   --accent: #2d6a6a; /* 포인트 색 (청록) — 사이트 전체가 이 값을 씀 */
   --danger: #8b3a45; /* 오류·삭제 경고 (버건디) */
+  /* 시리즈 썸네일 (Vinyl A to Z): 바탕 · 손그림 색 — 크림 위에선 하늘색이 흐려서 진한 파랑으로 */
+  --cover-bg: #e8d9b8;
+  --cover-art: #6f8fb6;
   --accent-blue: #7fa3c7;
   --hero-title-size: 11vw;
 
@@ -86,6 +89,8 @@
   --ink: #f4e7cd;
   --accent: #7fc1bd; /* 어두운 바탕에서 읽히는 밝은 청록 */
   --danger: #e09aa3;
+  --cover-bg: #2a222a;
+  --cover-art: #bbcbda;
   color-scheme: dark;
 }
 
