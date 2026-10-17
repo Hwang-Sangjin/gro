@@ -1,6 +1,7 @@
 "use client";
 // Vinyl A to Z · Chapter 01 — "What Is Vinyl?"
 // 사이트 손그림(하늘색 연필선) 으로 만든 섹션들. 보통 스크롤 + 가벼운 스크롤 연동 연출(고정 pin 없음)
+// 03 재생: 왼쪽 글·단계는 따라 내려오고(sticky), 오른쪽 그림 4장이 지나가며 01→04 단계가 켜짐 (도는 판 · 떨리는 바늘 · 그려지는 신호 · 울리는 스피커)
 // 연출: 히어로(제목 줄 단위로 올라옴 · 판 회전/패럴랙스) · 한 줄(세로선 → 제목 → 물결) · 03 저장(판이 돌고 커팅 헤드가 안쪽으로 · 홈 그려짐 · 칩 점등)
 //       · Fig.03 파형 그려짐 · 마무리(톤암이 판 위로 내려앉음)
 // 히어로 → 01 What to know → 홈 → 02 Made of PVC → 한 줄 → 03 저장 → 03 재생 → 마무리 → (아래 Next story)
@@ -12,7 +13,6 @@ import Reveal, { RiseText } from "@/components/story/Reveal";
 const GIF = {
   disc: "/images/grooves/title-vinyl.gif",
   crate: "/images/grooves/title-crate.gif",
-  turntable: "/images/grooves/title-turntable.gif",
 };
 const IMG = Object.fromEntries([
   "lathe-body", "lathe-disc", "lathe-head", "tonearm", "pellets", "stylus", "speaker",
@@ -97,7 +97,9 @@ function useScrollFx(rootRef) {
       say: q("say"), sayLine: q("say-line"), sayWave: q("say-wave"),
       cut: q("cut"), cutPath: q("cut-path"), cutDot: q("cut-dot"), chips: qa("chip"), head: q("lathe-head"), lDisc: q("lathe-disc"),
       outro: q("outro"), arm: q("tonearm"), oDisc: q("outro-disc"),
+      panels: qa("play-panel"), steps: qa("play-step"), pDisc: q("play-disc"), stylus: q("play-stylus"), sig: q("play-sig"), spk: q("play-speaker"),
     };
+    let active = -1;
     // 요소 위가 화면 높이의 a 지점에 올 때 0, b 지점에 올 때 1 (a > b, 화면 비율)
     const enter = (el, a, b) => {
       if (!el) return 0;
@@ -138,6 +140,18 @@ function useScrollFx(rootRef) {
       const o = reduced ? 1 : ease(enter(E.outro, 0.85, 0.3));
       if (E.arm) E.arm.style.transform = `rotate(${-24 * (1 - o)}deg)`;
       if (E.oDisc) E.oDisc.style.transform = `rotate(${time * 30}deg)`;
+
+      // 03 재생: 화면 가운데에 가장 가까운 그림의 단계가 켜짐
+      if (E.panels.length) {
+        const mid = page.getBoundingClientRect().top + page.clientHeight / 2;
+        let best = 0, bd = Infinity;
+        E.panels.forEach((el, i) => { const r = el.getBoundingClientRect(), d = Math.abs(r.top + r.height / 2 - mid); if (d < bd) { bd = d; best = i; } });
+        if (best !== active) { active = best; E.steps.forEach((st, i) => { st.dataset.on = i === active; }); }
+      }
+      if (E.pDisc) E.pDisc.style.transform = `rotate(${time * 40}deg)`;
+      if (E.stylus) E.stylus.style.transform = active === 1 && !reduced ? `translate(${Math.sin(time * 70) * 1.6}px, ${Math.cos(time * 53) * 1.2}px)` : "";
+      E.sig?.style.setProperty("--d", (1 - (reduced ? 1 : ease(enter(E.sig, 0.85, 0.4)))).toFixed(4));
+      if (E.spk) E.spk.style.transform = active === 3 && !reduced ? `scale(${1 + 0.025 * Math.abs(Math.sin(time * 7))})` : "";
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
@@ -145,6 +159,14 @@ function useScrollFx(rootRef) {
 }
 // 그려지는 선: pathLength=1 인 path 에 --d(1→0) 로 dashoffset
 const DRAW = "[&_path]:[stroke-dasharray:1] [&_path]:[stroke-dashoffset:var(--d,0)]";
+
+// 03 재생 4단계 — 원고 문장을 단계별로 나눔
+const PLAY = [
+  { label: "레코드의 홈", icon: "icon-grooves", cap: "Fig. 06 — The groove turns", text: <>턴테이블에서 <b className="font-bold">레코드</b>가 회전한다.</> },
+  { label: "바늘의 진동", icon: "icon-needle", cap: "Fig. 07 — Stylus in the groove", text: <><b className="font-bold">바늘(Stylus)</b>이 홈의 굴곡을 따라 진동한다.</> },
+  { label: "전기 신호", icon: "icon-cable", cap: "Fig. 08 — Vibration becomes a signal", text: <>이 진동은 <b className="font-bold">카트리지(Cartridge)</b>를 통해 전기 신호로 바뀐다.</> },
+  { label: "스피커", icon: "icon-speaker", cap: "Fig. 09 — Out of the speaker", text: <>신호는 <b className="font-bold">앰프와 스피커</b>를 거쳐 음악으로 재생된다.</> },
+];
 
 const Head = ({ label, title, className = "" }) => (
   <div className={className}>
@@ -305,35 +327,65 @@ export default function Story() {
         </div>
       </section>
 
-      {/* ── 03 재생 ── */}
+      {/* ── 03 재생: 왼쪽 글·단계(sticky) + 오른쪽 그림 4장 ── */}
       <section aria-label="03 음악을 재생할 때" className={SECTION}>
-        <div className={`${WRAP} grid items-center gap-10 md:grid-cols-[minmax(0,.95fr)_minmax(0,1.05fr)] md:gap-16`}>
-          <div>
+        <div className={`${WRAP} grid grid-cols-1 gap-10 md:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)] md:gap-16`}>
+          <div className="md:sticky md:top-[calc(var(--ct-header-h,106px)+6svh)] md:self-start">
             <Head label="03 — Playback · 음악을 재생할 때" title="A groove becomes sound." />
-            <p className={`${BODY} mt-8 max-w-[34rem]`}>
-              턴테이블에서 레코드가 회전하면 <b className="font-bold">바늘(Stylus)</b>이 홈의 굴곡을 따라 진동한다. 이 진동은 <b className="font-bold">카트리지(Cartridge)</b>를 통해 전기 신호로 바뀌고, 앰프와 스피커를 거쳐 음악으로 재생된다.
-            </p>
-            <ol aria-label="재생 과정" className="mt-9 grid max-w-[34rem] grid-cols-4 gap-3 border-t-[3px] border-(--ink) pt-5">
-              {[["레코드의 홈", "icon-grooves"], ["바늘의 진동", "icon-needle"], ["전기 신호", "icon-cable"], ["스피커", "icon-speaker"]].map(([c, icon], i) => (
-                <li key={c}>
-                  <Img name={icon} className="mb-3 h-[clamp(40px,4.4vw,56px)] w-full object-contain object-left" />
-                  <p className={`${BODONI} text-[clamp(1.4rem,2.2vw,1.9rem)] leading-none ${i === 3 ? RUST : ""}`}>0{i + 1}</p>
-                  <p className="mt-2 text-[13px] font-medium">{c}</p>
+            <ol aria-label="재생 과정" className="mt-9 max-w-[34rem] border-t-[3px] border-(--ink) max-md:hidden">
+              {PLAY.map((st, i) => (
+                // 오른쪽에서 지금 보이는 그림의 단계가 켜짐
+                <li key={st.label} data-fx-play-step className="group/step grid grid-cols-[2.8rem_minmax(0,1fr)_3.4rem] items-center gap-4 border-b border-(--ink)/15 py-4 opacity-35 transition-opacity duration-500 data-[on=true]:opacity-100">
+                  <span className={`${BODONI} text-[1.7rem] leading-none transition-colors duration-500 group-data-[on=true]/step:text-[#c8553d]`}>0{i + 1}</span>
+                  <div>
+                    <p className="text-[15px] font-bold">{st.label}</p>
+                    <p className="mt-1 text-[15px] font-medium leading-7">{st.text}</p>
+                  </div>
+                  <Img name={st.icon} className="h-12 w-full object-contain" />
                 </li>
               ))}
             </ol>
           </div>
-          <Fig caption="Fig. 06 — Turntable" className="mx-auto w-full max-w-[600px]">
-            <Gif src={GIF.turntable} alt="턴테이블 손그림" className="w-full" />
-          </Fig>
-        </div>
-        <div className={`${WRAP} mt-[clamp(40px,7svh,88px)] grid grid-cols-2 gap-6 md:gap-16`}>
-          <Fig caption="Fig. 07 — Stylus in the groove" className="mx-auto w-full max-w-[420px]">
-            <Img name="stylus" alt="카트리지 아래 바늘이 V자 홈에 앉은 손그림" className="w-full" />
-          </Fig>
-          <Fig caption="Fig. 08 — Speaker" className="mx-auto w-full max-w-[420px]">
-            <Img name="speaker" alt="소리를 내는 스피커 손그림" className="w-full" />
-          </Fig>
+          <div className="md:space-y-[4svh]">
+            {PLAY.map((st, i) => (
+              <figure key={st.label} data-fx-play-panel className="flex flex-col items-center justify-center py-8 md:min-h-[76svh]">
+                {/* 모바일: 단계 글이 그림 위에 */}
+                <div className="mb-6 w-full md:hidden">
+                  <p className={`${BODONI} text-[1.6rem] leading-none ${RUST}`}>0{i + 1} <span className="ml-1 font-['Noto_Serif_KR',Georgia,serif] text-[15px] font-bold text-(--ink)">{st.label}</span></p>
+                  <p className="mt-2 text-[15px] font-medium leading-7">{st.text}</p>
+                </div>
+                {i === 0 && (
+                  // 도는 판 (위에서 본 원을 눌러 비스듬히)
+                  <div className="w-[min(100%,540px)]"><div className="-my-[22%] [transform:scaleY(.56)]">
+                    <div data-fx-play-disc><Img name="lathe-disc" alt="회전하는 레코드 손그림" className="block w-full" /></div>
+                  </div></div>
+                )}
+                {i === 1 && (
+                  // 홈 속 바늘 — 이 단계일 때 떨림. 그림 오른쪽 끝(잘린 톤암)은 흐리게
+                  <div data-fx-play-stylus className="w-[min(100%,560px)]">
+                    <Img name="stylus" alt="카트리지 아래 바늘이 V자 홈에 앉은 손그림" className="block w-full [mask-image:linear-gradient(to_right,#000_78%,transparent)]" />
+                  </div>
+                )}
+                {i === 2 && (
+                  // 케이블 + 그려지는 신호 파형
+                  <div className="flex w-[min(100%,560px)] items-center gap-3">
+                    <Img name="icon-cable" alt="케이블 손그림" className="w-[26%] shrink-0" />
+                    <svg data-fx-play-sig viewBox="0 40 1200 140" preserveAspectRatio="none" aria-hidden="true" fill="none" stroke="#BBCBDA" strokeLinecap="round" strokeLinejoin="round"
+                      className={`h-[clamp(110px,16svh,170px)] min-w-0 flex-1 ${DRAW}`}>
+                      <path pathLength="1" d={WAVE_UP} strokeWidth="3" vectorEffect="non-scaling-stroke" />
+                    </svg>
+                  </div>
+                )}
+                {i === 3 && (
+                  // 스피커 — 이 단계일 때 둥둥 울림
+                  <div data-fx-play-speaker className="w-[min(100%,460px)] origin-[38%_62%]">
+                    <Img name="speaker" alt="소리를 내는 스피커 손그림" className="block w-full" />
+                  </div>
+                )}
+                <figcaption className={`${LABEL} mt-6 text-center opacity-50`}>{st.cap}</figcaption>
+              </figure>
+            ))}
+          </div>
         </div>
       </section>
 
