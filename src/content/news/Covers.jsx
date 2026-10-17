@@ -45,13 +45,15 @@ function Record() {
 }
 
 /* Vinyl A to Z 시리즈 썸네일. art: 투명 배경 손그림(webp) — 알파를 마스크로 써서 테마 색으로 칠함 */
-function Series({ n, art, box = [70, 60, 260, 260] }) {
+function Series({ n, art, box = [70, 60, 260, 260], arts }) {
   const id = `az${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
-  const [x, y, w, h] = box;
+  const list = arts ?? [{ href: art, box }];   // 여러 장: [{ href, box: [x, y, w, h] }]
   return (
     <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
       <rect width="400" height="400" style={{ fill: "var(--cover-bg)" }} />
-      <mask id={id} style={{ maskType: "alpha" }}><image href={art} x={x} y={y} width={w} height={h} preserveAspectRatio="xMidYMid meet" /></mask>
+      <mask id={id} style={{ maskType: "alpha" }}>
+        {list.map(({ href, box: [x, y, w, h] }, i) => <image key={i} href={href} x={x} y={y} width={w} height={h} preserveAspectRatio="xMidYMid meet" />)}
+      </mask>
       <rect width="400" height="400" mask={`url(#${id})`} style={{ fill: "var(--cover-art)" }} />
       <text x="28" y="44" fontFamily="PP Neue Montreal, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" style={{ fill: "var(--accent)" }}>VINYL A TO Z</text>
       <text x="374" y="376" textAnchor="end" fontFamily="Grooves Bodoni, Georgia, serif" fontWeight="900" fontSize="88" letterSpacing="-4" style={{ fill: "var(--ink)" }}>{n}</text>
@@ -60,8 +62,11 @@ function Series({ n, art, box = [70, 60, 260, 260] }) {
 }
 // 회차가 늘면 여기에 한 줄씩 (번호, 그림)
 const AtoZ01 = () => <Series n="01" art="/images/news/what-is-vinyl/lathe-disc.webp" />;
+// 02: 12·10·7인치를 실제 비율로 나란히 (밑선 맞춤)
+const DISC = "/images/news/what-is-vinyl/lathe-disc.webp";
+const AtoZ02 = () => <Series n="02" arts={[{ href: DISC, box: [28, 150, 140, 140] }, { href: DISC, box: [180, 173, 117, 117] }, { href: DISC, box: [309, 208, 82, 82] }]} />;
 
-const COVERS = { fair: Fair, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01 };
+const COVERS = { fair: Fair, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
 export default function StoryCover({ name, className = "" }) {
   const C = COVERS[name] ?? Record;
   return <span className={`block overflow-hidden ${className}`}><C /></span>;

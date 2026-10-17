@@ -7,6 +7,7 @@
 // 히어로 → 01 What to know → 홈 → 02 Made of PVC → 한 줄 → 03 저장 → 03 재생 → 마무리 → (아래 Next story)
 // 손그림: 사이트 제목 GIF + public/images/news/what-is-vinyl/ (흰 배경을 지우고 #BBCBDA 단색으로 맞춘 webp)
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 
 /* ───────── 그림 ───────── */
@@ -427,8 +428,9 @@ export default function Story() {
         <Landing className="mx-auto w-[min(86vw,520px)]" />
         <p className={`${BODONI} mt-6 text-[clamp(3.4rem,10vw,10rem)] leading-none tracking-[-0.04em]`}>Vinyl A to Z</p>
         <p className={`${LABEL} mt-12 opacity-55`}>Next — Chapter 02</p>
-        <p className={`${BODONI} mt-3 text-[clamp(1.6rem,2.6vw,2.4rem)] tracking-[-0.02em]`}>How a Turntable Works</p>
-        <p className={`${LABEL} mt-3 opacity-55`}>Coming soon</p>
+        <Link href="/news/the-vinyl-dictionary" className={`${BODONI} group mt-3 inline-block text-[clamp(1.6rem,2.6vw,2.4rem)] tracking-[-0.02em] underline decoration-2 underline-offset-[10px] transition-colors hover:text-(--accent)`}>
+          The Vinyl Dictionary <span aria-hidden="true" className="inline-block transition-transform duration-500 group-hover:translate-x-2">→</span>
+        </Link>
       </section>
     </div>
   );

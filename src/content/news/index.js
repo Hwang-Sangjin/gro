@@ -11,6 +11,16 @@ export const categoryName = (key) => CATEGORIES.find((c) => c.key === key)?.name
 
 export const STORIES = [
   {
+    slug: "the-vinyl-dictionary",
+    category: "guide",
+    title: "The Vinyl Dictionary",
+    dek: "LP, EP or single; 7, 10 or 12 inches; 33⅓, 45 or 78 — the words printed on every record, sorted out. Vinyl A to Z, chapter two.",
+    date: "2026-10-17",
+    read: "5 min",
+    cover: "a-to-z-02",
+    homeArt: "care",
+  },
+  {
     slug: "seoul-record-fair-2026",
     category: "news",
     title: "Seoul Record Fair 2026",
