@@ -37,7 +37,7 @@ const Img = ({ name, alt = "", className = "" }) => <img src={IMG[name]} alt={al
 
 /* 커팅 선반: 본체 위 플래터에 래커 디스크(위에서 본 원을 납작하게 눌러 플래터 각도에 맞춤)가 돌고,
    커팅 헤드는 디스크 바깥에서 스크롤에 따라 안쪽으로. 위치 값은 lathe-body 그림의 플래터 윗면 기준(%) */
-const PLATTER = { x: 51, y: 48.8, w: 57, squash: 0.34 };   // 디스크 가운데 구멍이 스핀들에 오고, 가장자리가 플래터 테두리 안쪽에 들어오게
+const PLATTER = { x: 51, y: 50, w: 54.5, squash: 0.34 };   // 디스크 가운데 구멍이 스핀들에 오고, 가장자리가 플래터 테두리 안쪽에 들어오게
 const HEAD = { w: 15, tip: 0.41, h: 34 };   // 헤드 폭(본체 폭 %), 팁의 가로 위치(헤드 폭 비율), 헤드 높이(본체 높이 %)
 function Lathe({ className = "" }) {
   return (
