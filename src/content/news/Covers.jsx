@@ -62,9 +62,26 @@ function Series({ n, art, box = [70, 60, 260, 260], arts }) {
 }
 // 회차가 늘면 여기에 한 줄씩 (번호, 그림)
 const AtoZ01 = () => <Series n="01" art="/images/news/what-is-vinyl/lathe-disc.webp" />;
-// 02: 12·10·7인치를 실제 비율로 나란히 (밑선 맞춤)
+// 02: 12·10·7인치를 Home 히어로와 같은 각도로 눕혀 쌓은 더미 (2화 히어로와 같은 구도)
 const DISC = "/images/news/what-is-vinyl/lathe-disc.webp";
-const AtoZ02 = () => <Series n="02" arts={[{ href: DISC, box: [28, 150, 140, 140] }, { href: DISC, box: [180, 173, 117, 117] }, { href: DISC, box: [309, 208, 82, 82] }]} />;
+function AtoZ02() {
+  const id = `az2${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  const stack = [[188, 238, 236], [188, 190, 197], [188, 151, 138]];   // [가운데 x, y, 지름] 아래 → 위
+  return (
+    <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
+      <rect width="400" height="400" style={{ fill: "var(--cover-bg)" }} />
+      {stack.map(([cx, cy, d], i) => (
+        <g key={i} transform={`translate(${cx} ${cy}) rotate(-33) scale(1 .643)`}>
+          <mask id={`${id}-${i}`} style={{ maskType: "alpha" }}><image href={DISC} x={-d / 2} y={-d / 2} width={d} height={d} /></mask>
+          <circle r={d / 2 - 1} style={{ fill: "var(--cover-bg)" }} />
+          <rect x={-d / 2} y={-d / 2} width={d} height={d} mask={`url(#${id}-${i})`} style={{ fill: "var(--cover-art)" }} />
+        </g>
+      ))}
+      <text x="28" y="44" fontFamily="PP Neue Montreal, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" style={{ fill: "var(--accent)" }}>VINYL A TO Z</text>
+      <text x="374" y="376" textAnchor="end" fontFamily="Grooves Bodoni, Georgia, serif" fontWeight="900" fontSize="88" letterSpacing="-4" style={{ fill: "var(--ink)" }}>02</text>
+    </svg>
+  );
+}
 
 const COVERS = { fair: Fair, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
 export default function StoryCover({ name, className = "" }) {
