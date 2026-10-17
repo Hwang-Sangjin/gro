@@ -62,11 +62,11 @@ function Series({ n, art, box = [70, 60, 260, 260], arts }) {
 }
 // 회차가 늘면 여기에 한 줄씩 (번호, 그림)
 const AtoZ01 = () => <Series n="01" art="/images/news/what-is-vinyl/lathe-disc.webp" />;
-// 02: 12·10·7인치를 Home 히어로와 같은 각도로 눕혀 쌓은 더미 (2화 히어로와 같은 구도)
+// 02: 판 한 장을 Home 히어로와 같은 각도로 눕혀 가운데에 (2화 히어로와 같은 구도)
 const DISC = "/images/news/what-is-vinyl/lathe-disc.webp";
 function AtoZ02() {
   const id = `az2${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
-  const stack = [[188, 238, 236], [188, 190, 197], [188, 151, 138]];   // [가운데 x, y, 지름] 아래 → 위
+  const stack = [[200, 200, 300]];   // [가운데 x, y, 지름]
   return (
     <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
       <rect width="400" height="400" style={{ fill: "var(--cover-bg)" }} />

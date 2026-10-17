@@ -8,12 +8,6 @@ import Reveal, { RiseText } from "@/components/story/Reveal";
 const DISC = "/images/news/what-is-vinyl/lathe-disc.webp";
 // Home 히어로 판과 같은 기울기: 3D 로 40° 눕힘(세로 sin40° ≈ 0.643) + 화면에서 33° 돌림
 const TILT = { roll: -33, squash: 0.643 };
-// 히어로 더미: 아래 12인치 → 위 7인치 (w = 지름 %, y = 가운데 높이 %, rev = 한 바퀴 초)
-const STACK = [
-  { w: 92, y: 62, rev: 40 },
-  { w: 76.7, y: 47, rev: 30 },
-  { w: 53.7, y: 33, rev: 22 },
-];
 const BODONI = "font-['Grooves_Bodoni',Georgia,serif] font-black";
 const KR = "font-['Noto_Serif_KR',Georgia,serif]";
 const LABEL = "font-sans text-[11px] font-semibold uppercase tracking-[0.28em]";
@@ -157,15 +151,11 @@ export default function Story() {
               ))}
             </Reveal>
           </div>
-          {/* 12 · 10 · 7인치 판을 Home 히어로와 같은 각도(40° 눕힘 · 33° 돌림)로 눕혀 위로 쌓음. 각 판은 제자리에서 돎 */}
-          <div className="relative mx-auto aspect-square w-full max-w-[560px]" aria-hidden="true">
-            {STACK.map((d) => (
-              <div key={d.w} className="absolute aspect-square" style={{ width: `${d.w}%`, left: `${50 - d.w / 2}%`, top: `${d.y - d.w / 2}%` }}>
-                <div className="size-full" style={{ transform: `rotate(${TILT.roll}deg) scaleY(${TILT.squash})` }}>
-                  <Disc backed className="size-full animate-spin motion-reduce:animate-none" style={{ animationDuration: `${d.rev}s` }} />
-                </div>
-              </div>
-            ))}
+          {/* 판 한 장을 Home 히어로와 같은 각도(40° 눕힘 · 33° 돌림)로 눕혀 가운데에. 제자리에서 천천히 돎 */}
+          <div className="mx-auto grid aspect-square w-full max-w-[560px] place-items-center" aria-hidden="true">
+            <div className="w-full" style={{ transform: `rotate(${TILT.roll}deg) scaleY(${TILT.squash})` }}>
+              <Disc className="block w-full animate-spin [animation-duration:40s] motion-reduce:animate-none" />
+            </div>
           </div>
         </div>
       </section>
