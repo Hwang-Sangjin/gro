@@ -73,8 +73,8 @@ function Countdown() {
 
 // 히어로 오른쪽 Pop-up crate — 5개의 줄(레인)에서만 판이 튀어 올랐다 떨어짐
 // 포인터가 지나가는 레인에서 한 장, 정점은 포인터 높이쯤. 판은 직접 DOM 노드로 만들어 rAF로 움직임 (React 렌더 없음)
-// 판: 검정 바탕 + 촘촘한 동심원 홈. 빛은 왼쪽 위에 고정(원뿔 모양 마스크) → 홈은 왼쪽이 하얗고 오른쪽은 그림자로 검게.
-// 홈만 돌아가고(군데군데 끊긴 자리가 돌면서 회전이 보임) 빛은 그대로. 빠르게 움직일수록 위아래로 늘어남(스트레치)
+// 판: 검정 바탕 + 촘촘한 동심원 홈. 원뿔 모양 마스크로 홈의 한쪽은 하얗게, 반대쪽은 그림자로 검게.
+// 판이 돌면 하얀 쪽과 그림자 쪽이 함께 돌아감
 const LANES = 5;
 const GRAVITY = 2600;        // px/s²
 const POP_MAX = 30;          // 동시에 떠 있는 판 수 상한
@@ -85,10 +85,7 @@ const grooveSvg = () => {
   let rings = "";
   for (let i = 0; i < RINGS; i++) {
     const r = 47 - i * 1.95;
-    // 홈 몇 개만 한 군데씩 짧게 끊어 둠 → 돌 때 끊긴 자리가 움직여 회전이 보임 (pathLength 100 기준)
-    const g = 2.5 + Math.random() * 3;
-    const dash = Math.random() < 0.4 ? ` pathLength="100" stroke-dasharray="${(100 - g).toFixed(1)} ${g.toFixed(1)}"` : "";
-    rings += `<circle cx="50" cy="50" r="${r.toFixed(2)}" fill="none" stroke="#fff" stroke-width=".95"${dash} transform="rotate(${Math.round(Math.random() * 360)} 50 50)"/>`;
+    rings += `<circle cx="50" cy="50" r="${r.toFixed(2)}" fill="none" stroke="#fff" stroke-width=".95"/>`;
   }
   return `<svg viewBox="0 0 100 100" class="block size-full">${rings}<circle cx="50" cy="50" r="1.4" fill="#fff"/></svg>`;
 };
@@ -116,22 +113,16 @@ function PopCrate({ className = "" }) {
       node.className = "pointer-events-none absolute left-0 top-0 rounded-full will-change-transform";
       node.style.width = node.style.height = `${d}px`;
       node.style.backgroundColor = DISC_INK;
-      const light = document.createElement("div");          // 빛(고정)
-      light.className = "absolute inset-0";
-      light.style.mask = light.style.webkitMask = LIGHT_MASK;
-      const spin = document.createElement("div");           // 홈(회전)
-      spin.className = "size-full will-change-transform";
+      const spin = document.createElement("div");           // 홈 + 빛·그림자 (함께 회전)
+      spin.className = "absolute inset-0 will-change-transform";
+      spin.style.mask = spin.style.webkitMask = LIGHT_MASK;
       spin.innerHTML = grooveSvg();
-      light.appendChild(spin);
-      node.appendChild(light);
+      node.appendChild(spin);
       el.appendChild(node);
       return { node, spin };
     };
-    const vRef = () => Math.sqrt(2 * GRAVITY * H) || 1;
     const place = (p) => {
-      const k = Math.min(1, Math.abs(p.vy || 0) / vRef());
-      const sy = 1 + p.stretch * k * k, sx = 1 / Math.sqrt(sy);   // 빠를수록 길쭉, 정점에선 동그랗게
-      p.node.style.transform = `translate3d(${p.x - p.d / 2}px, ${p.y - p.d / 2}px, 0) scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
+      p.node.style.transform = `translate3d(${p.x - p.d / 2}px, ${p.y - p.d / 2}px, 0)`;
       p.spin.style.transform = `rotate(${p.a.toFixed(1)}deg)`;
     };
     const spawn = (lane, peak) => {
@@ -142,8 +133,7 @@ function PopCrate({ className = "" }) {
       const top = Math.min(Math.max(peak, d * 0.5 + 8), H - d * 0.35);
       const p = {
         ...make(d), d, x: laneX(lane), y: y0, vy: -Math.sqrt(2 * GRAVITY * (y0 - top)),
-        a: Math.random() * 360, va: 140 + Math.random() * 260,                       // 시계 방향으로 돌기
-        stretch: Math.random() < 0.35 ? 0.9 + Math.random() * 0.9 : 0.2 + Math.random() * 0.3,   // 가끔 아주 길게
+        a: Math.random() * 360, va: 140 + Math.random() * 260,   // 시계 방향으로 돌기
       };
       place(p);
       live.push(p);
@@ -153,7 +143,7 @@ function PopCrate({ className = "" }) {
     if (reduce) {
       [0.72, 0.58, 0.8, 0.64, 0.86].forEach((fy, i) => {
         const d = size();
-        const p = { ...make(d), d, x: laneX(i), y: H * fy + d * 0.2, vy: 0, a: i * 70, stretch: 0 };
+        const p = { ...make(d), d, x: laneX(i), y: H * fy + d * 0.2, vy: 0, a: i * 70 };
         place(p);
         live.push(p);
       });
