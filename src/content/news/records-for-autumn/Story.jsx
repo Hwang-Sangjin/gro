@@ -3,12 +3,11 @@
 // 1 히어로 → 2 일곱 장 (스크롤하면 슬리브에서 판이 빠져나오며 돎) → 3 한 장짜리 믹스테이프(A/B면) → 4 마무리(낙엽 더미)
 // 낙엽은 페이지 전체에서 떨어지고(화면에 붙은 층), 마지막 섹션 바닥에 쌓여 있음
 // 슬리브는 실제 앨범 커버 대신 글자로 만든 그림 (저작권 이미지 사용 안 함)
-import { useId, useRef } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 import { seg, useScrollProgress } from "@/components/story/scroll";
 import RequestDialog from "@/components/requests/RequestDialog";
-import { useInView } from "@/components/story/Reveal";
 import { LEAF_SHAPES } from "./leaves";
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
@@ -75,68 +74,170 @@ const LEAF_KINDS = [
 ];
 const leafOf = (i) => { const [kind, colors] = LEAF_KINDS[i % LEAF_KINDS.length]; return [kind, colors[Math.floor(rand(i, 9) * colors.length)]]; };
 
-// 잎 한 장: 바탕 + 반쪽 그늘 + 잎맥 + 잎자루
-function Leaf({ kind, color, className = "", style }) {
-  const id = useId().replace(/[^a-zA-Z0-9]/g, "");
-  const L = LEAF_SHAPES[kind];
-  return (
-    <svg viewBox="0 0 100 100" className={className} style={style} aria-hidden="true">
-      <clipPath id={`h${id}`}><rect x="50" width="50" height="100" /></clipPath>
-      <clipPath id={`l${id}`}><path d={L.d} /></clipPath>
-      <path d={L.d} fill={color} />
-      <path d={L.d} fill="#2a1408" opacity=".14" clipPath={`url(#h${id})`} />
-      <path d={L.veins} fill="none" stroke="#3a1a0c" strokeOpacity=".38" strokeWidth=".9" strokeLinecap="round" clipPath={`url(#l${id})`} />
-      <path d={L.stem} fill="none" stroke="#5a2f17" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
+// ── 낙엽 시스템 ─────────────────────────────────────────────
+// 떨어지는 잎: 화면에 붙은(sticky) 층에서 떨어짐. 마지막 섹션("Got one we missed?")의 바닥이 화면에 들어오면
+// 그 바닥(쌓인 더미의 표면)에 닿는 잎은 멈춰서 더미에 쌓임. 바닥이 아직 화면 밖이면 그냥 지나가서 위에서 다시 떨어짐.
+// 쌓인 잎: 마우스를 움직이면 근처 잎이 튀어 올랐다가 다시 내려앉음(클릭·탭하면 더 넓게).
+// 잎은 직접 DOM 노드로 만들고 rAF 로 움직임 (React 렌더 없음)
+let leafUid = 0;
+const leafSvg = (kind, color) => {
+  const L = LEAF_SHAPES[kind], u = `lf${leafUid++}`;
+  return `<svg viewBox="0 0 100 100" class="block size-full"><clipPath id="${u}h"><rect x="50" width="50" height="100"/></clipPath><clipPath id="${u}l"><path d="${L.d}"/></clipPath>`
+    + `<path d="${L.d}" fill="${color}"/><path d="${L.d}" fill="#2a1408" opacity=".14" clip-path="url(#${u}h)"/>`
+    + `<path d="${L.veins}" fill="none" stroke="#3a1a0c" stroke-opacity=".38" stroke-width=".9" stroke-linecap="round" clip-path="url(#${u}l)"/>`
+    + `<path d="${L.stem}" fill="none" stroke="#5a2f17" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+};
+const FALLING = 22, PILE_MAX = 240, PRESEED = 150, BIN = 14, G = 1100;
+function useLeaves(fallRef, pileRef, areaRef) {
+  useEffect(() => {
+    const fall = fallRef.current, pile = pileRef.current, area = areaRef.current;
+    if (!fall || !pile || !area) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let k = 0;
+    const pick = () => { const [kind, color] = leafOf(k); k++; return { kind, color }; };
+    const node = (host, size, { kind, color }) => {
+      const el = document.createElement("div");
+      el.className = "pointer-events-none absolute left-0 top-0 will-change-transform";
+      el.style.width = el.style.height = `${size}px`;
+      el.innerHTML = leafSvg(kind, color);
+      host.appendChild(el);
+      return el;
+    };
 
-// 페이지 전체에 떨어지는 낙엽 — 화면에 붙어 있는(sticky) 층이라 어디까지 스크롤해도 계속 떨어짐
-function FallingLeaves({ count = 22 }) {
-  return (
-    <div aria-hidden="true" className="pointer-events-none sticky top-0 z-0 -mb-[100svh] h-svh overflow-hidden motion-reduce:hidden">
-      {Array.from({ length: count }, (_, i) => {
-        const size = 26 + rand(i, 2) * 34;
-        const [kind, color] = leafOf(i);
-        return (
-          <Leaf key={i} kind={kind} color={color} className="absolute top-0 animate-[leaf-fall_linear_infinite]"
-            style={{
-              left: `${rand(i, 1) * 100}%`, width: size, height: size,
-              animationDuration: `${13 + rand(i, 3) * 12}s`, animationDelay: `${-rand(i, 4) * 25}s`,
-              "--drift": `${(rand(i, 5) - 0.3) * 22}vw`, "--turn": `${(rand(i, 6) > 0.5 ? 1 : -1) * (300 + rand(i, 7) * 400)}deg`,
-              opacity: 0.6 + rand(i, 8) * 0.35,
-            }} />
-        );
-      })}
-    </div>
-  );
-}
+    // 더미 높이(구간별) — 가운데가 높은 둔덕 모양으로만 쌓이게 상한을 둠
+    let PW = pile.clientWidth, PH = pile.clientHeight, heap = [];
+    const bins = () => Math.max(1, Math.ceil(PW / BIN));
+    const binOf = (x) => Math.min(bins() - 1, Math.max(0, Math.floor(x / BIN)));
+    const cap = (b) => 14 + PH * 0.78 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, (b + 0.5) / bins()))), 0.7);
+    const resize = () => { PW = pile.clientWidth; PH = pile.clientHeight; const n = bins(); while (heap.length < n) heap.push(0); heap.length = n; };
+    resize();
+    const surface = (x) => PH - heap[binOf(x)];
+    // 꽉 찬 구간이면 옆으로 미끄러져 낮은 곳에 앉음
+    const settleX = (x) => {
+      let b = binOf(x);
+      for (let i = 0; i < 6 && heap[b] >= cap(b); i++) {
+        const l = Math.max(0, b - 1), r = Math.min(bins() - 1, b + 1);
+        b = heap[l] <= heap[r] ? l : r;
+      }
+      return Math.min(PW - 4, Math.max(4, (b + Math.random()) * BIN));
+    };
 
-// 마지막 섹션 바닥에 쌓인 낙엽 더미 — 보이면 위에서 하나씩 떨어져 내려와 쌓임
-function LeafPile({ count = 130 }) {
-  const ref = useRef(null);
-  const seen = useInView(ref, { threshold: 0.2 });
-  return (
-    <div ref={ref} aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[clamp(7rem,14vw,11rem)] overflow-hidden">
-      {Array.from({ length: count }, (_, i) => {
-        const x = rand(i, 11);                                   // 0..1
-        const mound = Math.sin(Math.PI * Math.min(1, Math.max(0, x * 1.1 - 0.05)));   // 가운데가 높은 더미
-        const size = 28 + rand(i, 12) * 36;
-        const [kind, color] = leafOf(i + 3);
-        return (
-          <div key={i} className="absolute transition-[translate,opacity] duration-[1100ms] ease-[cubic-bezier(.22,1,.36,1)]"
-            style={{
-              left: `calc(${x * 100}% - ${size / 2}px)`, bottom: `${-size * 0.3 + mound * Math.pow(rand(i, 13), 1.8) * 85}%`,
-              width: size, height: size, zIndex: Math.round((1 - mound) * 10 + rand(i, 14) * 10),
-              translate: seen ? "0 0" : `0 -${260 + rand(i, 15) * 220}px`, opacity: seen ? 1 : 0,
-              transitionDelay: `${Math.round(rand(i, 16) * 900)}ms`,
-            }}>
-            <Leaf kind={kind} color={color} className="size-full" style={{ rotate: `${Math.round(rand(i, 17) * 360)}deg` }} />
-          </div>
-        );
-      })}
-    </div>
-  );
+    const piled = [];   // { el, x, y, s, a, vx, vy, va, rest }
+    const place = (p) => { p.el.style.transform = `translate3d(${(p.x - p.s / 2).toFixed(1)}px, ${(p.y - p.s * 0.62).toFixed(1)}px, 0) rotate(${p.a.toFixed(1)}deg)`; };
+    const land = (p) => {
+      p.x = settleX(p.x);
+      const b = binOf(p.x);
+      p.y = PH - heap[b];
+      heap[b] += p.s * 0.42;
+      if (b > 0) heap[b - 1] += p.s * 0.18;
+      if (b < bins() - 1) heap[b + 1] += p.s * 0.18;
+      p.rest = true; p.vx = p.vy = p.va = 0;
+      place(p);
+    };
+    const lift = (p) => {
+      const b = binOf(p.x);
+      heap[b] = Math.max(0, heap[b] - p.s * 0.42);
+      if (b > 0) heap[b - 1] = Math.max(0, heap[b - 1] - p.s * 0.18);
+      if (b < bins() - 1) heap[b + 1] = Math.max(0, heap[b + 1] - p.s * 0.18);
+      p.rest = false;
+    };
+    const addPiled = (x, a, s, look) => {
+      if (piled.length >= PILE_MAX) return false;
+      const p = { el: node(pile, s, look), x, y: 0, s, a, vx: 0, vy: 0, va: 0, rest: false };
+      piled.push(p); land(p);
+      return true;
+    };
+    // 처음부터 어느 정도 쌓여 있게
+    for (let i = 0; i < PRESEED; i++) addPiled(Math.random() * PW, Math.random() * 360, 28 + Math.random() * 30, pick());
+    if (reduce) return () => { piled.forEach((p) => p.el.remove()); };
+
+    // 떨어지는 잎
+    const falling = [];
+    const spawn = (f, first) => {
+      const W = fall.clientWidth, H = fall.clientHeight;
+      f.s = 26 + Math.random() * 32;
+      f.x0 = Math.random() * W; f.y = first ? Math.random() * H : -60 - Math.random() * 200;
+      f.vy = 45 + Math.random() * 45; f.amp = 20 + Math.random() * 40; f.w = 0.6 + Math.random() * 0.9; f.ph = Math.random() * 6.28;
+      f.a = Math.random() * 360; f.va = (Math.random() < 0.5 ? -1 : 1) * (40 + Math.random() * 90);
+      f.look = pick();
+      f.el.innerHTML = leafSvg(f.look.kind, f.look.color);
+      f.el.style.width = f.el.style.height = `${f.s}px`;
+    };
+    for (let i = 0; i < FALLING; i++) { const f = { el: node(fall, 30, pick()), t: 0 }; spawn(f, true); falling.push(f); }
+
+    // 마우스: 근처에 쉬고 있는 잎을 걷어참
+    let px = null, py = null, lastT = 0;
+    const kick = (x, y, R, pvx, pvy) => {
+      for (const p of piled) {
+        const dx = p.x - x, dy = (p.y - p.s * 0.3) - y, d = Math.hypot(dx, dy);
+        if (d > R) continue;
+        if (p.rest) lift(p);
+        const f = 1 - d / R;
+        p.vx = (dx / (d || 1)) * (120 + 380 * f) + pvx * 0.35 + (Math.random() - 0.5) * 80;
+        p.vy = -(220 + 520 * f) + Math.min(0, pvy * 0.3) - Math.random() * 120;
+        p.va = (Math.random() < 0.5 ? -1 : 1) * (200 + Math.random() * 500);
+      }
+    };
+    const local = (e) => { const r = pile.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    const onMove = (e) => {
+      const [x, y] = local(e), now = performance.now();
+      if (px != null) {
+        const dt = Math.max(16, now - lastT) / 1000, vx = (x - px) / dt, vy = (y - py) / dt;
+        if (Math.hypot(vx, vy) > 60) kick(x, y, 46 + Math.min(40, Math.hypot(vx, vy) / 40), vx, vy);
+      }
+      px = x; py = y; lastT = now;
+    };
+    const onLeave = () => { px = py = null; };
+    const onDown = (e) => { const [x, y] = local(e); kick(x, y, 110, 0, -400); };
+    area.addEventListener("pointermove", onMove, { passive: true });
+    area.addEventListener("pointerleave", onLeave);
+    area.addEventListener("pointerdown", onDown, { passive: true });
+    const ro = new ResizeObserver(resize);
+    ro.observe(pile);
+
+    let raf = 0, last = performance.now();
+    const tick = (t) => {
+      const dt = Math.min(0.05, (t - last) / 1000); last = t;
+      const fr = fall.getBoundingClientRect(), pr = pile.getBoundingClientRect();
+      const groundVisible = pr.bottom <= window.innerHeight + 40 && pr.bottom > fr.top;
+      for (const f of falling) {
+        f.t += dt; f.y += f.vy * dt; f.a += f.va * dt;
+        const x = f.x0 + Math.sin(f.t * f.w + f.ph) * f.amp;
+        // 화면 좌표 → 더미 좌표로 바꿔 바닥(더미 표면)에 닿았는지 확인
+        const lx = x + fr.left - pr.left, ly = f.y + fr.top - pr.top;
+        if (groundVisible && lx > 0 && lx < PW && ly >= surface(lx)) {
+          if (!addPiled(lx, f.a, f.s, f.look)) { /* 더미가 가득 차면 그냥 사라짐 */ }
+          spawn(f, false);
+          continue;
+        }
+        if (f.y > fr.height + 60) { spawn(f, false); continue; }
+        f.el.style.transform = `translate3d(${(x - f.s / 2).toFixed(1)}px, ${(f.y - f.s / 2).toFixed(1)}px, 0) rotate(${f.a.toFixed(1)}deg)`;
+      }
+      for (const p of piled) {
+        if (p.rest) continue;
+        p.vy += G * dt; p.vx *= 1 - 1.6 * dt; p.va *= 1 - 1.2 * dt;
+        if (p.vy > 140) p.vy -= (p.vy - 140) * 4 * dt;          // 잎이라 천천히 내려앉음
+        p.x += p.vx * dt; p.y += p.vy * dt; p.a += p.va * dt;
+        if (p.x < 6) { p.x = 6; p.vx = Math.abs(p.vx) * 0.4; }
+        if (p.x > PW - 6) { p.x = PW - 6; p.vx = -Math.abs(p.vx) * 0.4; }
+        if (p.vy > 0 && p.y >= surface(p.x)) land(p); else place(p);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    const vis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else if (!raf) { last = performance.now(); raf = requestAnimationFrame(tick); } };
+    document.addEventListener("visibilitychange", vis);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("visibilitychange", vis);
+      area.removeEventListener("pointermove", onMove);
+      area.removeEventListener("pointerleave", onLeave);
+      area.removeEventListener("pointerdown", onDown);
+      ro.disconnect();
+      falling.forEach((f) => f.el.remove());
+      piled.forEach((p) => p.el.remove());
+    };
+  }, [fallRef, pileRef, areaRef]);
 }
 
 // 판 (홈 + 라벨)
@@ -254,10 +355,12 @@ function Mixtape() {
 
 export default function Story() {
   const request = useRef(null);
+  const fallRef = useRef(null), pileRef = useRef(null), areaRef = useRef(null);
+  useLeaves(fallRef, pileRef, areaRef);
   const onRequest = (p) => request.current?.open({ title: p.album, artist: p.artist, releaseYear: p.year });
   return (
     <div className="relative">
-      <FallingLeaves />
+      <div ref={fallRef} aria-hidden="true" className="pointer-events-none sticky top-0 z-0 -mb-[100svh] h-svh overflow-hidden" />
       <div className="relative z-10">
       {/* 1 히어로 */}
       <section className="relative grid min-h-svh place-items-center overflow-hidden pb-16 pt-[calc(var(--ct-header-h,106px)+80px)]">
@@ -282,8 +385,9 @@ export default function Story() {
       <Mixtape />
 
       {/* 4 마무리 */}
-      <section className={`${WRAP} relative pb-[clamp(9rem,17vw,13rem)] pt-[clamp(2rem,6vw,4rem)] text-center`}>
-        <LeafPile />
+      <section ref={areaRef} data-no-select className={`${WRAP} relative pb-[clamp(11rem,20vw,15rem)] pt-[clamp(2rem,6vw,4rem)] text-center`}>
+        {/* 낙엽 더미: 바닥(아래)만 자르고 위로 튀는 잎은 보이게 */}
+        <div ref={pileRef} aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[clamp(9rem,17vw,12rem)] [clip-path:inset(-100vh_0_0_0)]" />
         <RiseText lines={["Got one we missed?"]} className={`${SERIF} text-[clamp(2.4rem,5.5vw,5.4rem)] leading-[0.92]`} />
         <Reveal delay={250} as="p" className="mx-auto mt-5 max-w-md text-[15px] leading-7 text-(--ink)/75">당신에게 가을처럼 들리는 음반을 알려주세요. 크레이트에 추가될지도 몰라요.</Reveal>
         <Reveal delay={400} className="mt-9 flex flex-wrap justify-center gap-3">
