@@ -327,10 +327,11 @@ function Entry() {
 
 // 앨범 커버: 이미지가 있으면 그대로, 없으면 손그림 판 + 제목으로 자리만 잡음
 function Cover({ img, artist, title, className = "" }) {
+  const [broken, setBroken] = useState(false);   // 외부 이미지를 못 받으면 자리표시로
   return (
     <div className={`relative aspect-square overflow-hidden rounded-[3px] bg-(--cover-bg) ${className}`}>
-      {img ? (
-        <img src={img} alt={`${artist} — ${title}`} loading="lazy" className="size-full object-cover" />
+      {img && !broken ? (
+        <img src={img} alt={`${artist} — ${title}`} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="size-full object-cover" />
       ) : (
         <>
           <div aria-hidden="true" className="absolute -bottom-[22%] -right-[22%] size-[86%] bg-(--cover-art) [mask:url(/images/news/what-is-vinyl/lathe-disc.webp)_center/contain_no-repeat]" />
@@ -348,19 +349,19 @@ function Cover({ img, artist, title, className = "" }) {
 const yt = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 const LIMITED = [
   {
-    artist: "Lim Hyun-jung", ko: "임현정", title: "[4] A Year Out… In The Island", img: null,
+    artist: "Lim Hyun-jung", ko: "임현정", title: "[4] A Year Out… In The Island", img: "https://cdn.imweb.me/thumbnail/20261001/6230cd9567b6d.jpg",
     text: "20년 넘게 영화와 드라마에 쓰여 온 노래가 담긴 2003년 앨범. 바이닐로는 처음 발매돼요.",
     spec: ["2LP · 180g", "게이트폴드 재킷", "인서트"], price: "55,000원", run: "700매 · 하루 350매",
     track: "사랑은 봄비처럼…이별은 겨울비처럼", href: yt("임현정 사랑은 봄비처럼 이별은 겨울비처럼"),
   },
   {
-    artist: "Sultan of the Disco", ko: "술탄 오브 더 디스코", title: "Easy Listening for Love +", img: null,
+    artist: "Sultan of the Disco", ko: "술탄 오브 더 디스코", title: "Easy Listening for Love +", img: "https://cdn.imweb.me/thumbnail/20261015/203e4f113560a.jpg",
     text: "가장 최근 앨범인 2019년작이 처음으로 바이닐이 돼요. 2020년 싱글과 그 연주곡을 더해 총 10곡을 담았어요.",
     spec: ["LP · 180g 검정반", "게이트폴드 재킷", "디자인 이너슬리브"], price: "49,000원", run: "700매 · 하루 350매",
     track: "Waiting For Your Calling Back", href: yt("술탄 오브 더 디스코 Waiting For Your Calling Back"),
   },
   {
-    artist: "Bronze", ko: "브론즈", title: "Aquarium", img: null,
+    artist: "Bronze", ko: "브론즈", title: "Aquarium", img: "https://cdn.imweb.me/thumbnail/20261015/0a6d58f853ed4.jpg",
     text: "BSK, 미노이, 루나, 유키카, 후디가 참여하고 나가이 히로시가 그림을 그린 두 번째 정규 앨범. 바이닐 발매 5주년을 맞아 검정반으로 다시 찍었어요.",
     spec: ["LP · 180g 검정반", "싱글 재킷", "인서트"], price: "44,500원", run: "500매 · 하루 250매",
     track: "Aquarium", href: yt("브론즈 Bronze Aquarium"),
@@ -427,18 +428,20 @@ function Floor() {
 }
 
 // 7 온라인 판매 중인 한정반 — 앨범만
+// 커버: 서울레코드페어 공식 샵(imweb) 상품 이미지. null 이면 손그림 판 자리표시
+const SHOP_IMG = "https://cdn-optimized.imweb.me/upload/S2022010328cabbf030b8f/";
 const ONLINE = [
-  ["김현철", "32℃ 여름"],
-  ["김현철", "횡계에서 돌아오는 저녁"],
-  ["김현철", "그대안의 블루 (OST)"],
-  ["김현철", "네온 속으로 노을지다 (OST)"],
-  ["김도언", "Damage"],
-  ["노이즈가든", "…But Not For Sale"],
-  ["머드 더 스튜던트", "Field Trip"],
-  ["다브다", "Yonder EP"],
-  ["김상희", "Sings Tom Jones & Burt Bacharach"],
-  ["김상희", "Love Story"],
-].map(([artist, title]) => ({ artist, title, img: null }));
+  ["김현철", "32℃ 여름", "4a6bce0085f3e"],
+  ["김현철", "횡계에서 돌아오는 저녁", "a085adcdf02d4"],
+  ["김현철", "그대안의 블루 (OST)", "26d2dda2070fd"],
+  ["김현철", "네온 속으로 노을지다 (OST)", "6657e235c6b9d"],
+  ["김도언", "Damage", "05cba9f991323"],
+  ["노이즈가든", "…But Not For Sale", "c9af6b0f62a98"],
+  ["머드 더 스튜던트", "Field Trip", "3a21972e171e8"],
+  ["다브다", "Yonder EP", null],
+  ["김상희", "Sings Tom Jones & Burt Bacharach", null],
+  ["김상희", "Love Story", null],
+].map(([artist, title, id]) => ({ artist, title, img: id ? `${SHOP_IMG}${id}.jpg?w=800` : null }));
 function Online() {
   return (
     <section className={`${SECTION} pt-0`}>
