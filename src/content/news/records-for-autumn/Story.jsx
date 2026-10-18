@@ -100,9 +100,14 @@ function useLeaves(fallRef, pileRef) {
     // 꽉 찬 구간이면 옆으로 미끄러져 낮은 곳에 앉음
     const settleX = (x) => {
       let b = binOf(x);
-      for (let i = 0; i < 6 && heap[b] >= cap(b); i++) {
-        const l = Math.max(0, b - 1), r = Math.min(bins() - 1, b + 1);
-        b = heap[l] <= heap[r] ? l : r;
+      if (heap[b] >= cap(b)) {
+        // 가까운 곳부터 양옆으로 넓혀 가며 아직 덜 찬 자리를 찾음 (없으면 가장 낮은 자리)
+        let found = -1, low = 0;
+        for (let d = 1; d < bins() && found < 0; d++) {
+          for (const c of [b - d, b + d]) if (c >= 0 && c < bins() && heap[c] < cap(c)) { found = c; break; }
+        }
+        if (found < 0) heap.forEach((h, i) => { if (h < heap[low]) low = i; });
+        b = found >= 0 ? found : low;
       }
       return Math.min(PW - 4, Math.max(4, (b + Math.random()) * BIN));
     };
@@ -179,10 +184,22 @@ function useLeaves(fallRef, pileRef) {
     window.addEventListener("pointermove", onMove, { passive: true });
     document.documentElement.addEventListener("pointerleave", onLeave);
     window.addEventListener("pointerdown", onDown, { passive: true });
-    const ro = new ResizeObserver(resize);
+    // 더미 크기가 바뀌면(창 크기·글꼴 로딩·화면 회전 등) 바닥 위치가 달라져 예전 잎이 공중에 뜸
+    // → 높이 지도를 비우고, 쉬고 있는 잎을 아래 것부터 새 바닥 위에 다시 앉힘
+    const relayout = () => {
+      const oW = PW, oH = PH;
+      resize();
+      if (oW === PW && oH === PH) return;
+      heap.fill(0);
+      // 화면이 좁아졌으면 넘치는 잎은 위에 있는 것부터 치움
+      const max = Math.floor(PW * PILE_MAX_PER_PX);
+      if (piled.length > max) piled.sort((a, b) => b.y - a.y).splice(max).forEach((p) => p.el.remove());
+      piled.filter((p) => p.rest).sort((a, b) => b.y - a.y).forEach((p) => { p.x = (p.x / (oW || 1)) * PW; land(p); });
+    };
+    const ro = new ResizeObserver(relayout);
     ro.observe(pile);
 
-    let raf = 0, last = performance.now();
+    let raf = 0, last = performance.now(), sweep = 0;
     const tick = (t) => {
       const dt = Math.min(0.05, (t - last) / 1000); last = t;
       const fr = fall.getBoundingClientRect(), pr = pile.getBoundingClientRect();
@@ -199,6 +216,11 @@ function useLeaves(fallRef, pileRef) {
         }
         if (f.y > fr.height + 60) { spawn(f, false); continue; }
         f.el.style.transform = `translate3d(${(x - f.s / 2).toFixed(1)}px, ${(f.y - f.s / 2).toFixed(1)}px, 0) rotate(${f.a.toFixed(1)}deg)`;
+      }
+      // 안전장치: 1초마다 쉬고 있는 잎 중 바닥보다 한참 떠 있는 것은 다시 떨어뜨림
+      if ((sweep += dt) > 1) {
+        sweep = 0;
+        for (const p of piled) if (p.rest && p.y < surface(p.x) - p.s * 0.9) { lift(p); p.vy = 30; }
       }
       for (const p of piled) {
         if (p.rest) continue;
