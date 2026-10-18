@@ -2,7 +2,7 @@
 // fair: 큰 "15" + 쌓인 판 (이전) / fair-poster: 공식 포스터를 정사각형으로 자름 (© 서울레코드페어) / autumn: 가을색 슬리브와 낙엽 / record: 홈 확대 + 바늘
 // a-to-z-NN: Vinyl A to Z 시리즈 — 같은 틀에 회차 번호 + 그 회의 손그림. 바탕·그림 색은 테마를 따라감(--cover-bg / --cover-art)
 import { useId } from "react";
-import { AUTUMN_DOODLE } from "./autumnDoodle";
+import { AUTUMN_COVER } from "./autumnDoodle";
 
 function Fair() {
   return (
@@ -38,17 +38,27 @@ function Autumn() {
     </svg>
   );
 }
-// Picks 가을: 손그림 단풍잎(주황) + 큰 "Autumn". 바탕·글자는 테마를 따라감 (Vinyl A to Z 썸네일과 같은 틀)
+// Picks 가을: 크레용 질감 단풍잎 + 살짝 어긋나게 그은 손그림 윤곽선, 바탕은 크림 (테마와 상관없이 고정)
+const MAPLE = "/images/news/records-for-autumn/maple.webp";
 function AutumnDoodle() {
+  const [x, y, w, h] = AUTUMN_COVER.box;
   return (
     <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
-      <rect width="400" height="400" style={{ fill: "var(--cover-bg)" }} />
-      <g fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: "var(--leaf)" }}>
-        {AUTUMN_DOODLE.strokes.map((d, i) => <path key={i} d={d} strokeWidth={i < 2 ? 2.6 : 2.1} />)}
-        {AUTUMN_DOODLE.hatch.map((d, i) => <path key={`h${i}`} d={d} strokeWidth="1.6" />)}
+      <rect width="400" height="400" fill="#f4e7cd" />
+      <g transform="rotate(-7 200 195)">
+        <image href={MAPLE} x={x} y={y} width={w} height={h} />
+        <g transform="translate(7 -6)" fill="none" stroke="#4c404a" strokeLinecap="round" strokeLinejoin="round">
+          <path d={AUTUMN_COVER.outline[0]} strokeWidth="1.7" />
+          <path d={AUTUMN_COVER.outline[1]} strokeWidth="1.1" opacity=".7" />
+        </g>
       </g>
-      <text x="28" y="44" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" style={{ fill: "var(--accent)" }}>PICKS</text>
-      <text x="374" y="376" textAnchor="end" fontFamily="Grooves Display, Hahmlet, Georgia, serif" fontWeight="900" fontSize="72" letterSpacing="-1" style={{ fill: "var(--ink)" }}>Autumn</text>
+      {/* 떨어지는 움직임 낙서 */}
+      <g fill="none" stroke="#4c404a" strokeWidth="1.6" strokeLinecap="round" opacity=".75">
+        <path d="M318 92c8 6 10 14 6 22" /><path d="M330 84c10 8 13 19 8 30" />
+        <path d="M70 250c-6 8-6 17 0 24" /><path d="M58 244c-8 10-9 22-2 32" />
+      </g>
+      <text x="28" y="44" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" fill="#2d6a6a">PICKS</text>
+      <text x="374" y="376" textAnchor="end" fontFamily="Grooves Display, Hahmlet, Georgia, serif" fontWeight="900" fontSize="72" letterSpacing="-1" fill="#4c404a">Autumn</text>
     </svg>
   );
 }

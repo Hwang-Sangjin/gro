@@ -74,7 +74,6 @@
   /* 시리즈 썸네일 (Vinyl A to Z): 바탕 · 손그림 색 — 크림 위에선 하늘색이 흐려서 진한 파랑으로 */
   --cover-bg: #e8d9b8;
   --cover-art: #6f8fb6;
-  --leaf: #cf6a2e;          /* 가을 단풍(손그림·낙엽) */
   --accent-blue: #7fa3c7;
   --hero-title-size: 11vw;
 
@@ -92,7 +91,6 @@
   --danger: #e09aa3;
   --cover-bg: #2a222a;
   --cover-art: #bbcbda;
-  --leaf: #e8955a;
   color-scheme: dark;
 }
 

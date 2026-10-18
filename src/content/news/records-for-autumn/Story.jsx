@@ -63,10 +63,15 @@ const PICKS = [
 const rand = (i, k = 1) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
 // 잎 종류별 색 (단풍·은행·갈잎)
 const LEAF_KINDS = [
-  ["maple", ["#c8553d", "#d9793d", "#b4442f", "#e08a3a", "#a63c2a"]],
+  ["maple", ["#c8553d", "#d9793d", "#b4442f", "#e08a3a"]],
   ["ginkgo", ["#e3b04b", "#d9a531", "#ecc25a"]],
-  ["maple", ["#d9793d", "#c8553d", "#b8582e"]],
-  ["oval", ["#8a5a3c", "#b4602f", "#9c4a2b", "#c27a3a"]],
+  ["palmatum", ["#a63c2a", "#b8322a", "#c8553d"]],
+  ["star", ["#e08a3a", "#d9793d", "#c96a2c", "#e3b04b"]],
+  ["heart", ["#8a5a3c", "#9c6a3f", "#b07a3a"]],
+  ["maple", ["#e3b04b", "#d9a531", "#c9802f"]],
+  ["oak", ["#7a7a3a", "#8a6a34", "#9c7a3a", "#6f7a3a"]],
+  ["cherry", ["#d9793d", "#c8553d", "#e08a3a"]],
+  ["oval", ["#8a5a3c", "#b4602f", "#9c4a2b"]],
 ];
 const leafOf = (i) => { const [kind, colors] = LEAF_KINDS[i % LEAF_KINDS.length]; return [kind, colors[Math.floor(rand(i, 9) * colors.length)]]; };
 
@@ -77,16 +82,17 @@ function Leaf({ kind, color, className = "", style }) {
   return (
     <svg viewBox="0 0 100 100" className={className} style={style} aria-hidden="true">
       <clipPath id={`h${id}`}><rect x="50" width="50" height="100" /></clipPath>
+      <clipPath id={`l${id}`}><path d={L.d} /></clipPath>
       <path d={L.d} fill={color} />
       <path d={L.d} fill="#2a1408" opacity=".14" clipPath={`url(#h${id})`} />
-      <path d={L.veins} fill="none" stroke="#3a1a0c" strokeOpacity=".38" strokeWidth=".9" strokeLinecap="round" />
+      <path d={L.veins} fill="none" stroke="#3a1a0c" strokeOpacity=".38" strokeWidth=".9" strokeLinecap="round" clipPath={`url(#l${id})`} />
       <path d={L.stem} fill="none" stroke="#5a2f17" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
 
 // 페이지 전체에 떨어지는 낙엽 — 화면에 붙어 있는(sticky) 층이라 어디까지 스크롤해도 계속 떨어짐
-function FallingLeaves({ count = 18 }) {
+function FallingLeaves({ count = 22 }) {
   return (
     <div aria-hidden="true" className="pointer-events-none sticky top-0 z-0 -mb-[100svh] h-svh overflow-hidden motion-reduce:hidden">
       {Array.from({ length: count }, (_, i) => {
