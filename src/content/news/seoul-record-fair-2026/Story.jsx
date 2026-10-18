@@ -71,12 +71,17 @@ function Countdown() {
   );
 }
 
-// 히어로 오른쪽 Pop-up crate — 포인터가 지나가는 자리 아래에서 판이 튀어 올라 포인터 높이쯤에서 정점, 다시 떨어짐
-// 손그림 판(lathe-disc)을 마스크로 칠함. 판은 직접 DOM 노드로 만들어 rAF로 움직임 (React 렌더 없음)
-const DISC_SRC = "/images/news/what-is-vinyl/lathe-disc.webp";
-const POP_COLORS = ["var(--ink)", "var(--accent)", "var(--cover-art)", "var(--ink)"];
+// 히어로 오른쪽 Pop-up crate — 5개의 줄(레인)에서만 판이 튀어 올랐다 떨어짐
+// 포인터가 지나가는 레인에서 한 장, 정점은 포인터 높이쯤. 판은 직접 DOM 노드로 만들어 rAF로 움직임 (React 렌더 없음)
+// 판: 검정 바탕 + 동심원 홈. 빛이 왼쪽 위에서 와서 홈이 왼쪽은 하얗게, 오른쪽은 그림자로 검게 사라짐 (빛은 고정이라 판을 돌리지 않음)
+const LANES = 5;
 const GRAVITY = 2600;        // px/s²
 const POP_MAX = 30;          // 동시에 떠 있는 판 수 상한
+const DISC_INK = "#141113";
+const GROOVES = Array.from({ length: 11 }, (_, i) => 46.5 - i * 3.7);   // 홈 반지름 (viewBox 100 기준)
+const DISC_SVG = `<svg viewBox="0 0 100 100" class="block size-full"><circle cx="50" cy="50" r="49.6" fill="${DISC_INK}"/>`
+  + GROOVES.map((r) => `<circle cx="50" cy="50" r="${r.toFixed(2)}" fill="none" stroke="url(#pc-light)" stroke-width="1.7"/>`).join("")
+  + `<circle cx="50" cy="50" r="1.6" fill="url(#pc-light)"/></svg>`;
 function PopCrate({ className = "" }) {
   const box = useRef(null);
   const [touch, setTouch] = useState(false);
@@ -92,77 +97,71 @@ function PopCrate({ className = "" }) {
     ro.observe(el);
 
     const live = [];
-    let ci = 0;
+    const laneW = () => W / LANES;
+    const laneX = (i) => laneW() * (i + 0.5);
+    const laneOf = (x) => Math.min(LANES - 1, Math.max(0, Math.floor(x / laneW())));
+    const size = () => Math.round(Math.min(laneW() * 1.22, 320));   // 옆 레인과 살짝 겹치게
     const make = (d) => {
       const node = document.createElement("div");
-      node.className = "pointer-events-none absolute left-0 top-0 rounded-full bg-(--cream) will-change-transform";
+      node.className = "pointer-events-none absolute left-0 top-0 rounded-full will-change-transform";
       node.style.width = node.style.height = `${d}px`;
-      const art = document.createElement("div");
-      art.className = "size-full";
-      art.style.backgroundColor = POP_COLORS[ci++ % POP_COLORS.length];
-      art.style.mask = art.style.webkitMask = `url(${DISC_SRC}) center / contain no-repeat`;
-      node.appendChild(art);
+      node.innerHTML = DISC_SVG;
       el.appendChild(node);
       return node;
     };
-    const place = (p) => { p.node.style.transform = `translate3d(${p.x - p.d / 2}px, ${p.y - p.d / 2}px, 0) rotate(${p.a}deg)`; };
-    const spawn = (x, peak) => {
+    const place = (p) => { p.node.style.transform = `translate3d(${p.x - p.d / 2}px, ${p.y - p.d / 2}px, 0)`; };
+    const spawn = (lane, peak) => {
       if (!W || !H) return;
       if (live.length >= POP_MAX) live.shift().node.remove();
-      const d = Math.round(Math.min(Math.max(W * (0.24 + Math.random() * 0.2), 96), 300));
+      const d = size();
       const y0 = H + d / 2 + 4;
       const top = Math.min(Math.max(peak, d * 0.5 + 8), H - d * 0.35);
-      const p = {
-        node: make(d), d, y: y0,
-        x: Math.min(Math.max(x, d * 0.3), W - d * 0.3),
-        vy: -Math.sqrt(2 * GRAVITY * (y0 - top)),
-        a: Math.random() * 360, va: (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random() * 160),
-      };
+      const p = { node: make(d), d, x: laneX(lane), y: y0, vy: -Math.sqrt(2 * GRAVITY * (y0 - top)) };
       place(p);
       live.push(p);
     };
 
-    // 모션 줄이기: 상자 바닥에 판 몇 장만 걸쳐 둠
+    // 모션 줄이기: 레인마다 판을 바닥에 걸쳐 둠
     if (reduce) {
-      [[0.28, 0.82], [0.62, 0.74], [0.86, 0.9]].forEach(([fx, fy]) => {
-        const d = Math.round(Math.min(Math.max(W * 0.36, 110), 300));
-        const p = { node: make(d), d, x: W * fx, y: H * fy + d * 0.2, a: fx * 400 };
+      [0.72, 0.58, 0.8, 0.64, 0.86].forEach((fy, i) => {
+        const d = size();
+        const p = { node: make(d), d, x: laneX(i), y: H * fy + d * 0.2 };
         place(p);
         live.push(p);
       });
       return () => { ro.disconnect(); live.forEach((p) => p.node.remove()); };
     }
 
-    // 포인터: 일정 거리를 움직일 때마다 한 장, 클릭/탭하면 세 장
-    let lastX = null, lastY = null, moved = 0, lastSpawn = 0, lastPointer = -1e9;
+    // 포인터: 다른 레인으로 넘어가면 바로, 같은 레인에서 움직이면 잠깐씩 한 장. 클릭/탭하면 그 레인과 양옆에서 한 장씩
+    let lastLane = -1, lastSpawn = 0, lastPointer = -1e9;
     const local = (e) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
     const onMove = (e) => {
       const [x, y] = local(e);
-      if (x < -40 || x > W + 40) { lastX = null; return; }
+      if (x < 0 || x > W) { lastLane = -1; return; }
       const now = performance.now();
       lastPointer = now;
-      if (lastX != null) moved += Math.hypot(x - lastX, y - lastY);
-      lastX = x; lastY = y;
-      if (moved > 70 || (moved > 14 && now - lastSpawn > 160)) {
-        spawn(x, y + (Math.random() - 0.5) * 60);
-        moved = 0; lastSpawn = now;
+      const lane = laneOf(x);
+      if (lane !== lastLane || now - lastSpawn > 260) {
+        spawn(lane, y + (Math.random() - 0.5) * 50);
+        lastLane = lane; lastSpawn = now;
       }
     };
     const onDown = (e) => {
       const [x, y] = local(e);
-      if (x < -40 || x > W + 40) return;
+      if (x < 0 || x > W) return;
       lastPointer = performance.now();
-      for (let i = 0; i < 3; i++) spawn(x + (i - 1) * 50, y - 20 + i * 50);
+      const lane = laneOf(x);
+      [lane - 1, lane, lane + 1].forEach((l, i) => { if (l >= 0 && l < LANES) spawn(l, y + (i === 1 ? -40 : 30)); });
     };
     host.addEventListener("pointermove", onMove, { passive: true });
     host.addEventListener("pointerdown", onDown, { passive: true });
 
     // 가만히 있으면 혼자서 가끔 튀어 오름
-    const idle = setInterval(() => {
-      if (visible && performance.now() - lastPointer > 2400) spawn(Math.random() * W, H * (0.2 + Math.random() * 0.45));
-    }, 850);
-
     let visible = true, raf = 0, last = performance.now();
+    const idle = setInterval(() => {
+      if (visible && performance.now() - lastPointer > 2400) spawn(Math.floor(Math.random() * LANES), H * (0.2 + Math.random() * 0.45));
+    }, 700);
+
     const tick = (t) => {
       const dt = Math.min(0.05, (t - last) / 1000);
       last = t;
@@ -170,7 +169,6 @@ function PopCrate({ className = "" }) {
         const p = live[i];
         p.vy += GRAVITY * dt;
         p.y += p.vy * dt;
-        p.a += p.va * dt;
         if (p.vy > 0 && p.y - p.d / 2 > H) { p.node.remove(); live.splice(i, 1); continue; }
         place(p);
       }
@@ -182,7 +180,7 @@ function PopCrate({ className = "" }) {
     });
     io.observe(el);
     raf = requestAnimationFrame(tick);
-    spawn(W * 0.5, H * 0.35);
+    spawn(2, H * 0.3);
 
     return () => {
       cancelAnimationFrame(raf);
@@ -196,6 +194,16 @@ function PopCrate({ className = "" }) {
   }, []);
   return (
     <div className={className} aria-hidden="true">
+      {/* 모든 판이 같이 쓰는 빛: 홈마다 왼쪽 위는 하얗고 오른쪽으로 갈수록 검정에 묻힘 */}
+      <svg width="0" height="0" className="absolute">
+        <defs>
+          <linearGradient id="pc-light" x1="0.05" y1="0.15" x2="0.78" y2="0.62">
+            <stop offset="0" stopColor="#fff" />
+            <stop offset="0.48" stopColor="#fff" stopOpacity="0.9" />
+            <stop offset="0.8" stopColor="#fff" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+      </svg>
       <div ref={box} className="relative size-full overflow-hidden" />
       <p className="pointer-events-none absolute bottom-4 right-[clamp(20px,4vw,72px)] text-[10px] font-medium uppercase tracking-[0.3em] text-(--ink)/55">
         Pop-up crate · {touch ? "탭해서" : "마우스를 움직여"} 디깅
@@ -471,7 +479,7 @@ export default function Story() {
           <p aria-hidden="true" className={`${SERIF} mt-2 text-[clamp(7rem,16vw,15rem)] leading-[0.78] text-transparent [-webkit-text-stroke:2px_var(--ink)]`}>
             <span className="inline-block animate-[sheet-up_1.2s_cubic-bezier(.22,1,.36,1)_both]">15</span>
           </p>
-          <RiseText as="h1" lines={["Seoul", "Record Fair"]} delay={150} lineClassName="whitespace-nowrap" className={`${SERIF} -mt-[0.35em] text-[clamp(3.2rem,7vw,7rem)] leading-[0.88]`} />
+          <RiseText as="h1" lines={["Seoul", "Record Fair"]} delay={150} lineClassName="whitespace-nowrap" className={`${SERIF} mt-[0.08em] text-[clamp(3.2rem,7vw,7rem)] leading-[0.88]`} />
           <Reveal delay={450} as="p" className="mt-6 text-[clamp(1.1rem,2vw,1.5rem)] font-medium tabular-nums">2026. 10. 31 – 11. 1 · PUBG 성수</Reveal>
           <Reveal delay={650} className="mt-7 w-fit rounded-[6px] bg-(--cream)/85 p-4 backdrop-blur-sm">
             <Countdown />
