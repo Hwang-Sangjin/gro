@@ -12,7 +12,7 @@ import { submitRequest, fetchMyRequests, STATUS_LABEL } from "@/lib/requests";
 import { GENRES } from "@/lib/genres";
 import { parseTracks, TRACK_PLACEHOLDER, FORMATS } from "@/lib/tracks";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.03em]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.008em]";
 const field = "w-full rounded-xl border border-(--ink)/20 bg-transparent px-3.5 py-2.5 text-[14px] outline-none transition-colors placeholder:text-(--ink)/35 focus:border-(--ink)";
 const labelCls = "mb-1.5 block text-[10px] font-medium uppercase tracking-[0.22em] text-(--ink)/55";
 const EMPTY = { title: "", artist: "", link: "", note: "", genres: [], releaseDate: "", releaseYear: "", format: "", label: "", catalogNo: "", youtube: "", tracks: "", cover: null };

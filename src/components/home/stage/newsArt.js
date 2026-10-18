@@ -51,12 +51,12 @@ export const NEWS_ART = {
       <g class="${ART_T} group-hover:rotate-[10deg] group-hover:translate-x-[12px]"><g transform="rotate(6)"><rect x="-80" y="-80" width="160" height="160" fill="${NEWS_ACCENT}"/><circle r="38" cx="20" cy="-14" fill="#f2c14e" opacity=".9"/></g></g>
       <g transform="translate(0 -8)"><rect x="-80" y="-80" width="160" height="160" fill="#f4e7cd" stroke="#4c404a" stroke-opacity=".14"/>
         <g transform="translate(0 -6)" class="${ART_T} group-hover:-translate-y-[26px]"><g class="${ART_T} group-hover:rotate-[60deg]">${newsDisc(54)}</g></g>
-        <text y="64" text-anchor="middle" font-family="Grooves Bodoni, Georgia, serif" font-size="11" font-weight="900" letter-spacing="2" fill="#4c404a">NEW PRESSING</text>
+        <text y="64" text-anchor="middle" font-family="Grooves Display, Hahmlet, Georgia, serif" font-size="11" font-weight="900" letter-spacing="2" fill="#4c404a">NEW PRESSING</text>
       </g>
       <g transform="translate(74 -78)"><g class="${ART_T} group-hover:rotate-[24deg] group-hover:scale-110">
         <circle r="26" fill="#f2c14e"/><circle r="22" fill="none" stroke="#4c404a" stroke-width=".6" stroke-dasharray="2 2"/>
-        <text y="-1" text-anchor="middle" font-family="PP Neue Montreal, Arial, sans-serif" font-weight="900" font-size="11" fill="#4c404a">NEW</text>
-        <text y="10" text-anchor="middle" font-family="PP Neue Montreal, Arial, sans-serif" font-size="6" letter-spacing="1" fill="#4c404a">2026</text>
+        <text y="-1" text-anchor="middle" font-family="Hahmlet, Arial, sans-serif" font-weight="900" font-size="11" fill="#4c404a">NEW</text>
+        <text y="10" text-anchor="middle" font-family="Hahmlet, Arial, sans-serif" font-size="6" letter-spacing="1" fill="#4c404a">2026</text>
       </g></g>
     </g>
     <g transform="translate(78 236)"><path class="${ART_T} group-hover:rotate-90" d="${SPARKLE}" transform="scale(.75)" fill="${NEWS_ACCENT}"/></g>`,

@@ -31,7 +31,7 @@ const POSTS = STORIES.slice(0, 3).map((s, i) => ({
 }));
 const META = ["Records", "People", "Culture", "And a slower tomorrow"];
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 // News에 들어올 때 아래에서 차례로 떠오름 (#news에 is-in이 붙으면)
 const NEWS_IN = "opacity-0 translate-y-5 transition-[opacity,translate] duration-[900ms] ease-[cubic-bezier(0.22,1,0.36,1)] [#news.is-in_&]:translate-y-0 [#news.is-in_&]:opacity-100";
 const delay = (k) => ({ transitionDelay: `${120 + k * 70}ms` });
@@ -218,7 +218,7 @@ export default function HomeStage() {
               </div>
               <div className="mt-2 flex flex-wrap items-end gap-x-7 gap-y-3 border-b border-[var(--hs-text)] pb-4">
                 <h2 id="news-title" className="min-w-0 overflow-x-visible overflow-y-clip pb-[0.04em]">
-                  <span className="ink-grain block translate-y-full text-[clamp(2.4rem,4vw,6rem)] font-black uppercase leading-[0.86] whitespace-nowrap tracking-[-0.045em] transition-[translate] duration-[1100ms] ease-[cubic-bezier(0.22,1,0.36,1)] [#news.is-in_&]:translate-y-0">News&nbsp;&amp;&nbsp;Stories</span>
+                  <span className="ink-grain block translate-y-full text-[clamp(2.4rem,4vw,6rem)] font-black uppercase leading-[0.86] whitespace-nowrap tracking-[-0.015em] transition-[translate] duration-[1100ms] ease-[cubic-bezier(0.22,1,0.36,1)] [#news.is-in_&]:translate-y-0">News&nbsp;&amp;&nbsp;Stories</span>
                 </h2>
                 <ul className={`${NEWS_IN} mb-1 hidden shrink-0 list-none border-l border-[var(--hs-line)] pl-4 text-[clamp(9px,0.62vw,12px)] font-medium uppercase leading-[1.7] tracking-[0.2em] text-[var(--hs-muted)] sm:block`} style={delay(1)}>
                   {META.map((line) => <li key={line}>{line}</li>)}
@@ -232,7 +232,7 @@ export default function HomeStage() {
                       <Link href={post.href} className="absolute inset-0 z-[1]" aria-label={`${post.kicker}: ${post.title}`} />
                       <div className="relative aspect-[16/10] overflow-hidden bg-[#eadcc2]">
                         <svg viewBox="0 10 400 275" className="h-full w-full transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04]" aria-hidden="true"
-                          dangerouslySetInnerHTML={{ __html: `${NEWS_ART[post.art]()}<text x="200" y="274" text-anchor="middle" font-family="Grooves Bodoni, Georgia, serif" font-size="9" letter-spacing="3.5" fill="#4c404a" opacity=".75">GROOVES JOURNAL</text>` }} />
+                          dangerouslySetInnerHTML={{ __html: `${NEWS_ART[post.art]()}<text x="200" y="274" text-anchor="middle" font-family="Grooves Display, Hahmlet, Georgia, serif" font-size="9" letter-spacing="3.5" fill="#4c404a" opacity=".75">GROOVES JOURNAL</text>` }} />
                       </div>
                       <p className="mt-[clamp(1rem,1.6vh,1.5rem)] flex items-center gap-2 text-[clamp(10px,0.72vw,13px)] font-medium uppercase tracking-[0.2em]">
                         <span className="font-semibold tabular-nums">{post.no}</span><span className="text-[var(--hs-muted)]">/</span><span>{post.category}</span>
@@ -263,7 +263,7 @@ export default function HomeStage() {
               <ellipse cx="60" cy="20" rx="5.4" ry="2.1" transform="rotate(-14 60 20)" fill="#2d6a6a" />
             </svg>
             {/* 제목처럼 줄마다 아래에서 스르륵 */}
-            <p className="mt-2 text-[clamp(1.45rem,2.8vw,3.6rem)] font-medium leading-[1.28] tracking-[-0.03em] [word-break:keep-all]">
+            <p className="mt-2 text-[clamp(1.45rem,2.8vw,3.6rem)] font-medium leading-[1.28] tracking-[-0.008em] [word-break:keep-all]">
               {["Dust it off,", "drop the needle."].map((line, k) => (
                 <span key={line} className="block overflow-y-clip">
                   <span className={`block translate-y-full transition-[translate] duration-[1100ms] ease-[cubic-bezier(0.22,1,0.36,1)] [#news.is-in_&]:translate-y-0 ${k ? "delay-[640ms]" : "delay-[520ms]"}`}>{line}</span>

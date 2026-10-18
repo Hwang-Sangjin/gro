@@ -7,7 +7,7 @@ import ShelfBrowser from "@/components/collection/ShelfBrowser";
 import useReveal from "@/components/digging/useReveal";
 import styles from "@/components/digging/Digging.module.css";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const EMPTY = { owned: "No records on this shelf yet", wishlist: "Nothing on the wishlist yet" };
 
 export default function PublicCollectionView({ data }) {

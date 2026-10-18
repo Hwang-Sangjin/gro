@@ -22,11 +22,11 @@
   gap: 0.4rem;
 }
 .title {
-  font-family: "Grooves Bodoni", Georgia, serif;
+  font-family: "Grooves Display", "Hahmlet", Georgia, serif;
   font-weight: 900;
   font-size: clamp(4rem, 12.5vw, 12rem);
   line-height: 1.05;
-  letter-spacing: -0.065em;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 .mark {
@@ -301,7 +301,7 @@
   width: 100%;
   height: 100%;
   font:
-    900 5rem "Grooves Bodoni",
+    900 5rem "Grooves Display", "Hahmlet",
     Georgia,
     serif;
   opacity: 0.6;

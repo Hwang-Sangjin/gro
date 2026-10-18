@@ -16,7 +16,7 @@ import {useNowSpinning} from '@/lib/nowSpinning';
 import useAuthUser,{profileOf,signOut,useIsAdmin} from '@/lib/useAuthUser';
 import {useTheme,toggleTheme} from '@/lib/theme';
 
-const BODONI={fontFamily:'"Grooves Bodoni", "Bodoni MT", Georgia, serif'};
+const BODONI={fontFamily:'"Grooves Display", "Hahmlet", "Bodoni MT", Georgia, serif'};
 const num=i=>String(i+1).padStart(2,'0');
 
 // 등장: 처음 로딩(인트로가 끝난 순간)에만 왼쪽부터 차례로 아래에서 올라옴.
@@ -129,7 +129,7 @@ export default function Navbar({path}){
     {/* 스크롤 헤어라인 */}
     <span aria-hidden="true" className={`pointer-events-none absolute inset-x-0 bottom-0 h-px bg-current/15 transition-opacity duration-500 ${scrolled?'opacity-100':'opacity-0'}`}/>
 
-    <Link href="/" className="justify-self-start text-[clamp(22px,2vw,28px)] font-black leading-none tracking-[-.035em]" style={BODONI}>
+    <Link href="/" className="justify-self-start text-[clamp(22px,2vw,28px)] font-black leading-none tracking-[-0.01em]" style={BODONI}>
       <Rise show={shown} className="pb-[.12em]">Grooves</Rise>
     </Link>
 
@@ -177,7 +177,7 @@ export default function Navbar({path}){
     <div id="site-menu" role="dialog" aria-modal="true" aria-label="Menu" inert={!open} data-open={open}
       className="fixed inset-0 z-40 flex flex-col bg-[#2a222a] px-6 pb-8 pt-6 text-[#f4e7cd] transition-[clip-path] duration-700 ease-[cubic-bezier(.76,0,.24,1)] [clip-path:inset(0_0_100%_0)] data-[open=true]:[clip-path:inset(0)] md:hidden">
       <div className="flex items-center justify-between">
-        <Link href="/" onClick={()=>setOpen(false)} className="text-[24px] font-black leading-none tracking-[-.035em]" style={BODONI}>Grooves</Link>
+        <Link href="/" onClick={()=>setOpen(false)} className="text-[24px] font-black leading-none tracking-[-0.01em]" style={BODONI}>Grooves</Link>
         <button type="button" onClick={()=>setOpen(false)} className="flex min-h-11 items-center gap-2.5 text-[12px] font-medium uppercase tracking-[.2em]">
           Close<span aria-hidden="true" className="relative block size-4"><span className="absolute left-0 top-1/2 h-px w-full rotate-45 bg-current"/><span className="absolute left-0 top-1/2 h-px w-full -rotate-45 bg-current"/></span>
         </button>
@@ -188,7 +188,7 @@ export default function Navbar({path}){
             className={`flex items-baseline gap-4 py-3 transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] ${open?'translate-y-0':'translate-y-full'}`}
             style={{transitionDelay:open?`${180+i*70}ms`:'0ms'}}>
             <span className="text-[11px] tabular-nums tracking-[.1em] opacity-50">{num(i)}</span>
-            <span className="text-[clamp(44px,13vw,64px)] font-black leading-[1] tracking-[-.04em]" style={BODONI}>{item.label}</span>
+            <span className="text-[clamp(44px,13vw,64px)] font-black leading-[1] tracking-[-0.012em]" style={BODONI}>{item.label}</span>
             {path===item.href&&<span aria-hidden="true" className="ml-auto size-2 self-center rounded-full bg-current"/>}
           </Link>
         </li>)}

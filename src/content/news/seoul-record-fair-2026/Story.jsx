@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 import Link from "next/link";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035em]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
 const WRAP = "mx-auto w-full max-w-[1500px] px-[clamp(20px,4vw,72px)]";
 const SITE = "https://recordfair.kr/";
 const DAYS = [

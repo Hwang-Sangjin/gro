@@ -8,7 +8,7 @@ import { RiseText } from "@/components/story/Reveal";
 import { formatDate } from "@/content/news";
 import { SITE } from "@/lib/site";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035em]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
 const DOCS = [["/privacy", "Privacy Policy"], ["/terms", "Terms of Service"]];
 
 export default function LegalPage({ path, title, intro, sections }) {

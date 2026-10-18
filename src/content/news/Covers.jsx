@@ -8,10 +8,10 @@ function Fair() {
     <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
       <rect width="400" height="400" fill="#2d6a6a" />
       <g fill="none" stroke="#f4e7cd" strokeOpacity=".22">{[160, 140, 120, 100, 80].map((r) => <circle key={r} cx="200" cy="230" r={r} />)}</g>
-      <text x="200" y="250" textAnchor="middle" fontFamily="Grooves Bodoni, Georgia, serif" fontWeight="900" fontSize="230" letterSpacing="-12" fill="#f4e7cd">15</text>
+      <text x="200" y="250" textAnchor="middle" fontFamily="Grooves Display, Hahmlet, Georgia, serif" fontWeight="900" fontSize="230" letterSpacing="-1" fill="#f4e7cd">15</text>
       <g transform="translate(46 318)">{[0, 1, 2, 3, 4].map((i) => <rect key={i} x={i * 4} y={-i * 9} width="300" height="7" rx="2" fill={i % 2 ? "#4c404a" : "#2a222a"} />)}</g>
-      <text x="40" y="60" fontFamily="PP Neue Montreal, Arial, sans-serif" fontSize="13" letterSpacing="2.4" fill="#f4e7cd">SEOUL RECORD FAIR</text>
-      <text x="360" y="60" textAnchor="end" fontFamily="PP Neue Montreal, Arial, sans-serif" fontSize="13" letterSpacing="1.5" fill="#f4e7cd" opacity=".75">10.31 — 11.01</text>
+      <text x="40" y="60" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" letterSpacing="2.4" fill="#f4e7cd">SEOUL RECORD FAIR</text>
+      <text x="360" y="60" textAnchor="end" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" letterSpacing="1.5" fill="#f4e7cd" opacity=".75">10.31 — 11.01</text>
     </svg>
   );
 }
@@ -63,8 +63,8 @@ function Series({ n, art, box = [70, 60, 260, 260], arts }) {
         {list.map(({ href, box: [x, y, w, h] }, i) => <image key={i} href={href} x={x} y={y} width={w} height={h} preserveAspectRatio="xMidYMid meet" />)}
       </mask>
       <rect width="400" height="400" mask={`url(#${id})`} style={{ fill: "var(--cover-art)" }} />
-      <text x="28" y="44" fontFamily="PP Neue Montreal, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" style={{ fill: "var(--accent)" }}>VINYL A TO Z</text>
-      <text x="374" y="376" textAnchor="end" fontFamily="Grooves Bodoni, Georgia, serif" fontWeight="900" fontSize="88" letterSpacing="-4" style={{ fill: "var(--ink)" }}>{n}</text>
+      <text x="28" y="44" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" style={{ fill: "var(--accent)" }}>VINYL A TO Z</text>
+      <text x="374" y="376" textAnchor="end" fontFamily="Grooves Display, Hahmlet, Georgia, serif" fontWeight="900" fontSize="88" letterSpacing="-1" style={{ fill: "var(--ink)" }}>{n}</text>
     </svg>
   );
 }
@@ -85,8 +85,8 @@ function AtoZ02() {
           <rect x={-d / 2} y={-d / 2} width={d} height={d} mask={`url(#${id}-${i})`} style={{ fill: "var(--cover-art)" }} />
         </g>
       ))}
-      <text x="28" y="44" fontFamily="PP Neue Montreal, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" style={{ fill: "var(--accent)" }}>VINYL A TO Z</text>
-      <text x="374" y="376" textAnchor="end" fontFamily="Grooves Bodoni, Georgia, serif" fontWeight="900" fontSize="88" letterSpacing="-4" style={{ fill: "var(--ink)" }}>02</text>
+      <text x="28" y="44" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" style={{ fill: "var(--accent)" }}>VINYL A TO Z</text>
+      <text x="374" y="376" textAnchor="end" fontFamily="Grooves Display, Hahmlet, Georgia, serif" fontWeight="900" fontSize="88" letterSpacing="-1" style={{ fill: "var(--ink)" }}>02</text>
     </svg>
   );
 }

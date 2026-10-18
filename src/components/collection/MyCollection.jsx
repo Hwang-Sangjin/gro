@@ -13,7 +13,7 @@ import useAuthUser, { profileOf } from "@/lib/useAuthUser";
 import { fetchShelves } from "@/lib/userAlbums";
 import shuffle from "@/lib/shuffle";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const EMPTY = {
   owned: { title: "Your shelf is empty", hint: "Tap ‘I own this’ on any album page to shelve it here." },
   wishlist: { title: "Start a wishlist", hint: "Tap ‘Add to wishlist’ on any album page to save it here." },

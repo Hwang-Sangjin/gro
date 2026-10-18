@@ -17,7 +17,7 @@ import { SITE } from "@/lib/site";
 const AlbumVinyl = dynamic(() => import("@/components/album/AlbumVinyl"), { ssr: false });
 const LABEL_B = "#bbcbda";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035em]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
 const HEAD = "text-[11px] font-medium uppercase tracking-[0.26em] text-(--cream)/55";
 const LINK = "group/l inline-flex min-h-11 items-center py-1 md:min-h-0 text-[15px] text-(--cream)/85 transition-colors hover:text-(--cream)";
 // --fp 의 a~b 구간을 0~1 로

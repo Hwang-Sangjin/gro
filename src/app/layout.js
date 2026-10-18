@@ -1,4 +1,8 @@
 import Providers from "@/components/Provider";
+import "@fontsource/hahmlet/400.css";
+import "@fontsource/hahmlet/500.css";
+import "@fontsource/hahmlet/700.css";
+import "@fontsource/hahmlet/900.css";
 import "./globals.css";
 import { THEME_BOOT } from "@/lib/themeBoot";
 import { SITE } from "@/lib/site";
@@ -25,10 +29,6 @@ export default function RootLayout({ children }) {
       <head>
         {/* 저장된 테마(다크)를 첫 화면부터 — React 보다 먼저 실행 */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
-        <link
-          rel="stylesheet"
-          href="https://fonts.cdnfonts.com/css/pp-neue-montreal"
-        />
       </head>
       <body>
         {/* ReactLenis / Navbar / Preloader 는 전부 Providers 안으로 이동 */}

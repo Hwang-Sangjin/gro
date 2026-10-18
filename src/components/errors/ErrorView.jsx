@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import PageShell from "@/components/layout/PageShell";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 
 /** reset: Next 의 다시 시도 · title: 큰 제목 · back: { href, label } 두 번째 버튼 */
 export default function ErrorView({ error, reset, title = "The needle skipped.", back = { href: "/", label: "Back home" }, ...rest }) {

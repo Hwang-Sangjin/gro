@@ -38,7 +38,6 @@ const DISC_R = CW * REEL_LAYOUT.DISC;
 
 const CREAM = '#f4e7cd';
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-const hasKo = (s) => /[가-힣]/.test(s || '');
 const lumHex = (h) => { const n = parseInt((h || '#888888').slice(1, 7), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; };
 
 // 슬리브 앞면 = 앨범 커버 이미지 그대로 (테두리 없음). 옆면·뒷면은 대표 색 (setSlot)
@@ -56,13 +55,13 @@ function paintSleeve(g, a, img) {
   const light = lumHex(a.color) > 0.55;
   g.fillStyle = a.color || '#bbcbda'; g.fillRect(0, 0, S, S);
   g.fillStyle = light ? '#2a2228' : CREAM; g.textBaseline = 'top';
-  g.font = `900 ${Math.round(S * 0.08)}px ${hasKo(a.title) ? '"Gowun Batang",' : ''}"Grooves Bodoni", Georgia, serif`;
+  g.font = `900 ${Math.round(S * 0.08)}px "Grooves Display", "Hahmlet", Georgia, serif`;
   const words = (a.title || '').toUpperCase().split(' ');
   const lines = []; let line = '';
   for (const wd of words) { const t = line ? `${line} ${wd}` : wd; if (g.measureText(t).width > S * 0.84 && line) { lines.push(line); line = wd; } else line = t; }
   lines.push(line);
   lines.slice(0, 3).forEach((l, i) => g.fillText(l, S * 0.07, S * 0.07 + i * S * 0.095));
-  g.font = `500 ${Math.round(S * 0.038)}px "PP Neue Montreal", Arial, sans-serif`;
+  g.font = `500 ${Math.round(S * 0.038)}px "Hahmlet", Arial, sans-serif`;
   g.fillText((a.artist || '').toUpperCase(), S * 0.07, S * 0.88);
 }
 export function createNvReel({ renderer }) {

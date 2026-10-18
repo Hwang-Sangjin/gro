@@ -85,7 +85,7 @@ export default function GenreBar({
             return (
               <a key={it.slug ?? "all"} href={hrefFor(it.slug)} data-crate-skip onClick={pick(it.slug)}
                 aria-current={on ? "page" : undefined} style={{ "--reveal-order": i, "--line": lineOf(it.slug) }}
-                className={`group/g relative shrink-0 whitespace-nowrap before:absolute before:inset-x-0 before:-inset-y-2.5 before:content-[''] font-['Grooves_Bodoni',Georgia,serif] font-black uppercase leading-[1.05] tracking-[-0.03em] transition-[color,font-size] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] text-[clamp(1.2rem,1.85vw,2.1rem)] group-data-[stuck=true]/bar:text-[clamp(0.9rem,1.05vw,1.15rem)] ${on ? "text-(--ink)" : "text-(--ink)/25 hover:text-(--ink)/70 focus-visible:text-(--ink)/70"}`}>
+                className={`group/g relative shrink-0 whitespace-nowrap before:absolute before:inset-x-0 before:-inset-y-2.5 before:content-[''] font-['Grooves_Display','Hahmlet',Georgia,serif] font-black uppercase leading-[1.05] tracking-[-0.008em] transition-[color,font-size] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] text-[clamp(1.2rem,1.85vw,2.1rem)] group-data-[stuck=true]/bar:text-[clamp(0.9rem,1.05vw,1.15rem)] ${on ? "text-(--ink)" : "text-(--ink)/25 hover:text-(--ink)/70 focus-visible:text-(--ink)/70"}`}>
                 <span className="relative">
                   {it.name}
                   {/* 장르 색 밑줄: 고른 장르는 꽉, 마우스를 올리면 왼쪽에서 그어짐 */}

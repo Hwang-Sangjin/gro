@@ -9,7 +9,7 @@ import useAuthUser, { authClient, profileOf, signOut, useIsAdmin } from "@/lib/u
 import { formatDate } from "@/content/news";
 import { SITE } from "@/lib/site";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035em]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
 const WRAP = "mx-auto w-full max-w-[1100px] px-[clamp(20px,4vw,72px)]";
 const BTN = "inline-flex min-h-11 items-center justify-center rounded-full px-6 text-[12px] font-medium uppercase tracking-[0.18em] transition-colors";
 

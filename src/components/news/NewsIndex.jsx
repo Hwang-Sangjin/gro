@@ -6,7 +6,7 @@ import { CATEGORIES, STORIES, categoryName, formatDate } from "@/content/news";
 import StoryCover from "@/content/news/Covers";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035em]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
 const TABS = [{ key: "all", name: "All" }, ...CATEGORIES];
 
 function Meta({ s }) {

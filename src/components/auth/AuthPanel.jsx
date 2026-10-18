@@ -11,7 +11,7 @@ import Link from "next/link";
 import PageShell from "@/components/layout/PageShell";
 import useAuthUser, { profileOf, signInWithGoogle, signOut } from "@/lib/useAuthUser";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035em]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
 const EASE = "ease-[cubic-bezier(.45,0,.2,1)]";
 const NEEDLE_MS = 950;        // 바늘이 내려앉는 시간 → 그다음 Google 로 이동
 const RPM = { idle: 33.333, hover: 45, playing: 33.333, done: 33.333 };
@@ -89,7 +89,7 @@ export default function AuthPanel() {
 
   return (
     <PageShell className="paper-textured" footer={false}>
-      <section className="flex min-h-[calc(100svh-var(--ct-header-h,106px))] w-full overflow-x-clip flex-col items-center justify-center gap-[clamp(18px,2.6vh,32px)] px-5 pb-12 pt-6 text-center font-['PP_Neue_Montreal','Helvetica_Neue',Arial,sans-serif] text-(--ink)">
+      <section className="flex min-h-[calc(100svh-var(--ct-header-h,106px))] w-full overflow-x-clip flex-col items-center justify-center gap-[clamp(18px,2.6vh,32px)] px-5 pb-12 pt-6 text-center font-['Hahmlet',Georgia,serif] text-(--ink)">
         <p className="text-[11px] font-medium uppercase tracking-[0.3em] opacity-60">Login</p>
         <h1 className={`${SERIF} text-[clamp(40px,6vw,76px)] leading-[0.95]`}>
           {state === "done" ? <>Welcome back{p.name ? <>, <span className="whitespace-nowrap">{p.name.split(" ")[0]}</span></> : ""}</> : "Drop the needle"}

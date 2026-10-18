@@ -7,7 +7,7 @@ import StoryCover from "@/content/news/Covers";
 import { categoryName, formatDate, nextStory } from "@/content/news";
 import Reveal from "@/components/story/Reveal";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035em]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
 
 export default function StoryShell({ meta }) {
   const next = nextStory(meta.slug);

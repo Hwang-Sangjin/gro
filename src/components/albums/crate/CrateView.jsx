@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const EASE = "ease-[cubic-bezier(0.22,1,0.36,1)]";
 const storeKey = () => `grooves:crate:${location.pathname}`;
 

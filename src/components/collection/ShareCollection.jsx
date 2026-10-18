@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { fetchMyShare, saveMyShare, HANDLE_RULE } from "@/lib/collectionShare";
 import { SITE } from "@/lib/site";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const ERRORS = {
   handle_taken: "That ID is taken. Try another.",
   handle_invalid: "Use 3–24 characters: a–z, 0–9, _ and -.",

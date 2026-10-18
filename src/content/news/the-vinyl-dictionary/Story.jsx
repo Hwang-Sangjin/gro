@@ -8,13 +8,13 @@ import Reveal, { RiseText } from "@/components/story/Reveal";
 const DISC = "/images/news/what-is-vinyl/lathe-disc.webp";
 // Home 히어로 판과 같은 기울기: 3D 로 40° 눕힘(세로 sin40° ≈ 0.643) + 화면에서 33° 돌림
 const TILT = { roll: -33, squash: 0.643 };
-const BODONI = "font-['Grooves_Bodoni',Georgia,serif] font-black";
+const BODONI = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black";
 const KR = "font-['Noto_Serif_KR',Georgia,serif]";
 const LABEL = "font-sans text-[11px] font-semibold uppercase tracking-[0.28em]";
 const PADX = "px-[clamp(20px,4vw,72px)]";
 const WRAP = "mx-auto w-full max-w-[1240px]";
 const SECTION = `${PADX} py-[clamp(72px,12svh,150px)]`;
-const H2 = `${BODONI} text-[clamp(2.6rem,5vw,5.2rem)] leading-[0.9] tracking-[-0.03em]`;
+const H2 = `${BODONI} text-[clamp(2.6rem,5vw,5.2rem)] leading-[0.9] tracking-[-0.008em]`;
 const BODY = "text-[clamp(1.02rem,1.25vw,1.15rem)] font-medium leading-[1.9]";
 const ACC = "text-(--accent)";
 const SOFT = "rounded-sm bg-(--cover-bg)";
@@ -135,7 +135,7 @@ export default function Story() {
         <div className={`${WRAP} grid items-center gap-10 md:grid-cols-2`}>
           <div>
             <Reveal as="p" className={`${LABEL} ${ACC}`}>Vinyl A to Z · Chapter 02</Reveal>
-            <RiseText as="h1" lines={["The Vinyl", "Dictionary"]} delay={120} className={`${BODONI} mt-5 text-[clamp(3.4rem,7.6vw,8.2rem)] leading-[0.86] tracking-[-0.035em]`} />
+            <RiseText as="h1" lines={["The Vinyl", "Dictionary"]} delay={120} className={`${BODONI} mt-5 text-[clamp(3.4rem,7.6vw,8.2rem)] leading-[0.86] tracking-[-0.01em]`} />
             <Reveal as="p" delay={400} className="mt-7 text-[clamp(1.15rem,1.6vw,1.4rem)] font-semibold">바이닐을 이해하기 위한 기본 용어</Reveal>
             <Reveal as="p" delay={480} className={`${BODY} mt-5 max-w-[34rem] opacity-85`}>
               Chapter 01에서 바이닐이 무엇이고 어떻게 소리를 저장하고 재생하는지 살펴봤다면, Chapter 02에서는 레코드를 고르고 재생할 때 가장 자주 만나는 세 가지를 정리한다. 세 가지는 서로 관련이 있지만 각각 다른 것을 가리킨다.
@@ -285,7 +285,7 @@ export default function Story() {
 
       {/* ── 마무리 ── */}
       <section aria-label="정리" className={`${PADX} pb-[clamp(72px,12svh,140px)] pt-[clamp(48px,8svh,96px)] text-center`}>
-        <Reveal as="p" className={`${BODONI} mx-auto max-w-[60rem] text-[clamp(2.2rem,5.4vw,5rem)] leading-[1.05] tracking-[-0.03em]`}>
+        <Reveal as="p" className={`${BODONI} mx-auto max-w-[60rem] text-[clamp(2.2rem,5.4vw,5rem)] leading-[1.05] tracking-[-0.008em]`}>
           <span className={ACC}>Format</span>, <span className={ACC}>size</span> and <span className={ACC}>speed</span> are three different things.
         </Reveal>
         <Reveal as="p" delay={100} className="mx-auto mt-8 max-w-[38rem] text-[clamp(1.05rem,1.35vw,1.25rem)] font-semibold leading-[1.9]">

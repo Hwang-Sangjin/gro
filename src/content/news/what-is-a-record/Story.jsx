@@ -20,14 +20,14 @@ const IMG = Object.fromEntries([
   "icon-wave", "icon-cut", "icon-record", "icon-grooves", "icon-needle", "icon-cable", "icon-speaker",
 ].map((n) => [n, `/images/news/what-is-vinyl/${n}.webp`]));
 
-const BODONI = "font-['Grooves_Bodoni',Georgia,serif] font-black";
+const BODONI = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black";
 const KR = "font-['Noto_Serif_KR',Georgia,serif]";
 const LABEL = "font-sans text-[11px] font-medium uppercase tracking-[0.28em]";
 const RUST = "text-(--accent)";
 const PADX = "px-[clamp(20px,4vw,72px)]";   // StoryShell 의 ← News 줄과 같은 여백
 const WRAP = "mx-auto w-full max-w-[1240px]";
 const SECTION = `${PADX} py-[clamp(72px,12svh,150px)]`;
-const H2 = `${BODONI} text-[clamp(2.6rem,5vw,5.2rem)] leading-[0.9] tracking-[-0.03em]`;
+const H2 = `${BODONI} text-[clamp(2.6rem,5vw,5.2rem)] leading-[0.9] tracking-[-0.008em]`;
 const BODY = "text-[clamp(1.05rem,1.3vw,1.2rem)] font-medium leading-[1.85]";
 
 // eslint-disable-next-line @next/next/no-img-element
@@ -242,7 +242,7 @@ export default function Story() {
           <div>
             <Reveal as="p" className={`${LABEL} ${RUST}`}>Vinyl A to Z · Chapter 01</Reveal>
             {/* 제목: 줄 단위로 마스크 아래에서 올라옴 */}
-            <RiseText as="h1" lines={["What Is", "Vinyl?"]} delay={120} className={`${BODONI} mt-5 text-[clamp(3.6rem,8vw,8.6rem)] leading-[0.86] tracking-[-0.035em]`} />
+            <RiseText as="h1" lines={["What Is", "Vinyl?"]} delay={120} className={`${BODONI} mt-5 text-[clamp(3.6rem,8vw,8.6rem)] leading-[0.86] tracking-[-0.01em]`} />
             <Reveal as="p" delay={450} className="mt-7 max-w-md text-[clamp(1.1rem,1.5vw,1.35rem)] font-semibold leading-relaxed">
               바이닐이란 무엇인가 — 소리를 홈으로 새기고, 그 홈을 다시 소리로 되돌리는 음반에 대하여.
             </Reveal>
@@ -326,7 +326,7 @@ export default function Story() {
       <section data-fx-say aria-label="Sound becomes a groove" className={`group ${SECTION} text-center`}>
         {/* 세로선이 바늘대처럼 자라 내려오고, 닿으면 제목이 올라옴 */}
         <span data-fx-say-line aria-hidden="true" className="mx-auto block h-[clamp(60px,10svh,120px)] w-px origin-top bg-(--ink)/50" />
-        <p className={`${BODONI} mt-10 overflow-y-clip pb-[.55em] text-[clamp(2.8rem,7vw,7.4rem)] leading-[0.95] tracking-[-0.035em]`}>
+        <p className={`${BODONI} mt-10 overflow-y-clip pb-[.55em] text-[clamp(2.8rem,7vw,7.4rem)] leading-[0.95] tracking-[-0.01em]`}>
           <span className="block translate-y-[170%] transition-transform duration-[1000ms] ease-[cubic-bezier(.22,1,.36,1)] group-data-[on=true]:translate-y-0 motion-reduce:translate-y-0">
             Sound becomes a{" "}
             <span className={`relative inline-block ${RUST}`}>
@@ -426,7 +426,7 @@ export default function Story() {
       {/* ── 마무리 ── */}
       <section data-fx-outro aria-label="Vinyl A to Z" className={`${SECTION} text-center`}>
         <Landing className="mx-auto w-[min(86vw,520px)]" />
-        <p className={`${BODONI} mt-6 text-[clamp(3.4rem,10vw,10rem)] leading-none tracking-[-0.04em]`}>Vinyl A to Z</p>
+        <p className={`${BODONI} mt-6 text-[clamp(3.4rem,10vw,10rem)] leading-none tracking-[-0.012em]`}>Vinyl A to Z</p>
         <p className={`${LABEL} mt-12 opacity-55`}>Next — Chapter 02</p>
         <Link href="/news/the-vinyl-dictionary" className={`${BODONI} group mt-3 inline-block text-[clamp(1.6rem,2.6vw,2.4rem)] tracking-[-0.02em] underline decoration-2 underline-offset-[10px] transition-colors hover:text-(--accent)`}>
           The Vinyl Dictionary <span aria-hidden="true" className="inline-block transition-transform duration-500 group-hover:translate-x-2">→</span>

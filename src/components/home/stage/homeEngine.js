@@ -513,7 +513,7 @@ export async function createHomeEngine(opts) {
     ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
     ctx.fillStyle = '#fff';
     ctx.textBaseline = 'middle';
-    ctx.font = "600 150px 'PP Neue Montreal', 'Helvetica Neue', Arial, sans-serif";
+    ctx.font = "600 150px 'Hahmlet', 'Helvetica Neue', Arial, sans-serif";
     if ('letterSpacing' in ctx) ctx.letterSpacing = '22px';
     // 한 바퀴에 문구가 정확히 n번 들어가도록 가로로 맞춤 (이음매 없음)
     const RIM_TEXT = rimText();
@@ -891,7 +891,6 @@ export async function createHomeEngine(opts) {
 
   /* ---- 글자: 앨범이 바뀌면 이전 제목은 넘기는 방향으로 빠지고 새 제목이 들어옴 ---- */
   function cleanTitle(t) { return (t || '').replace(/\s*[([].*[)\]]\s*$/, '').trim() || t || ''; }
-  const hasKo = (s) => /[가-힣]/.test(s || '');
   function fitTitle(el) {
     const box = q('nv-ttl');
     if (!box || !el) return;
@@ -908,7 +907,7 @@ export async function createHomeEngine(opts) {
       setTimeout(() => old.remove(), 850);
     });
     const el = document.createElement('span');
-    el.className = `absolute inset-x-0 bottom-0 block whitespace-nowrap ${slide} ${hasKo(text) ? "font-['Gowun_Batang',serif]" : ''}`;
+    el.className = `absolute inset-x-0 bottom-0 block whitespace-nowrap ${slide}`;
     el.textContent = text;
     el.style.transform = box.children.length ? `translateY(${dir > 0 ? 110 : -110}%)` : 'none';
     box.appendChild(el);
@@ -1952,7 +1951,7 @@ export async function createHomeEngine(opts) {
     const b = document.createElement('span');
     b.textContent = g.name;
     b.setAttribute('aria-hidden', 'true');
-    b.className = "pointer-events-none absolute left-0 top-0 select-none whitespace-nowrap font-['Grooves_Bodoni',Georgia,serif] font-black uppercase leading-none tracking-[0.04em] transition-[color,opacity] duration-300";
+    b.className = "pointer-events-none absolute left-0 top-0 select-none whitespace-nowrap font-['Grooves_Display','Hahmlet',Georgia,serif] font-black uppercase leading-none tracking-[0.04em] transition-[color,opacity] duration-300";
     $gdLabels.appendChild(b);
     return b;
   });

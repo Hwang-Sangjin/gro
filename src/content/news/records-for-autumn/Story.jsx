@@ -8,7 +8,7 @@ import Reveal, { RiseText } from "@/components/story/Reveal";
 import { seg, useScrollProgress } from "@/components/story/scroll";
 import RequestDialog from "@/components/requests/RequestDialog";
 
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035em]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
 const WRAP = "mx-auto w-full max-w-[1500px] px-[clamp(20px,4vw,72px)]";
 
 const PICKS = [

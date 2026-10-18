@@ -142,7 +142,7 @@ html {
 }
 
 body {
-  font-family: "PP Neue Montreal";
+  font-family: "Hahmlet", Georgia, serif;
   background-color: var(--stage);
   color: var(--fg);
 }
@@ -324,12 +324,14 @@ body.intro-locked {
 }
 
 /* HERO PAPER FADE — scoped overrides; other sections retain their styles. */
+/* 제목 글꼴: 영문 Gloock(굵기 하나뿐 → 100–900 으로 선언해 가짜 볼드 방지) + 한글은 뒤따르는 Hahmlet 900 */
 @font-face {
-  font-family: "Grooves Bodoni";
-  src: url("/fonts/bodoni-moda-latin-900-normal.woff2") format("woff2");
+  font-family: "Grooves Display";
+  src: url("/fonts/gloock-latin-400-normal.woff2") format("woff2");
   font-style: normal;
-  font-weight: 900;
+  font-weight: 100 900;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 .album-detail-page .page-content { padding: 0; gap: 0; }
@@ -355,7 +357,7 @@ body.intro-locked {
   .album-cover-tilt { transform:none; transition:none; }
 }
 
-.album-detail-title { font-family:"Grooves Bodoni", "Bodoni MT", Georgia, serif; font-weight:900; letter-spacing:-.045em; }
+.album-detail-title { font-family:"Grooves Display", "Hahmlet", "Bodoni MT", Georgia, serif; font-weight:900; letter-spacing:-.015em; }
 
 /* Shared content bounds: full-width backgrounds, centered editorial content. */
 :root {

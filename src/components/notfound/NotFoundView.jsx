@@ -9,7 +9,7 @@ import PageShell from "@/components/layout/PageShell";
 import { useIntro } from "@/components/intro/intro-context";
 
 const AlbumVinyl = dynamic(() => import("@/components/album/AlbumVinyl"), { ssr: false });
-const SERIF = "font-['Grooves_Bodoni',Georgia,serif]";
+const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const EASE = "ease-[cubic-bezier(0.22,1,0.36,1)]";
 
 export default function NotFoundView() {
@@ -38,7 +38,7 @@ export default function NotFoundView() {
 
         {/* 4 · 판 · 4 */}
         {/* 화면 크기에 맞춤: 폭의 34%와 (헤더 아래 높이)의 46% 중 작은 쪽 */}
-        <div className={`${SERIF} row-start-2 flex items-center justify-center gap-[0.04em] text-[min(34vw,calc((100svh-var(--ct-header-h,106px))*0.46))] font-black leading-[0.86] tracking-[-0.04em]`}>
+        <div className={`${SERIF} row-start-2 flex items-center justify-center gap-[0.04em] text-[min(34vw,calc((100svh-var(--ct-header-h,106px))*0.46))] font-black leading-[0.86] tracking-[-0.012em]`}>
           {four(900)}
           {/* 판: 화면 아래에서 올라와 '0'이 됨 — 글자 높이에 맞춘 크기, 33⅓ RPM으로 돎 */}
           <span aria-hidden="true"
