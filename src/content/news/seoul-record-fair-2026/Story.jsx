@@ -438,9 +438,9 @@ const ONLINE = [
   ["김도언", "Damage", "05cba9f991323"],
   ["노이즈가든", "…But Not For Sale", "c9af6b0f62a98"],
   ["머드 더 스튜던트", "Field Trip", "3a21972e171e8"],
-  ["다브다", "Yonder EP", null],
-  ["김상희", "Sings Tom Jones & Burt Bacharach", null],
-  ["김상희", "Love Story", null],
+  ["다브다", "Yonder EP", "c2287364a7a50"],
+  ["김상희", "Sings Tom Jones & Burt Bacharach", "89f07288bef15"],
+  ["김상희", "Love Story", "650d2746af8e1"],
 ].map(([artist, title, id]) => ({ artist, title, img: id ? `${SHOP_IMG}${id}.jpg?w=800` : null }));
 function Online() {
   return (
