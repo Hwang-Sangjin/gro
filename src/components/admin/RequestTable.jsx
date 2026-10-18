@@ -74,7 +74,7 @@ export default function RequestTable({ requests: initial }) {
                   <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[12px]">
                     {r.genres?.map((g) => <span key={g} className="rounded-full border border-(--ink)/20 px-2 py-0.5">{GENRE_NAME[g] ?? g}</span>)}
                     {meta.length > 0 && <span className="text-(--ink)/60">{meta.join(" · ")}</span>}
-                    {r.youtube_playlist && <a href={r.youtube_playlist.startsWith("http") ? r.youtube_playlist : `https://www.youtube.com/playlist?list=${r.youtube_playlist}`} target="_blank" rel="noreferrer noopener" className="underline underline-offset-4">YouTube ↗</a>}
+                    {r.youtube_playlist && <a href={r.youtube_playlist.startsWith("http") ? r.youtube_playlist : `https://www.youtube.com/playlist?list=${r.youtube_playlist}`} target="_blank" rel="noreferrer noopener" className="underline underline-offset-4">YouTube ↗︎</a>}
                   </div>
                 )}
                 {trackRows.length > 0 && (

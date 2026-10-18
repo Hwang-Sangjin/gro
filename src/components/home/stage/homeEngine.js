@@ -33,7 +33,7 @@ export async function createHomeEngine(opts) {
   let ready = false;
   let introDone = !!opts.introDone;
   const cleanups = [];
-  // 사이트 다크 모드(헤더 테마 버튼): 크림 ↔ 브라운을 맞바꿈 → Hero 는 브라운, New Vinyls 는 크림에서 시작
+  // 사이트 다크 모드(헤더 테마 버튼): 크림 ↔︎ 브라운을 맞바꿈 → Hero 는 브라운, New Vinyls 는 크림에서 시작
   let siteDark = document.documentElement.dataset.theme === 'dark';
   // 페이지 전환·앨범 전환 중이거나 인트로 전이면 입력을 받지 않음
   const inputOn = () => !disposed && introDone
@@ -1399,7 +1399,7 @@ export async function createHomeEngine(opts) {
     const sideB = tmpUp.y < 0;
     if (sideB !== currentSideB) {
       currentSideB = sideB;
-      drawRimText();   // 링 문구만 SIDE A ↔ SIDE B
+      drawRimText();   // 링 문구만 SIDE A ↔︎ SIDE B
     }
   }
   const tmpUp = new THREE.Vector3();
@@ -2036,7 +2036,7 @@ export async function createHomeEngine(opts) {
     q('gd-name-text').textContent = g.name;
     q('gd-desc-text').textContent = g.desc;
     const link = q('gd-link');
-    link.textContent = `Dig into ${g.name.toUpperCase()} ↗`;
+    link.textContent = `Dig into ${g.name.toUpperCase()} ↗︎`;
     link.setAttribute('href', `/digging?genre=${encodeURIComponent(g.slug)}`);
     renderGenreCovers(i, null);
     // 장르별 대표 커버 3장: 불러오는 동안은 장르 색 슬리브, 불러오면 실제 커버
@@ -2222,7 +2222,7 @@ export async function createHomeEngine(opts) {
     });
 
     // 판 색: 뒤집기(updateGenreFlip)가 정한 장르 색. 다이얼에 들어오는 동안은 기본 색에서 섞어 들어감
-    // 기본 색은 지금 테마(플럼 ↔ 크림)의 잉크 → 장르 색으로
+    // 기본 색은 지금 테마(플럼 ↔︎ 크림)의 잉크 → 장르 색으로
     // 시작 색 = New Vinyls에서의 판 색 (News로 가면 다시 Hero 색)
     const newsK = easeInOut(newsP);
     uniforms.uInk.value.copy(nvDiscInk).lerp(heroInk3, newsK).lerp(tintInk, catEase);
@@ -2256,13 +2256,13 @@ export async function createHomeEngine(opts) {
   /* ================= 섹션 전환 (스크롤 의도 감지 + 자동 재생) ================= */
   // 조금만 스크롤해도 '다음/이전 섹션으로 가려는 의도'로 보고, 전환 애니메이션을 정해진 시간 동안 끝까지 재생
   //  - 섹션: 0 = Hero, 1 = New Vinyls, 2 = Genre dial (항상 이웃한 섹션으로 한 칸씩)
-  //  - 0 ↔ 1: 진행도 scrollP (판이 한 바퀴 돌며 착륙) / 1 ↔ 2: 진행도 catP (판이 다이얼 가운데로 와서 정면을 봄)
+  //  - 0 ↔︎ 1: 진행도 scrollP (판이 한 바퀴 돌며 착륙) / 1 ↔︎ 2: 진행도 catP (판이 다이얼 가운데로 와서 정면을 봄)
   //  - 재생 중 추가 입력은 무시 (트랙패드 관성 스크롤이 다음 전환을 또 일으키지 않게)
   //  - Genre dial에서 스크롤은 장르를 바꾸지 않음: 위로 스크롤하면 New Vinyls로 돌아감
   const SECTION = {
-    duration: 3.7,       // Hero ↔ New Vinyls 전환 시간(초) — 판이 앨범에 들어가는 장면
-    catDuration: 1.5,    // New Vinyls ↔ Genre 전환 시간(초) — 앞부분(CAT_OUT)은 맨 앞 앨범이 오른쪽으로 빠지는 시간
-    newsDuration: 1.6,   // Genre ↔ News 전환 시간(초)
+    duration: 3.7,       // Hero ↔︎ New Vinyls 전환 시간(초) — 판이 앨범에 들어가는 장면
+    catDuration: 1.5,    // New Vinyls ↔︎ Genre 전환 시간(초) — 앞부분(CAT_OUT)은 맨 앞 앨범이 오른쪽으로 빠지는 시간
+    newsDuration: 1.6,   // Genre ↔︎ News 전환 시간(초)
     wheelThreshold: 24,  // 이만큼 휠이 쌓이면 전환 (트랙패드 살짝 쓸기 수준)
     touchThreshold: 40,  // 터치 스와이프 거리(px)
     cooldown: 0.45,      // 전환이 끝난 뒤 입력을 더 무시하는 시간(초) — 관성 스크롤 흡수
@@ -2286,7 +2286,7 @@ export async function createHomeEngine(opts) {
     section = next;
     wheelAcc = 0;
     if ((prev === 2 && next === 3) || (prev === 3 && next === 2)) {
-      // Genre dial ↔ News: 판이 오른쪽 칸으로 옮겨 가 턴테이블처럼 눕고, 배경은 다시 크림으로
+      // Genre dial ↔︎ News: 판이 오른쪽 칸으로 옮겨 가 턴테이블처럼 눕고, 배경은 다시 크림으로
       newsFrom = newsP; newsTo = next === 3 ? 1 : 0;
       newsDur = reduceMotion ? 0 : SECTION.newsDuration * Math.abs(newsTo - newsFrom);
       newsStart = nowSec();
@@ -2314,7 +2314,7 @@ export async function createHomeEngine(opts) {
       catTweening = catDur > 0; if (!catTweening) catP = 0;
       lockUntil = catStart + catDur + SECTION.cooldown;
     } else {
-      // 0 ↔ 1
+      // 0 ↔︎ 1
       tweenFrom = scrollP; tweenTo = next;
       tweenDur = reduceMotion ? 0 : SECTION.duration * Math.abs(tweenTo - tweenFrom);
       // 위로 돌아갈 땐 나머지 앨범이 먼저 사라진 뒤 거꾸로 (앨범이 눕고 → 판이 빠져나와 → 앨범은 아래로)
@@ -2481,7 +2481,7 @@ export async function createHomeEngine(opts) {
     if (!introDone) return;
 
     // 0) 스크롤 진행도: 0 = Hero, 1 = New Vinyls. 살짝 스무딩해서 휠 스크롤도 부드럽게
-    //    스크롤 위치가 아니라 '섹션 전환 트윈'이 진행도를 시간에 따라 0 ↔ 1로 움직임
+    //    스크롤 위치가 아니라 '섹션 전환 트윈'이 진행도를 시간에 따라 0 ↔︎ 1로 움직임
     updateSectionTween();
     const p = scrollP;
     //  Hero → New Vinyls: 기울어진 판이 일어서서 정면(원)을 보며 맨 앞 슬리브 위로 → 세로축으로 한 바퀴

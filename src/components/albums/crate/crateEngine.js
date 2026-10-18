@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 /* Crate 보기 3D 엔진 (Digging · Collection 공용, DOM 그리드 위에 덮는 캔버스)
    - 크레이트: 맨 앞 판은 정면, 뒤의 판들은 오른쪽으로 비스듬히 줄지어 꽂힘. 스크롤·드래그·키로 끝없이 넘어감
-   - Grid → Crate / Crate → Grid: 화면의 그리드 칸 ↔ 크레이트 자리 사이를 판이 차례로 날아감 (m: 0 = 크레이트, 1 = 그리드)
+   - Grid → Crate / Crate → Grid: 화면의 그리드 칸 ↔︎ 크레이트 자리 사이를 판이 차례로 날아감 (m: 0 = 크레이트, 1 = 그리드)
    카드 목록은 그리드 DOM에서 읽음: [{ slug, color, image, title, artist, art(커버 요소) }] */
 
 export const CRATE = {

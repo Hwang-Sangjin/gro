@@ -140,7 +140,7 @@ export default function HomeStage() {
       data-home-stage
       data-crate-ignore
       data-lenis-prevent
-      className="absolute inset-x-0 bottom-0 top-[var(--ct-header-h,106px)] touch-pan-y overflow-visible text-[var(--hs-text,#4c404a)] [&.custom-cursor]:cursor-none [&.custom-cursor_*]:cursor-none!"
+      data-no-select className="absolute inset-x-0 bottom-0 top-[var(--ct-header-h,106px)] touch-pan-y overflow-visible text-[var(--hs-text,#4c404a)] [&.custom-cursor]:cursor-none [&.custom-cursor_*]:cursor-none!"
     >
       {/* 3D 캔버스는 homeEngine이 이 안에 만듦 */}
       <div id="hs-canvas" className="absolute inset-0" />
@@ -163,7 +163,7 @@ export default function HomeStage() {
             </h2>
             <p className="mt-4 text-[11px] uppercase tracking-[0.3em] text-[var(--hs-muted)]">Fresh in the crate</p>
           </div>
-          <Link href="/digging" className={`pointer-events-auto mt-3 border-b border-current pb-1 ${SERIF} text-lg font-bold sm:mt-6 sm:text-xl`}>Browse all ↗</Link>
+          <Link href="/digging" className={`pointer-events-auto mt-3 border-b border-current pb-1 ${SERIF} text-lg font-bold sm:mt-6 sm:text-xl`}>Browse all ↗︎</Link>
         </div>
 
         {/* 한 바퀴를 다 봤을 때 (자동 넘김이 아니라 직접 넘겼을 때만) */}
@@ -179,7 +179,7 @@ export default function HomeStage() {
           <p id="nv-artist" className="mt-2 text-[17px]" />
           <p id="nv-meta" className="mt-1.5 text-xs uppercase tracking-[0.22em] text-[var(--hs-muted)]" />
           <div className="mt-5 flex flex-wrap gap-2.5">
-            <button id="nv-open" type="button" className="pointer-events-auto inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--hs-text)] px-[22px] text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--hs-paper)] transition-[background-color,scale] duration-300 hover:bg-(--accent) active:scale-95">Open record ↗</button>
+            <button id="nv-open" type="button" className="pointer-events-auto inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--hs-text)] px-[22px] text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--hs-paper)] transition-[background-color,scale] duration-300 hover:bg-(--accent) active:scale-95">Open record ↗︎</button>
           </div>
         </div>
 
@@ -214,7 +214,7 @@ export default function HomeStage() {
             <div>
               <div className={`${NEWS_IN} flex items-baseline justify-between text-[clamp(10px,0.7vw,13px)] font-medium uppercase tracking-[0.24em]`} style={delay(0)}>
                 <p className="text-[var(--hs-muted)]">Journal <span className="mx-2" style={{ color: NEWS_ACCENT }}>✦</span> Vol. 04</p>
-                <Link href="/news" className="group/all inline-flex items-center gap-1">All news <span className="transition-transform duration-300 group-hover/all:-translate-y-0.5 group-hover/all:translate-x-0.5">↗</span></Link>
+                <Link href="/news" className="group/all inline-flex items-center gap-1">All news <span className="transition-transform duration-300 group-hover/all:-translate-y-0.5 group-hover/all:translate-x-0.5">↗︎</span></Link>
               </div>
               <div className="mt-2 flex flex-wrap items-end gap-x-7 gap-y-3 border-b border-[var(--hs-text)] pb-4">
                 <h2 id="news-title" className="min-w-0 overflow-x-visible overflow-y-clip pb-[0.04em]">
@@ -241,7 +241,7 @@ export default function HomeStage() {
                       <span className="mt-3 block h-px w-6 bg-[var(--hs-text)] opacity-40 transition-all duration-500 group-hover:w-14 group-hover:bg-(--accent) group-hover:opacity-100" />
                       <p className="mt-3 text-[clamp(12px,0.85vw,15px)] text-[var(--hs-muted)]">{post.kicker}</p>
                       <h3 className="mt-1 text-[clamp(1.05rem,1.55vw,2.1rem)] font-medium leading-snug tracking-[-0.02em] [word-break:keep-all]">{post.title}</h3>
-                      <span className="mt-[clamp(1rem,1.6vh,1.5rem)] inline-flex w-fit items-center gap-1 border-b border-current pb-0.5 text-[clamp(10px,0.72vw,13px)] font-medium uppercase tracking-[0.2em] text-(--accent)">Read story <span className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5">↗</span></span>
+                      <span className="mt-[clamp(1rem,1.6vh,1.5rem)] inline-flex w-fit items-center gap-1 border-b border-current pb-0.5 text-[clamp(10px,0.72vw,13px)] font-medium uppercase tracking-[0.2em] text-(--accent)">Read story <span className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5">↗︎</span></span>
                     </article>
                   ))}
                 </div>
@@ -271,7 +271,7 @@ export default function HomeStage() {
               ))}
             </p>
             <Link href="/digging" className="group/dig mt-[clamp(1.25rem,2.5vh,2.25rem)] inline-flex items-center gap-2 rounded-full bg-[var(--hs-text)] px-[clamp(1.5rem,1.8vw,2.5rem)] py-[clamp(0.75rem,1vw,1.25rem)] text-[clamp(11px,0.8vw,14px)] font-semibold uppercase tracking-[0.2em] text-[var(--hs-paper)] transition-[background-color,scale] duration-300 hover:bg-(--accent) active:scale-95">
-              Start digging <span className="transition-transform duration-300 group-hover/dig:-translate-y-0.5 group-hover/dig:translate-x-0.5">↗</span>
+              Start digging <span className="transition-transform duration-300 group-hover/dig:-translate-y-0.5 group-hover/dig:translate-x-0.5">↗︎</span>
             </Link>
           </div>
 

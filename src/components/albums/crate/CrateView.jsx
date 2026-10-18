@@ -164,7 +164,7 @@ export default function CrateView({ gridRef, view, onViewChange, title }) {
 
   return (
     <>
-      <div ref={hostRef} data-lenis-prevent data-crate-ignore tabIndex={view === "crate" ? 0 : -1}
+      <div ref={hostRef} data-no-select data-lenis-prevent data-crate-ignore tabIndex={view === "crate" ? 0 : -1}
         aria-hidden={!shown} aria-label={shown ? `${title} crate. Scroll or use the arrow keys to dig; press Enter to open the front record.` : undefined}
         role={shown ? "region" : undefined}
         className={`fixed inset-0 z-[25] isolate touch-none outline-none ${shown ? "visible" : "invisible pointer-events-none"} ${view === "crate" ? "cursor-grab active:cursor-grabbing" : ""}`}

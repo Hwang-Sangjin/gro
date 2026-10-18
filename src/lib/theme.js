@@ -1,5 +1,5 @@
 "use client";
-// 크림(light) ↔ 브라운(dark) 테마
+// 크림(light) ↔︎ 브라운(dark) 테마
 // - <html data-theme="dark"> 하나로 전환 (globals.css 가 --cream/--ink 를 맞바꿈)
 // - 고른 값은 이 브라우저에 기억 → layout.js 의 인라인 스크립트가 첫 화면부터 적용 (깜빡임 없음)
 // - 바꿀 때는 버튼 자리에서 원이 퍼지며 새 색으로 덮임 (View Transition, 지원 안 하면 바로 바뀜)

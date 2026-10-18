@@ -2,7 +2,7 @@
 /* 사이트 헤더 — "레코드 레이블 마스트헤드"
    - 왼쪽: Bodoni 워드마크
    - 가운데: 01 Home · 02 Digging … 번호 붙은 메뉴. 호버하면 밑줄이 그어짐
-   - 오른쪽: (재생 중일 때만) Now spinning · Login · 테마(크림 ↔ 브라운)
+   - 오른쪽: (재생 중일 때만) Now spinning · Login · 테마(크림 ↔︎ 브라운)
    - 처음 로딩 때 왼쪽부터 차례로 아래에서 올라옴 (Rise)
    - 스크롤하면 아래 헤어라인 (높이는 고정: Digging 고정 바·Home 엔진이 헤더 높이에 맞춰져 있음). 모바일은 Menu → 전체 화면 메뉴
    페이지(.ct-page)마다 자기 헤더를 가짐. 색은 --ct-header-fg/bg(페이지가 정함)를 그대로 따름 */
@@ -75,7 +75,7 @@ function UserMenu({user}){
   </div>;
 }
 
-// 테마 토글 (크림 ↔ 브라운): 반은 채운 원이 판처럼 반 바퀴 돌며 바뀜
+// 테마 토글 (크림 ↔︎ 브라운): 반은 채운 원이 판처럼 반 바퀴 돌며 바뀜
 // 첫 렌더는 서버와 같게 light → 브라우저에서 실제 값으로 (아이콘 회전만 바뀌므로 깜빡임 없음)
 function ThemeButton({className=''}){
   const dark=useTheme()==='dark';

@@ -273,8 +273,8 @@ function Venue() {
             <p className="mt-2 text-[11px] uppercase tracking-[0.24em] opacity-70">Seoul Record Fair</p>
           </div>
           <div className="grid gap-2">
-            <a href={`https://map.naver.com/p/search/${q}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-between rounded-full border border-(--cream)/40 px-5 text-[12px] font-medium uppercase tracking-[0.16em] transition-colors hover:bg-(--cream) hover:text-(--ink)">Naver Map <span aria-hidden="true">↗</span></a>
-            <a href={`https://map.kakao.com/?q=${q}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-between rounded-full border border-(--cream)/40 px-5 text-[12px] font-medium uppercase tracking-[0.16em] transition-colors hover:bg-(--cream) hover:text-(--ink)">Kakao Map <span aria-hidden="true">↗</span></a>
+            <a href={`https://map.naver.com/p/search/${q}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-between rounded-full border border-(--cream)/40 px-5 text-[12px] font-medium uppercase tracking-[0.16em] transition-colors hover:bg-(--cream) hover:text-(--ink)">Naver Map <span aria-hidden="true">↗︎</span></a>
+            <a href={`https://map.kakao.com/?q=${q}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-between rounded-full border border-(--cream)/40 px-5 text-[12px] font-medium uppercase tracking-[0.16em] transition-colors hover:bg-(--cream) hover:text-(--ink)">Kakao Map <span aria-hidden="true">↗︎</span></a>
           </div>
         </div>
       </Reveal>
@@ -438,7 +438,7 @@ function Online() {
         ))}
       </ul>
       <Reveal className="mt-10">
-        <a href={SITE} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 border-b-2 border-(--ink) text-[12px] font-medium uppercase tracking-[0.2em] transition-colors hover:border-(--accent) hover:text-(--accent)">recordfair.kr에서 구매하기 <span aria-hidden="true">↗</span></a>
+        <a href={SITE} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 border-b-2 border-(--ink) text-[12px] font-medium uppercase tracking-[0.2em] transition-colors hover:border-(--accent) hover:text-(--accent)">recordfair.kr에서 구매하기 <span aria-hidden="true">↗︎</span></a>
       </Reveal>
     </section>
   );
@@ -464,7 +464,7 @@ export default function Story() {
   return (
     <>
       {/* 1 히어로: 카운트다운 + Pop-up crate */}
-      <section className="relative min-h-svh touch-pan-y overflow-hidden pb-16 pt-[calc(var(--ct-header-h,106px)+56px)]">
+      <section data-no-select className="relative min-h-svh touch-pan-y overflow-hidden pb-16 pt-[calc(var(--ct-header-h,106px)+56px)]">
         <PopCrate className="absolute inset-y-0 right-0 w-[min(54vw,960px)] max-md:inset-x-0 max-md:top-auto max-md:h-[44svh] max-md:w-auto" />
         <div className={`${WRAP} relative z-10`}>
           <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--accent)">News · Fair</Reveal>
@@ -492,8 +492,8 @@ export default function Story() {
         <RiseText lines={["See you", "in the crates."]} className={`${SERIF} text-[clamp(2.6rem,6vw,6rem)] leading-[0.92]`} />
         <Reveal delay={300} as="p" className="mx-auto mt-5 max-w-md text-[14px] leading-6 text-(--ink)/65">주최 측 공지를 기준으로 정리했어요. 일정은 바뀔 수 있으니 최신 소식은 공식 채널에서 확인하세요.</Reveal>
         <Reveal delay={400} className="mt-9 flex flex-wrap justify-center gap-3">
-          <a href={SITE} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--cream) transition-colors hover:bg-(--accent)">recordfair.kr <span aria-hidden="true">↗</span></a>
-          <a href="https://x.com/roundx2" target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full border-2 border-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] transition-colors hover:border-(--accent) hover:text-(--accent)">X · @roundx2 <span aria-hidden="true">↗</span></a>
+          <a href={SITE} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--cream) transition-colors hover:bg-(--accent)">recordfair.kr <span aria-hidden="true">↗︎</span></a>
+          <a href="https://x.com/roundx2" target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full border-2 border-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] transition-colors hover:border-(--accent) hover:text-(--accent)">X · @roundx2 <span aria-hidden="true">↗︎</span></a>
         </Reveal>
         <p className="mt-10 text-[11px] text-(--ink)/45">포스터 © 서울레코드페어</p>
       </section>

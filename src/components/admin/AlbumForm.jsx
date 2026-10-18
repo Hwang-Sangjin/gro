@@ -220,7 +220,7 @@ export default function AlbumForm({ initial = null, prefill = null, requestId = 
 
         <button type="submit" disabled={busy} className={`${btnPrimary} w-full`}>{busy ? "Saving…" : editing ? "Save changes" : "Create album"}</button>
         {editing && form.status === "published" && (
-          <a href={`/album/${encodeURIComponent(form.slug)}`} target="_blank" rel="noreferrer" className={`${btnGhost} w-full`}>View on site ↗</a>
+          <a href={`/album/${encodeURIComponent(form.slug)}`} target="_blank" rel="noreferrer" className={`${btnGhost} w-full`}>View on site ↗︎</a>
         )}
 
         {result?.error && <p role="alert" className="rounded-xl bg-(--danger)/10 px-4 py-3 text-[13px] text-(--danger)">{result.error}</p>}

@@ -143,6 +143,7 @@ html {
 
 body {
   font-family: "Hahmlet", Georgia, serif;
+  font-variant-emoji: text;   /* ↗ ↔ 같은 기호를 iOS 가 이모지로 그리지 않게 */
   background-color: var(--stage);
   color: var(--fg);
 }
@@ -476,3 +477,7 @@ html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 
 /* Crate 보기: 맨 앞 앨범 제목이 바뀔 때 아래에서 올라옴 (CrateView) */
 @keyframes crate-title { from { transform: translateY(60%); opacity: 0; } }
+
+/* 드래그·길게 누르기로 조작하는 영역 — iOS Safari 의 글자 선택·돋보기·콜아웃 막기 */
+.ct-stage, [data-no-select], [data-no-select] * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+[data-no-select] a, [data-no-select] button { -webkit-touch-callout: default; }

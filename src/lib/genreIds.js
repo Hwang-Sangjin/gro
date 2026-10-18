@@ -1,4 +1,4 @@
-// 장르 slug ↔ id (genres 테이블). 한 번만 불러 둠 — Digging·Collection 공용
+// 장르 slug ↔︎ id (genres 테이블). 한 번만 불러 둠 — Digging·Collection 공용
 let promise = null;
 export function getGenreIds(supabase) {
   if (!promise) {

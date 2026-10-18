@@ -24,7 +24,7 @@ export default function PublicCollectionView({ data }) {
       <ShelfBrowser
         shelves={shelves} error={false}
         label={`@${data.handle}’s shelf`} tablistLabel={`@${data.handle}’s shelves`}
-        aside={<Link href="/collection" className="shrink-0 underline-offset-4 hover:text-(--ink) hover:underline">Start your own ↗</Link>}
+        aside={<Link href="/collection" className="shrink-0 underline-offset-4 hover:text-(--ink) hover:underline">Start your own ↗︎</Link>}
         basePath={`/collection/${data.handle}`}
         renderEmpty={(tab) => (
           <>

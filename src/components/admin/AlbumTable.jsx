@@ -66,7 +66,7 @@ export default function AlbumTable({ albums: initial }) {
             <div className="flex gap-1.5 justify-self-end text-[12px]">
               <Link href={`/admin/albums/${encodeURIComponent(a.slug)}`} className="rounded-full px-3 py-1.5 hover:bg-(--ink)/6">Edit</Link>
               <Link href={`/admin/albums/cover?slug=${encodeURIComponent(a.slug)}`} className="hidden rounded-full px-3 py-1.5 hover:bg-(--ink)/6 sm:inline">Cover</Link>
-              {a.status === "published" && <a href={`/album/${encodeURIComponent(a.slug)}`} target="_blank" rel="noreferrer" className="hidden rounded-full px-3 py-1.5 hover:bg-(--ink)/6 sm:inline">View ↗</a>}
+              {a.status === "published" && <a href={`/album/${encodeURIComponent(a.slug)}`} target="_blank" rel="noreferrer" className="hidden rounded-full px-3 py-1.5 hover:bg-(--ink)/6 sm:inline">View ↗︎</a>}
             </div>
           </li>
         ))}

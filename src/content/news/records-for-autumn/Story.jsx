@@ -154,7 +154,7 @@ function Pick({ pick, i, onRequest }) {
         <div className="mt-8 flex flex-wrap gap-3">
           <a href={`https://www.youtube.com/results?search_query=${q}`} target="_blank" rel="noreferrer"
             className="inline-flex min-h-11 items-center gap-2 rounded-full bg-(--ink) px-6 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
-            Hear it <span aria-hidden="true">↗</span>
+            Hear it <span aria-hidden="true">↗︎</span>
           </a>
           <button type="button" onClick={() => onRequest(pick)}
             className="inline-flex min-h-11 items-center rounded-full border border-(--ink)/40 px-6 text-[12px] font-medium uppercase tracking-[0.18em] transition-colors hover:border-(--ink) hover:bg-(--ink)/5">
