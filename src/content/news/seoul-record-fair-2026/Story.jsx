@@ -133,7 +133,7 @@ function PopCrate({ className = "" }) {
       const top = Math.min(Math.max(peak, d * 0.5 + 8), H - d * 0.35);
       const p = {
         ...make(d), d, x: laneX(lane), y: y0, vy: -Math.sqrt(2 * GRAVITY * (y0 - top)),
-        a: Math.random() * 360, va: 140 + Math.random() * 260,   // 시계 방향으로 돌기
+        a: Math.random() * 360, va: 40 + Math.random() * 160,   // 시계 방향, 판마다 40–200°/s 사이 랜덤
       };
       place(p);
       live.push(p);
