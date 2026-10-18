@@ -37,19 +37,20 @@ function Autumn() {
     </svg>
   );
 }
-// Picks 가을: Vinyl A to Z 썸네일과 같은 틀 — 손그림 단풍잎(투명 배경 선화)의 알파를 마스크로 써서 단풍색으로 칠함. 바탕·글자는 테마를 따라감
+// Picks 가을: Vinyl A to Z 썸네일과 같은 틀 — 손그림 단풍잎(투명 배경 선화)의 알파를 마스크로 써서 단풍색으로 칠함.
+// 바탕은 늘 크림 계열(밝은 테마 짙은 크림 / 다크 크림)이라 그림·글자색은 고정
 const MAPLE_DOODLE = "/images/news/records-for-autumn/maple-doodle.webp";
 function AutumnDoodle() {
   const id = `au${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   return (
     <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
-      <rect width="400" height="400" style={{ fill: "var(--cover-bg)" }} />
+      <rect width="400" height="400" style={{ fill: "var(--autumn-bg)" }} />
       <mask id={id} style={{ maskType: "alpha" }}>
         <image href={MAPLE_DOODLE} x="52" y="44" width="292" height="284" transform="rotate(-8 198 186)" preserveAspectRatio="xMidYMid meet" />
       </mask>
-      <rect width="400" height="400" mask={`url(#${id})`} style={{ fill: "var(--leaf)" }} />
-      <text x="28" y="44" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" style={{ fill: "var(--accent)" }}>PICKS</text>
-      <text x="374" y="376" textAnchor="end" fontFamily="Grooves Display, Hahmlet, Georgia, serif" fontWeight="900" fontSize="72" letterSpacing="-1" style={{ fill: "var(--ink)" }}>Autumn</text>
+      <rect width="400" height="400" mask={`url(#${id})`} fill="#cf6a2e" />
+      <text x="28" y="44" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" fill="#2d6a6a">PICKS</text>
+      <text x="374" y="376" textAnchor="end" fontFamily="Grooves Display, Hahmlet, Georgia, serif" fontWeight="900" fontSize="72" letterSpacing="-1" fill="#4c404a">Autumn</text>
     </svg>
   );
 }
