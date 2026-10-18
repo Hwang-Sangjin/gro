@@ -27,7 +27,7 @@ export const STORIES = [
     dek: "The 15th fair lands in Seongsu — two days of crates, fair-only pressings and the people who still love the needle drop.",
     date: "2026-10-13",
     read: "3 min",
-    cover: "fair",
+    cover: "fair-poster",
     homeArt: "press",
   },
   {

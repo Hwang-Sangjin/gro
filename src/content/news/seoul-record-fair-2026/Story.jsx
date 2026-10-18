@@ -1,9 +1,9 @@
 "use client";
 // News — "Seoul Record Fair 2026" (15회)
-// 1 포스터 히어로 + 실시간 카운트다운 → 2 상자 넘기기(스크롤로 판이 한 장씩 앞으로 넘어감) → 3 티켓(일시·장소·지도)
+// 1 히어로: 실시간 카운트다운 + 오른쪽 Pop-up crate(마우스 따라 판이 아래에서 튀어 오름) → 2 상자 넘기기(스크롤로 판이 한 장씩 앞으로 넘어감) → 3 티켓(일시·장소·지도)
 // → 4 페어 한정반 띠 → 5 디깅 팁(우리 의견) → 6 공식 사이트
 // 사실 정보는 recordfair.kr 에서 확인한 것만 (2026-10-13 기준)
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 import ScrollScene from "@/components/story/ScrollScene";
 import Marquee from "@/components/story/Marquee";
@@ -72,17 +72,136 @@ function Countdown() {
   );
 }
 
-// 히어로 뒤에서 도는 판
-function Spinner({ className = "", label = "#e3b04b" }) {
+// 히어로 오른쪽 Pop-up crate — 포인터가 지나가는 자리 아래에서 판이 튀어 올라 포인터 높이쯤에서 정점, 다시 떨어짐
+// 손그림 판(lathe-disc)을 마스크로 칠함. 판은 직접 DOM 노드로 만들어 rAF로 움직임 (React 렌더 없음)
+const DISC_SRC = "/images/news/what-is-vinyl/lathe-disc.webp";
+const POP_COLORS = ["var(--ink)", "var(--accent)", "var(--cover-art)", "var(--ink)"];
+const GRAVITY = 2600;        // px/s²
+const POP_MAX = 30;          // 동시에 떠 있는 판 수 상한
+function PopCrate({ className = "" }) {
+  const box = useRef(null);
+  const [touch, setTouch] = useState(false);
+  useEffect(() => {
+    const el = box.current;
+    const host = el.closest("section") ?? el;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setTouch(window.matchMedia("(hover: none)").matches);
+    let W = 0, H = 0;
+    const measure = () => { const r = el.getBoundingClientRect(); W = r.width; H = r.height; };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+
+    const live = [];
+    let ci = 0;
+    const make = (d) => {
+      const node = document.createElement("div");
+      node.className = "pointer-events-none absolute left-0 top-0 rounded-full bg-(--cream) will-change-transform";
+      node.style.width = node.style.height = `${d}px`;
+      const art = document.createElement("div");
+      art.className = "size-full";
+      art.style.backgroundColor = POP_COLORS[ci++ % POP_COLORS.length];
+      art.style.mask = art.style.webkitMask = `url(${DISC_SRC}) center / contain no-repeat`;
+      node.appendChild(art);
+      el.appendChild(node);
+      return node;
+    };
+    const place = (p) => { p.node.style.transform = `translate3d(${p.x - p.d / 2}px, ${p.y - p.d / 2}px, 0) rotate(${p.a}deg)`; };
+    const spawn = (x, peak) => {
+      if (!W || !H) return;
+      if (live.length >= POP_MAX) live.shift().node.remove();
+      const d = Math.round(Math.min(Math.max(W * (0.24 + Math.random() * 0.2), 96), 300));
+      const y0 = H + d / 2 + 4;
+      const top = Math.min(Math.max(peak, d * 0.5 + 8), H - d * 0.35);
+      const p = {
+        node: make(d), d, y: y0,
+        x: Math.min(Math.max(x, d * 0.3), W - d * 0.3),
+        vy: -Math.sqrt(2 * GRAVITY * (y0 - top)),
+        a: Math.random() * 360, va: (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random() * 160),
+      };
+      place(p);
+      live.push(p);
+    };
+
+    // 모션 줄이기: 상자 바닥에 판 몇 장만 걸쳐 둠
+    if (reduce) {
+      [[0.28, 0.82], [0.62, 0.74], [0.86, 0.9]].forEach(([fx, fy]) => {
+        const d = Math.round(Math.min(Math.max(W * 0.36, 110), 300));
+        const p = { node: make(d), d, x: W * fx, y: H * fy + d * 0.2, a: fx * 400 };
+        place(p);
+        live.push(p);
+      });
+      return () => { ro.disconnect(); live.forEach((p) => p.node.remove()); };
+    }
+
+    // 포인터: 일정 거리를 움직일 때마다 한 장, 클릭/탭하면 세 장
+    let lastX = null, lastY = null, moved = 0, lastSpawn = 0, lastPointer = -1e9;
+    const local = (e) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    const onMove = (e) => {
+      const [x, y] = local(e);
+      if (x < -40 || x > W + 40) { lastX = null; return; }
+      const now = performance.now();
+      lastPointer = now;
+      if (lastX != null) moved += Math.hypot(x - lastX, y - lastY);
+      lastX = x; lastY = y;
+      if (moved > 70 || (moved > 14 && now - lastSpawn > 160)) {
+        spawn(x, y + (Math.random() - 0.5) * 60);
+        moved = 0; lastSpawn = now;
+      }
+    };
+    const onDown = (e) => {
+      const [x, y] = local(e);
+      if (x < -40 || x > W + 40) return;
+      lastPointer = performance.now();
+      for (let i = 0; i < 3; i++) spawn(x + (i - 1) * 50, y - 20 + i * 50);
+    };
+    host.addEventListener("pointermove", onMove, { passive: true });
+    host.addEventListener("pointerdown", onDown, { passive: true });
+
+    // 가만히 있으면 혼자서 가끔 튀어 오름
+    const idle = setInterval(() => {
+      if (visible && performance.now() - lastPointer > 2400) spawn(Math.random() * W, H * (0.2 + Math.random() * 0.45));
+    }, 850);
+
+    let visible = true, raf = 0, last = performance.now();
+    const tick = (t) => {
+      const dt = Math.min(0.05, (t - last) / 1000);
+      last = t;
+      for (let i = live.length - 1; i >= 0; i--) {
+        const p = live[i];
+        p.vy += GRAVITY * dt;
+        p.y += p.vy * dt;
+        p.a += p.va * dt;
+        if (p.vy > 0 && p.y - p.d / 2 > H) { p.node.remove(); live.splice(i, 1); continue; }
+        place(p);
+      }
+      raf = visible ? requestAnimationFrame(tick) : 0;
+    };
+    const io = new IntersectionObserver(([en]) => {
+      visible = en.isIntersecting;
+      if (visible && !raf) { last = performance.now(); raf = requestAnimationFrame(tick); }
+    });
+    io.observe(el);
+    raf = requestAnimationFrame(tick);
+    spawn(W * 0.5, H * 0.35);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      clearInterval(idle);
+      io.disconnect();
+      ro.disconnect();
+      host.removeEventListener("pointermove", onMove);
+      host.removeEventListener("pointerdown", onDown);
+      live.forEach((p) => p.node.remove());
+    };
+  }, []);
   return (
-    <svg viewBox="0 0 200 200" className={className} aria-hidden="true">
-      <circle cx="100" cy="100" r="99" fill="currentColor" />
-      {Array.from({ length: 14 }, (_, i) => <circle key={i} cx="100" cy="100" r={94 - i * 4} fill="none" stroke="var(--cream)" strokeWidth=".7" opacity=".16" />)}
-      <circle cx="100" cy="100" r="32" fill={label} />
-      <text x="100" y="97" textAnchor="middle" fontSize="5.6" fontWeight="700" letterSpacing="1" fill="#2a222a">SEOUL RECORD FAIR</text>
-      <text x="100" y="109" textAnchor="middle" fontSize="5" letterSpacing="1" fill="#2a222a">15TH · 2026</text>
-      <circle cx="100" cy="100" r="2.5" fill="var(--cream)" />
-    </svg>
+    <div className={className} aria-hidden="true">
+      <div ref={box} className="relative size-full overflow-hidden" />
+      <p className="pointer-events-none absolute bottom-4 right-[clamp(20px,4vw,72px)] text-[10px] font-medium uppercase tracking-[0.3em] text-(--ink)/55">
+        Pop-up crate · {touch ? "tap" : "move"} to dig
+      </p>
+    </div>
   );
 }
 
@@ -219,10 +338,10 @@ function Tips() {
 export default function Story() {
   return (
     <>
-      {/* 1 포스터 히어로 */}
-      <section className="relative min-h-svh overflow-hidden pb-16 pt-[calc(var(--ct-header-h,106px)+56px)]">
-        <Spinner className="pointer-events-none absolute -right-[38vmin] top-[58%] size-[96vmin] -translate-y-1/2 animate-[spin_9s_linear_infinite] text-(--ink) opacity-[.92] max-md:top-auto max-md:-bottom-[34vmin] max-md:translate-y-0 motion-reduce:animate-none md:-right-[30vmin]" />
-        <div className={`${WRAP} relative`}>
+      {/* 1 히어로: 카운트다운 + Pop-up crate */}
+      <section className="relative min-h-svh touch-pan-y overflow-hidden pb-16 pt-[calc(var(--ct-header-h,106px)+56px)]">
+        <PopCrate className="absolute inset-y-0 right-0 w-[min(54vw,960px)] max-md:inset-x-0 max-md:top-auto max-md:h-[44svh] max-md:w-auto" />
+        <div className={`${WRAP} relative z-10`}>
           <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--accent)">News · Fair</Reveal>
           <p aria-hidden="true" className={`${SERIF} mt-2 text-[clamp(7rem,16vw,15rem)] leading-[0.78] text-transparent [-webkit-text-stroke:2px_var(--ink)]`}>
             <span className="inline-block animate-[sheet-up_1.2s_cubic-bezier(.22,1,.36,1)_both]">15</span>
@@ -243,7 +362,7 @@ export default function Story() {
       {/* 6 공식 사이트 */}
       <section className={`${WRAP} pb-10 pt-[clamp(2rem,6vw,4rem)] text-center`}>
         <RiseText lines={["See you", "in the crates."]} className={`${SERIF} text-[clamp(2.6rem,6vw,6rem)] leading-[0.92]`} />
-        <Reveal delay={300} as="p" className="mx-auto mt-5 max-w-md text-[14px] leading-6 text-(--ink)/65">Details as published by the organisers on 13 Oct 2026. Plans can change — the official site has the final word.</Reveal>
+        <Reveal delay={300} as="p" className="mx-auto mt-5 max-w-md text-[14px] leading-6 text-(--ink)/65">Details as published by the organisers on 13 Oct 2026. Plans can change — the official site has the final word. Poster artwork © Seoul Record Fair.</Reveal>
         <Reveal delay={400}>
           <a href={SITE} target="_blank" rel="noreferrer" className="mt-9 inline-flex min-h-12 items-center gap-2 rounded-full bg-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--cream) transition-colors hover:bg-(--accent)">recordfair.kr <span aria-hidden="true">↗</span></a>
         </Reveal>
