@@ -8,7 +8,6 @@ import Link from "next/link";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 import { seg, useScrollProgress } from "@/components/story/scroll";
 import RequestDialog from "@/components/requests/RequestDialog";
-import { LEAF_SHAPES } from "./leaves";
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
 const WRAP = "mx-auto w-full max-w-[1500px] px-[clamp(20px,4vw,72px)]";
@@ -60,33 +59,17 @@ const PICKS = [
 
 // 결정적인 의사난수 (서버/클라이언트 같은 값 → 하이드레이션 어긋남 없음)
 const rand = (i, k = 1) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
-// 잎 종류별 색 (단풍·은행·갈잎)
-const LEAF_KINDS = [
-  ["maple", ["#c8553d", "#d9793d", "#b4442f", "#e08a3a"]],
-  ["ginkgo", ["#e3b04b", "#d9a531", "#ecc25a"]],
-  ["palmatum", ["#a63c2a", "#b8322a", "#c8553d"]],
-  ["star", ["#e08a3a", "#d9793d", "#c96a2c", "#e3b04b"]],
-  ["heart", ["#8a5a3c", "#9c6a3f", "#b07a3a"]],
-  ["maple", ["#e3b04b", "#d9a531", "#c9802f"]],
-  ["oak", ["#7a7a3a", "#8a6a34", "#9c7a3a", "#6f7a3a"]],
-  ["cherry", ["#d9793d", "#c8553d", "#e08a3a"]],
-  ["oval", ["#8a5a3c", "#b4602f", "#9c4a2b"]],
-];
-const leafOf = (i) => { const [kind, colors] = LEAF_KINDS[i % LEAF_KINDS.length]; return [kind, colors[Math.floor(rand(i, 9) * colors.length)]]; };
+// 잎 그림: 투명 배경 webp (단풍·일본단풍·미국풍나무·은행·참나무·피나무·벚나무·갈잎). 단풍과 은행이 조금 더 자주 나오게
+const LEAF_DIR = "/images/news/records-for-autumn/leaves/";
+const LEAF_SET = [["maple", 5, 3], ["palmatum", 3, 2], ["star", 5, 2], ["ginkgo", 3, 3], ["oak", 4, 1], ["heart", 3, 1], ["cherry", 3, 1], ["oval", 3, 1]];   // [종류, 장수, 비중]
+const LEAF_POOL = LEAF_SET.flatMap(([k, n, w]) => Array.from({ length: n * w }, (_, i) => `${LEAF_DIR}${k}-${(i % n) + 1}.webp`));
+const leafOf = (i) => LEAF_POOL[Math.floor(rand(i, 9) * LEAF_POOL.length)];
 
 // ── 낙엽 시스템 ─────────────────────────────────────────────
 // 떨어지는 잎: 화면에 붙은(sticky) 층에서 떨어짐. 마지막 섹션("Got one we missed?")의 바닥이 화면에 들어오면
 // 그 바닥(쌓인 더미의 표면)에 닿는 잎은 멈춰서 더미에 쌓임. 바닥이 아직 화면 밖이면 그냥 지나가서 위에서 다시 떨어짐.
 // 쌓인 잎: 마우스를 움직이면 근처 잎이 튀어 올랐다가 다시 내려앉음(클릭·탭하면 더 넓게).
 // 잎은 직접 DOM 노드로 만들고 rAF 로 움직임 (React 렌더 없음)
-let leafUid = 0;
-const leafSvg = (kind, color) => {
-  const L = LEAF_SHAPES[kind], u = `lf${leafUid++}`;
-  return `<svg viewBox="0 0 100 100" class="block size-full"><clipPath id="${u}h"><rect x="50" width="50" height="100"/></clipPath><clipPath id="${u}l"><path d="${L.d}"/></clipPath>`
-    + `<path d="${L.d}" fill="${color}"/><path d="${L.d}" fill="#2a1408" opacity=".14" clip-path="url(#${u}h)"/>`
-    + `<path d="${L.veins}" fill="none" stroke="#3a1a0c" stroke-opacity=".38" stroke-width=".9" stroke-linecap="round" clip-path="url(#${u}l)"/>`
-    + `<path d="${L.stem}" fill="none" stroke="#5a2f17" stroke-width="1.8" stroke-linecap="round"/></svg>`;
-};
 const FALLING = 24, BIN = 14, G = 1100;
 const PRESEED_PER_PX = 1 / 7, PILE_MAX_PER_PX = 1 / 4.2;   // 화면 폭에 비례 (넓은 화면일수록 많이)
 function useLeaves(fallRef, pileRef) {
@@ -95,12 +78,13 @@ function useLeaves(fallRef, pileRef) {
     if (!fall || !pile) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let k = 0;
-    const pick = () => { const [kind, color] = leafOf(k); k++; return { kind, color }; };
-    const node = (host, size, { kind, color }) => {
+    const pick = () => leafOf(k++);
+    const skin = (el, src) => { el.style.backgroundImage = `url(${src})`; };
+    const node = (host, size, src) => {
       const el = document.createElement("div");
-      el.className = "pointer-events-none absolute left-0 top-0 will-change-transform";
+      el.className = "pointer-events-none absolute left-0 top-0 bg-contain bg-center bg-no-repeat will-change-transform";
       el.style.width = el.style.height = `${size}px`;
-      el.innerHTML = leafSvg(kind, color);
+      skin(el, src);
       host.appendChild(el);
       return el;
     };
@@ -161,7 +145,7 @@ function useLeaves(fallRef, pileRef) {
       f.vy = 45 + Math.random() * 45; f.amp = 20 + Math.random() * 40; f.w = 0.6 + Math.random() * 0.9; f.ph = Math.random() * 6.28;
       f.a = Math.random() * 360; f.va = (Math.random() < 0.5 ? -1 : 1) * (40 + Math.random() * 90);
       f.look = pick();
-      f.el.innerHTML = leafSvg(f.look.kind, f.look.color);
+      skin(f.el, f.look);
       f.el.style.width = f.el.style.height = `${f.s}px`;
     };
     for (let i = 0; i < FALLING; i++) { const f = { el: node(fall, 30, pick()), t: 0 }; spawn(f, true); falling.push(f); }
