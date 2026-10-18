@@ -73,15 +73,25 @@ function Countdown() {
 
 // 히어로 오른쪽 Pop-up crate — 5개의 줄(레인)에서만 판이 튀어 올랐다 떨어짐
 // 포인터가 지나가는 레인에서 한 장, 정점은 포인터 높이쯤. 판은 직접 DOM 노드로 만들어 rAF로 움직임 (React 렌더 없음)
-// 판: 검정 바탕 + 동심원 홈. 빛이 왼쪽 위에서 와서 홈이 왼쪽은 하얗게, 오른쪽은 그림자로 검게 사라짐 (빛은 고정이라 판을 돌리지 않음)
+// 판: 검정 바탕 + 촘촘한 동심원 홈. 빛은 왼쪽 위에 고정(원뿔 모양 마스크) → 홈은 왼쪽이 하얗고 오른쪽은 그림자로 검게.
+// 홈만 돌아가고(군데군데 끊긴 자리가 돌면서 회전이 보임) 빛은 그대로. 빠르게 움직일수록 위아래로 늘어남(스트레치)
 const LANES = 5;
 const GRAVITY = 2600;        // px/s²
 const POP_MAX = 30;          // 동시에 떠 있는 판 수 상한
 const DISC_INK = "#141113";
-const GROOVES = Array.from({ length: 11 }, (_, i) => 46.5 - i * 3.7);   // 홈 반지름 (viewBox 100 기준)
-const DISC_SVG = `<svg viewBox="0 0 100 100" class="block size-full"><circle cx="50" cy="50" r="49.6" fill="${DISC_INK}"/>`
-  + GROOVES.map((r) => `<circle cx="50" cy="50" r="${r.toFixed(2)}" fill="none" stroke="url(#pc-light)" stroke-width="1.7"/>`).join("")
-  + `<circle cx="50" cy="50" r="1.6" fill="url(#pc-light)"/></svg>`;
+const RINGS = 22;            // 홈 개수 (흰·검 주기)
+const LIGHT_MASK = "conic-gradient(from 193deg at 50% 50%, transparent 0deg, #000 80deg, #000 140deg, transparent 220deg, transparent 360deg)";
+const grooveSvg = () => {
+  let rings = "";
+  for (let i = 0; i < RINGS; i++) {
+    const r = 47 - i * 1.95;
+    // 홈 몇 개만 한 군데씩 짧게 끊어 둠 → 돌 때 끊긴 자리가 움직여 회전이 보임 (pathLength 100 기준)
+    const g = 2.5 + Math.random() * 3;
+    const dash = Math.random() < 0.4 ? ` pathLength="100" stroke-dasharray="${(100 - g).toFixed(1)} ${g.toFixed(1)}"` : "";
+    rings += `<circle cx="50" cy="50" r="${r.toFixed(2)}" fill="none" stroke="#fff" stroke-width=".95"${dash} transform="rotate(${Math.round(Math.random() * 360)} 50 50)"/>`;
+  }
+  return `<svg viewBox="0 0 100 100" class="block size-full">${rings}<circle cx="50" cy="50" r="1.4" fill="#fff"/></svg>`;
+};
 function PopCrate({ className = "" }) {
   const box = useRef(null);
   const [touch, setTouch] = useState(false);
@@ -105,18 +115,36 @@ function PopCrate({ className = "" }) {
       const node = document.createElement("div");
       node.className = "pointer-events-none absolute left-0 top-0 rounded-full will-change-transform";
       node.style.width = node.style.height = `${d}px`;
-      node.innerHTML = DISC_SVG;
+      node.style.backgroundColor = DISC_INK;
+      const light = document.createElement("div");          // 빛(고정)
+      light.className = "absolute inset-0";
+      light.style.mask = light.style.webkitMask = LIGHT_MASK;
+      const spin = document.createElement("div");           // 홈(회전)
+      spin.className = "size-full will-change-transform";
+      spin.innerHTML = grooveSvg();
+      light.appendChild(spin);
+      node.appendChild(light);
       el.appendChild(node);
-      return node;
+      return { node, spin };
     };
-    const place = (p) => { p.node.style.transform = `translate3d(${p.x - p.d / 2}px, ${p.y - p.d / 2}px, 0)`; };
+    const vRef = () => Math.sqrt(2 * GRAVITY * H) || 1;
+    const place = (p) => {
+      const k = Math.min(1, Math.abs(p.vy || 0) / vRef());
+      const sy = 1 + p.stretch * k * k, sx = 1 / Math.sqrt(sy);   // 빠를수록 길쭉, 정점에선 동그랗게
+      p.node.style.transform = `translate3d(${p.x - p.d / 2}px, ${p.y - p.d / 2}px, 0) scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
+      p.spin.style.transform = `rotate(${p.a.toFixed(1)}deg)`;
+    };
     const spawn = (lane, peak) => {
       if (!W || !H) return;
       if (live.length >= POP_MAX) live.shift().node.remove();
       const d = size();
       const y0 = H + d / 2 + 4;
       const top = Math.min(Math.max(peak, d * 0.5 + 8), H - d * 0.35);
-      const p = { node: make(d), d, x: laneX(lane), y: y0, vy: -Math.sqrt(2 * GRAVITY * (y0 - top)) };
+      const p = {
+        ...make(d), d, x: laneX(lane), y: y0, vy: -Math.sqrt(2 * GRAVITY * (y0 - top)),
+        a: Math.random() * 360, va: 140 + Math.random() * 260,                       // 시계 방향으로 돌기
+        stretch: Math.random() < 0.35 ? 0.9 + Math.random() * 0.9 : 0.2 + Math.random() * 0.3,   // 가끔 아주 길게
+      };
       place(p);
       live.push(p);
     };
@@ -125,7 +153,7 @@ function PopCrate({ className = "" }) {
     if (reduce) {
       [0.72, 0.58, 0.8, 0.64, 0.86].forEach((fy, i) => {
         const d = size();
-        const p = { node: make(d), d, x: laneX(i), y: H * fy + d * 0.2 };
+        const p = { ...make(d), d, x: laneX(i), y: H * fy + d * 0.2, vy: 0, a: i * 70, stretch: 0 };
         place(p);
         live.push(p);
       });
@@ -169,6 +197,7 @@ function PopCrate({ className = "" }) {
         const p = live[i];
         p.vy += GRAVITY * dt;
         p.y += p.vy * dt;
+        p.a += p.va * dt;
         if (p.vy > 0 && p.y - p.d / 2 > H) { p.node.remove(); live.splice(i, 1); continue; }
         place(p);
       }
@@ -194,16 +223,6 @@ function PopCrate({ className = "" }) {
   }, []);
   return (
     <div className={className} aria-hidden="true">
-      {/* 모든 판이 같이 쓰는 빛: 홈마다 왼쪽 위는 하얗고 오른쪽으로 갈수록 검정에 묻힘 */}
-      <svg width="0" height="0" className="absolute">
-        <defs>
-          <linearGradient id="pc-light" x1="0.05" y1="0.15" x2="0.78" y2="0.62">
-            <stop offset="0" stopColor="#fff" />
-            <stop offset="0.48" stopColor="#fff" stopOpacity="0.9" />
-            <stop offset="0.8" stopColor="#fff" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-      </svg>
       <div ref={box} className="relative size-full overflow-hidden" />
       <p className="pointer-events-none absolute bottom-4 right-[clamp(20px,4vw,72px)] text-[10px] font-medium uppercase tracking-[0.3em] text-(--ink)/55">
         Pop-up crate · {touch ? "탭해서" : "마우스를 움직여"} 디깅
