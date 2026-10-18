@@ -14,7 +14,8 @@ const DAYS = [
   ["2026-10-31T10:00:00+09:00", "2026-10-31T18:00:00+09:00"],
   ["2026-11-01T10:00:00+09:00", "2026-11-01T18:00:00+09:00"],
 ].map(([a, b]) => [Date.parse(a), Date.parse(b)]);
-const PLACE = "펍지성수";
+const PLACE = "PUBG 성수";
+const MAP_QUERY = "펍지성수";   // 지도 검색은 한글 상호가 잘 잡힘
 const ADDRESS_KO = "서울 성동구 왕십리로4길 5";
 
 // 지금 시각 기준 상태: before(첫날 전) | open(열려 있음) | between(첫날 끝~둘째 날 전) | after(끝)
@@ -248,7 +249,7 @@ function Row({ k, children }) {
 }
 // 3 장소·일시 (티켓 모양)
 function Venue() {
-  const q = encodeURIComponent(PLACE);
+  const q = encodeURIComponent(MAP_QUERY);
   return (
     <section className={SECTION}>
       <Head n="02" label="Where & when" lines={["PUBG", "Seongsu"]}>
@@ -258,7 +259,7 @@ function Venue() {
         <dl className="p-[clamp(1.25rem,3vw,2.5rem)]">
           <Row k="일시">2026년 10월 31일(토) – 11월 1일(일)</Row>
           <Row k="시간">10:00 – 18:00 <span className="text-(--ink)/60">(이틀 모두)</span></Row>
-          <Row k="장소">{PLACE} <span className="text-(--ink)/60">· PUBG Seongsu</span></Row>
+          <Row k="장소">{PLACE}</Row>
           <Row k="주소">{ADDRESS_KO}</Row>
           <Row k="가는 길">성동구 성수동. 지도에서 지하철·버스 경로를 확인하세요. 주변 주차가 여유롭지 않아 대중교통이 편해요.</Row>
         </dl>
@@ -471,7 +472,7 @@ export default function Story() {
             <span className="inline-block animate-[sheet-up_1.2s_cubic-bezier(.22,1,.36,1)_both]">15</span>
           </p>
           <RiseText as="h1" lines={["Seoul", "Record Fair"]} delay={150} lineClassName="whitespace-nowrap" className={`${SERIF} -mt-[0.35em] text-[clamp(3.2rem,7vw,7rem)] leading-[0.88]`} />
-          <Reveal delay={450} as="p" className="mt-6 text-[clamp(1.1rem,2vw,1.5rem)] font-medium tabular-nums">2026. 10. 31 – 11. 1 · 펍지성수</Reveal>
+          <Reveal delay={450} as="p" className="mt-6 text-[clamp(1.1rem,2vw,1.5rem)] font-medium tabular-nums">2026. 10. 31 – 11. 1 · PUBG 성수</Reveal>
           <Reveal delay={650} className="mt-7 w-fit rounded-[6px] bg-(--cream)/85 p-4 backdrop-blur-sm">
             <Countdown />
           </Reveal>

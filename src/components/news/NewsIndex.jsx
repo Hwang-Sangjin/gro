@@ -81,7 +81,7 @@ export default function NewsIndex() {
                   {/* 밑줄: 글자 박스 맨 아래가 아니라 기준선 바로 밑에 (줄마다 그려져 다음 줄 글자를 가리지 않게) */}
                   <span className="box-decoration-clone bg-[linear-gradient(currentColor,currentColor)] bg-[length:0%_0.045em] bg-[position:0_calc(100%-0.16em)] bg-no-repeat transition-[background-size] duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover:bg-[length:100%_0.045em]">{lead.title}</span>
                 </h2>
-                <p className="mt-5 max-w-lg text-[16px] leading-7 text-(--ink)/75">{lead.dek}</p>
+                <p className="mt-5 max-w-lg break-keep text-[16px] leading-7 text-(--ink)/75">{lead.dek}</p>
                 <span className="mt-8 inline-flex items-center gap-3 text-[12px] font-medium uppercase tracking-[0.2em]">
                   Read story <span aria-hidden="true" className="transition-transform duration-500 group-hover:translate-x-1.5">→</span>
                 </span>
@@ -98,7 +98,7 @@ export default function NewsIndex() {
                   <StoryCover name={s.cover} className="aspect-square rounded-sm [&_svg]:transition-transform [&_svg]:duration-[1200ms] [&_svg]:ease-[cubic-bezier(.22,1,.36,1)] group-hover:[&_svg]:scale-105" />
                   <div className="mt-5"><Meta s={s} /></div>
                   <h3 className={`${SERIF} mt-3 text-[clamp(1.7rem,2.4vw,2.4rem)] leading-[0.98]`}>{s.title}</h3>
-                  <p className="mt-3 text-[14px] leading-6 text-(--ink)/70">{s.dek}</p>
+                  <p className="mt-3 break-keep text-[14px] leading-6 text-(--ink)/70">{s.dek}</p>
                 </Link>
               </Reveal>
             ))}
