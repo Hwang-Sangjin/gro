@@ -71,11 +71,28 @@ function Countdown() {
   );
 }
 
+// 페어가 끝난 뒤(마지막 날 18:00 이후) 히어로 아래에 뜨는 안내. 후기 글을 쓰면 RECAP 에 slug 를 넣으면 링크가 생김
+const RECAP = null;   // 예: "seoul-record-fair-2026-recap"
+function AfterFair() {
+  const now = useNow(60000);
+  if (now == null || fairState(now).kind !== "after") return null;
+  return (
+    <div className="mt-7 max-w-md rounded-[6px] border-2 border-(--ink) bg-(--cream)/90 p-5 backdrop-blur-sm">
+      <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--accent)">After the fair</p>
+      <p className="mt-3 break-keep text-[15px] leading-7">15회 서울레코드페어가 끝났어요. 이 글은 행사 전에 쓴 안내예요. 남은 한정반은 공식 홈페이지에서 온라인으로 판매해요.</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {RECAP && <a href={`/news/${RECAP}`} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-(--ink) px-5 text-[12px] font-medium uppercase tracking-[0.16em] text-(--cream) transition-colors hover:bg-(--accent)">페어 후기 읽기 <span aria-hidden="true">→</span></a>}
+        <a href={SITE} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-(--ink) px-5 text-[12px] font-medium uppercase tracking-[0.16em] transition-colors hover:border-(--accent) hover:text-(--accent)">recordfair.kr <span aria-hidden="true">↗︎</span></a>
+      </div>
+    </div>
+  );
+}
+
 // 히어로 오른쪽 Pop-up crate — 5개의 줄(레인)에서만 판이 튀어 올랐다 떨어짐
 // 포인터가 지나가는 레인에서 한 장, 정점은 포인터 높이쯤. 판은 직접 DOM 노드로 만들어 rAF로 움직임 (React 렌더 없음)
 // 판: 검정 바탕 + 촘촘한 동심원 홈. 원뿔 모양 마스크로 홈의 한쪽은 하얗게, 반대쪽은 그림자로 검게.
 // 판이 돌면 하얀 쪽과 그림자 쪽이 함께 돌아감
-const LANES = 5;
+const LANES_WIDE = 5, LANES_NARROW = 3, NARROW_W = 640;   // 좁은 화면(폰)은 3줄 → 판이 너무 작아지지 않게
 const GRAVITY = 2600;        // px/s²
 const POP_MAX = 30;          // 동시에 떠 있는 판 수 상한
 const DISC_INK = "#141113";
@@ -104,10 +121,11 @@ function PopCrate({ className = "" }) {
     ro.observe(el);
 
     const live = [];
-    const laneW = () => W / LANES;
+    const lanes = () => (W < NARROW_W ? LANES_NARROW : LANES_WIDE);
+    const laneW = () => W / lanes();
     const size = () => Math.round(Math.min(laneW() * 1.22, 320));   // 옆 레인과 살짝 겹치게
-    const laneX = (i) => { const d = size(); return d / 2 + (i * (W - d)) / (LANES - 1); };   // 양 끝 판도 영역 안에 다 들어오게
-    const laneOf = (x) => Math.min(LANES - 1, Math.max(0, Math.floor(x / laneW())));
+    const laneX = (i) => { const d = size(); return d / 2 + (i * (W - d)) / (lanes() - 1); };   // 양 끝 판도 영역 안에 다 들어오게
+    const laneOf = (x) => Math.min(lanes() - 1, Math.max(0, Math.floor(x / laneW())));
     const make = (d) => {
       const node = document.createElement("div");
       node.className = "pointer-events-none absolute left-0 top-0 rounded-full will-change-transform";
@@ -141,7 +159,7 @@ function PopCrate({ className = "" }) {
 
     // 모션 줄이기: 레인마다 판을 바닥에 걸쳐 둠
     if (reduce) {
-      [0.72, 0.58, 0.8, 0.64, 0.86].forEach((fy, i) => {
+      [0.72, 0.58, 0.8, 0.64, 0.86].slice(0, lanes()).forEach((fy, i) => {
         const d = size();
         const p = { ...make(d), d, x: laneX(i), y: H * fy + d * 0.2, vy: 0, a: i * 70 };
         place(p);
@@ -169,7 +187,7 @@ function PopCrate({ className = "" }) {
       if (x < 0 || x > W) return;
       lastPointer = performance.now();
       const lane = laneOf(x);
-      [lane - 1, lane, lane + 1].forEach((l, i) => { if (l >= 0 && l < LANES) spawn(l, y + (i === 1 ? -40 : 30)); });
+      [lane - 1, lane, lane + 1].forEach((l, i) => { if (l >= 0 && l < lanes()) spawn(l, y + (i === 1 ? -40 : 30)); });
     };
     host.addEventListener("pointermove", onMove, { passive: true });
     host.addEventListener("pointerdown", onDown, { passive: true });
@@ -177,7 +195,7 @@ function PopCrate({ className = "" }) {
     // 가만히 있으면 혼자서 가끔 튀어 오름
     let visible = true, raf = 0, last = performance.now();
     const idle = setInterval(() => {
-      if (visible && performance.now() - lastPointer > 2400) spawn(Math.floor(Math.random() * LANES), H * (0.2 + Math.random() * 0.45));
+      if (visible && performance.now() - lastPointer > 2400) spawn(Math.floor(Math.random() * lanes()), H * (0.2 + Math.random() * 0.45));
     }, 700);
 
     const tick = (t) => {
@@ -199,7 +217,7 @@ function PopCrate({ className = "" }) {
     });
     io.observe(el);
     raf = requestAnimationFrame(tick);
-    spawn(2, H * 0.3);
+    spawn(Math.floor(lanes() / 2), H * 0.3);
 
     return () => {
       cancelAnimationFrame(raf);
@@ -345,26 +363,25 @@ function Cover({ img, artist, title, className = "" }) {
   );
 }
 
-// 5 15회 한정반 — 대표곡은 YouTube 검색 링크 (공식 영상 주소가 정해지면 교체)
-const yt = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+// 5 15회 한정반 — 버튼은 앨범 전체 YouTube 플레이리스트로
 const LIMITED = [
   {
     artist: "Lim Hyun-jung", ko: "임현정", title: "[4] A Year Out… In The Island", img: "https://cdn.imweb.me/thumbnail/20261001/6230cd9567b6d.jpg",
     text: "20년 넘게 영화와 드라마에 쓰여 온 노래가 담긴 2003년 앨범. 바이닐로는 처음 발매돼요.",
     spec: ["2LP · 180g", "게이트폴드 재킷", "인서트"], price: "55,000원", run: "700매 · 하루 350매",
-    track: "사랑은 봄비처럼…이별은 겨울비처럼", href: yt("임현정 사랑은 봄비처럼 이별은 겨울비처럼"),
+    href: "https://www.youtube.com/watch?v=fwNJdxUghcc&list=PLwZgwIIZdHRMMvjPScuFob5B1eWO12XZk",
   },
   {
     artist: "Sultan of the Disco", ko: "술탄 오브 더 디스코", title: "Easy Listening for Love +", img: "https://cdn.imweb.me/thumbnail/20261015/203e4f113560a.jpg",
     text: "가장 최근 앨범인 2019년작이 처음으로 바이닐이 돼요. 2020년 싱글과 그 연주곡을 더해 총 10곡을 담았어요.",
     spec: ["LP · 180g 검정반", "게이트폴드 재킷", "디자인 이너슬리브"], price: "49,000원", run: "700매 · 하루 350매",
-    track: "Waiting For Your Calling Back", href: yt("술탄 오브 더 디스코 Waiting For Your Calling Back"),
+    href: "https://www.youtube.com/watch?v=AMgOThVdncE&list=PLqMWkbOIeBd69wlpQ30A4ddVgu-CaL8sV",
   },
   {
     artist: "Bronze", ko: "브론즈", title: "Aquarium", img: "https://cdn.imweb.me/thumbnail/20261015/0a6d58f853ed4.jpg",
     text: "BSK, 미노이, 루나, 유키카, 후디가 참여하고 나가이 히로시가 그림을 그린 두 번째 정규 앨범. 바이닐 발매 5주년을 맞아 검정반으로 다시 찍었어요.",
     spec: ["LP · 180g 검정반", "싱글 재킷", "인서트"], price: "44,500원", run: "500매 · 하루 250매",
-    track: "Aquarium", href: yt("브론즈 Bronze Aquarium"),
+    href: "https://www.youtube.com/watch?v=E-RLp-C2CIU&list=PLAv5NxX9RNovyp74YuwD12HD-qNC5IDJE",
   },
 ];
 function Limited() {
@@ -391,8 +408,8 @@ function Limited() {
                   <svg viewBox="0 0 12 12" className="size-3 translate-x-px fill-current"><path d="M2 1l9 5-9 5z" /></svg>
                 </span>
                 <span className="text-left">
-                  <span className="block text-[10px] uppercase tracking-[0.26em] opacity-70">YouTube에서 듣기</span>
-                  <span className="block text-[14px] font-medium">{r.track}</span>
+                  <span className="block text-[10px] uppercase tracking-[0.26em] opacity-70">YouTube 플레이리스트</span>
+                  <span className="block text-[14px] font-medium">앨범 전체 듣기</span>
                 </span>
               </a>
             </div>
@@ -496,6 +513,7 @@ export default function Story() {
           <Reveal delay={650} className="mt-7 w-fit rounded-[6px] bg-(--cream)/85 p-4 backdrop-blur-sm">
             <Countdown />
           </Reveal>
+          <AfterFair />
         </div>
       </section>
 
