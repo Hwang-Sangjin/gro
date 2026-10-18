@@ -2,6 +2,7 @@
 // fair: 큰 "15" + 쌓인 판 (이전) / fair-poster: 공식 포스터를 정사각형으로 자름 (© 서울레코드페어) / autumn: 가을색 슬리브와 낙엽 / record: 홈 확대 + 바늘
 // a-to-z-NN: Vinyl A to Z 시리즈 — 같은 틀에 회차 번호 + 그 회의 손그림. 바탕·그림 색은 테마를 따라감(--cover-bg / --cover-art)
 import { useId } from "react";
+import { AUTUMN_DOODLE } from "./autumnDoodle";
 
 function Fair() {
   return (
@@ -34,6 +35,20 @@ function Autumn() {
         <circle r="30" fill="#e3b04b" /><circle r="3" fill="#2a222a" />
       </g>
       <path d="M92 318c18-26 46-34 70-26-10 24-38 38-70 26z" fill="#2d6a6a" /><path d="M92 318c24-6 48-12 70-26" stroke="#8a3b1f" fill="none" />
+    </svg>
+  );
+}
+// Picks 가을: 손그림 단풍잎(주황) + 큰 "Autumn". 바탕·글자는 테마를 따라감 (Vinyl A to Z 썸네일과 같은 틀)
+function AutumnDoodle() {
+  return (
+    <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
+      <rect width="400" height="400" style={{ fill: "var(--cover-bg)" }} />
+      <g fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: "var(--leaf)" }}>
+        {AUTUMN_DOODLE.strokes.map((d, i) => <path key={i} d={d} strokeWidth={i < 2 ? 2.6 : 2.1} />)}
+        {AUTUMN_DOODLE.hatch.map((d, i) => <path key={`h${i}`} d={d} strokeWidth="1.6" />)}
+      </g>
+      <text x="28" y="44" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" style={{ fill: "var(--accent)" }}>PICKS</text>
+      <text x="374" y="376" textAnchor="end" fontFamily="Grooves Display, Hahmlet, Georgia, serif" fontWeight="900" fontSize="72" letterSpacing="-1" style={{ fill: "var(--ink)" }}>Autumn</text>
     </svg>
   );
 }
@@ -91,7 +106,7 @@ function AtoZ02() {
   );
 }
 
-const COVERS = { fair: Fair, "fair-poster": FairPoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
+const COVERS = { "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
 export default function StoryCover({ name, className = "" }) {
   const C = COVERS[name] ?? Record;
   return <span className={`block overflow-hidden ${className}`}><C /></span>;

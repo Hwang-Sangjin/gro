@@ -34,10 +34,10 @@ export const STORIES = [
     slug: "records-for-autumn",
     category: "picks",
     title: "Records for an Autumn Evening",
-    dek: "Seven albums — and the one song from each — for the hour when the light turns gold and the windows go cold.",
+    dek: "해가 금빛으로 기울고 창문이 차가워지는 시간을 위한 일곱 장의 앨범, 그리고 앨범마다 한 곡.",
     date: "2026-10-10",
     read: "6 min",
-    cover: "autumn",
+    cover: "autumn-doodle",
     homeArt: "reissue",
   },
   {
