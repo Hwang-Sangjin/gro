@@ -105,9 +105,9 @@ function PopCrate({ className = "" }) {
 
     const live = [];
     const laneW = () => W / LANES;
-    const laneX = (i) => laneW() * (i + 0.5);
-    const laneOf = (x) => Math.min(LANES - 1, Math.max(0, Math.floor(x / laneW())));
     const size = () => Math.round(Math.min(laneW() * 1.22, 320));   // 옆 레인과 살짝 겹치게
+    const laneX = (i) => { const d = size(); return d / 2 + (i * (W - d)) / (LANES - 1); };   // 양 끝 판도 영역 안에 다 들어오게
+    const laneOf = (x) => Math.min(LANES - 1, Math.max(0, Math.floor(x / laneW())));
     const make = (d) => {
       const node = document.createElement("div");
       node.className = "pointer-events-none absolute left-0 top-0 rounded-full will-change-transform";
@@ -213,7 +213,7 @@ function PopCrate({ className = "" }) {
   }, []);
   return (
     <div className={className} aria-hidden="true">
-      <div ref={box} className="relative size-full overflow-hidden" />
+      <div ref={box} className="relative size-full [clip-path:inset(-50%_-50%_0_-50%)]" />  {/* 아래(판이 올라오는 바닥)만 자르고 양옆·위는 열어 둠 */}
       <p className="pointer-events-none absolute bottom-4 right-[clamp(20px,4vw,72px)] text-[10px] font-medium uppercase tracking-[0.3em] text-(--ink)/55">
         Pop-up crate · {touch ? "탭해서" : "마우스를 움직여"} 디깅
       </p>
@@ -482,7 +482,7 @@ export default function Story() {
     <>
       {/* 1 히어로: 카운트다운 + Pop-up crate */}
       <section data-no-select className="relative min-h-svh touch-pan-y overflow-hidden pb-16 pt-[calc(var(--ct-header-h,106px)+56px)]">
-        <PopCrate className="absolute inset-y-0 right-0 w-[min(54vw,960px)] max-md:inset-x-0 max-md:top-auto max-md:h-[44svh] max-md:w-auto" />
+        <PopCrate className="absolute inset-y-0 right-0 w-[min(60vw,1080px)] max-md:inset-x-0 max-md:top-auto max-md:h-[44svh] max-md:w-auto" />
         <div className={`${WRAP} relative z-10`}>
           <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--accent)">News · Fair</Reveal>
           <p aria-hidden="true" className={`${SERIF} mt-2 text-[clamp(7rem,16vw,15rem)] leading-[0.78] text-transparent [-webkit-text-stroke:2px_var(--ink)]`}>
