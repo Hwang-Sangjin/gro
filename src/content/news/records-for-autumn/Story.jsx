@@ -87,11 +87,12 @@ const leafSvg = (kind, color) => {
     + `<path d="${L.veins}" fill="none" stroke="#3a1a0c" stroke-opacity=".38" stroke-width=".9" stroke-linecap="round" clip-path="url(#${u}l)"/>`
     + `<path d="${L.stem}" fill="none" stroke="#5a2f17" stroke-width="1.8" stroke-linecap="round"/></svg>`;
 };
-const FALLING = 22, PILE_MAX = 240, PRESEED = 150, BIN = 14, G = 1100;
-function useLeaves(fallRef, pileRef, areaRef) {
+const FALLING = 24, BIN = 14, G = 1100;
+const PRESEED_PER_PX = 1 / 7, PILE_MAX_PER_PX = 1 / 4.2;   // 화면 폭에 비례 (넓은 화면일수록 많이)
+function useLeaves(fallRef, pileRef) {
   useEffect(() => {
-    const fall = fallRef.current, pile = pileRef.current, area = areaRef.current;
-    if (!fall || !pile || !area) return;
+    const fall = fallRef.current, pile = pileRef.current;
+    if (!fall || !pile) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let k = 0;
     const pick = () => { const [kind, color] = leafOf(k); k++; return { kind, color }; };
@@ -108,7 +109,7 @@ function useLeaves(fallRef, pileRef, areaRef) {
     let PW = pile.clientWidth, PH = pile.clientHeight, heap = [];
     const bins = () => Math.max(1, Math.ceil(PW / BIN));
     const binOf = (x) => Math.min(bins() - 1, Math.max(0, Math.floor(x / BIN)));
-    const cap = (b) => 14 + PH * 0.78 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, (b + 0.5) / bins()))), 0.7);
+    const cap = (b) => 16 + PH * 0.74 * (0.5 + 0.5 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, (b + 0.5) / bins()))), 0.8));   // 가장자리까지 쌓이고 가운데가 조금 더 높게
     const resize = () => { PW = pile.clientWidth; PH = pile.clientHeight; const n = bins(); while (heap.length < n) heap.push(0); heap.length = n; };
     resize();
     const surface = (x) => PH - heap[binOf(x)];
@@ -142,13 +143,13 @@ function useLeaves(fallRef, pileRef, areaRef) {
       p.rest = false;
     };
     const addPiled = (x, a, s, look) => {
-      if (piled.length >= PILE_MAX) return false;
+      if (piled.length >= PW * PILE_MAX_PER_PX) return false;
       const p = { el: node(pile, s, look), x, y: 0, s, a, vx: 0, vy: 0, va: 0, rest: false };
       piled.push(p); land(p);
       return true;
     };
     // 처음부터 어느 정도 쌓여 있게
-    for (let i = 0; i < PRESEED; i++) addPiled(Math.random() * PW, Math.random() * 360, 28 + Math.random() * 30, pick());
+    for (let i = 0; i < PW * PRESEED_PER_PX; i++) addPiled(Math.random() * PW, Math.random() * 360, 28 + Math.random() * 30, pick());
     if (reduce) return () => { piled.forEach((p) => p.el.remove()); };
 
     // 떨어지는 잎
@@ -179,8 +180,10 @@ function useLeaves(fallRef, pileRef, areaRef) {
       }
     };
     const local = (e) => { const r = pile.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    const near = (y) => y > -PH * 1.2 && y < PH + 30;   // 더미 근처(위로 조금 여유)에서만 반응
     const onMove = (e) => {
       const [x, y] = local(e), now = performance.now();
+      if (!near(y)) { px = py = null; return; }
       if (px != null) {
         const dt = Math.max(16, now - lastT) / 1000, vx = (x - px) / dt, vy = (y - py) / dt;
         if (Math.hypot(vx, vy) > 60) kick(x, y, 46 + Math.min(40, Math.hypot(vx, vy) / 40), vx, vy);
@@ -188,10 +191,10 @@ function useLeaves(fallRef, pileRef, areaRef) {
       px = x; py = y; lastT = now;
     };
     const onLeave = () => { px = py = null; };
-    const onDown = (e) => { const [x, y] = local(e); kick(x, y, 110, 0, -400); };
-    area.addEventListener("pointermove", onMove, { passive: true });
-    area.addEventListener("pointerleave", onLeave);
-    area.addEventListener("pointerdown", onDown, { passive: true });
+    const onDown = (e) => { const [x, y] = local(e); if (near(y)) kick(x, y, 110, 0, -400); };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.documentElement.addEventListener("pointerleave", onLeave);
+    window.addEventListener("pointerdown", onDown, { passive: true });
     const ro = new ResizeObserver(resize);
     ro.observe(pile);
 
@@ -230,14 +233,14 @@ function useLeaves(fallRef, pileRef, areaRef) {
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener("visibilitychange", vis);
-      area.removeEventListener("pointermove", onMove);
-      area.removeEventListener("pointerleave", onLeave);
-      area.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("pointermove", onMove);
+      document.documentElement.removeEventListener("pointerleave", onLeave);
+      window.removeEventListener("pointerdown", onDown);
       ro.disconnect();
       falling.forEach((f) => f.el.remove());
       piled.forEach((p) => p.el.remove());
     };
-  }, [fallRef, pileRef, areaRef]);
+  }, [fallRef, pileRef]);
 }
 
 // 판 (홈 + 라벨)
@@ -355,8 +358,8 @@ function Mixtape() {
 
 export default function Story() {
   const request = useRef(null);
-  const fallRef = useRef(null), pileRef = useRef(null), areaRef = useRef(null);
-  useLeaves(fallRef, pileRef, areaRef);
+  const fallRef = useRef(null), pileRef = useRef(null);
+  useLeaves(fallRef, pileRef);
   const onRequest = (p) => request.current?.open({ title: p.album, artist: p.artist, releaseYear: p.year });
   return (
     <div className="relative">
@@ -385,9 +388,9 @@ export default function Story() {
       <Mixtape />
 
       {/* 4 마무리 */}
-      <section ref={areaRef} data-no-select className={`${WRAP} relative pb-[clamp(11rem,20vw,15rem)] pt-[clamp(2rem,6vw,4rem)] text-center`}>
-        {/* 낙엽 더미: 바닥(아래)만 자르고 위로 튀는 잎은 보이게 */}
-        <div ref={pileRef} aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[clamp(9rem,17vw,12rem)] [clip-path:inset(-100vh_0_0_0)]" />
+      <section data-no-select className={`${WRAP} relative pb-[clamp(11rem,20vw,15rem)] pt-[clamp(2rem,6vw,4rem)] text-center`}>
+        {/* 낙엽 더미: 글 폭과 상관없이 화면 전체 폭. 바닥(아래)만 자르고 위로 튀는 잎은 보이게 */}
+        <div ref={pileRef} aria-hidden="true" className="pointer-events-none absolute bottom-0 left-1/2 h-[clamp(9rem,17vw,12rem)] w-screen -translate-x-1/2 [clip-path:inset(-100vh_0_0_0)]" />
         <RiseText lines={["Got one we missed?"]} className={`${SERIF} text-[clamp(2.4rem,5.5vw,5.4rem)] leading-[0.92]`} />
         <Reveal delay={250} as="p" className="mx-auto mt-5 max-w-md text-[15px] leading-7 text-(--ink)/75">당신에게 가을처럼 들리는 음반을 알려주세요. 크레이트에 추가될지도 몰라요.</Reveal>
         <Reveal delay={400} className="mt-9 flex flex-wrap justify-center gap-3">
