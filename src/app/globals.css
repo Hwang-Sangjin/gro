@@ -74,7 +74,10 @@
   /* 시리즈 썸네일 (Vinyl A to Z): 바탕 · 손그림 색 — 크림 위에선 하늘색이 흐려서 진한 파랑으로 */
   --cover-bg: #e8d9b8;
   --cover-art: #6f8fb6;
-  --autumn-bg: #e2cda3;     /* 가을 썸네일 바탕: 밝은 테마는 짙은 크림, 다크는 크림 */
+  --autumn-bg: #4c404a;     /* 가을 썸네일: 밝은 테마는 브라운 바탕 + 크림 글자, 다크는 크림 바탕 + 잉크 글자 */
+  --autumn-ink: #f4e7cd;
+  --autumn-tag: #f4e7cd;
+  --autumn-leaf: #e8955a;
   --accent-blue: #7fa3c7;
   --hero-title-size: 11vw;
 
@@ -93,6 +96,9 @@
   --cover-bg: #2a222a;
   --cover-art: #bbcbda;
   --autumn-bg: #f4e7cd;
+  --autumn-ink: #4c404a;
+  --autumn-tag: #2d6a6a;
+  --autumn-leaf: #cf6a2e;
   color-scheme: dark;
 }
 
