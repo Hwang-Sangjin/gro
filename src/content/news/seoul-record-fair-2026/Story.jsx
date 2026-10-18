@@ -1,13 +1,11 @@
 "use client";
 // News — "Seoul Record Fair 2026" (15회)
-// 1 히어로: 실시간 카운트다운 + 오른쪽 Pop-up crate(마우스 따라 판이 아래에서 튀어 오름) → 2 상자 넘기기(스크롤로 판이 한 장씩 앞으로 넘어감) → 3 티켓(일시·장소·지도)
-// → 4 페어 한정반 띠 → 5 디깅 팁(우리 의견) → 6 공식 사이트
-// 사실 정보는 recordfair.kr 에서 확인한 것만 (2026-10-13 기준)
+// 1 히어로(카운트다운 + Pop-up crate) → 2 소개 → 3 장소·일시 → 4 입장 방식 → 5 15회 한정반(대표곡 YouTube)
+// → 6 최초공개반·셀러 부스 → 7 온라인 판매 중인 한정반(앨범만) → 8 Grooves 컬렉션 → 9 공식 채널
+// 사실 정보는 recordfair.kr 공지(2026-10-13·18 확인)와 지난 회차 기사 기준. 커버 이미지는 받는 대로 img 경로를 채움
 import { useEffect, useRef, useState } from "react";
 import Reveal, { RiseText } from "@/components/story/Reveal";
-import ScrollScene from "@/components/story/ScrollScene";
-import Marquee from "@/components/story/Marquee";
-import { seg } from "@/components/story/scroll";
+import Link from "next/link";
 
 const SERIF = "font-['Grooves_Bodoni',Georgia,serif] font-black tracking-[-0.035em]";
 const WRAP = "mx-auto w-full max-w-[1500px] px-[clamp(20px,4vw,72px)]";
@@ -205,48 +203,38 @@ function PopCrate({ className = "" }) {
   );
 }
 
-// 2 상자 넘기기: 스크롤하면 앞의 판이 한 장씩 앞으로 넘어가고 뒤의 판이 보임
-const CRATE = [
-  ["Two days", "Saturday 31 October and Sunday 1 November.", "#2d6a6a", "#f4e7cd"],
-  ["10 to 6", "Doors at 10:00, last digging at 18:00, both days.", "#e3b04b", "#2a222a"],
-  ["Seongsu", "This year the fair sets up at PUBG Seongsu, in Seongdong-gu.", "#4f6d93", "#f4e7cd"],
-  ["Fair-only", "Limited pressings made for the fair, sold through its official shop.", "#bbcbda", "#2a222a"],
-  ["No. 15", "Fifteen editions of crates, queues and needle drops.", "#2a222a", "#f4e7cd"],
-];
-function CrateFlip() {
-  const n = CRATE.length;
-  const step = 0.84 / (n - 1);
+// 섹션 머리: 번호 라벨 + 큰 제목
+function Head({ n, label, lines, children }) {
   return (
-    <ScrollScene height="420svh" aria-label="Flip through the fair" innerClassName="grid place-items-center">
-      <div className="absolute inset-x-0 top-[calc(var(--ct-header-h,106px)+28px)] px-5 text-center">
-        <p className={`${SERIF} text-[clamp(1.6rem,3vw,2.6rem)] leading-none`}>Flip through the fair</p>
-        <p className="mx-auto mt-3 max-w-md text-[14px] leading-6 text-(--ink)/70">The 15th Seoul Record Fair takes over Seongsu for a weekend of crates, fair-only pressings and people who still love the needle drop.</p>
+    <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:items-end">
+      <div>
+        <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--accent) tabular-nums">{n} — {label}</Reveal>
+        <RiseText lines={lines} className={`${SERIF} mt-4 text-[clamp(2.8rem,6.4vw,6.4rem)] leading-[0.9]`} />
       </div>
-      <div className="relative mt-[12vh] aspect-square w-[min(74vw,50vh,480px)] [perspective:1400px]">
-        {/* 상자 */}
-        <div className="absolute -inset-x-[6%] bottom-[-10%] top-[54%] z-30 rounded-b-[6px] border-[3px] border-t-0 border-(--ink) bg-(--cream) shadow-[0_-18px_30px_-20px_rgba(0,0,0,.35)]">
-          <p className="absolute inset-x-0 bottom-[14%] text-center text-[11px] font-medium uppercase tracking-[0.34em] tabular-nums">Grooves · Crate 15</p>
-        </div>
-        {CRATE.map(([title, text, bg, ink], i) => {
-          const a = 0.06 + i * step, b = a + step * 0.85;
-          const last = i === n - 1;   // 마지막 판은 넘기지 않고 남김
-          return (
-            <div key={title} className="absolute inset-0 origin-bottom will-change-transform"
-              style={{
-                zIndex: 20 - i,
-                transform: last ? `translateY(${i * 2.2}%) translateZ(${-i * 4}px)` : `translateY(${i * 2.2}%) rotateX(calc(${seg(a, b)} * -96deg)) translateZ(${-i * 4}px)`,
-                opacity: last ? 1 : `calc(1 - ${seg(b - 0.02, b + 0.02)})`,
-              }}>
-              <div className="size-full rounded-[3px] p-[7%] shadow-[0_20px_40px_-24px_rgba(0,0,0,.6)]" style={{ backgroundColor: bg, color: ink }}>
-                <p className="text-[11px] font-medium uppercase tracking-[0.3em] opacity-75 tabular-nums">{String(i + 1).padStart(2, "0")} / {String(n).padStart(2, "0")}</p>
-                <p className={`${SERIF} mt-[4%] text-[clamp(2.2rem,5.4vw,4.4rem)] leading-[0.88]`}>{title}</p>
-                <p className="mt-2 max-w-[30ch] text-[clamp(12px,1.6vw,15px)] leading-[1.5] opacity-85">{text}</p>
-              </div>
-            </div>
-          );
-        })}
+      {children && <Reveal delay={200} as="p" className="max-w-[46ch] text-[15px] leading-7 text-(--ink)/75 md:pb-2">{children}</Reveal>}
+    </div>
+  );
+}
+const SECTION = `${WRAP} py-[clamp(4rem,10vw,8rem)]`;
+
+// 2 소개
+function About() {
+  return (
+    <section className={`${SECTION} border-t-[3px] border-(--ink)`}>
+      <Head n="01" label="The fair" lines={["A festival", "for the record"]} />
+      <div className="mt-12 grid gap-10 md:grid-cols-3">
+        {[
+          ["Since 2011", "Korea’s first music festival built around the record itself — fifteen editions and counting."],
+          ["Round & Round", "Organised and run by Round & Round, with a different venue and a new set of pressings every year."],
+          ["A read on vinyl", "New releases, reissues and second-hand crates under one roof. What sells here is the best read on where Korean vinyl is heading."],
+        ].map(([t, d], i) => (
+          <Reveal key={t} delay={i * 110} className="border-t border-(--ink)/25 pt-5">
+            <p className={`${SERIF} text-[clamp(1.8rem,2.6vw,2.4rem)] leading-none`}>{t}</p>
+            <p className="mt-4 max-w-[38ch] text-[15px] leading-7 text-(--ink)/75">{d}</p>
+          </Reveal>
+        ))}
       </div>
-    </ScrollScene>
+    </section>
   );
 }
 
@@ -258,19 +246,21 @@ function Row({ k, children }) {
     </div>
   );
 }
-function Ticket() {
+// 3 장소·일시 (티켓 모양)
+function Venue() {
   const q = encodeURIComponent(PLACE);
   return (
-    <section className={`${WRAP} py-[clamp(4rem,10vw,8rem)]`}>
-      <RiseText lines={["Plan your", "visit"]} className={`${SERIF} text-[clamp(3rem,7vw,7rem)] leading-[0.9]`} />
+    <section className={SECTION}>
+      <Head n="02" label="Where & when" lines={["PUBG", "Seongsu"]}>
+        A culture space in Seongsu-dong built around the world of the game. Last year the fair took the whole building, from the outdoor playground to the floors upstairs.
+      </Head>
       <Reveal className="relative mt-12 grid overflow-hidden rounded-[6px] border-[3px] border-(--ink) md:grid-cols-[1fr_260px]">
         <dl className="p-[clamp(1.25rem,3vw,2.5rem)]">
           <Row k="Dates">Sat 31 Oct – Sun 1 Nov 2026</Row>
           <Row k="Hours">10:00 – 18:00 <span className="text-(--ink)/60">(both days)</span></Row>
           <Row k="Venue">PUBG Seongsu <span className="text-(--ink)/60">· {PLACE}</span></Row>
           <Row k="Address">5 Wangsimni-ro 4-gil, Seongdong-gu, Seoul<br /><span className="text-(--ink)/60">{ADDRESS_KO}</span></Row>
-          <Row k="Entry">Free timed reservations were offered for the 10:00 and 11:00 slots on both days — all showing <b className="font-medium">sold out</b> as of 13 Oct. Check the official site for the latest on entry.</Row>
-          <Row k="Organised by">Seoul Record Fair Committee · run by Round &amp; Round · supported by PUBG Seongsu and Gear Lounge</Row>
+          <Row k="Getting there">Seongsu-dong, Seongdong-gu. Open the map for the best route by subway or bus — parking nearby is limited, so public transport is the easy way in.</Row>
         </dl>
         {/* 티켓 꼬리 (점선으로 뜯는 부분) */}
         <div className="relative flex flex-col justify-between gap-6 border-t-[3px] border-dashed border-(--ink) bg-(--ink) p-[clamp(1.25rem,3vw,2rem)] text-(--cream) md:border-l-[3px] md:border-t-0">
@@ -291,46 +281,180 @@ function Ticket() {
   );
 }
 
-const PRESSINGS = [["Kim Hyun-chul", "김현철"], ["Kim Do-eon", "김도언"], ["Kim Sang-hee", "김상희"], ["Noizegarden", "노이즈가든"]];
-function Pressings() {
-  const items = PRESSINGS.map(([en, ko]) => (
-    <span key={en} className="inline-flex items-baseline gap-3"><span className={SERIF}>{en}</span><span className="text-[0.4em] font-medium tracking-normal opacity-70">{ko}</span></span>
-  ));
+// 4 입장 방식
+const ENTRY = [
+  ["Free entry", "No ticket to buy. Walk in, dig, leave with records."],
+  ["Morning slots", "Timed reservations for the 10:00 and 11:00 slots on both days — all booked out as of 13 Oct. Once the reserved slots are in, the doors open to everyone."],
+  ["Limited records", "One copy per person. Each day gets its own share of every pressing, sold at a separate Limited booth."],
+  ["Missed out?", "Whatever’s left after the weekend goes on sale on the official site."],
+];
+function Entry() {
   return (
-    <section className="overflow-hidden border-y-[3px] border-(--ink) bg-(--accent) py-10 text-(--cream)">
-      <div className={`${WRAP} mb-6 flex flex-wrap items-end justify-between gap-4`}>
-        <p className="text-[11px] font-medium uppercase tracking-[0.3em]">Fair-only pressings</p>
-        <p className="max-w-md text-[14px] leading-6 opacity-90">Limited records released for the fair, on sale through the official shop. Artists include:</p>
-      </div>
-      <Marquee items={items} speed={30} className="text-[clamp(3rem,8vw,7rem)] leading-[1.05]" />
-      <Marquee items={items} speed={38} reverse className="mt-2 text-[clamp(3rem,8vw,7rem)] leading-[1.05] text-transparent [-webkit-text-stroke:1.5px_#f4e7cd]" />
+    <section className={`${SECTION} pt-0`}>
+      <Head n="03" label="Getting in" lines={["How entry", "works"]}>
+        Exact timings can shift. The official site has the final word on the day.
+      </Head>
+      <ol className="mt-12 grid gap-px overflow-hidden rounded-[6px] border-[3px] border-(--ink) bg-(--ink) sm:grid-cols-2 lg:grid-cols-4">
+        {ENTRY.map(([t, d], i) => (
+          <Reveal as="li" key={t} delay={i * 90} className="bg-(--cream) p-[clamp(1.25rem,2.4vw,2rem)]">
+            <p className="text-[12px] tabular-nums text-(--accent)">{String(i + 1).padStart(2, "0")}</p>
+            <p className={`${SERIF} mt-3 text-[clamp(1.7rem,2.4vw,2.2rem)] leading-none`}>{t}</p>
+            <p className="mt-4 text-[14px] leading-6 text-(--ink)/75">{d}</p>
+          </Reveal>
+        ))}
+      </ol>
     </section>
   );
 }
 
-const TIPS = [
-  ["Go early", "The first hours are when the rare stuff moves. The morning slots booked out first for a reason."],
-  ["Bring a tote", "Twelve-inch records don’t fit in a backpack. A sturdy tote — or two — saves your arms and the corners."],
-  ["Check before you pay", "Slide the record out. Look for scratches under the light, warps from the side, and seam splits on the sleeve."],
-  ["Set a budget", "Decide it before the first crate. Then leave a little room for the one you didn’t know you were looking for."],
-  ["Ask the seller", "Most diggers behind the table love to talk. Ask what they’d take home — it’s the best search engine in the room."],
-];
-function Tips() {
+// 앨범 커버: 이미지가 있으면 그대로, 없으면 손그림 판 + 제목으로 자리만 잡음
+function Cover({ img, artist, title, className = "" }) {
   return (
-    <section className={`${WRAP} py-[clamp(4rem,10vw,8rem)]`}>
-      <div className="flex flex-wrap items-end justify-between gap-6">
-        <RiseText lines={["Digging", "tips"]} className={`${SERIF} text-[clamp(3rem,7vw,7rem)] leading-[0.9]`} />
-        <p className="pb-2 text-[11px] uppercase tracking-[0.26em] text-(--ink)/55">From the Grooves crew</p>
-      </div>
-      <ol className="mt-10 border-t-[3px] border-(--ink)">
-        {TIPS.map(([title, text], i) => (
-          <Reveal as="li" key={title} delay={i * 90} className="group grid gap-2 border-b border-(--ink)/20 py-6 sm:grid-cols-[80px_minmax(0,320px)_1fr] sm:items-baseline sm:gap-8">
-            <span className="text-[12px] tabular-nums text-(--accent)">{String(i + 1).padStart(2, "0")}</span>
-            <p className={`${SERIF} text-[clamp(1.8rem,3vw,2.6rem)] leading-none transition-transform duration-500 group-hover:translate-x-2`}>{title}</p>
-            <p className="max-w-[52ch] text-[15px] leading-7 text-(--ink)/75">{text}</p>
+    <div className={`relative aspect-square overflow-hidden rounded-[3px] bg-(--cover-bg) ${className}`}>
+      {img ? (
+        <img src={img} alt={`${artist} — ${title}`} loading="lazy" className="size-full object-cover" />
+      ) : (
+        <>
+          <div aria-hidden="true" className="absolute -bottom-[22%] -right-[22%] size-[86%] bg-(--cover-art) [mask:url(/images/news/what-is-vinyl/lathe-disc.webp)_center/contain_no-repeat]" />
+          <div className="relative p-[9%]">
+            <p className="text-[10px] font-medium uppercase tracking-[0.26em] text-(--accent)">{artist}</p>
+            <p className={`${SERIF} mt-2 text-[clamp(1.1rem,1.8vw,1.6rem)] leading-[0.95]`}>{title}</p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// 5 15회 한정반 — 대표곡은 YouTube 검색 링크 (공식 영상 주소가 정해지면 교체)
+const yt = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+const LIMITED = [
+  {
+    artist: "Lim Hyun-jung", ko: "임현정", title: "[4] A Year Out… In The Island", img: null,
+    text: "Her 2003 album — home of the ballad that has soundtracked Korean films and dramas for over two decades — pressed on vinyl for the first time.",
+    spec: ["2LP · 180g", "Gatefold", "Insert"], price: "₩55,000", run: "700 copies · 350 a day",
+    track: "사랑은 봄비처럼…이별은 겨울비처럼", href: yt("임현정 사랑은 봄비처럼 이별은 겨울비처럼"),
+  },
+  {
+    artist: "Sultan of the Disco", ko: "술탄 오브 더 디스코", title: "Easy Listening for Love +", img: null,
+    text: "The band’s latest album, from 2019, on vinyl for the first time — with the 2020 single and its instrumental added for ten tracks in all.",
+    spec: ["LP · 180g black", "Gatefold", "Printed inner sleeve"], price: "₩49,000", run: "700 copies · 350 a day",
+    track: "Waiting For Your Calling Back", href: yt("술탄 오브 더 디스코 Waiting For Your Calling Back"),
+  },
+  {
+    artist: "Bronze", ko: "브론즈", title: "Aquarium", img: null,
+    text: "His second full-length, with BSK, Meenoi, Luna, Yukika and Hoody, sleeved in Hiroshi Nagai’s art — repressed in black for its fifth year on vinyl.",
+    spec: ["LP · 180g black", "Single jacket", "Insert"], price: "₩44,500", run: "500 copies · 250 a day",
+    track: "Aquarium", href: yt("브론즈 Bronze Aquarium"),
+  },
+];
+function Limited() {
+  return (
+    <section className={`${SECTION} border-t-[3px] border-(--ink)`}>
+      <Head n="04" label="Fair-only pressings" lines={["Made for", "the fair"]}>
+        Pressed for the 15th fair and sold first at the Limited booth. Give each one a listen before you queue.
+      </Head>
+      <div className="mt-14 grid gap-12">
+        {LIMITED.map((r, i) => (
+          <Reveal key={r.title} className="grid items-start gap-8 border-t border-(--ink)/25 pt-8 md:grid-cols-[minmax(0,360px)_1fr] md:gap-14">
+            <Cover img={r.img} artist={r.artist} title={r.title} />
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--ink)/55 tabular-nums">{String(i + 1).padStart(2, "0")} · {r.ko}</p>
+              <p className={`${SERIF} mt-3 text-[clamp(2.2rem,4.4vw,4rem)] leading-[0.92]`}>{r.artist}</p>
+              <p className="mt-2 text-[clamp(1.1rem,1.6vw,1.35rem)] font-medium">{r.title}</p>
+              <p className="mt-5 max-w-[52ch] text-[15px] leading-7 text-(--ink)/75">{r.text}</p>
+              <ul className="mt-5 flex flex-wrap gap-2">
+                {r.spec.map((t) => <li key={t} className="rounded-full border border-(--ink)/30 px-3 py-1 text-[12px]">{t}</li>)}
+              </ul>
+              <p className="mt-5 text-[14px] tabular-nums"><b className="font-medium">{r.price}</b> <span className="text-(--ink)/60">· {r.run}</span></p>
+              <a href={r.href} target="_blank" rel="noreferrer" className="group mt-7 inline-flex min-h-12 items-center gap-4 rounded-full bg-(--ink) py-2 pl-2 pr-6 text-(--cream) transition-colors hover:bg-(--accent)">
+                <span className="grid size-9 place-items-center rounded-full bg-(--cream) text-(--ink)" aria-hidden="true">
+                  <svg viewBox="0 0 12 12" className="size-3 translate-x-px fill-current"><path d="M2 1l9 5-9 5z" /></svg>
+                </span>
+                <span className="text-left">
+                  <span className="block text-[10px] uppercase tracking-[0.26em] opacity-70">Listen on YouTube</span>
+                  <span className="block text-[14px] font-medium">{r.track}</span>
+                </span>
+              </a>
+            </div>
           </Reveal>
         ))}
-      </ol>
+      </div>
+    </section>
+  );
+}
+
+// 6 최초공개반 · 셀러 부스
+function Floor() {
+  return (
+    <section className={`${SECTION} pt-0`}>
+      <Head n="05" label="On the floor" lines={["More to", "dig through"]} />
+      <div className="mt-12 grid gap-px overflow-hidden rounded-[6px] border-[3px] border-(--ink) bg-(--ink) md:grid-cols-2">
+        <Reveal className="bg-(--accent) p-[clamp(1.5rem,3.4vw,3rem)] text-(--cream)">
+          <p className="text-[11px] font-medium uppercase tracking-[0.3em] opacity-80">First-press records · 최초공개반</p>
+          <p className={`${SERIF} mt-4 text-[clamp(2rem,3.4vw,3.2rem)] leading-[0.92]`}>Out here first</p>
+          <p className="mt-5 max-w-[46ch] text-[15px] leading-7 opacity-90">Records that go on sale for the first time at the fair — new albums, first-time vinyl releases and reissues, often dozens of titles each year. Many reach the shops later; some never do.</p>
+        </Reveal>
+        <Reveal delay={120} className="bg-(--cream) p-[clamp(1.5rem,3.4vw,3rem)]">
+          <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--ink)/55">Seller booths</p>
+          <p className={`${SERIF} mt-4 text-[clamp(2rem,3.4vw,3.2rem)] leading-[0.92]`}>Crates, everywhere</p>
+          <p className="mt-5 max-w-[46ch] text-[15px] leading-7 text-(--ink)/75">Labels, record shops and collectors set up side by side.</p>
+          <ul className="mt-6 flex flex-wrap gap-2">
+            {["New releases", "Second-hand", "Overseas labels", "Music books", "Audio gear"].map((t) => <li key={t} className="rounded-full border border-(--ink)/30 px-3 py-1 text-[12px]">{t}</li>)}
+          </ul>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+// 7 온라인 판매 중인 한정반 — 앨범만
+const ONLINE = [
+  ["Kim Hyun-chul", "32℃ 여름"],
+  ["Kim Hyun-chul", "횡계에서 돌아오는 저녁"],
+  ["Kim Hyun-chul", "그대안의 블루 (OST)"],
+  ["Kim Hyun-chul", "네온 속으로 노을지다 (OST)"],
+  ["Kim Do-eon", "Damage"],
+  ["Noizegarden", "…But Not For Sale"],
+  ["Mudd the Student", "Field Trip"],
+  ["Dabda", "Yonder EP"],
+  ["Kim Sang-hee", "Sings Tom Jones & Burt Bacharach"],
+  ["Kim Sang-hee", "Love Story"],
+].map(([artist, title]) => ({ artist, title, img: null }));
+function Online() {
+  return (
+    <section className={`${SECTION} pt-0`}>
+      <Head n="06" label="Can’t make it?" lines={["Still on", "the shelf"]}>
+        Limited records the fair has pressed in past years, still on sale in its online shop.
+      </Head>
+      <ul className="mt-12 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-5">
+        {ONLINE.map((r, i) => (
+          <Reveal as="li" key={r.title} delay={(i % 5) * 70}>
+            <Cover img={r.img} artist={r.artist} title={r.title} />
+            <p className="mt-3 text-[11px] uppercase tracking-[0.2em] text-(--ink)/55">{r.artist}</p>
+            <p className="mt-1 text-[15px] font-medium leading-snug">{r.title}</p>
+          </Reveal>
+        ))}
+      </ul>
+      <Reveal className="mt-10">
+        <a href={SITE} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 border-b-2 border-(--ink) text-[12px] font-medium uppercase tracking-[0.2em] transition-colors hover:border-(--accent) hover:text-(--accent)">Shop on recordfair.kr <span aria-hidden="true">↗</span></a>
+      </Reveal>
+    </section>
+  );
+}
+
+// 8 Grooves 컬렉션 연결
+function Bring() {
+  return (
+    <section className="border-y-[3px] border-(--ink) bg-(--ink) text-(--cream)">
+      <div className={`${WRAP} grid gap-8 py-[clamp(3.5rem,8vw,6rem)] md:grid-cols-[1fr_auto] md:items-end`}>
+        <div>
+          <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--cream)/60">After the fair</p>
+          <RiseText lines={["Brought one", "home?"]} className={`${SERIF} mt-4 text-[clamp(2.8rem,6.4vw,6rem)] leading-[0.9]`} />
+          <p className="mt-5 max-w-[46ch] text-[15px] leading-7 text-(--cream)/75">Give it a place in your Grooves collection — where you found it, what you paid, how it sounds on the first spin.</p>
+        </div>
+        <Link href="/collection" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-(--cream) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--ink) transition-colors hover:bg-(--accent) hover:text-(--cream)">Open Collection <span aria-hidden="true">→</span></Link>
+      </div>
     </section>
   );
 }
@@ -354,18 +478,23 @@ export default function Story() {
         </div>
       </section>
 
-      <CrateFlip />
-      <Ticket />
-      <Pressings />
-      <Tips />
+      <About />
+      <Venue />
+      <Entry />
+      <Limited />
+      <Floor />
+      <Online />
+      <Bring />
 
-      {/* 6 공식 사이트 */}
-      <section className={`${WRAP} pb-10 pt-[clamp(2rem,6vw,4rem)] text-center`}>
+      {/* 9 공식 채널 */}
+      <section className={`${WRAP} pb-10 pt-[clamp(3rem,8vw,6rem)] text-center`}>
         <RiseText lines={["See you", "in the crates."]} className={`${SERIF} text-[clamp(2.6rem,6vw,6rem)] leading-[0.92]`} />
-        <Reveal delay={300} as="p" className="mx-auto mt-5 max-w-md text-[14px] leading-6 text-(--ink)/65">Details as published by the organisers on 13 Oct 2026. Plans can change — the official site has the final word. Poster artwork © Seoul Record Fair.</Reveal>
-        <Reveal delay={400}>
-          <a href={SITE} target="_blank" rel="noreferrer" className="mt-9 inline-flex min-h-12 items-center gap-2 rounded-full bg-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--cream) transition-colors hover:bg-(--accent)">recordfair.kr <span aria-hidden="true">↗</span></a>
+        <Reveal delay={300} as="p" className="mx-auto mt-5 max-w-md text-[14px] leading-6 text-(--ink)/65">Details as published by the organisers. Plans can change — follow the official channels for the latest.</Reveal>
+        <Reveal delay={400} className="mt-9 flex flex-wrap justify-center gap-3">
+          <a href={SITE} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--cream) transition-colors hover:bg-(--accent)">recordfair.kr <span aria-hidden="true">↗</span></a>
+          <a href="https://x.com/roundx2" target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full border-2 border-(--ink) px-8 text-[12px] font-medium uppercase tracking-[0.2em] transition-colors hover:border-(--accent) hover:text-(--accent)">X · @roundx2 <span aria-hidden="true">↗</span></a>
         </Reveal>
+        <p className="mt-10 text-[11px] text-(--ink)/45">Poster artwork © Seoul Record Fair.</p>
       </section>
     </>
   );
