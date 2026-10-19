@@ -1,6 +1,6 @@
 "use client";
 // Picks — "Records for an Autumn Evening"
-// 1 히어로 → 2 일곱 장 (스크롤하면 슬리브에서 판이 빠져나오며 돎) → 3 한 장짜리 믹스테이프(A/B면) → 4 마무리(낙엽 더미)
+// 1 히어로 → 2 일곱 장(모두 LP가 있는 앨범, 버튼은 YouTube · Grooves 앨범 페이지) (스크롤하면 슬리브에서 판이 빠져나오며 돎) → 3 한 장짜리 믹스테이프(A/B면) → 4 마무리(낙엽 더미)
 // 낙엽은 페이지 전체에서 떨어지고(화면에 붙은 층), 마지막 섹션 바닥에 쌓여 있음
 // 슬리브는 실제 앨범 커버 대신 글자로 만든 그림 (저작권 이미지 사용 안 함)
 import { useEffect, useRef } from "react";
@@ -12,48 +12,49 @@ import RequestDialog from "@/components/requests/RequestDialog";
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
 const WRAP = "mx-auto w-full max-w-[1500px] px-[clamp(20px,4vw,72px)]";
 
+// slug: albums 테이블의 slug — 버튼이 /album/<slug> 로 연결됨
 const PICKS = [
   {
-    time: "5:40 pm", artist: "Bill Evans Trio", album: "Portrait in Jazz", year: 1960, label: "Riverside",
-    song: "Autumn Leaves", color: "#c8553d", ink: "#f4e7cd",
-    text: "가장 뻔한 첫 곡이지만 여전히 정답이에요. 빌 에번스, 스콧 라파로, 폴 모션은 이 곡을 피아노와 반주가 아니라 세 사람의 대화처럼 연주해요.",
-    listen: "피아노 아래를 걷기만 하지 않고 피아노에 대답하는 라파로의 베이스.",
+    artist: "잔나비", album: "소곡집 I", year: 2020, label: "Peponi Music", slug: "jannabi-small-pieces-i",
+    song: "가을밤에 든 생각", color: "#a63c2a", ink: "#f4e7cd",
+    text: "다섯 곡을 묶은 작은 앨범의 첫 곡. 찬 바람이 처음 부는 밤, 지나간 계절을 돌아보는 마음을 담았어요. LP는 2020년 한정반으로 나왔어요.",
+    listen: "후렴으로 갈수록 하나씩 더해지는 악기 — 밴드 소리가 천천히 차오르는 순간.",
   },
   {
-    time: "6:15 pm", artist: "Chet Baker", album: "Chet Baker Sings", year: 1954, label: "Pacific Jazz",
-    song: "My Funny Valentine", color: "#e3b04b", ink: "#2a222a",
-    text: "찬 바람 속에 놓아둔 것처럼 부드러운 목소리. 해가 건물 뒤로 넘어가고 방이 푸르스름해질 때 걸어 보세요.",
-    listen: "마이크가 얼마나 가까운지 — 숨소리까지 노래의 일부예요.",
+    artist: "Laufey", album: "Typical of Me", year: 2021, label: "AWAL", slug: "laufey-typical-of-me",
+    song: "Like the Movies", color: "#e8d5ad", ink: "#2a222a",
+    text: "재즈 스탠더드를 듣고 자란 아이슬란드 싱어송라이터의 데뷔 EP. 'Like the Movies'는 영화 속 같은 사랑을 바라는 마음을 부드러운 기타 위에 노래해요.",
+    listen: "기타 한 대 위로 낮게 깔리는 목소리 — 바로 옆에서 속삭이는 듯한 거리감.",
   },
   {
-    time: "7:00 pm", artist: "Nick Drake", album: "Pink Moon", year: 1972, label: "Island",
-    song: "Pink Moon", color: "#d9a3a0", ink: "#2a222a",
-    text: "30분이 채 안 되는 길이에 담긴 건 거의 없어요. 목소리 하나, 기타 하나. 해가 짧은 날 집으로 걸어가는 기분이에요.",
-    listen: "타이틀곡에 딱 한 번 들어가는 피아노 — 이 앨범의 유일한 오버더빙이에요.",
+    artist: "Bill Evans Trio", album: "Waltz for Debby", year: 1962, label: "Riverside", slug: "bill-evans-trio-waltz-for-debby",
+    song: "My Foolish Heart", color: "#2d6a6a", ink: "#f4e7cd",
+    text: "1961년 뉴욕 빌리지 뱅가드 실황. 첫 곡 'My Foolish Heart'는 브러시와 피아노가 숨죽이듯 느리게 흘러가요. 열흘 뒤 베이시스트 스콧 라파로가 세상을 떠나, 이 트리오의 마지막 기록이 되었어요.",
+    listen: "연주 뒤로 들리는 잔 부딪히는 소리와 객석의 웅성임.",
   },
   {
-    time: "8:20 pm", artist: "Joni Mitchell", album: "Blue", year: 1971, label: "Reprise",
-    song: "A Case of You", color: "#4f6d93", ink: "#f4e7cd",
-    text: "따뜻한 음반도 있지만 이 음반은 솔직해요. 10월에는 그게 같은 말처럼 느껴져요.",
-    listen: "제임스 테일러의 기타 위로 밝게 튕기는 조니의 애팔래치안 덜시머.",
+    artist: "Earth, Wind & Fire", album: "The Best of Earth, Wind & Fire, Vol. 1", year: 1978, label: "ARC/Columbia", slug: "earth-wind-and-fire-the-best-of-vol-1",
+    song: "September", color: "#e3b04b", ink: "#2a222a",
+    text: "첫 줄부터 9월 21일 밤을 기억하느냐고 묻는 노래. 정규 앨범이 아니라 이 베스트 앨범에 새 곡으로 처음 실렸어요. 잔잔한 판들 사이, 한 번 일어나 춤추는 시간.",
+    listen: "곡을 여는 기타 리프, 터져 나오는 혼 섹션, 그리고 'ba-dee-ya'.",
   },
   {
-    time: "9:10 pm", artist: "Lee Moon-sae", album: "Lee Moon-sae 4", year: 1987, label: "",
-    song: "When Autumn Comes (가을이 오면)", color: "#8a5a3c", ink: "#f4e7cd",
-    text: "1980년대 후반 서울의 소리를 만든 이영훈의 곡. 한국에 가을 노래가 하나 있다면 이 음반에 있어요.",
-    listen: "후렴 앞에서 부풀어 오르는 현악 — 은행나무 사이로 부는 바람 같아요.",
+    artist: "Kings of Convenience", album: "Riot on an Empty Street", year: 2004, label: "Astralwerks", slug: "kings-of-convenience-riot-on-an-empty-street",
+    song: "Cayman Islands", color: "#6f8fb6", ink: "#f4e7cd",
+    text: "노르웨이 베르겐의 두 친구가 만든 두 번째 앨범. 기타 두 대와 나지막한 화음만으로 선선한 바람 같은 곡을 만들어요.",
+    listen: "두 사람의 목소리가 한 줄처럼 겹쳐지는 화음.",
   },
   {
-    time: "10:30 pm", artist: "Norah Jones", album: "Come Away with Me", year: 2002, label: "Blue Note",
-    song: "Don’t Know Why", color: "#bbcbda", ink: "#2a222a",
-    text: "담요 같은 음악. 재즈 레이블, 컨트리의 마음, 그리고 조용히 그래미 올해의 레코드를 받은 제시 해리스의 곡.",
-    listen: "서두르지 않는 피아노 왼손 — 더 갈 곳이 없다는 듯이.",
+    artist: "girl in red", album: "we fell in love in october", year: 2018, label: "World In Red", slug: "girl-in-red-we-fell-in-love-in-october",
+    song: "we fell in love in october", color: "#c96a2c", ink: "#f4e7cd",
+    text: "노르웨이의 싱어송라이터 girl in red가 2018년에 낸 싱글. 제목 그대로 10월에 시작된 사랑을 거친 기타와 목소리로 담았어요. 7인치 판을 뒤집으면 처음 녹음한 데모 버전이 있어요.",
+    listen: "곡 끝까지 길게 이어지는 기타 — 사랑이 계속될 것 같은 여운.",
   },
   {
-    time: "11:50 pm", artist: "Bon Iver", album: "For Emma, Forever Ago", year: 2007, label: "",
-    song: "Skinny Love", color: "#2a222a", ink: "#f4e7cd",
-    text: "위스콘신의 사냥 오두막에서 혼자 녹음한 앨범. 가을이 겨울처럼 느껴지기 시작할 때 듣는 오늘 밤의 마지막 음반.",
-    listen: "세게 내리치는 스트럼, 그리고 그 주변으로 들리는 방의 울림.",
+    artist: "Mitski", album: "The Land Is Inhospitable and So Are We", year: 2023, label: "Dead Oceans", slug: "mitski-the-land-is-inhospitable-and-so-are-we",
+    song: "My Love Mine All Mine", color: "#4c404a", ink: "#f4e7cd",
+    text: "미츠키의 일곱 번째 정규 앨범에서 가장 사랑받은 곡. 내가 떠난 뒤에도 사랑만은 달에 남겨 두고 싶다는 노래라, 마지막 판으로 두기 좋아요.",
+    listen: "멀리서 울리는 페달 스틸 기타, 그리고 조용히 끝나는 마지막 소절.",
   },
 ];
 
@@ -275,14 +276,14 @@ function Sleeve({ pick, n }) {
       <p className="relative text-[11px] font-medium uppercase tracking-[0.28em] opacity-80">{pick.artist}</p>
       <div className="relative">
         <p className={`${SERIF} text-[clamp(4rem,9vw,8rem)] leading-[0.8] opacity-90`}>{String(n).padStart(2, "0")}</p>
-        <p className={`${SERIF} mt-3 text-[clamp(1.5rem,2.6vw,2.3rem)] leading-[0.95]`}>{pick.album}</p>
+        <p className={`${SERIF} mt-3 break-keep text-[clamp(1.3rem,2.2vw,2rem)] leading-[0.98]`}>{pick.album}</p>
         <p className="mt-2 text-[11px] uppercase tracking-[0.24em] opacity-70 tabular-nums">{pick.year}{pick.label ? ` · ${pick.label}` : ""}</p>
       </div>
     </div>
   );
 }
 
-function Pick({ pick, i, onRequest }) {
+function Pick({ pick, i }) {
   const ref = useRef(null);
   useScrollProgress(ref, { mode: "pass" });
   const flip = i % 2 === 1;
@@ -302,7 +303,7 @@ function Pick({ pick, i, onRequest }) {
       <Reveal className={flip ? "md:order-1" : ""}>
         <p className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.28em] text-(--accent) tabular-nums">
           <span className={`${SERIF} text-[15px] tracking-normal`}>No. {String(i + 1).padStart(2, "0")}</span>
-          <span className="h-px w-8 bg-current" />{pick.time}
+          <span className="h-px w-8 bg-current" />{pick.year}
         </p>
         <p className="mt-6 text-[13px] font-medium uppercase tracking-[0.22em] text-(--ink)/70">{pick.artist}</p>
         <h2 className={`${SERIF} mt-2 text-[clamp(2.6rem,5vw,4.8rem)] leading-[0.9]`}>{pick.album}</h2>
@@ -321,10 +322,10 @@ function Pick({ pick, i, onRequest }) {
             className="inline-flex min-h-11 items-center gap-2 rounded-full bg-(--ink) px-6 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
             YouTube에서 듣기 <span aria-hidden="true">↗︎</span>
           </a>
-          <button type="button" onClick={() => onRequest(pick)}
-            className="inline-flex min-h-11 items-center rounded-full border border-(--ink)/40 px-6 text-[12px] font-medium uppercase tracking-[0.18em] transition-colors hover:border-(--ink) hover:bg-(--ink)/5">
-            Grooves에 요청하기
-          </button>
+          <Link href={`/album/${pick.slug}`}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-(--ink)/40 px-6 text-[12px] font-medium uppercase tracking-[0.18em] transition-colors hover:border-(--ink) hover:bg-(--ink)/5">
+            Grooves에서 보기 <span aria-hidden="true">→</span>
+          </Link>
         </div>
       </Reveal>
     </li>
@@ -351,7 +352,7 @@ function Mixtape() {
                     <span className="block truncate text-[15px] font-medium">{p.song}</span>
                     <span className="block truncate text-[13px] text-(--ink)/60">{p.artist}</span>
                   </span>
-                  <span className="ml-auto shrink-0 text-[11px] tabular-nums text-(--ink)/45">{p.time}</span>
+                  <span className="ml-auto shrink-0 text-[11px] tabular-nums text-(--ink)/45">{p.year}</span>
                 </li>
               ))}
             </ol>
@@ -366,7 +367,6 @@ export default function Story() {
   const request = useRef(null);
   const fallRef = useRef(null), pileRef = useRef(null);
   useLeaves(fallRef, pileRef);
-  const onRequest = (p) => request.current?.open({ title: p.album, artist: p.artist, releaseYear: p.year });
   return (
     <div className="relative">
       <div ref={fallRef} aria-hidden="true" className="pointer-events-none sticky top-0 z-0 -mb-[100svh] h-svh overflow-hidden" />
@@ -377,7 +377,7 @@ export default function Story() {
           <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--accent)">Picks · Autumn 2026</Reveal>
           <RiseText as="h1" lines={["Records for an", "autumn evening"]} delay={120} className={`${SERIF} mt-6 text-[clamp(2.9rem,10vw,10rem)] leading-[0.86]`} />
           <Reveal delay={500} as="p" className="mx-auto mt-8 max-w-xl text-[17px] leading-8 text-(--ink)/80">
-            일곱 장의 앨범과 앨범마다 한 곡. 금빛 노을부터 불을 끄는 시간까지 함께할 음반들이에요. 해 질 녘에 시작해서 자정 무렵 마지막 판을 뒤집으세요.
+            일곱 장의 앨범과 앨범마다 한 곡. 선선한 바람이 불기 시작할 때 꺼내 듣기 좋은 판들이에요. 모두 바이닐로 구할 수 있어요.
           </Reveal>
           <Reveal delay={700} as="p" className="mt-12 flex items-center justify-center gap-3 text-[11px] uppercase tracking-[0.3em] opacity-60">
             <span className="h-10 w-px animate-[scroll-cue_1.8s_ease-in-out_infinite] bg-current motion-reduce:animate-none" />Scroll
@@ -387,7 +387,7 @@ export default function Story() {
 
       {/* 2 일곱 장 */}
       <ol className="overflow-x-clip">
-        {PICKS.map((pick, i) => <Pick key={pick.album} pick={pick} i={i} onRequest={onRequest} />)}
+        {PICKS.map((pick, i) => <Pick key={pick.album} pick={pick} i={i} />)}
       </ol>
 
       {/* 3 믹스테이프 */}
