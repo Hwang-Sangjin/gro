@@ -8,7 +8,8 @@ import { createClient } from "@/utils/supabase/client";
 import { fetchRecentVinyls } from "@/lib/recent-vinyls";
 import { coverUrl } from "@/lib/albums";
 import { HOME_GENRES, GENRE_WAVE } from "./homeGenres";
-import { NEWS_ART, NEWS_ACCENT } from "./newsArt";
+import { NEWS_ACCENT } from "./newsArt";
+import StoryCover from "@/content/news/Covers";
 import { createHomeEngine } from "./homeEngine";
 import { STORIES, categoryName } from "@/content/news";
 import SiteFooter from "@/components/layout/SiteFooter";
@@ -18,15 +19,15 @@ import SiteFooter from "@/components/layout/SiteFooter";
    - 마크업은 여기, 3D·섹션 전환·입력은 homeEngine.js
    - 페이지 사이 이동은 기존 Crate Flip (아래 가운데 핸들, 메뉴), 앨범 상세는 기존 커버 이동 전환 */
 
-// News 카드 = 최신 스토리 3편 (src/content/news)
+// News 카드 = 최신 스토리 4편 (src/content/news), 썸네일은 News 목록과 같은 정사각 커버
 const KICKER = { news: "From the scene", guide: "Learn the basics", picks: "What to play" };
-const POSTS = STORIES.slice(0, 3).map((s, i) => ({
+const POSTS = STORIES.slice(0, 4).map((s, i) => ({
   no: String(i + 1).padStart(2, "0"),
   category: categoryName(s.category),
   date: new Date(`${s.date}T12:00:00+09:00`).toLocaleDateString("en-US", { month: "short", day: "2-digit", timeZone: "Asia/Seoul" }),
   kicker: KICKER[s.category] ?? "",
   title: s.title,
-  art: s.homeArt,
+  cover: s.cover,
   href: `/news/${s.slug}`,
 }));
 const META = ["Records", "People", "Culture", "And a slower tomorrow"];
@@ -225,22 +226,19 @@ export default function HomeStage() {
                 </ul>
               </div>
               <div className="border-b border-[var(--hs-text)]">
-                <div className="grid grid-cols-1 md:-mx-[clamp(1.5rem,1.8vw,2.5rem)] md:grid-cols-3">
+                <div className="grid grid-cols-1 sm:-mx-[clamp(1rem,1.4vw,2rem)] sm:grid-cols-2 xl:grid-cols-4">
                   {POSTS.map((post, i) => (
                     <article key={post.no} data-cursor="read" style={delay(2 + i)}
-                      className={`${NEWS_IN} group relative flex flex-col py-[clamp(1.5rem,3vh,2.75rem)] md:px-[clamp(1.5rem,1.8vw,2.5rem)] ${i > 0 ? "border-t border-[var(--hs-line)] md:border-l md:border-t-0" : ""}`}>
+                      className={`${NEWS_IN} group relative flex flex-col py-[clamp(1.5rem,3vh,2.75rem)] sm:px-[clamp(1rem,1.4vw,2rem)] ${i > 0 ? "border-t border-[var(--hs-line)]" : ""} ${i % 2 ? "sm:border-l" : ""} ${i < 2 ? "sm:border-t-0" : ""} ${i > 0 ? "xl:border-l xl:border-t-0" : ""}`}>
                       <Link href={post.href} className="absolute inset-0 z-[1]" aria-label={`${post.kicker}: ${post.title}`} />
-                      <div className="relative aspect-[16/10] overflow-hidden bg-[#eadcc2]">
-                        <svg viewBox="0 10 400 275" className="h-full w-full transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04]" aria-hidden="true"
-                          dangerouslySetInnerHTML={{ __html: `${NEWS_ART[post.art]()}<text x="200" y="274" text-anchor="middle" font-family="Grooves Display, Hahmlet, Georgia, serif" font-size="9" letter-spacing="3.5" fill="#4c404a" opacity=".75">GROOVES JOURNAL</text>` }} />
-                      </div>
-                      <p className="mt-[clamp(1rem,1.6vh,1.5rem)] flex items-center gap-2 text-[clamp(10px,0.72vw,13px)] font-medium uppercase tracking-[0.2em]">
-                        <span className="font-semibold tabular-nums">{post.no}</span><span className="text-[var(--hs-muted)]">/</span><span>{post.category}</span>
-                        <span className="ml-auto tabular-nums text-[var(--hs-muted)]">{post.date}</span>
+                      <StoryCover name={post.cover} className="aspect-square rounded-sm [&_svg]:transition-transform [&_svg]:duration-700 [&_svg]:ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:[&_svg]:scale-[1.04]" />
+                      <p className="mt-[clamp(1rem,1.6vh,1.5rem)] flex items-center gap-2 whitespace-nowrap text-[clamp(10px,0.72vw,13px)] font-medium uppercase tracking-[0.16em]">
+                        <span className="font-semibold tabular-nums">{post.no}</span><span className="text-[var(--hs-muted)]">/</span><span className="min-w-0 truncate">{post.category}</span>
+                        <span className="ml-auto shrink-0 tabular-nums text-[var(--hs-muted)]">{post.date}</span>
                       </p>
                       <span className="mt-3 block h-px w-6 bg-[var(--hs-text)] opacity-40 transition-all duration-500 group-hover:w-14 group-hover:bg-(--accent) group-hover:opacity-100" />
                       <p className="mt-3 text-[clamp(12px,0.85vw,15px)] text-[var(--hs-muted)]">{post.kicker}</p>
-                      <h3 className="mt-1 text-[clamp(1.05rem,1.55vw,2.1rem)] font-medium leading-snug tracking-[-0.02em] [word-break:keep-all]">{post.title}</h3>
+                      <h3 className="mt-1 text-[clamp(1.05rem,1.3vw,1.8rem)] font-medium leading-snug tracking-[-0.02em] [word-break:keep-all]">{post.title}</h3>
                       <span className="mt-[clamp(1rem,1.6vh,1.5rem)] inline-flex w-fit items-center gap-1 border-b border-current pb-0.5 text-[clamp(10px,0.72vw,13px)] font-medium uppercase tracking-[0.2em] text-(--accent)">Read story <span className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5">↗︎</span></span>
                     </article>
                   ))}
