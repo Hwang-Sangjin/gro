@@ -3,11 +3,13 @@
 // 1 히어로 → 2 일곱 장(모두 LP가 있는 앨범, 버튼은 YouTube · Grooves 앨범 페이지) (스크롤하면 슬리브에서 판이 빠져나오며 돎) → 3 한 장짜리 믹스테이프(A/B면) → 4 마무리(낙엽 더미)
 // 낙엽은 페이지 전체에서 떨어지고(화면에 붙은 층), 마지막 섹션 바닥에 쌓여 있음
 // 슬리브는 실제 앨범 커버 대신 글자로 만든 그림 (저작권 이미지 사용 안 함)
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 import { seg, useScrollProgress } from "@/components/story/scroll";
 import RequestDialog from "@/components/requests/RequestDialog";
+import { createClient } from "@/utils/supabase/client";
+import { coverUrl } from "@/lib/albums";
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
 const WRAP = "mx-auto w-full max-w-[1500px] px-[clamp(20px,4vw,72px)]";
@@ -16,6 +18,7 @@ const WRAP = "mx-auto w-full max-w-[1500px] px-[clamp(20px,4vw,72px)]";
 const PICKS = [
   {
     artist: "잔나비", album: "소곡집 I", year: 2020, label: "Peponi Music", slug: "jannabi-small-pieces-i",
+    titles: ["소곡집 I", "소곡집 1", "소곡집1", "Jannabi's Small Pieces I", "Small Pieces I"],
     song: "가을밤에 든 생각", color: "#a63c2a", ink: "#f4e7cd",
     text: "다섯 곡을 묶은 작은 앨범의 첫 곡. 찬 바람이 처음 부는 밤, 지나간 계절을 돌아보는 마음을 담았어요. LP는 2020년 한정반으로 나왔어요.",
     listen: "후렴으로 갈수록 하나씩 더해지는 악기 — 밴드 소리가 천천히 차오르는 순간.",
@@ -265,7 +268,46 @@ function Disc({ label, className = "", style }) {
   );
 }
 
-// 글자로 만든 슬리브
+// Grooves DB 에서 커버 찾기 — slug 로 먼저, 없으면 제목(+아티스트)으로. 찾으면 실제 앨범 페이지 slug 도 돌려줌
+function useCovers() {
+  const [found, setFound] = useState({});
+  useEffect(() => {
+    let off = false;
+    const supabase = createClient();
+    const cols = "slug, title, artist_names, thumb_path, cover_color";
+    const titles = PICKS.flatMap((p) => p.titles ?? [p.album]);
+    Promise.all([
+      supabase.from("albums").select(cols).eq("status", "published").in("slug", PICKS.map((p) => p.slug)),
+      supabase.from("albums").select(cols).eq("status", "published").in("title", titles),
+    ]).then(([a, b]) => {
+      if (off) return;
+      const rows = [...(a.data ?? []), ...(b.data ?? [])];
+      const low = (v) => String(v ?? "").toLowerCase();
+      const map = {};
+      for (const p of PICKS) {
+        const names = (p.titles ?? [p.album]).map(low);
+        const hit = rows.find((r) => r.slug === p.slug)
+          ?? rows.find((r) => names.includes(low(r.title)) && low(r.artist_names).includes(low(p.artist)))
+          ?? rows.find((r) => names.includes(low(r.title)));
+        if (hit?.thumb_path) map[p.album] = { src: coverUrl(hit.thumb_path), color: hit.cover_color, slug: hit.slug };
+      }
+      setFound(map);
+    }).catch(() => {});
+    return () => { off = true; };
+  }, []);
+  return found;
+}
+
+// 실제 앨범 커버 (Grooves DB 썸네일)
+function Cover({ pick, src }) {
+  return (
+    <div className="absolute inset-0 z-10 overflow-hidden rounded-[3px] bg-(--cover-bg) shadow-[0_30px_60px_-30px_rgba(0,0,0,.55)]">
+      <img src={src} alt={`${pick.artist} — ${pick.album}`} loading="lazy" decoding="async" draggable={false} className="size-full select-none object-cover" />
+    </div>
+  );
+}
+
+// 글자로 만든 슬리브 (커버를 못 찾았을 때)
 function Sleeve({ pick, n }) {
   return (
     <div className="absolute inset-0 z-10 flex flex-col justify-between overflow-hidden rounded-[3px] p-[7%] shadow-[0_30px_60px_-30px_rgba(0,0,0,.55)]"
@@ -283,7 +325,7 @@ function Sleeve({ pick, n }) {
   );
 }
 
-function Pick({ pick, i }) {
+function Pick({ pick, i, cover }) {
   const ref = useRef(null);
   useScrollProgress(ref, { mode: "pass" });
   const flip = i % 2 === 1;
@@ -295,9 +337,9 @@ function Pick({ pick, i }) {
       <div className={`relative mx-auto aspect-square w-[min(68vw,440px)] ${flip ? "md:order-2 md:mr-0" : "md:ml-0"}`}>
         <div className="absolute inset-[3%] will-change-transform"
           style={{ transform: `translateX(calc(${seg(0.12, 0.42)} * ${dir * 34}%)) rotate(calc(var(--p) * ${dir * 420}deg))` }}>
-          <Disc label={pick.color} className="size-full" />
+          <Disc label={cover?.color || pick.color} className="size-full" />
         </div>
-        <Sleeve pick={pick} n={i + 1} />
+        {cover ? <Cover pick={pick} src={cover.src} /> : <Sleeve pick={pick} n={i + 1} />}
       </div>
 
       <Reveal className={flip ? "md:order-1" : ""}>
@@ -322,7 +364,7 @@ function Pick({ pick, i }) {
             className="inline-flex min-h-11 items-center gap-2 rounded-full bg-(--ink) px-6 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
             YouTube에서 듣기 <span aria-hidden="true">↗︎</span>
           </a>
-          <Link href={`/album/${pick.slug}`}
+          <Link href={`/album/${cover?.slug ?? pick.slug}`}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-(--ink)/40 px-6 text-[12px] font-medium uppercase tracking-[0.18em] transition-colors hover:border-(--ink) hover:bg-(--ink)/5">
             Grooves에서 보기 <span aria-hidden="true">→</span>
           </Link>
@@ -367,6 +409,7 @@ export default function Story() {
   const request = useRef(null);
   const fallRef = useRef(null), pileRef = useRef(null);
   useLeaves(fallRef, pileRef);
+  const covers = useCovers();
   return (
     <div className="relative">
       <div ref={fallRef} aria-hidden="true" className="pointer-events-none sticky top-0 z-0 -mb-[100svh] h-svh overflow-hidden" />
@@ -387,7 +430,7 @@ export default function Story() {
 
       {/* 2 일곱 장 */}
       <ol className="overflow-x-clip">
-        {PICKS.map((pick, i) => <Pick key={pick.album} pick={pick} i={i} />)}
+        {PICKS.map((pick, i) => <Pick key={pick.album} pick={pick} i={i} cover={covers[pick.album]} />)}
       </ol>
 
       {/* 3 믹스테이프 */}
