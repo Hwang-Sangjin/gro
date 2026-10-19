@@ -11,7 +11,7 @@ import { HOME_GENRES, GENRE_WAVE } from "./homeGenres";
 import { NEWS_ACCENT } from "./newsArt";
 import StoryCover from "@/content/news/Covers";
 import { createHomeEngine } from "./homeEngine";
-import { STORIES, categoryName } from "@/content/news";
+import { STORIES, CATEGORIES, categoryName } from "@/content/news";
 import SiteFooter from "@/components/layout/SiteFooter";
 
 /* Home 4개 섹션을 한 화면(100svh)에서 전환하는 스테이지.
@@ -19,9 +19,13 @@ import SiteFooter from "@/components/layout/SiteFooter";
    - 마크업은 여기, 3D·섹션 전환·입력은 homeEngine.js
    - 페이지 사이 이동은 기존 Crate Flip (아래 가운데 핸들, 메뉴), 앨범 상세는 기존 커버 이동 전환 */
 
-// News 카드 = 최신 스토리 4편 (src/content/news), 썸네일은 News 목록과 같은 정사각 커버
+// News 카드 = 카테고리(News · Vinyl A to Z · Picks)마다 가장 최근 글 1편씩, 최신순. 썸네일은 News 목록과 같은 정사각 커버
 const KICKER = { news: "From the scene", guide: "Learn the basics", picks: "What to play" };
-const POSTS = STORIES.slice(0, 4).map((s, i) => ({
+const LATEST = CATEGORIES
+  .map((c) => STORIES.filter((s) => s.category === c.key).sort((a, b) => b.date.localeCompare(a.date))[0])
+  .filter(Boolean)
+  .sort((a, b) => b.date.localeCompare(a.date));
+const POSTS = LATEST.map((s, i) => ({
   no: String(i + 1).padStart(2, "0"),
   category: categoryName(s.category),
   date: new Date(`${s.date}T12:00:00+09:00`).toLocaleDateString("en-US", { month: "short", day: "2-digit", timeZone: "Asia/Seoul" }),
@@ -226,10 +230,10 @@ export default function HomeStage() {
                 </ul>
               </div>
               <div className="border-b border-[var(--hs-text)]">
-                <div className="grid grid-cols-1 sm:-mx-[clamp(1rem,1.4vw,2rem)] sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-1 md:-mx-[clamp(1.5rem,1.8vw,2.5rem)] md:grid-cols-3">
                   {POSTS.map((post, i) => (
                     <article key={post.no} data-cursor="read" style={delay(2 + i)}
-                      className={`${NEWS_IN} group relative flex flex-col py-[clamp(1.5rem,3vh,2.75rem)] sm:px-[clamp(1rem,1.4vw,2rem)] ${i > 0 ? "border-t border-[var(--hs-line)]" : ""} ${i % 2 ? "sm:border-l" : ""} ${i < 2 ? "sm:border-t-0" : ""} ${i > 0 ? "xl:border-l xl:border-t-0" : ""}`}>
+                      className={`${NEWS_IN} group relative flex flex-col py-[clamp(1.5rem,3vh,2.75rem)] md:px-[clamp(1.5rem,1.8vw,2.5rem)] ${i > 0 ? "border-t border-[var(--hs-line)] md:border-l md:border-t-0" : ""}`}>
                       <Link href={post.href} className="absolute inset-0 z-[1]" aria-label={`${post.kicker}: ${post.title}`} />
                       <StoryCover name={post.cover} className="aspect-square rounded-sm [&_svg]:transition-transform [&_svg]:duration-700 [&_svg]:ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:[&_svg]:scale-[1.04]" />
                       <p className="mt-[clamp(1rem,1.6vh,1.5rem)] flex items-center gap-2 whitespace-nowrap text-[clamp(10px,0.72vw,13px)] font-medium uppercase tracking-[0.16em]">
