@@ -2,7 +2,11 @@
 // News — "Daniel Caesar, Pressed for Korea"
 // 1 히어로(마블 판 세 장) → 2 왜 반가운지 → 3 세 장 (발매순, 판 사양 + 추천곡) → 4 구매 안내 → 5 Grooves 컬렉션 · 출처
 // 사실 정보는 세컨드트랙 코리아 공지(인스타그램, 2026-10)와 발매 정보 기준
+// 앨범 커버·링크는 Grooves DB(albums)에서 가져옴 — 없으면 마블 판만 보여줌
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { createClient } from "@/utils/supabase/client";
+import { coverUrl } from "@/lib/albums";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 import MarbleDisc from "@/components/story/MarbleDisc";
 
@@ -16,21 +20,21 @@ const yt = (q) => `https://www.youtube.com/results?search_query=${encodeURICompo
 // 발매 순서대로. disc: 마블 색 [많은 색, 중간, 적은 색]
 const RECORDS = [
   {
-    code: "ST0006R", title: "Pilgrim’s Paradise", year: 2015, kind: "EP",
+    code: "ST0006R", title: "Pilgrim’s Paradise", slug: "daniel-caesar-pilgrims-paradise", year: 2015, kind: "EP",
     spec: ["180g 1LP", "블랙 & 화이트 마블", "싱글 재킷", "2P 인서트"],
     disc: ["#141113", "#ece7dc", "#5d5a58"], seed: 7,
     text: "이름이 알려지기 전, 토론토에서 낸 첫 EP. 가스펠과 블루스에 뿌리를 둔 목소리가 이미 또렷해요.",
     song: "Death & Taxes", why: "블루스 기타를 뜯으며 시작하는 발라드. 믿음과 사랑 사이를 오가는 가사가 초기 다니엘 시저의 색을 가장 잘 보여줘요.",
   },
   {
-    code: "ST0004R", title: "Freudian", year: 2017, kind: "1st album",
+    code: "ST0004R", title: "Freudian", slug: "daniel-caesar-freudian", year: 2017, kind: "1st album",
     spec: ["180g 2LP", "블루, 그린 & 화이트 마블", "게이트폴드 재킷", "4P 인서트"],
     disc: ["#2f5fa8", "#3f8a5c", "#f2efe6"], seed: 3,
     text: "그를 세상에 알린 첫 정규 앨범. 가스펠 화성과 R&B가 섞인, 느리고 따뜻한 앨범이에요.",
     song: "Best Part (feat. H.E.R.)", why: "H.E.R.와 주고받는 듀엣. 기타 한 대로 시작해 둘의 목소리만으로 채워지는, 이 앨범에서 가장 사랑받은 곡이에요.",
   },
   {
-    code: "ST0005R", title: "Case Study 01", year: 2019, kind: "2nd album",
+    code: "ST0005R", title: "Case Study 01", slug: "daniel-caesar-case-study-01", year: 2019, kind: "2nd album",
     spec: ["180g 1LP", "블루, 레드 & 블랙 마블", "싱글 재킷", "2P 인서트"],
     disc: ["#1d3a86", "#141113", "#b8322a"], seed: 11,
     text: "Pharrell, Brandy, John Mayer 등이 함께한 두 번째 정규 앨범. 전작보다 실험적이고 그루브가 살아 있어요.",
@@ -38,6 +42,26 @@ const RECORDS = [
     note: "초기 목업보다 블루가 더 진하게 제작되어 목업 이미지가 바뀌었지만, 해외 발매반과 같은 제품이에요.",
   },
 ];
+
+const low = (v) => String(v ?? "").toLowerCase().replace(/[’']/g, "").trim();
+
+// Grooves DB 에 있는 다니엘 시저 앨범 전부 (공개된 것만, 발매순)
+function useCaesar() {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    let off = false;
+    createClient().from("albums")
+      .select("slug, title, artist_names, thumb_path, cover_color, release_year")
+      .eq("status", "published").ilike("artist_names", "%daniel caesar%")
+      .then(({ data }) => {
+        if (off || !data) return;
+        setRows([...data].sort((a, b) => (a.release_year ?? 0) - (b.release_year ?? 0) || a.title.localeCompare(b.title)));
+      }, () => {});
+    return () => { off = true; };
+  }, []);
+  return rows;
+}
+const findRow = (rows, r) => rows.find((a) => a.slug === r.slug) ?? rows.find((a) => low(a.title) === low(r.title));
 
 function Head({ n, label, lines, children }) {
   return (
@@ -52,13 +76,28 @@ function Head({ n, label, lines, children }) {
 }
 
 // 한 장: 왼쪽 판(천천히 돎) + 오른쪽 정보
-function Record({ r, i }) {
+// 커버가 있으면 슬리브 뒤로 판이 반쯤 빠져나온 모양, 없으면 판만
+function Record({ r, i, row }) {
   const flip = i % 2 === 1;
+  const spin = "block w-full animate-spin drop-shadow-[0_24px_30px_rgba(0,0,0,.28)] [animation-duration:18s] motion-reduce:animate-none";
   return (
-    <Reveal as="li" className="grid items-center gap-[clamp(2rem,5vw,5rem)] border-t border-(--ink)/20 py-[clamp(3rem,7vw,6rem)] md:grid-cols-[minmax(0,440px)_1fr]">
-      <div className={`relative mx-auto w-[min(72vw,400px)] ${flip ? "md:order-2" : ""}`}>
-        <MarbleDisc colors={r.disc} seed={r.seed} className="block w-full animate-spin drop-shadow-[0_24px_30px_rgba(0,0,0,.28)] [animation-duration:18s] motion-reduce:animate-none" />
-      </div>
+    <Reveal as="li" className="grid items-center gap-[clamp(2rem,5vw,5rem)] border-t border-(--ink)/20 py-[clamp(3rem,7vw,6rem)] md:grid-cols-[minmax(0,520px)_1fr]">
+      {row?.thumb_path ? (
+        <div className={`relative mx-auto aspect-[1.4/1] w-[min(86vw,520px)] ${flip ? "md:order-2" : ""}`}>
+          <div className={`absolute top-[4%] w-[66%] ${flip ? "left-0" : "right-0"}`}>
+            <MarbleDisc colors={r.disc} seed={r.seed} className={spin} />
+          </div>
+          <Link href={`/album/${row.slug}`} aria-label={`${r.title} — Grooves에서 보기`}
+            className={`absolute top-[2%] z-10 aspect-square w-[70%] overflow-hidden rounded-[3px] shadow-[0_30px_60px_-28px_rgba(0,0,0,.6)] transition-transform duration-500 hover:-translate-y-1 ${flip ? "right-0" : "left-0"}`}
+            style={{ background: row.cover_color || "var(--cover-bg)" }}>
+            <img src={coverUrl(row.thumb_path)} alt={`Daniel Caesar — ${row.title}`} loading="lazy" decoding="async" draggable={false} className="size-full select-none object-cover" />
+          </Link>
+        </div>
+      ) : (
+        <div className={`relative mx-auto w-[min(72vw,400px)] ${flip ? "md:order-2" : ""}`}>
+          <MarbleDisc colors={r.disc} seed={r.seed} className={spin} />
+        </div>
+      )}
       <div className={flip ? "md:order-1" : ""}>
         <p className="flex flex-wrap items-center gap-3 text-[11px] font-medium uppercase tracking-[0.28em] text-(--accent) tabular-nums">
           <span>{r.code}</span><span className="h-px w-8 bg-current" /><span>{r.year} · {r.kind}</span>
@@ -73,10 +112,18 @@ function Record({ r, i }) {
           <p className="text-[12px] font-medium text-(--ink)">추천 곡 · <span className="text-[15px]">“{r.song}”</span></p>
           <p className="mt-2 break-keep text-[14px] leading-7 text-(--ink)/70">{r.why}</p>
         </div>
-        <a href={yt(`Daniel Caesar ${r.song.replace(/\s*\(.*\)$/, "")}`)} target="_blank" rel="noreferrer"
-          className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-full bg-(--ink) px-6 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
-          YouTube에서 듣기 <span aria-hidden="true">↗︎</span>
-        </a>
+        <div className="mt-7 flex flex-wrap gap-2">
+          <a href={yt(`Daniel Caesar ${r.song.replace(/\s*\(.*\)$/, "")}`)} target="_blank" rel="noreferrer"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-(--ink) px-6 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
+            YouTube에서 듣기 <span aria-hidden="true">↗︎</span>
+          </a>
+          {row && (
+            <Link href={`/album/${row.slug}`}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-(--ink) px-6 text-[12px] font-medium uppercase tracking-[0.18em] transition-colors hover:border-(--accent) hover:bg-(--accent) hover:text-(--cream)">
+              Grooves에서 보기 <span aria-hidden="true">→</span>
+            </Link>
+          )}
+        </div>
       </div>
     </Reveal>
   );
@@ -91,7 +138,35 @@ function Row({ k, children }) {
   );
 }
 
+// 이번 발매 말고 Grooves 에 있는 다른 앨범들
+function MoreFrom({ rows }) {
+  if (!rows.length) return null;
+  return (
+    <section className={`${SECTION} pt-0`}>
+      <Head n="04" label="Also on Grooves" lines={["More from", "Daniel Caesar"]}>
+        이번 국내반 말고도 Grooves에 등록된 다니엘 시저의 앨범들이에요. 눌러서 트랙과 판 정보를 볼 수 있어요.
+      </Head>
+      <ul className="mt-12 grid grid-cols-2 gap-x-[clamp(1rem,3vw,2.5rem)] gap-y-10 md:grid-cols-4">
+        {rows.map((a) => (
+          <li key={a.slug}>
+            <Link href={`/album/${a.slug}`} className="group block">
+              <div className="aspect-square overflow-hidden rounded-[3px] shadow-[0_24px_44px_-26px_rgba(0,0,0,.55)]" style={{ background: a.cover_color || "var(--cover-bg)" }}>
+                {a.thumb_path && <img src={coverUrl(a.thumb_path)} alt={`Daniel Caesar — ${a.title}`} loading="lazy" decoding="async" draggable={false} className="size-full select-none object-cover transition-transform duration-700 group-hover:scale-[1.04]" />}
+              </div>
+              <p className={`${SERIF} mt-4 text-[clamp(1.3rem,2vw,1.8rem)] leading-[1.05] group-hover:text-(--accent)`}>{a.title}</p>
+              {a.release_year && <p className="mt-1 text-[12px] tabular-nums text-(--ink)/55">{a.release_year}</p>}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default function Story() {
+  const rows = useCaesar();
+  const featured = RECORDS.map((r) => findRow(rows, r));
+  const others = rows.filter((a) => !featured.includes(a));
   return (
     <>
       {/* 1 히어로 */}
@@ -128,7 +203,7 @@ export default function Story() {
           발매된 순서대로 소개해요. 판마다 먼저 들어볼 곡을 하나씩 골랐어요.
         </Head>
         <ol className="mt-12 border-b border-(--ink)/20">
-          {RECORDS.map((r, i) => <Record key={r.code} r={r} i={i} />)}
+          {RECORDS.map((r, i) => <Record key={r.code} r={r} i={i} row={featured[i]} />)}
         </ol>
       </section>
 
@@ -155,7 +230,10 @@ export default function Story() {
         </Reveal>
       </section>
 
-      {/* 5 Grooves 컬렉션 */}
+      {/* 5 Grooves 에 있는 다른 앨범 */}
+      <MoreFrom rows={others} />
+
+      {/* 6 Grooves 컬렉션 */}
       <section className="border-y-[3px] border-(--ink) bg-(--ink) text-(--cream)">
         <div className={`${WRAP} grid gap-8 py-[clamp(3.5rem,8vw,6rem)] md:grid-cols-[1fr_auto] md:items-end`}>
           <div>
