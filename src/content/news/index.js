@@ -11,6 +11,16 @@ export const categoryName = (key) => CATEGORIES.find((c) => c.key === key)?.name
 
 export const STORIES = [
   {
+    slug: "daniel-caesar-korean-vinyl",
+    category: "news",
+    title: "Daniel Caesar, Pressed for Korea",
+    dek: "세컨드트랙이 다니엘 시저의 세 장을 국내 정식 LP로 발매해요. 비싼 수입반 대신 이제 국내에서 — 판마다 먼저 들어볼 곡도 하나씩 골랐어요.",
+    date: "2026-10-20",
+    read: "4 min",
+    cover: "caesar",
+    homeArt: "press",
+  },
+  {
     slug: "the-vinyl-dictionary",
     category: "guide",
     title: "The Vinyl Dictionary",

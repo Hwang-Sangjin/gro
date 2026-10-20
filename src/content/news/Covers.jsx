@@ -2,6 +2,7 @@
 // fair: 큰 "15" + 쌓인 판 (이전) / fair-poster: 공식 포스터를 정사각형으로 자름 (© 서울레코드페어) / autumn: 가을색 슬리브와 낙엽 / record: 홈 확대 + 바늘
 // a-to-z-NN: Vinyl A to Z 시리즈 — 같은 틀에 회차 번호 + 그 회의 손그림. 바탕·그림 색은 테마를 따라감(--cover-bg / --cover-art)
 import { useId } from "react";
+import MarbleDisc from "@/components/story/MarbleDisc";
 
 function Fair() {
   return (
@@ -52,6 +53,19 @@ function AutumnDoodle() {
       <text x="28" y="44" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" style={{ fill: "var(--autumn-tag)" }}>PICKS</text>
       <text x="374" y="376" textAnchor="end" fontFamily="Grooves Display, Hahmlet, Georgia, serif" fontWeight="900" fontSize="72" letterSpacing="-1" style={{ fill: "var(--autumn-ink)" }}>Autumn</text>
     </svg>
+  );
+}
+// 다니엘 시저 국내 발매: 마블 판 세 장이 겹쳐 있고 아래에 이름
+function Caesar() {
+  const discs = [[["#141113", "#ece7dc", "#5d5a58"], 7], [["#2f5fa8", "#3f8a5c", "#f2efe6"], 3], [["#1d3a86", "#141113", "#b8322a"], 11]];
+  return (
+    <div className="relative size-full bg-(--cover-bg)">
+      {discs.map(([c, seed], i) => (
+        <MarbleDisc key={i} colors={c} seed={seed} className="absolute w-[52%] drop-shadow-[0_10px_14px_rgba(0,0,0,.28)]" style={{ left: `${8 + i * 18}%`, top: `${30 - i * 12}%`, zIndex: 3 - i }} />
+      ))}
+      <p className="absolute left-[7%] top-[7%] font-['Hahmlet',sans-serif] font-semibold tracking-[0.24em] text-(--accent)" style={{ fontSize: "3.2cqw" }}>NEWS · RELEASE</p>
+      <p className="absolute bottom-[6%] right-[6%] text-right font-['Grooves_Display','Hahmlet',serif] leading-[0.9] text-(--ink)" style={{ fontSize: "10.5cqw" }}>Daniel<br />Caesar</p>
+    </div>
   );
 }
 function Record() {
@@ -108,8 +122,8 @@ function AtoZ02() {
   );
 }
 
-const COVERS = { "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
+const COVERS = { caesar: Caesar, "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
 export default function StoryCover({ name, className = "" }) {
   const C = COVERS[name] ?? Record;
-  return <span className={`block overflow-hidden ${className}`}><C /></span>;
+  return <span className={`block overflow-hidden [container-type:inline-size] ${className}`}><C /></span>;
 }
