@@ -2,7 +2,7 @@
 // fair: 큰 "15" + 쌓인 판 (이전) / fair-poster: 공식 포스터를 정사각형으로 자름 (© 서울레코드페어) / autumn: 가을색 슬리브와 낙엽 / record: 홈 확대 + 바늘
 // a-to-z-NN: Vinyl A to Z 시리즈 — 같은 틀에 회차 번호 + 그 회의 손그림. 바탕·그림 색은 테마를 따라감(--cover-bg / --cover-art)
 import { useId } from "react";
-import MarbleDisc from "@/components/story/MarbleDisc";
+import Disc from "@/components/story/Disc";
 import { RELEASES, findRow, coverOf, useCaesar } from "./daniel-caesar-korean-vinyl/albums";
 
 function Fair() {
@@ -57,7 +57,7 @@ function AutumnDoodle() {
   );
 }
 // 다니엘 시저 국내 발매: 마블 판 세 장이 겹쳐 있고 아래에 이름
-// 다니엘 시저 국내반 세 장의 실제 커버 (Grooves DB). 못 찾으면 마블 판
+// 다니엘 시저 국내반 세 장의 실제 커버 (Grooves DB). 못 찾으면 검은 판
 function Caesar() {
   const rows = useCaesar();
   return (
@@ -70,7 +70,7 @@ function Caesar() {
         const pos = { left: `${6 + i * 16}%`, top: `${34 - i * 9}%`, zIndex: 3 - i, rotate: `${(i - 1) * 4}deg` };
         if (src) return <img key={r.slug} src={src} alt="" loading="lazy" decoding="async" draggable={false} className="absolute aspect-square h-auto w-[46%] select-none rounded-[2px] object-cover shadow-[0_10px_18px_-8px_rgba(0,0,0,.5)]" style={{ ...pos, background: row.cover_color || "#888" }} />;
         if (rows === null) return <span key={r.slug} className="absolute aspect-square w-[46%] rounded-[2px] bg-(--ink)/8" style={pos} />;
-        return <MarbleDisc key={r.slug} colors={r.disc} seed={r.seed} className="absolute w-[46%] drop-shadow-[0_10px_14px_rgba(0,0,0,.28)]" style={pos} />;
+        return <Disc key={r.slug} label={r.label} className="absolute w-[46%] drop-shadow-[0_10px_14px_rgba(0,0,0,.28)]" style={pos} />;
       })}
       </div>
       <p className="absolute left-[7%] top-[7%] z-10 font-['Hahmlet',sans-serif] font-semibold tracking-[0.24em] text-(--accent)" style={{ fontSize: "3.2cqw" }}>NEWS · RELEASE</p>

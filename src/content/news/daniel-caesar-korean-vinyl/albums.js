@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl } from "@/lib/albums";
 
-// 이번 국내반 세 장 (발매순). disc: 마블 색 [많은 색, 중간, 적은 색] — 커버를 못 찾을 때 대신 보여줌
+// 이번 국내반 세 장 (발매순). label: 커버를 못 찾을 때 판 라벨 색
 export const RELEASES = [
-  { slug: "daniel-caesar-pilgrims-paradise", title: "Pilgrim’s Paradise", disc: ["#141113", "#ece7dc", "#5d5a58"], seed: 7 },
-  { slug: "daniel-caesar-freudian", title: "Freudian", disc: ["#2f5fa8", "#3f8a5c", "#f2efe6"], seed: 3 },
-  { slug: "daniel-caesar-case-study-01", title: "Case Study 01", disc: ["#1d3a86", "#141113", "#b8322a"], seed: 11 },
+  { slug: "daniel-caesar-pilgrims-paradise", title: "Pilgrim’s Paradise", label: "#e9e6df" },
+  { slug: "daniel-caesar-freudian", title: "Freudian", label: "#8fb3c9" },
+  { slug: "daniel-caesar-case-study-01", title: "Case Study 01", label: "#5a6f8a" },
 ];
 
 const low = (v) => String(v ?? "").toLowerCase().replace(/[’']/g, "").trim();

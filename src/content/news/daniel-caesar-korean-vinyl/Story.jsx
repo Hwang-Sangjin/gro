@@ -3,11 +3,13 @@
 // 1 히어로(앨범 커버 세 장) → 2 왜 반가운지 → 3 세 장 (발매순, 판 사양 + 추천곡) → 4 구매 안내 → 5 Grooves 컬렉션 · 출처
 // 사실 정보는 세컨드트랙 코리아 공지(인스타그램, 2026-10)와 발매 정보 기준
 // 앨범 커버·링크는 Grooves DB(albums)에서 가져옴 — 없으면 마블 판만 보여줌
+import { useRef } from "react";
 import Link from "next/link";
 import { coverUrl } from "@/lib/albums";
 import { RELEASES, findRow, coverOf, useCaesar } from "./albums";
 import Reveal, { RiseText } from "@/components/story/Reveal";
-import MarbleDisc from "@/components/story/MarbleDisc";
+import Disc from "@/components/story/Disc";
+import { seg, useScrollProgress } from "@/components/story/scroll";
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
 const WRAP = "mx-auto w-full max-w-[1500px] px-[clamp(20px,4vw,72px)]";
@@ -16,26 +18,23 @@ const SHOP = "https://secondtrack.kr";
 const NOTICE = "https://www.instagram.com/p/DeeTEGigRZ5/";
 const yt = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 
-// 발매 순서대로. disc: 마블 색 [많은 색, 중간, 적은 색]
+// 발매 순서대로
 const RECORDS = [
   {
     code: "ST0006R", title: "Pilgrim’s Paradise", slug: "daniel-caesar-pilgrims-paradise", year: 2015, kind: "EP",
     spec: ["180g 1LP", "블랙 & 화이트 마블", "싱글 재킷", "2P 인서트"],
-    disc: ["#141113", "#ece7dc", "#5d5a58"], seed: 7,
     text: "이름이 알려지기 전, 토론토에서 낸 첫 EP. 가스펠과 블루스에 뿌리를 둔 목소리가 이미 또렷해요.",
     song: "Death & Taxes", why: "블루스 기타를 뜯으며 시작하는 발라드. 믿음과 사랑 사이를 오가는 가사가 초기 다니엘 시저의 색을 가장 잘 보여줘요.",
   },
   {
     code: "ST0004R", title: "Freudian", slug: "daniel-caesar-freudian", year: 2017, kind: "1st album",
     spec: ["180g 2LP", "블루, 그린 & 화이트 마블", "게이트폴드 재킷", "4P 인서트"],
-    disc: ["#2f5fa8", "#3f8a5c", "#f2efe6"], seed: 3,
     text: "그를 세상에 알린 첫 정규 앨범. 가스펠 화성과 R&B가 섞인, 느리고 따뜻한 앨범이에요.",
     song: "Best Part (feat. H.E.R.)", why: "H.E.R.와 주고받는 듀엣. 기타 한 대로 시작해 둘의 목소리만으로 채워지는, 이 앨범에서 가장 사랑받은 곡이에요.",
   },
   {
     code: "ST0005R", title: "Case Study 01", slug: "daniel-caesar-case-study-01", year: 2019, kind: "2nd album",
     spec: ["180g 1LP", "블루, 레드 & 블랙 마블", "싱글 재킷", "2P 인서트"],
-    disc: ["#1d3a86", "#141113", "#b8322a"], seed: 11,
     text: "Pharrell, Brandy, John Mayer 등이 함께한 두 번째 정규 앨범. 전작보다 실험적이고 그루브가 살아 있어요.",
     song: "Cyanide", why: "사랑을 독약에 빗댄 노래. 담백한 리듬 위로 흘러가는 목소리가 매력이고, 나중에 Koffee가 참여한 버전도 나왔어요.",
     note: "초기 목업보다 블루가 더 진하게 제작되어 목업 이미지가 바뀌었지만, 해외 발매반과 같은 제품이에요.",
@@ -54,29 +53,28 @@ function Head({ n, label, lines, children }) {
   );
 }
 
-// 한 장: 왼쪽 판(천천히 돎) + 오른쪽 정보
-// 커버가 있으면 슬리브 뒤로 판이 반쯤 빠져나온 모양, 없으면 판만
+// 한 장: 슬리브(실제 커버) + 스크롤하면 빠져나오며 도는 판 (Records for an Autumn Evening 과 같은 방식) + 오른쪽 정보
 function Record({ r, i, row }) {
+  const ref = useRef(null);
+  useScrollProgress(ref, { mode: "pass" });
   const flip = i % 2 === 1;
-  const spin = "block w-full animate-spin drop-shadow-[0_24px_30px_rgba(0,0,0,.28)] [animation-duration:18s] motion-reduce:animate-none";
+  const dir = flip ? -1 : 1;
+  const src = coverOf(row);
   return (
-    <Reveal as="li" className="grid items-center gap-[clamp(2rem,5vw,5rem)] border-t border-(--ink)/20 py-[clamp(3rem,7vw,6rem)] md:grid-cols-[minmax(0,520px)_1fr]">
-      {row?.thumb_path ? (
-        <div className={`relative mx-auto aspect-[1.4/1] w-[min(86vw,520px)] ${flip ? "md:order-2" : ""}`}>
-          <div className={`absolute top-[4%] w-[66%] ${flip ? "left-0" : "right-0"}`}>
-            <MarbleDisc colors={r.disc} seed={r.seed} className={spin} />
-          </div>
+    <Reveal as="li" className="grid items-center gap-[clamp(2.5rem,6vw,6rem)] border-t border-(--ink)/20 py-[clamp(4rem,10vw,8rem)] md:grid-cols-2">
+      <div ref={ref} style={{ "--p": 0 }} className={`relative mx-auto aspect-square w-[min(68vw,440px)] ${flip ? "md:order-2 md:mr-0" : "md:ml-0"}`}>
+        <div className="absolute inset-[3%] will-change-transform"
+          style={{ transform: `translateX(calc(${src ? seg(0.12, 0.42) : 0} * ${dir * 34}%)) rotate(calc(var(--p) * ${dir * 420}deg))` }}>
+          <Disc label={row?.cover_color || undefined} className="size-full" />
+        </div>
+        {src && (
           <Link href={`/album/${row.slug}`} aria-label={`${r.title} — Grooves에서 보기`}
-            className={`absolute top-[2%] z-10 aspect-square w-[70%] overflow-hidden rounded-[3px] shadow-[0_30px_60px_-28px_rgba(0,0,0,.6)] transition-transform duration-500 hover:-translate-y-1 ${flip ? "right-0" : "left-0"}`}
+            className="absolute inset-0 z-10 overflow-hidden rounded-[3px] shadow-[0_30px_60px_-30px_rgba(0,0,0,.55)]"
             style={{ background: row.cover_color || "var(--cover-bg)" }}>
-            <img src={coverUrl(row.thumb_path)} alt={`Daniel Caesar — ${row.title}`} loading="lazy" decoding="async" draggable={false} className="size-full select-none object-cover" />
+            <img src={src} alt={`Daniel Caesar — ${row.title}`} loading="lazy" decoding="async" draggable={false} className="size-full select-none object-cover" />
           </Link>
-        </div>
-      ) : (
-        <div className={`relative mx-auto w-[min(72vw,400px)] ${flip ? "md:order-2" : ""}`}>
-          <MarbleDisc colors={r.disc} seed={r.seed} className={spin} />
-        </div>
-      )}
+        )}
+      </div>
       <div className={flip ? "md:order-1" : ""}>
         <p className="flex flex-wrap items-center gap-3 text-[11px] font-medium uppercase tracking-[0.28em] text-(--accent) tabular-nums">
           <span>{r.code}</span><span className="h-px w-8 bg-current" /><span>{r.year} · {r.kind}</span>
@@ -172,7 +170,7 @@ export default function Story() {
                   ) : rows === null ? (
                     <div className="aspect-square w-full rounded-[3px] bg-(--ink)/8" />
                   ) : (
-                    <MarbleDisc colors={r.disc} seed={r.seed} className="block w-full animate-spin drop-shadow-[0_20px_26px_rgba(0,0,0,.3)] [animation-duration:24s] motion-reduce:animate-none" />
+                    <Disc label={r.label} className="block w-full animate-spin drop-shadow-[0_20px_26px_rgba(0,0,0,.3)] [animation-duration:24s] motion-reduce:animate-none" />
                   )}
                 </div>
               );

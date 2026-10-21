@@ -73,8 +73,8 @@ export default function NewsIndex() {
       <div key={tab}>
         {lead && (
           <Reveal className="mt-12">
-            <Link href={`/news/${lead.slug}`} className="group grid items-center gap-8 md:grid-cols-[1.1fr_1fr] md:gap-14">
-              <StoryCover name={lead.cover} className="aspect-[4/3] rounded-sm transition-[scale] duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-[1.015] [&_svg]:transition-transform [&_svg]:duration-[1200ms] group-hover:[&_svg]:scale-105" />
+            <Link href={`/news/${lead.slug}`} className="group grid items-center gap-8 md:grid-cols-[minmax(0,560px)_1fr] md:gap-14">
+              <StoryCover name={lead.cover} className="aspect-square rounded-sm transition-[scale] duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-[1.015] [&_svg]:transition-transform [&_svg]:duration-[1200ms] group-hover:[&_svg]:scale-105" />
               <div>
                 <Meta s={lead} />
                 <h2 className={`${SERIF} mt-5 text-[clamp(2.6rem,5vw,5.2rem)] leading-[1.02]`}>

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 import { seg, useScrollProgress } from "@/components/story/scroll";
+import Disc from "@/components/story/Disc";
 import RequestDialog from "@/components/requests/RequestDialog";
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl } from "@/lib/albums";
@@ -251,21 +252,6 @@ function useLeaves(fallRef, pileRef) {
       piled.forEach((p) => p.el.remove());
     };
   }, [fallRef, pileRef]);
-}
-
-// 판 (홈 + 라벨)
-function Disc({ label, className = "", style }) {
-  return (
-    <svg viewBox="0 0 200 200" className={className} style={style} aria-hidden="true">
-      <circle cx="100" cy="100" r="99" fill="#1b1619" />
-      {Array.from({ length: 16 }, (_, i) => (
-        <circle key={i} cx="100" cy="100" r={94 - i * 3.6} fill="none" stroke="#f4e7cd" strokeWidth=".6" opacity={i % 5 === 2 ? 0.05 : 0.14} />
-      ))}
-      <path d="M100 6a94 94 0 0 1 80 46" fill="none" stroke="#fff" strokeWidth="10" opacity=".05" />
-      <circle cx="100" cy="100" r="31" fill={label} />
-      <circle cx="100" cy="100" r="3" fill="#1b1619" />
-    </svg>
-  );
 }
 
 // Grooves DB 에서 커버 찾기 — slug 로 먼저, 없으면 제목(+아티스트)으로. 찾으면 실제 앨범 페이지 slug 도 돌려줌
