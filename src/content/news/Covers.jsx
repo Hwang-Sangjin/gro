@@ -3,6 +3,7 @@
 // a-to-z-NN: Vinyl A to Z 시리즈 — 같은 틀에 회차 번호 + 그 회의 손그림. 바탕·그림 색은 테마를 따라감(--cover-bg / --cover-art)
 import { useId } from "react";
 import MarbleDisc from "@/components/story/MarbleDisc";
+import { RELEASES, findRow, coverOf, useCaesar } from "./daniel-caesar-korean-vinyl/albums";
 
 function Fair() {
   return (
@@ -56,15 +57,24 @@ function AutumnDoodle() {
   );
 }
 // 다니엘 시저 국내 발매: 마블 판 세 장이 겹쳐 있고 아래에 이름
+// 다니엘 시저 국내반 세 장의 실제 커버 (Grooves DB). 못 찾으면 마블 판
 function Caesar() {
-  const discs = [[["#141113", "#ece7dc", "#5d5a58"], 7], [["#2f5fa8", "#3f8a5c", "#f2efe6"], 3], [["#1d3a86", "#141113", "#b8322a"], 11]];
+  const rows = useCaesar();
   return (
-    <div className="relative size-full bg-(--cover-bg)">
-      {discs.map(([c, seed], i) => (
-        <MarbleDisc key={i} colors={c} seed={seed} className="absolute w-[52%] drop-shadow-[0_10px_14px_rgba(0,0,0,.28)]" style={{ left: `${8 + i * 18}%`, top: `${30 - i * 12}%`, zIndex: 3 - i }} />
-      ))}
-      <p className="absolute left-[7%] top-[7%] font-['Hahmlet',sans-serif] font-semibold tracking-[0.24em] text-(--accent)" style={{ fontSize: "3.2cqw" }}>NEWS · RELEASE</p>
-      <p className="absolute bottom-[6%] right-[6%] text-right font-['Grooves_Display','Hahmlet',serif] leading-[0.9] text-(--ink)" style={{ fontSize: "10.5cqw" }}>Daniel<br />Caesar</p>
+    <div className="absolute inset-0 bg-(--cover-bg)">
+      {/* 커버는 왼쪽 정사각형 무대 안에 — 가로로 긴 카드에서도 비율 유지 */}
+      <div className="absolute inset-y-0 left-0 aspect-square max-w-full">
+      {RELEASES.map((r, i) => {
+        const row = findRow(rows, r);
+        const src = coverOf(row);
+        const pos = { left: `${6 + i * 16}%`, top: `${34 - i * 9}%`, zIndex: 3 - i, rotate: `${(i - 1) * 4}deg` };
+        if (src) return <img key={r.slug} src={src} alt="" loading="lazy" decoding="async" draggable={false} className="absolute aspect-square h-auto w-[46%] select-none rounded-[2px] object-cover shadow-[0_10px_18px_-8px_rgba(0,0,0,.5)]" style={{ ...pos, background: row.cover_color || "#888" }} />;
+        if (rows === null) return <span key={r.slug} className="absolute aspect-square w-[46%] rounded-[2px] bg-(--ink)/8" style={pos} />;
+        return <MarbleDisc key={r.slug} colors={r.disc} seed={r.seed} className="absolute w-[46%] drop-shadow-[0_10px_14px_rgba(0,0,0,.28)]" style={pos} />;
+      })}
+      </div>
+      <p className="absolute left-[7%] top-[7%] z-10 font-['Hahmlet',sans-serif] font-semibold tracking-[0.24em] text-(--accent)" style={{ fontSize: "3.2cqw" }}>NEWS · RELEASE</p>
+      <p className="absolute bottom-[6%] right-[6%] z-10 text-right font-['Grooves_Display','Hahmlet',serif] leading-[0.9] text-(--ink)" style={{ fontSize: "10.5cqw" }}>Daniel<br />Caesar</p>
     </div>
   );
 }
@@ -125,5 +135,5 @@ function AtoZ02() {
 const COVERS = { caesar: Caesar, "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
 export default function StoryCover({ name, className = "" }) {
   const C = COVERS[name] ?? Record;
-  return <span className={`block overflow-hidden [container-type:inline-size] ${className}`}><C /></span>;
+  return <span className={`relative block overflow-hidden [container-type:inline-size] ${className}`}><C /></span>;
 }

@@ -1,12 +1,11 @@
 "use client";
 // News — "Daniel Caesar, Pressed for Korea"
-// 1 히어로(마블 판 세 장) → 2 왜 반가운지 → 3 세 장 (발매순, 판 사양 + 추천곡) → 4 구매 안내 → 5 Grooves 컬렉션 · 출처
+// 1 히어로(앨범 커버 세 장) → 2 왜 반가운지 → 3 세 장 (발매순, 판 사양 + 추천곡) → 4 구매 안내 → 5 Grooves 컬렉션 · 출처
 // 사실 정보는 세컨드트랙 코리아 공지(인스타그램, 2026-10)와 발매 정보 기준
 // 앨범 커버·링크는 Grooves DB(albums)에서 가져옴 — 없으면 마블 판만 보여줌
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/utils/supabase/client";
 import { coverUrl } from "@/lib/albums";
+import { RELEASES, findRow, coverOf, useCaesar } from "./albums";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 import MarbleDisc from "@/components/story/MarbleDisc";
 
@@ -42,26 +41,6 @@ const RECORDS = [
     note: "초기 목업보다 블루가 더 진하게 제작되어 목업 이미지가 바뀌었지만, 해외 발매반과 같은 제품이에요.",
   },
 ];
-
-const low = (v) => String(v ?? "").toLowerCase().replace(/[’']/g, "").trim();
-
-// Grooves DB 에 있는 다니엘 시저 앨범 전부 (공개된 것만, 발매순)
-function useCaesar() {
-  const [rows, setRows] = useState([]);
-  useEffect(() => {
-    let off = false;
-    createClient().from("albums")
-      .select("slug, title, artist_names, thumb_path, cover_color, release_year")
-      .eq("status", "published").ilike("artist_names", "%daniel caesar%")
-      .then(({ data }) => {
-        if (off || !data) return;
-        setRows([...data].sort((a, b) => (a.release_year ?? 0) - (b.release_year ?? 0) || a.title.localeCompare(b.title)));
-      }, () => {});
-    return () => { off = true; };
-  }, []);
-  return rows;
-}
-const findRow = (rows, r) => rows.find((a) => a.slug === r.slug) ?? rows.find((a) => low(a.title) === low(r.title));
 
 function Head({ n, label, lines, children }) {
   return (
@@ -166,7 +145,7 @@ function MoreFrom({ rows }) {
 export default function Story() {
   const rows = useCaesar();
   const featured = RECORDS.map((r) => findRow(rows, r));
-  const others = rows.filter((a) => !featured.includes(a));
+  const others = (rows ?? []).filter((a) => !featured.includes(a));
   return (
     <>
       {/* 1 히어로 */}
@@ -179,13 +158,25 @@ export default function Story() {
               세컨드트랙이 다니엘 시저의 세 장을 국내에서 정식 LP로 발매해요. Pilgrim’s Paradise, Freudian, Case Study 01 — 모두 마블 컬러 180g 판이에요.
             </Reveal>
           </div>
-          {/* 세 장이 부채꼴로 겹쳐 천천히 돎 */}
+          {/* 세 장의 앨범 커버가 부채꼴로 겹침 (DB 커버, 못 찾으면 마블 판) */}
           <Reveal delay={300} className="relative mx-auto aspect-square w-[min(86vw,540px)]" aria-hidden="true">
-            {RECORDS.map((r, i) => (
-              <div key={r.code} className="absolute w-[62%]" style={{ left: `${4 + i * 17}%`, top: `${30 - i * 14}%`, zIndex: 3 - i }}>
-                <MarbleDisc colors={r.disc} seed={r.seed} className="block w-full animate-spin drop-shadow-[0_20px_26px_rgba(0,0,0,.3)] motion-reduce:animate-none" style={{ animationDuration: `${22 + i * 6}s`, animationDirection: i % 2 ? "reverse" : "normal" }} />
-              </div>
-            ))}
+            {RELEASES.map((r, i) => {
+              const row = findRow(rows, r);
+              const src = coverOf(row);
+              return (
+                <div key={r.slug} className="absolute w-[58%] transition-transform duration-700 hover:-translate-y-2"
+                  style={{ left: `${2 + i * 20}%`, top: `${36 - i * 17}%`, zIndex: 3 - i, rotate: `${(i - 1) * 4}deg` }}>
+                  {src ? (
+                    <img src={src} alt="" loading="eager" decoding="async" draggable={false}
+                      className="aspect-square h-auto w-full select-none rounded-[3px] object-cover shadow-[0_28px_50px_-24px_rgba(0,0,0,.6)]" style={{ background: row.cover_color || "var(--cover-bg)" }} />
+                  ) : rows === null ? (
+                    <div className="aspect-square w-full rounded-[3px] bg-(--ink)/8" />
+                  ) : (
+                    <MarbleDisc colors={r.disc} seed={r.seed} className="block w-full animate-spin drop-shadow-[0_20px_26px_rgba(0,0,0,.3)] [animation-duration:24s] motion-reduce:animate-none" />
+                  )}
+                </div>
+              );
+            })}
           </Reveal>
         </div>
       </section>
