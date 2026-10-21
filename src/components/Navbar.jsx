@@ -1,7 +1,7 @@
 'use client';
 /* 사이트 헤더 — "레코드 레이블 마스트헤드"
    - 왼쪽: Bodoni 워드마크
-   - 가운데: 01 Home · 02 Digging … 번호 붙은 메뉴. 호버하면 밑줄이 그어짐
+   - 가운데: 01 Home · 02 Records · 03 Lab · 04 News. Records/Lab 은 마우스를 올리면 아래로 패널이 펼쳐짐 (02.1 Dig · 02.2 My Shelf …)
    - 오른쪽: (재생 중일 때만) Now spinning · Login · 테마(크림 ↔︎ 브라운)
    - 처음 로딩 때 왼쪽부터 차례로 아래에서 올라옴 (Rise)
    - 스크롤하면 아래 헤어라인 (높이는 고정: Digging 고정 바·Home 엔진이 헤더 높이에 맞춰져 있음). 모바일은 Menu → 전체 화면 메뉴
@@ -9,9 +9,12 @@
 import Link from 'next/link';
 import {useEffect,useRef,useState} from 'react';
 import {useIntro} from './intro/intro-context';
-import {NAV} from './crate/routes';
+import {MENU} from './crate/routes';
+import MenuPreview,{useMenuPreview,countLine} from './nav/MenuPreview';
 // 현재 메뉴: 정확히 같은 주소 + 하위 주소 (/news/어떤-글 → News)
 const isCurrent=(path,href)=>path===href||(href!=='/'&&!!path?.startsWith(href+'/'));
+// 묶음 메뉴(Records, Lab)는 하위 페이지 중 하나에 있으면 현재
+const groupCurrent=(path,item)=>item.children?item.children.some(c=>isCurrent(path,c.href)):isCurrent(path,item.href);
 import {useNowSpinning} from '@/lib/nowSpinning';
 import useAuthUser,{profileOf,signOut,useIsAdmin} from '@/lib/useAuthUser';
 import {useTheme,toggleTheme} from '@/lib/theme';
@@ -99,6 +102,19 @@ export default function Navbar({path}){
   const [scrolled,setScrolled]=useState(false);
   const [open,setOpen]=useState(false);
   const [shown,setShown]=useState(revealedOnce);
+  // 데스크톱 펼침 패널: 지금 열린 묶음 이름(Records/Lab) 또는 null. 마우스가 나가면 조금 기다렸다 닫음
+  const [drop,setDrop]=useState(null);
+  const leave=useRef(0);
+  const openDrop=label=>{clearTimeout(leave.current);setDrop(label);};
+  const closeDrop=(wait=160)=>{clearTimeout(leave.current);leave.current=setTimeout(()=>setDrop(null),wait);};
+  const preview=useMenuPreview(drop!==null||open,user===undefined?undefined:!!user);
+  useEffect(()=>{setDrop(null);},[path]);
+  useEffect(()=>{
+    if(!drop)return;
+    const onKey=e=>{if(e.key==='Escape')setDrop(null);};
+    window.addEventListener('keydown',onKey);
+    return()=>window.removeEventListener('keydown',onKey);
+  },[drop]);
   useEffect(()=>{
     if(!done||shown)return;
     const id=requestAnimationFrame(()=>{revealedOnce=true;setShown(true);});
@@ -133,17 +149,56 @@ export default function Navbar({path}){
       <Rise show={shown} className="pb-[.12em]">Grooves</Rise>
     </Link>
 
-    <ul className="hidden items-center gap-[clamp(24px,3.2vw,56px)] md:flex">
-      {NAV.map((item,i)=><li key={item.href}>
-        <Link href={item.href} aria-current={isCurrent(path,item.href)?'page':undefined}
-          className="group relative block py-2 text-[clamp(15px,1.4vw,20px)] font-medium uppercase tracking-[.14em] opacity-60 transition-opacity duration-300 hover:opacity-100 aria-[current=page]:opacity-100">
-          <Rise show={shown} delay={RISE_STEP*(i+1)}>
-            <span className="flex items-baseline gap-2.5"><span className="text-[.55em] tabular-nums tracking-[.08em] opacity-55">{num(i)}</span>{item.label}</span>
-          </Rise>
-          <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[1.5px] origin-left scale-x-0 bg-current transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-x-100 group-aria-[current=page]:scale-x-100"/>
-        </Link>
-      </li>)}
+    <ul className="hidden items-center gap-[clamp(24px,3.2vw,56px)] md:flex" onPointerLeave={()=>closeDrop()}>
+      {MENU.map((item,i)=>{
+        const current=groupCurrent(path,item);
+        const label=<Rise show={shown} delay={RISE_STEP*(i+1)}>
+          <span className="flex items-baseline gap-2.5"><span className="text-[.55em] tabular-nums tracking-[.08em] opacity-55">{num(i)}</span>{item.label}</span>
+        </Rise>;
+        const line=<span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[1.5px] origin-left scale-x-0 bg-current transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-x-100 group-aria-[current=page]:scale-x-100 group-data-[open=true]:scale-x-100"/>;
+        const cls="group relative block py-2 text-[clamp(15px,1.4vw,20px)] font-medium uppercase tracking-[.14em] opacity-60 transition-opacity duration-300 hover:opacity-100 aria-[current=page]:opacity-100 data-[open=true]:opacity-100";
+        return <li key={item.label} onPointerEnter={()=>item.children?openDrop(item.label):closeDrop(0)}>
+          {item.children
+            ?<button type="button" className={cls} aria-expanded={drop===item.label} aria-controls="site-drop" data-open={drop===item.label}
+                aria-current={current?'page':undefined} onClick={()=>setDrop(d=>d===item.label?null:item.label)} onFocus={()=>openDrop(item.label)}>{label}{line}</button>
+            :<Link href={item.href} aria-current={current?'page':undefined} className={cls} onFocus={()=>closeDrop(0)}>{label}{line}</Link>}
+        </li>;
+      })}
     </ul>
+
+    {/* 펼침 패널 — 헤더 바로 아래에 같은 바탕으로 내려옴 (헤더 높이는 그대로) */}
+    {MENU.filter(m=>m.children).map(group=>{
+      const gi=MENU.indexOf(group);
+      const on=drop===group.label;
+      return <div key={group.label} id={on?'site-drop':undefined} inert={!on} data-open={on}
+        onPointerEnter={()=>openDrop(group.label)} onPointerLeave={()=>closeDrop()}
+        className="absolute inset-x-0 top-full hidden bg-(--ct-header-bg) text-(--ct-header-fg) shadow-[0_24px_40px_-30px_rgba(0,0,0,.45)] transition-[clip-path] duration-500 ease-[cubic-bezier(.76,0,.24,1)] [clip-path:inset(0_0_100%_0)] data-[open=true]:[clip-path:inset(0_0_-40px_0)] md:block">
+        <span aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-current/15"/>
+        <ul className="grid grid-cols-2 px-[clamp(16px,3.2vw,44px)]">
+          {group.children.map((c,k)=>{
+            const count=countLine(c.preview,preview,user===undefined?undefined:user);
+            const body=<>
+              <span className="flex min-w-0 flex-col">
+                <span className="text-[11px] tabular-nums tracking-[.14em] opacity-55">{num(gi)}.{k+1}{c.soon&&<span className="ml-3 rounded-full border border-current/30 px-2 py-0.5 text-[9px] uppercase tracking-[.2em]">Soon</span>}</span>
+                <span className="mt-2 text-[clamp(32px,3.4vw,52px)] font-black leading-[.95] tracking-[-0.012em]" style={BODONI}>{c.label}</span>
+                <span className="mt-3 text-[14px] leading-6 opacity-70">{c.desc}</span>
+                <span className="mt-4 flex items-center gap-3 text-[11px] uppercase tracking-[.18em] opacity-55"><span className="h-px w-10 bg-current"/>{count??(c.soon?'Coming soon':'Open')}</span>
+              </span>
+              <span className="pointer-events-none flex h-[clamp(96px,9vw,128px)] w-[clamp(140px,14vw,200px)] shrink-0 items-center justify-end">
+                <MenuPreview kind={c.preview} data={preview} signedIn={user===undefined?undefined:user}/>
+              </span>
+            </>;
+            const cell=`group/item flex items-center justify-between gap-6 py-[clamp(22px,2.6vw,36px)] transition-[translate,opacity] duration-700 ease-[cubic-bezier(.22,1,.36,1)] ${k?'border-l border-current/15 pl-[clamp(20px,3vw,48px)]':'pr-[clamp(20px,3vw,48px)]'} ${on?'translate-y-0 opacity-100':'translate-y-4 opacity-0'}`;
+            return <li key={c.label} style={{transitionDelay:on?`${120+k*90}ms`:'0ms'}} className={cell}>
+              {c.soon
+                ?<span aria-disabled="true" className="flex w-full cursor-default items-center justify-between gap-6 opacity-80">{body}</span>
+                :<Link href={c.href} aria-current={isCurrent(path,c.href)?'page':undefined} onClick={()=>setDrop(null)}
+                  className="group/link flex w-full items-center justify-between gap-6 [&[aria-current=page]_.font-black]:underline [&[aria-current=page]_.font-black]:decoration-[1.5px] [&[aria-current=page]_.font-black]:underline-offset-[.18em]">{body}</Link>}
+            </li>;
+          })}
+        </ul>
+      </div>;
+    })}
 
     <div className="flex items-center justify-self-end gap-[clamp(12px,1.6vw,22px)]">
       {spinning&&<Link href={`/album/${spinning.slug}`} title={`Now spinning — ${spinning.title}`}
@@ -158,10 +213,10 @@ export default function Navbar({path}){
       {user?<div className="hidden md:block"><UserMenu user={user}/></div>
         :<Link href={`/login${path&&path!=='/'&&path!=='/login'?`?next=${encodeURIComponent(path)}`:''}`} aria-current={path==='/login'?'page':undefined}
         className={`group relative hidden py-1 text-[16px] font-medium uppercase tracking-[.16em] transition-opacity duration-300 md:block ${user===undefined?'opacity-0':''}`}>
-        <Rise show={shown} delay={RISE_STEP*(NAV.length+1)}>Login</Rise>
+        <Rise show={shown} delay={RISE_STEP*(MENU.length+1)}>Login</Rise>
         <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px origin-right scale-x-0 bg-current transition-transform duration-500 group-hover:origin-left group-hover:scale-x-100"/>
       </Link>}
-      <Rise show={shown} delay={RISE_STEP*(NAV.length+2)} className="hidden md:block">
+      <Rise show={shown} delay={RISE_STEP*(MENU.length+2)} className="hidden md:block">
         <ThemeButton/>
       </Rise>
       {/* 모바일: Menu */}
@@ -183,14 +238,33 @@ export default function Navbar({path}){
         </button>
       </div>
       <ul className="mt-auto flex flex-col">
-        {NAV.map((item,i)=><li key={item.href} className="overflow-y-clip border-b border-[#f4e7cd]/15">
-          <Link href={item.href} onClick={()=>setOpen(false)} aria-current={isCurrent(path,item.href)?'page':undefined}
-            className={`flex items-baseline gap-4 py-3 transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] ${open?'translate-y-0':'translate-y-full'}`}
-            style={{transitionDelay:open?`${180+i*70}ms`:'0ms'}}>
-            <span className="text-[11px] tabular-nums tracking-[.1em] opacity-50">{num(i)}</span>
-            <span className="text-[clamp(44px,13vw,64px)] font-black leading-[1] tracking-[-0.012em]" style={BODONI}>{item.label}</span>
-            {path===item.href&&<span aria-hidden="true" className="ml-auto size-2 self-center rounded-full bg-current"/>}
-          </Link>
+        {MENU.map((item,i)=><li key={item.label} className="overflow-y-clip border-b border-[#f4e7cd]/15">
+          {item.children
+            ?<div className={`py-3 transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] ${open?'translate-y-0':'translate-y-full'}`} style={{transitionDelay:open?`${180+i*70}ms`:'0ms'}}>
+              <p className="flex items-baseline gap-4">
+                <span className="text-[11px] tabular-nums tracking-[.1em] opacity-50">{num(i)}</span>
+                <span className="text-[clamp(44px,13vw,64px)] font-black leading-[1] tracking-[-0.012em]" style={BODONI}>{item.label}</span>
+              </p>
+              <ul className="mb-1 mt-2 grid gap-1 pl-[34px]">
+                {item.children.map((c,k)=><li key={c.label}>
+                  {c.soon
+                    ?<span className="flex items-baseline gap-3 py-1.5 opacity-50"><span className="text-[10px] tabular-nums opacity-60">{num(i)}.{k+1}</span><span className="text-[22px] font-black" style={BODONI}>{c.label}</span><span className="truncate text-[12px]">{c.desc}</span><span className="ml-auto shrink-0 text-[9px] uppercase tracking-[.2em]">Soon</span></span>
+                    :<Link href={c.href} onClick={()=>setOpen(false)} aria-current={isCurrent(path,c.href)?'page':undefined} className="flex items-baseline gap-3 py-1.5">
+                      <span className="text-[10px] tabular-nums opacity-50">{num(i)}.{k+1}</span>
+                      <span className="text-[22px] font-black" style={BODONI}>{c.label}</span>
+                      <span className="truncate text-[12px] opacity-60">{c.desc}</span>
+                      {isCurrent(path,c.href)&&<span aria-hidden="true" className="ml-auto size-2 shrink-0 self-center rounded-full bg-current"/>}
+                    </Link>}
+                </li>)}
+              </ul>
+            </div>
+            :<Link href={item.href} onClick={()=>setOpen(false)} aria-current={isCurrent(path,item.href)?'page':undefined}
+              className={`flex items-baseline gap-4 py-3 transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] ${open?'translate-y-0':'translate-y-full'}`}
+              style={{transitionDelay:open?`${180+i*70}ms`:'0ms'}}>
+              <span className="text-[11px] tabular-nums tracking-[.1em] opacity-50">{num(i)}</span>
+              <span className="text-[clamp(44px,13vw,64px)] font-black leading-[1] tracking-[-0.012em]" style={BODONI}>{item.label}</span>
+              {path===item.href&&<span aria-hidden="true" className="ml-auto size-2 self-center rounded-full bg-current"/>}
+            </Link>}
         </li>)}
       </ul>
       {spinning&&<Link href={`/album/${spinning.slug}`} onClick={()=>setOpen(false)} className="mt-8 flex min-w-0 items-center gap-3 rounded-full border border-[#f4e7cd]/20 py-1.5 pl-1.5 pr-4 text-[13px]">

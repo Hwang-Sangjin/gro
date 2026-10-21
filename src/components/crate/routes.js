@@ -25,3 +25,18 @@ export function normalizedPath(path) {
 export function isAlbumCoverTransition(from, to) {
   return isCoverFlightSource(normalizedPath(from)) && /^\/album\/[^/]+$/.test(normalizedPath(to));
 }
+
+// 헤더 메뉴 (NAV 는 페이지 순서·전환용으로 그대로 두고, 헤더는 이 묶음으로 보여줌)
+// children 이 있으면 마우스를 올렸을 때 아래로 펼쳐지는 패널. soon: 아직 없는 페이지 (누를 수 없음)
+export const MENU = [
+  { href: '/', label: 'Home' },
+  { label: 'Records', children: [
+    { href: '/digging', label: 'Dig', desc: '모든 판을 한 장씩 넘겨 보기', preview: 'dig' },
+    { href: '/collection', label: 'My Shelf', desc: '내가 가진 판과 갖고 싶은 판', preview: 'shelf' },
+  ] },
+  { label: 'Lab', children: [
+    { href: '/lab/lego', label: 'LEGO', desc: '앨범 커버를 브릭 모자이크로', preview: 'lego', soon: true },
+    { href: '/lab/map', label: 'Map', desc: '레코드숍과 LP바를 지도에서', preview: 'map', soon: true },
+  ] },
+  { href: '/news', label: 'News' },
+];
