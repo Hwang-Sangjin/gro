@@ -1,7 +1,7 @@
 'use client';
 /* 사이트 헤더 — "레코드 레이블 마스트헤드"
    - 왼쪽: Bodoni 워드마크
-   - 가운데: 01 Home · 02 Records · 03 Lab · 04 News. Records/Lab 은 마우스를 올리면 아래로 패널이 펼쳐짐 (02.1 Dig · 02.2 My Shelf …)
+   - 가운데: 01 Home · 02 Records · 03 Lab · 04 News. Records/Lab 은 마우스를 올리면 아래로 패널이 펼쳐짐 (02.1 Digging · 02.2 Collection …). Records 를 누르면 Digging 으로
    - 오른쪽: (재생 중일 때만) Now spinning · Login · 테마(크림 ↔︎ 브라운)
    - 처음 로딩 때 왼쪽부터 차례로 아래에서 올라옴 (Rise)
    - 스크롤하면 아래 헤어라인 (높이는 고정: Digging 고정 바·Home 엔진이 헤더 높이에 맞춰져 있음). 모바일은 Menu → 전체 화면 메뉴
@@ -158,7 +158,10 @@ export default function Navbar({path}){
         const line=<span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[1.5px] origin-left scale-x-0 bg-current transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-x-100 group-aria-[current=page]:scale-x-100 group-data-[open=true]:scale-x-100"/>;
         const cls="group relative block py-2 text-[clamp(15px,1.4vw,20px)] font-medium uppercase tracking-[.14em] opacity-60 transition-opacity duration-300 hover:opacity-100 aria-[current=page]:opacity-100 data-[open=true]:opacity-100";
         return <li key={item.label} onPointerEnter={()=>item.children?openDrop(item.label):closeDrop(0)}>
-          {item.children
+          {item.children&&item.href
+            ?<Link href={item.href} className={cls} aria-expanded={drop===item.label} aria-controls="site-drop" data-open={drop===item.label}
+                aria-current={current?'page':undefined} onClick={()=>setDrop(null)} onFocus={()=>openDrop(item.label)}>{label}{line}</Link>
+            :item.children
             ?<button type="button" className={cls} aria-expanded={drop===item.label} aria-controls="site-drop" data-open={drop===item.label}
                 aria-current={current?'page':undefined} onClick={()=>setDrop(d=>d===item.label?null:item.label)} onFocus={()=>openDrop(item.label)}>{label}{line}</button>
             :<Link href={item.href} aria-current={current?'page':undefined} className={cls} onFocus={()=>closeDrop(0)}>{label}{line}</Link>}
@@ -241,10 +244,15 @@ export default function Navbar({path}){
         {MENU.map((item,i)=><li key={item.label} className="overflow-y-clip border-b border-[#f4e7cd]/15">
           {item.children
             ?<div className={`py-3 transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] ${open?'translate-y-0':'translate-y-full'}`} style={{transitionDelay:open?`${180+i*70}ms`:'0ms'}}>
-              <p className="flex items-baseline gap-4">
-                <span className="text-[11px] tabular-nums tracking-[.1em] opacity-50">{num(i)}</span>
-                <span className="text-[clamp(44px,13vw,64px)] font-black leading-[1] tracking-[-0.012em]" style={BODONI}>{item.label}</span>
-              </p>
+              {item.href
+                ?<Link href={item.href} onClick={()=>setOpen(false)} className="flex items-baseline gap-4">
+                  <span className="text-[11px] tabular-nums tracking-[.1em] opacity-50">{num(i)}</span>
+                  <span className="text-[clamp(44px,13vw,64px)] font-black leading-[1] tracking-[-0.012em]" style={BODONI}>{item.label}</span>
+                </Link>
+                :<p className="flex items-baseline gap-4">
+                  <span className="text-[11px] tabular-nums tracking-[.1em] opacity-50">{num(i)}</span>
+                  <span className="text-[clamp(44px,13vw,64px)] font-black leading-[1] tracking-[-0.012em]" style={BODONI}>{item.label}</span>
+                </p>}
               <ul className="mb-1 mt-2 grid gap-1 pl-[34px]">
                 {item.children.map((c,k)=><li key={c.label}>
                   {c.soon

@@ -27,12 +27,12 @@ export function isAlbumCoverTransition(from, to) {
 }
 
 // 헤더 메뉴 (NAV 는 페이지 순서·전환용으로 그대로 두고, 헤더는 이 묶음으로 보여줌)
-// children 이 있으면 마우스를 올렸을 때 아래로 펼쳐지는 패널. soon: 아직 없는 페이지 (누를 수 없음)
+// children 이 있으면 마우스를 올렸을 때 아래로 펼쳐지는 패널. href 가 있으면 눌렀을 때 그 페이지로 (Records → Digging). soon: 아직 없는 페이지 (누를 수 없음)
 export const MENU = [
   { href: '/', label: 'Home' },
-  { label: 'Records', children: [
-    { href: '/digging', label: 'Dig', desc: '모든 판을 한 장씩 넘겨 보기', preview: 'dig' },
-    { href: '/collection', label: 'My Shelf', desc: '내가 가진 판과 갖고 싶은 판', preview: 'shelf' },
+  { label: 'Records', href: '/digging', children: [
+    { href: '/digging', label: 'Digging', desc: '모든 판을 한 장씩 넘겨 보기', preview: 'dig' },
+    { href: '/collection', label: 'Collection', desc: '내가 가진 판과 갖고 싶은 판', preview: 'shelf' },
   ] },
   { label: 'Lab', children: [
     { href: '/lab/lego', label: 'LEGO', desc: '앨범 커버를 브릭 모자이크로', preview: 'lego', soon: true },
