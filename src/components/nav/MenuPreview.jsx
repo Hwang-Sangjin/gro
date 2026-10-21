@@ -1,5 +1,5 @@
 'use client';
-// 헤더 펼침 패널 속 작은 그림 — Dig: 최근 등록된 커버 3장 / My Shelf: 내 판 3장 / LEGO: 커버를 브릭으로 / Map: 선 지도와 핀
+// 헤더 펼침 패널 속 작은 그림 — Digging: 최근 등록된 커버 3장 / Collection: 내 판 3장 / Brick: 커버를 브릭으로 / Map: 선 지도와 핀
 import {useEffect,useRef,useState} from 'react';
 import {authClient} from '@/lib/useAuthUser';
 import {coverUrl} from '@/lib/albums';
@@ -44,7 +44,7 @@ function Stack({items}){
 }
 
 // 커버 한 장을 14×14 브릭으로 (캔버스에 작게 그려 크게 늘림 + 스터드 무늬)
-function Lego({album}){
+function Brick({album}){
   const ref=useRef(null);
   useEffect(()=>{
     const c=ref.current;if(!c||!album?.thumb_path)return;
@@ -79,7 +79,7 @@ export default function MenuPreview({kind,data,signedIn}){
   if(kind==='shelf')return signedIn===null
     ?<span className="flex h-full items-center"><span className="rounded-full border border-current/30 px-3 py-1.5 text-[11px] uppercase tracking-[.18em]">Log in to start</span></span>
     :<Stack items={data?.shelf?.items}/>;
-  if(kind==='lego')return <Lego album={data?.dig.items?.[0]}/>;
+  if(kind==='brick')return <Brick album={data?.dig.items?.[0]}/>;
   if(kind==='map')return <MapArt/>;
   return null;
 }

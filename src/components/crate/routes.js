@@ -35,7 +35,7 @@ export const MENU = [
     { href: '/collection', label: 'Collection', desc: '내가 가진 판과 갖고 싶은 판', preview: 'shelf' },
   ] },
   { label: 'Lab', children: [
-    { href: '/lab/lego', label: 'LEGO', desc: '앨범 커버를 브릭 모자이크로', preview: 'lego', soon: true },
+    { href: '/lab/brick', label: 'Brick', desc: '앨범 커버를 브릭 모자이크로', preview: 'brick', soon: true },
     { href: '/lab/map', label: 'Map', desc: '레코드숍과 LP바를 지도에서', preview: 'map', soon: true },
   ] },
   { href: '/news', label: 'News' },
