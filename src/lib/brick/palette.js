@@ -1,4 +1,4 @@
-// 브릭 색 팔레트 — 1×1 둥근 플레이트로 흔히 구할 수 있는 색 (hex 는 Rebrickable 색표 기준 근사값)
+// 브릭 색 팔레트 — 1×1 네모 브릭로 흔히 구할 수 있는 색 (hex 는 Rebrickable 색표 기준 근사값)
 // 판매 키트를 만들 때는 실제 재고·부품 번호(BrickLink 색 ID 등)를 여기에 더하면 됨
 export const PALETTE = [
   { id: "white", name: "White", hex: "#F4F4F4" },

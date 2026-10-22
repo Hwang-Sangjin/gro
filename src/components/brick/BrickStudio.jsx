@@ -26,21 +26,37 @@ function loadImage(src) {
   });
 }
 
-// DB 앨범 (최근 등록순, 검색어가 있으면 제목·아티스트에서)
+// DB 앨범 (최근 등록순, 검색어가 있으면 제목·아티스트에서) — 스크롤하면 30개씩 더 불러와요
+const PAGE = 30;
 function useAlbums(q) {
   const [rows, setRows] = useState(null);
+  const [more, setMore] = useState(false);
+  const busy = useRef(false);
+  const fetchPage = (from, k) => {
+    let req = createClient().from("albums").select("slug, title, artist_names, thumb_path, cover_color")
+      .eq("status", "published").not("thumb_path", "is", null).order("created_at", { ascending: false }).range(from, from + PAGE - 1);
+    if (k) req = req.or(`title.ilike.%${k}%,artist_names.ilike.%${k}%`);
+    return req;
+  };
+  const key = (v) => v.trim().replace(/[,%()*]/g, " ").trim();
   useEffect(() => {
     let off = false;
+    busy.current = false;
     const t = setTimeout(() => {
-      let req = createClient().from("albums").select("slug, title, artist_names, thumb_path, cover_color")
-        .eq("status", "published").not("thumb_path", "is", null).order("created_at", { ascending: false }).limit(30);
-      const k = q.trim().replace(/[,%()*]/g, " ").trim();
-      if (k) req = req.or(`title.ilike.%${k}%,artist_names.ilike.%${k}%`);
-      req.then(({ data }) => { if (!off) setRows(data ?? []); }, () => { if (!off) setRows([]); });
+      fetchPage(0, key(q)).then(({ data }) => { if (!off) { setRows(data ?? []); setMore((data?.length ?? 0) === PAGE); } }, () => { if (!off) { setRows([]); setMore(false); } });
     }, q ? 250 : 0);
     return () => { off = true; clearTimeout(t); };
-  }, [q]);
-  return rows;
+  }, [q]); // eslint-disable-line react-hooks/exhaustive-deps
+  const loadMore = () => {
+    if (busy.current || !more || !rows) return;
+    busy.current = true;
+    fetchPage(rows.length, key(q)).then(({ data }) => {
+      const next = data ?? [];
+      setRows((r) => [...(r ?? []), ...next.filter((n) => !(r ?? []).some((x) => x.slug === n.slug))]);
+      setMore(next.length === PAGE);
+    }, () => setMore(false)).finally(() => { busy.current = false; });
+  };
+  return { rows, more, loadMore };
 }
 
 function Slider({ label, value, onChange }) {
@@ -53,18 +69,18 @@ function Slider({ label, value, onChange }) {
   );
 }
 
-// 스터드 모양 색 견본
+// 네모 브릭 모양 색 견본
 function Swatch({ hex, className = "size-6" }) {
   return (
-    <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-full shadow-[inset_0_-2px_0_rgba(0,0,0,.25),0_1px_2px_rgba(0,0,0,.25)] ${className}`} style={{ background: hex }}>
-      <span className="size-[58%] rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,.45),0_1px_1px_rgba(0,0,0,.3)]" style={{ background: hex }} />
+    <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-[3px] shadow-[inset_0_-2px_0_rgba(0,0,0,.25),0_1px_2px_rgba(0,0,0,.25)] ${className}`} style={{ background: hex }}>
+      <span className="size-[58%] rounded-[2px] shadow-[inset_0_1px_0_rgba(255,255,255,.45),0_1px_1px_rgba(0,0,0,.3)]" style={{ background: hex }} />
     </span>
   );
 }
 
 export default function BrickStudio() {
   const [q, setQ] = useState("");
-  const albums = useAlbums(q);
+  const { rows: albums, more: moreAlbums, loadMore } = useAlbums(q);
   const [tab, setTab] = useState("albums");
   const [source, setSource] = useState(null);       // { key, title, sub, img, crop }
   const [pixels, setPixels] = useState(null);
@@ -148,7 +164,7 @@ export default function BrickStudio() {
         <section aria-label="Bricks needed" className={`${PANEL} p-4 lg:order-3`}>
           <div className="flex items-baseline justify-between">
             <p className={LABEL}>Bricks</p>
-            <p className="text-[11px] text-(--ink)/55">1×1 둥근 플레이트</p>
+            <p className="text-[11px] text-(--ink)/55">1×1 네모 브릭</p>
           </div>
           <ul className="mt-3 grid max-h-[min(56svh,560px)] gap-0.5 overflow-y-auto pr-1 max-lg:flex max-lg:max-h-none max-lg:overflow-x-auto max-lg:pb-2" onPointerLeave={() => setHover(null)}>
             {mosaic?.counts.map(({ index, count }) => {
@@ -186,7 +202,8 @@ export default function BrickStudio() {
               <>
                 <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="앨범·아티스트 검색"
                   className="mt-3 h-10 w-full rounded-full border border-(--ink)/30 bg-transparent px-4 text-[14px] outline-none placeholder:text-(--ink)/40 focus:border-(--ink)" />
-                <ul className="mt-3 grid max-h-[min(40svh,420px)] grid-cols-3 gap-2 overflow-y-auto pr-1">
+                <ul onScroll={(e) => { const el = e.currentTarget; if (el.scrollTop + el.clientHeight > el.scrollHeight - 160) loadMore(); }}
+                  className="mt-3 grid max-h-[min(46svh,480px)] grid-cols-3 content-start gap-2 overflow-y-auto overscroll-contain pr-1">
                   {albums === null && Array.from({ length: 9 }, (_, i) => <li key={i} className="aspect-square animate-pulse rounded-[3px] bg-(--ink)/8" />)}
                   {albums?.length === 0 && <li className="col-span-3 py-6 text-center text-[13px] text-(--ink)/55">찾는 앨범이 없어요.</li>}
                   {albums?.map((a) => {
@@ -201,6 +218,8 @@ export default function BrickStudio() {
                       </li>
                     );
                   })}
+                  {moreAlbums && albums && <li className="col-span-3 py-3 text-center text-[11px] uppercase tracking-[0.2em] text-(--ink)/45">
+                    <button type="button" onClick={loadMore} className="min-h-9 px-4 hover:text-(--ink)">더 보기 ↓</button></li>}
                 </ul>
               </>
             ) : (

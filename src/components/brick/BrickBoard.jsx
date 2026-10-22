@@ -18,20 +18,17 @@ const easeOutBack = (t) => { const c = 1.6; return 1 + (c + 1) * (t - 1) ** 3 + 
 const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 const PAL = PALETTE.map((p) => new THREE.Color(p.hex));
 
-// 1×1 둥근 플레이트: 아래 원판 + 위 스터드 (z 축이 위)
-// 브릭이 2,048개(앞뒤 두 면)라서 삼각형을 아껴요: 바닥 면은 판에 가려지니 빼고, 둘레는 16/12 조각
+// 1×1 네모 브릭: 아래 정사각 블록 + 위 정사각 스터드 (z 축이 위)
+// 브릭이 2,048개(앞뒤 두 면)라서 삼각형을 아껴요: 바닥 면은 판에 가려지니 뺐어요
 function brickGeometry() {
-  const base = new THREE.CylinderGeometry(0.47, 0.47, 0.34, 16, 1, false).rotateX(Math.PI / 2).translate(0, 0, 0.17);
-  const stud = new THREE.CylinderGeometry(0.29, 0.29, 0.16, 12, 1, false).rotateX(Math.PI / 2).translate(0, 0, 0.42);
+  const base = new THREE.BoxGeometry(0.96, 0.96, 0.34).translate(0, 0, 0.17);
+  const stud = new THREE.BoxGeometry(0.6, 0.6, 0.16).translate(0, 0, 0.42);
   return mergeGeometries([dropBottom(base), dropBottom(stud)]);
 }
-// 아래쪽(-z) 뚜껑 삼각형 제거 — 원기둥은 index 가 [옆면, 위 뚜껑, 아래 뚜껑] 순서
+// 아래쪽(-z) 면 제거 — 박스 index 는 면마다 6개, 마지막 면이 -z
 function dropBottom(g) {
-  const idx = g.index.array, total = idx.length;
-  const radial = g.parameters.radialSegments;
-  const cap = radial * 3;   // 뚜껑 삼각형 radial 개 × 꼭짓점 3
   const g2 = g.clone();
-  g2.setIndex(Array.from(idx.slice(0, total - cap)));
+  g2.setIndex(Array.from(g.index.array.slice(0, -6)));
   return g2.toNonIndexed();
 }
 
