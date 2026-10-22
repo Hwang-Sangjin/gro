@@ -18,18 +18,15 @@ const easeOutBack = (t) => { const c = 1.6; return 1 + (c + 1) * (t - 1) ** 3 + 
 const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 const PAL = PALETTE.map((p) => new THREE.Color(p.hex));
 
-// 1×1 네모 브릭: 아래 정사각 블록 + 위 정사각 스터드 (z 축이 위)
+// 1×1 플레이트: 정사각 블록 + 가운데 둥근 스터드 (z 축이 위)
 // 브릭이 2,048개(앞뒤 두 면)라서 삼각형을 아껴요: 바닥 면은 판에 가려지니 뺐어요
 function brickGeometry() {
-  const base = new THREE.BoxGeometry(0.96, 0.96, 0.34).translate(0, 0, 0.17);
-  const stud = new THREE.BoxGeometry(0.6, 0.6, 0.16).translate(0, 0, 0.42);
-  return mergeGeometries([dropBottom(base), dropBottom(stud)]);
-}
-// 아래쪽(-z) 면 제거 — 박스 index 는 면마다 6개, 마지막 면이 -z
-function dropBottom(g) {
-  const g2 = g.clone();
-  g2.setIndex(Array.from(g.index.array.slice(0, -6)));
-  return g2.toNonIndexed();
+  const base = new THREE.BoxGeometry(0.96, 0.96, 0.36).translate(0, 0, 0.18);
+  const stud = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16, 1, false).rotateX(Math.PI / 2).translate(0, 0, 0.46);
+  const studTop = stud.index.array.slice(0, -16 * 3);   // 원기둥 index: [옆면, 위 뚜껑, 아래 뚜껑] → 아래 뚜껑 제거
+  const s2 = stud.clone(); s2.setIndex(Array.from(studTop));
+  const b2 = base.clone(); b2.setIndex(Array.from(base.index.array.slice(0, -6))); // 박스: 마지막 면이 -z
+  return mergeGeometries([b2.toNonIndexed(), s2.toNonIndexed()]);
 }
 
 // 색 순서대로 시작 시간 매기기 (counts 순서 = 많은 색부터). only: 그 색만

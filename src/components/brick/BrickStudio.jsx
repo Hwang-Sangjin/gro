@@ -69,11 +69,11 @@ function Slider({ label, value, onChange }) {
   );
 }
 
-// 네모 브릭 모양 색 견본
+// 플레이트 모양 색 견본 (네모 + 가운데 원)
 function Swatch({ hex, className = "size-6" }) {
   return (
     <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-[3px] shadow-[inset_0_-2px_0_rgba(0,0,0,.25),0_1px_2px_rgba(0,0,0,.25)] ${className}`} style={{ background: hex }}>
-      <span className="size-[58%] rounded-[2px] shadow-[inset_0_1px_0_rgba(255,255,255,.45),0_1px_1px_rgba(0,0,0,.3)]" style={{ background: hex }} />
+      <span className="size-[56%] rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,.45),0_1px_1px_rgba(0,0,0,.3)]" style={{ background: hex }} />
     </span>
   );
 }
@@ -164,7 +164,7 @@ export default function BrickStudio() {
         <section aria-label="Bricks needed" className={`${PANEL} p-4 lg:order-3`}>
           <div className="flex items-baseline justify-between">
             <p className={LABEL}>Bricks</p>
-            <p className="text-[11px] text-(--ink)/55">1×1 네모 브릭</p>
+            <p className="text-[11px] text-(--ink)/55">1×1 플레이트</p>
           </div>
           <ul className="mt-3 grid max-h-[min(56svh,560px)] gap-0.5 overflow-y-auto pr-1 max-lg:flex max-lg:max-h-none max-lg:overflow-x-auto max-lg:pb-2" onPointerLeave={() => setHover(null)}>
             {mosaic?.counts.map(({ index, count }) => {
