@@ -166,7 +166,7 @@ export default function BrickStudio() {
             <p className={LABEL}>Bricks</p>
             <p className="text-[11px] text-(--ink)/55">1×1 플레이트</p>
           </div>
-          <ul className="mt-3 grid max-h-[min(56svh,560px)] gap-0.5 overflow-y-auto pr-1 max-lg:flex max-lg:max-h-none max-lg:overflow-x-auto max-lg:pb-2" onPointerLeave={() => setHover(null)}>
+          <ul data-lenis-prevent data-crate-ignore className="mt-3 grid max-h-[min(56svh,560px)] gap-0.5 overflow-y-auto pr-1 max-lg:flex max-lg:max-h-none max-lg:overflow-x-auto max-lg:pb-2" onPointerLeave={() => setHover(null)}>
             {mosaic?.counts.map(({ index, count }) => {
               const p = PALETTE[index];
               return (
@@ -202,7 +202,7 @@ export default function BrickStudio() {
               <>
                 <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="앨범·아티스트 검색"
                   className="mt-3 h-10 w-full rounded-full border border-(--ink)/30 bg-transparent px-4 text-[14px] outline-none placeholder:text-(--ink)/40 focus:border-(--ink)" />
-                <ul onScroll={(e) => { const el = e.currentTarget; if (el.scrollTop + el.clientHeight > el.scrollHeight - 160) loadMore(); }}
+                <ul data-lenis-prevent data-crate-ignore onScroll={(e) => { const el = e.currentTarget; if (el.scrollTop + el.clientHeight > el.scrollHeight - 160) loadMore(); }}
                   className="mt-3 grid max-h-[min(46svh,480px)] grid-cols-3 content-start gap-2 overflow-y-auto overscroll-contain pr-1">
                   {albums === null && Array.from({ length: 9 }, (_, i) => <li key={i} className="aspect-square animate-pulse rounded-[3px] bg-(--ink)/8" />)}
                   {albums?.length === 0 && <li className="col-span-3 py-6 text-center text-[13px] text-(--ink)/55">찾는 앨범이 없어요.</li>}
