@@ -9,14 +9,15 @@ export default function PlaceTable({ places: initial }) {
   const [places, setPlaces] = useState(initial);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState("all");
+  const [noPin, setNoPin] = useState(false);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState("");
 
   const shown = useMemo(() => {
     const q = query.trim().toLocaleLowerCase();
-    return places.filter((p) => (kind === "all" || p.kind === kind) &&
+    return places.filter((p) => (kind === "all" || p.kind === kind) && (!noPin || p.lat == null) &&
       (!q || `${p.name} ${p.name_en ?? ""} ${p.area ?? ""} ${p.address ?? ""} ${p.slug}`.toLocaleLowerCase().includes(q)));
-  }, [places, query, kind]);
+  }, [places, query, kind, noPin]);
 
   async function toggle(p) {
     const status = p.status === "published" ? "draft" : "published";
@@ -39,6 +40,10 @@ export default function PlaceTable({ places: initial }) {
               className="rounded-full px-3.5 py-1.5 text-[12px] tracking-[0.04em] text-(--ink)/60 aria-selected:bg-(--ink) aria-selected:text-(--cream)">{k.label}</button>
           ))}
         </div>
+        <label className="inline-flex items-center gap-2 text-[12px] text-(--ink)/65">
+          <input type="checkbox" checked={noPin} onChange={(e) => setNoPin(e.target.checked)} className="size-4 accent-(--accent)" />
+          No pin only ({places.filter((p) => p.lat == null).length})
+        </label>
         <span className="text-[12px] text-(--ink)/50 tabular-nums">{shown.length} shown</span>
       </div>
       {error && <p role="alert" className="mb-4 rounded-xl bg-(--danger)/10 px-4 py-3 text-[13px] text-(--danger)">{error}</p>}
@@ -51,7 +56,10 @@ export default function PlaceTable({ places: initial }) {
               <span className="size-3.5 rounded-full ring-2 ring-(--ink)/80" style={{ background: k.color }} title={k.ko} />
               <div className="min-w-0">
                 <Link href={`/admin/places/${encodeURIComponent(p.slug)}`} className="block truncate text-[15px] font-medium hover:underline">{p.name}</Link>
-                <p className="truncate text-[12px] text-(--ink)/55">{[k.ko, p.area, p.address].filter(Boolean).join(" · ")}</p>
+                <p className="truncate text-[12px] text-(--ink)/55">
+                  {p.lat == null && <span className="mr-2 rounded-full bg-(--danger)/12 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-(--danger)">No pin</span>}
+                  {[k.ko, p.area, p.address].filter(Boolean).join(" · ")}
+                </p>
               </div>
               <span className="hidden text-[12px] text-(--ink)/55 md:block">{p.kind === "event" && (p.starts_on || p.ends_on) ? `${p.starts_on ?? ""} – ${p.ends_on ?? ""}` : ""}</span>
               <button type="button" onClick={() => toggle(p)} disabled={busy === p.id} aria-pressed={p.status === "published"}

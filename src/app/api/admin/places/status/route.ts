@@ -15,7 +15,10 @@ export async function POST(req: Request) {
     }
     const { data, error } = await serviceClient()
       .from("places").update({ status }).eq("id", id).select("id, status").maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.code === "23514") return Response.json({ error: "Put a pin on the map first (Edit → click the map)." }, { status: 400 });
+      throw new Error(error.message);
+    }
     if (!data) return Response.json({ error: "Place not found." }, { status: 404 });
     return Response.json({ ok: true, ...data });
   } catch (e: any) {

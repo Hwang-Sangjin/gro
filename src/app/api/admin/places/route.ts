@@ -22,11 +22,16 @@ export async function POST(req: Request) {
     if (!name) return Response.json({ error: "Name is required." }, { status: 400 });
     if (!slug) return Response.json({ error: "Slug is required." }, { status: 400 });
     if (!KINDS.includes(p.kind)) return Response.json({ error: "Pick a kind." }, { status: 400 });
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 33 || lat > 39.5 || lng < 124 || lng > 132) {
-      return Response.json({ error: "Set the location — click the map." }, { status: 400 });
+    // 위치는 숨김(draft)일 때만 비워둘 수 있음 — 지도에 보이려면 핀이 꼭 있어야 함
+    const hasPin = p.lat != null && p.lng != null && p.lat !== "" && p.lng !== "";
+    if (hasPin && (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 33 || lat > 39.5 || lng < 124 || lng > 132)) {
+      return Response.json({ error: "That pin is outside Korea — click the map again." }, { status: 400 });
+    }
+    if (!hasPin && p.status === "published") {
+      return Response.json({ error: "Put a pin on the map before showing it on the map." }, { status: 400 });
     }
     const row = {
-      slug, name, lat, lng, kind: p.kind,
+      slug, name, kind: p.kind, lat: hasPin ? lat : null, lng: hasPin ? lng : null,
       name_en: text(p.name_en), area: text(p.area), address: text(p.address), hours: text(p.hours),
       instagram: text(cleanInstagram(p.instagram ?? "")), website: text(p.website), map_url: text(p.map_url),
       note: text(p.note), news_slug: text(p.news_slug),

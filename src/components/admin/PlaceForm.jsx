@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { GENRES } from "@/lib/genres";
 import { STORIES } from "@/content/news";
-import { KINDS, AREAS, kindOf, slugify } from "@/lib/places";
+import { KINDS, AREAS, kindOf, slugify, naverSearch } from "@/lib/places";
 import { field, labelCls, btnPrimary } from "./ui";
 
 const MapPicker = dynamic(() => import("@/components/map/MapPicker"), { ssr: false, loading: () => <div className="h-[340px] animate-pulse rounded-xl bg-(--ink)/8" /> });
@@ -144,7 +144,12 @@ export default function PlaceForm({ initial = null }) {
           <span className={labelCls}>Location — 지도를 누르거나 핀을 끌어서</span>
           <MapPicker lat={Number(f.lat) || null} lng={Number(f.lng) || null} color={kind.color}
             onPick={({ lat, lng }) => setF((x) => ({ ...x, lat, lng }))} className="h-[340px]" />
-          <p className="mt-2 font-mono text-[11px] text-(--ink)/55">{f.lat && f.lng ? `${Number(f.lat).toFixed(5)}, ${Number(f.lng).toFixed(5)}` : "아직 위치가 없어요"}</p>
+          <p className="mt-2 flex items-baseline justify-between gap-3 text-[11px] text-(--ink)/55">
+            <span className="font-mono">{f.lat && f.lng ? `${Number(f.lat).toFixed(5)}, ${Number(f.lng).toFixed(5)}` : "아직 핀이 없어요"}</span>
+            {(f.address || f.name) && (
+              <a href={naverSearch(f)} target="_blank" rel="noreferrer" className="shrink-0 underline-offset-4 hover:text-(--ink) hover:underline">네이버지도에서 찾아보기 ↗︎</a>
+            )}
+          </p>
         </div>
         <label className="flex items-center justify-between gap-3 rounded-xl border border-(--ink)/15 px-4 py-3 text-[13px]">
           <span><span className="font-medium">Show on the map</span><span className="block text-[12px] text-(--ink)/55">끄면 저장만 되고 지도에는 안 보여요</span></span>
