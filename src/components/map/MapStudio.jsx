@@ -1,14 +1,13 @@
 "use client";
-// /lab/map — 바이닐 장소 지도. 지금은 1·2단계: 우리 색으로 칠한 서울 지도 + 색 조절 패널(임시)
-// 3단계(장소 데이터·마커·왼쪽 목록·오른쪽 상세)는 색이 확정된 뒤에 붙임
-import { useEffect, useMemo, useRef, useState } from "react";
+// /lab/map — 바이닐 장소 지도. 우리 색으로 칠한 서울 지도 (색은 lib/map/style.js 에 고정)
+// 다음 단계: 장소 데이터 → 마커 · 왼쪽 목록(01 Places) · 오른쪽 상세(02 Detail)
+import { useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "@/lib/theme";
 import useLabReveal from "@/components/lab/useLabReveal";
-import { SERIF, LABEL, ShownCtx, Reveal, Heading } from "@/components/lab/LabUI";
-import { PALETTES, PAINT, KEYS, SEOUL, buildStyle } from "@/lib/map/style";
+import { SERIF, ShownCtx, Reveal, Heading } from "@/components/lab/LabUI";
+import { PALETTES, PAINT, SEOUL, buildStyle } from "@/lib/map/style";
 
-const SAVE_KEY = "grooves-map-palette";   // 조절 패널 값 (이 브라우저에만)
 const WORKER = "/maplibre/maplibre-gl-worker.mjs";
 const HANGUL_FONT = "'Hahmlet', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
 
@@ -21,22 +20,15 @@ const CONTROLS = [
 ].join(" ");
 const DARK_CONTROLS = "[&_.maplibregl-ctrl-icon]:invert [&_.maplibregl-ctrl-attrib-button]:invert";
 
-function readSaved() {
-  try { return JSON.parse(localStorage.getItem(SAVE_KEY) || "null") ?? { light: {}, dark: {} }; } catch { return { light: {}, dark: {} }; }
-}
-
 export default function MapStudio() {
   const shown = useLabReveal();
   const theme = useTheme() === "dark" ? "dark" : "light";
-  const [edits, setEdits] = useState({ light: {}, dark: {} });
-  const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
   const box = useRef(null);
   const map = useRef(null);
   const ready = useRef(false);
 
-  useEffect(() => { setEdits(readSaved()); }, []);
-  const palette = useMemo(() => ({ ...PALETTES[theme], ...edits[theme] }), [theme, edits]);
+  const palette = PALETTES[theme];
   const latest = useRef(palette);
   latest.current = palette;
 
@@ -67,28 +59,8 @@ export default function MapStudio() {
     return () => { gone = true; ready.current = false; map.current?.remove(); map.current = null; };
   }, []);
 
-  // 테마·색이 바뀌면 칠만 다시 (스타일 전체를 다시 불러오지 않음)
+  // 테마가 바뀌면 칠만 다시 (스타일 전체를 다시 불러오지 않음)
   useEffect(() => { if (map.current && ready.current) paint(map.current, palette); }, [palette]);
-
-  const setColor = (key, value) => {
-    setEdits((e) => {
-      const next = { ...e, [theme]: { ...e[theme], [key]: value } };
-      try { localStorage.setItem(SAVE_KEY, JSON.stringify(next)); } catch {}
-      return next;
-    });
-  };
-  const reset = () => {
-    setEdits((e) => {
-      const next = { ...e, [theme]: {} };
-      try { localStorage.setItem(SAVE_KEY, JSON.stringify(next)); } catch {}
-      return next;
-    });
-  };
-  const copy = async () => {
-    const out = { light: { ...PALETTES.light, ...edits.light }, dark: { ...PALETTES.dark, ...edits.dark } };
-    try { await navigator.clipboard.writeText(JSON.stringify(out, null, 2)); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch {}
-  };
-  const changed = Object.keys(edits[theme] ?? {}).length;
 
   return (
     <ShownCtx.Provider value={shown}>
@@ -136,32 +108,11 @@ export default function MapStudio() {
             </Reveal>
           </section>
 
-          {/* 오른쪽: 색 조절 (임시) */}
-          <section aria-label="Map colors" className="lg:order-3">
-            <Heading n="02" title="Style" action={<button type="button" onClick={reset} disabled={!changed}
-              className="text-[11px] font-medium uppercase tracking-[0.22em] text-(--ink)/55 hover:text-(--accent) disabled:opacity-40">Reset</button>} />
-            <Reveal i={1} className="mb-1 flex items-baseline justify-between text-[12px] text-(--ink)/60">
-              <span><span className="font-medium text-(--ink)">{theme === "dark" ? "Dark" : "Light"}</span> 테마 편집 중</span>
-              {changed > 0 && <span className="text-(--accent)">{changed}개 바뀜</span>}
-            </Reveal>
-            <ul>
-              {KEYS.map(([key, name], i) => (
-                <Reveal as="li" key={key} i={i + 2} className="border-b border-dashed border-(--ink)/25">
-                  <label className="grid grid-cols-[28px_1fr_auto] items-center gap-3 py-2.5 text-[13px]">
-                    <input type="color" value={palette[key]} onChange={(e) => setColor(key, e.target.value)} aria-label={`${name} 색`}
-                      className="size-7 cursor-pointer appearance-none border-0 bg-transparent p-0 [&::-moz-color-swatch]:rounded-[3px] [&::-moz-color-swatch]:border [&::-moz-color-swatch]:border-(--ink)/40 [&::-webkit-color-swatch]:rounded-[3px] [&::-webkit-color-swatch]:border [&::-webkit-color-swatch]:border-(--ink)/40 [&::-webkit-color-swatch-wrapper]:p-0" />
-                    <span className={edits[theme]?.[key] ? "text-(--ink)" : "text-(--ink)/75"}>{name}</span>
-                    <span className="font-mono text-[11px] uppercase tabular-nums text-(--ink)/50">{palette[key]}</span>
-                  </label>
-                </Reveal>
-              ))}
-            </ul>
-            <Reveal i={KEYS.length + 2} className="mt-2 border-t-[3px] border-(--ink) pt-3">
-              <button type="button" onClick={copy}
-                className="min-h-11 w-full rounded-full bg-(--ink) px-6 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
-                {copied ? "Copied ✓" : "Copy colors"}
-              </button>
-              <p className="mt-3 break-keep text-[12px] leading-5 text-(--ink)/55">라이트·다크를 각각 맞춘 뒤 복사해서 보내 주세요. 그 값으로 지도 색을 확정할게요. 조절한 값은 이 브라우저에만 저장돼요.</p>
+          {/* 오른쪽: 상세 (아무것도 안 고르면 Now on — 지금 열린 페어·팝업 + 범례, 장소를 고르면 장소 카드) */}
+          <section aria-label="Place detail" className="lg:order-3">
+            <Heading n="02" title="Detail" note="준비 중" />
+            <Reveal i={1} className="grid gap-3 py-2 text-[13px] leading-6 text-(--ink)/65">
+              <p className="break-keep">지도에서 장소를 고르면 주소, 영업시간, 잘 맞는 장르와 한 줄 소개가 여기에 떠요. 고르기 전에는 지금 열린 페어·팝업을 보여 줄 거예요.</p>
             </Reveal>
           </section>
         </div>
