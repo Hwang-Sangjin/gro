@@ -9,3 +9,6 @@ coverage/
 *.log
 *.tsbuildinfo
 .DS_Store
+
+# MapLibre worker (scripts/copy-maplibre-worker.mjs 가 predev·prebuild 에서 만듦)
+/public/maplibre/

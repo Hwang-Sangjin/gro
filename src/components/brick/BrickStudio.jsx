@@ -1,10 +1,11 @@
 "use client";
 // /lab/brick — 앨범 커버나 내 사진을 32×32 브릭 판으로. 왼쪽 고르기·보정 / 가운데 3D 판 / 오른쪽 필요한 브릭
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl } from "@/lib/albums";
-import useBrickReveal from "./useBrickReveal";
+import useLabReveal from "@/components/lab/useLabReveal";
+import { SERIF, LABEL, ShownCtx, Reveal, Heading } from "@/components/lab/LabUI";
 import { PALETTE } from "@/lib/brick/palette";
 import { sampleImage, buildMosaic } from "@/lib/brick/mosaic";
 import CropDialog from "./CropDialog";
@@ -13,8 +14,6 @@ const BrickBoard = dynamic(() => import("./BrickBoard"), { ssr: false, loading: 
 
 const N = 32;
 const SPARE = 0.05;   // 예비 브릭 5%
-const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
-const LABEL = "text-[11px] font-medium uppercase tracking-[0.26em] text-(--ink)/60";
 // 스크롤 목록 아래쪽을 살짝 페이드 — 더 있다는 표시
 const FADE = "[mask-image:linear-gradient(to_bottom,#000_calc(100%-28px),transparent)]";
 
@@ -61,34 +60,6 @@ function useAlbums(q) {
   return { rows, more, loadMore };
 }
 
-// 나타나기/사라지기: shown 이 true 가 되면 아래에서 올라오며 열리고(i 순서대로 차례로), false 가 되면 빠르게 닫힘
-const ShownCtx = createContext(true);
-function Reveal({ as: Tag = "div", i = 0, className = "", style, ...rest }) {
-  const on = useContext(ShownCtx);
-  return (
-    <Tag {...rest} data-on={on} style={{ ...style, transitionDelay: on ? `${140 + i * 85}ms` : `${i * 22}ms` }}
-      className={`translate-y-6 opacity-0 [clip-path:inset(100%_0_0_0)] transition-[opacity,transform,clip-path] duration-300 ease-[cubic-bezier(.22,1,.36,1)] data-[on=true]:translate-y-0 data-[on=true]:opacity-100 data-[on=true]:[clip-path:inset(-10px)] data-[on=true]:duration-[850ms] motion-reduce:transition-none ${className}`} />
-  );
-}
-
-// 뉴스 글의 "01 — Title" 머리: 굵은 줄(왼쪽에서 그어짐) + 청록 번호 + 세리프 제목
-function Heading({ n, title, note, action }) {
-  const on = useContext(ShownCtx);
-  return (
-    <div className="mb-3">
-      <span aria-hidden="true" data-on={on}
-        className="block h-1 origin-left scale-x-0 bg-(--ink) transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] data-[on=true]:scale-x-100 data-[on=true]:duration-[900ms] motion-reduce:transition-none" />
-      <Reveal i={0} className="flex items-baseline justify-between gap-3 pt-2.5">
-        <p className="flex items-baseline gap-2.5">
-          <span className="text-[11px] font-medium uppercase tracking-[0.26em] text-(--accent)">{n} —</span>
-          <span className={`${SERIF} text-[1.15rem] leading-none`}>{title}</span>
-        </p>
-        {action ?? (note && <span className="text-[11px] tracking-[0.04em] text-(--ink)/50">{note}</span>)}
-      </Reveal>
-    </div>
-  );
-}
-
 function Slider({ label, value, onChange, i = 0 }) {
   return (
     <Reveal as="label" i={i} className="grid grid-cols-[56px_1fr_34px] items-center gap-3 border-b border-dashed border-(--ink)/25 py-3 text-[13px]">
@@ -111,7 +82,7 @@ function Swatch({ hex, className = "size-6" }) {
 export default function BrickStudio() {
   const [q, setQ] = useState("");
   const { rows: albums, more: moreAlbums, loadMore } = useAlbums(q);
-  const shown = useBrickReveal();
+  const shown = useLabReveal();
   const [tab, setTab] = useState("albums");
   const [source, setSource] = useState(null);       // { key, title, sub, img, crop }
   const [pixels, setPixels] = useState(null);
