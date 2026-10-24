@@ -1,10 +1,10 @@
 "use client";
-// 관리자 장소 지도: 클릭하거나 핀을 끌어서 위치를 정함. 값이 밖에서 바뀌면(카카오 검색) 그 자리로 날아감
+// 관리자 장소 지도: 클릭하거나 핀을 끌어서 위치를 정함. 좌표가 밖에서 바뀌면(수정 화면 열기 등) 그 자리로 날아감
 import { useEffect, useRef } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "@/lib/theme";
 import { PALETTES, PAINT, SEOUL, buildStyle } from "@/lib/map/style";
-import { loadMaplibre, HANGUL_FONT, KOREA_BOUNDS } from "@/lib/map/maplibre";
+import { loadMaplibre, HANGUL_FONT, KOREA_BOUNDS, MAP_CONTROLS, MAP_CONTROLS_DARK } from "@/lib/map/maplibre";
 
 const has = (v) => Number.isFinite(v) && v !== 0;
 
@@ -75,5 +75,5 @@ export default function MapPicker({ lat, lng, color = "#2d6a6a", onPick, classNa
     for (const [key, targets] of Object.entries(PAINT)) for (const [layer, prop] of targets) if (m.getLayer(layer)) m.setPaintProperty(layer, prop, PALETTES[theme][key]);
   }, [theme]);
 
-  return <div ref={box} data-lenis-prevent className={`overflow-hidden rounded-xl border border-(--ink)/20 ${className}`} />;
+  return <div ref={box} data-lenis-prevent className={`overflow-hidden rounded-xl border border-(--ink)/20 ${MAP_CONTROLS} ${theme === "dark" ? MAP_CONTROLS_DARK : ""} ${className}`} />;
 }

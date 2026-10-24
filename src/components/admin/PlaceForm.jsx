@@ -10,7 +10,7 @@ import { field, labelCls, btnPrimary } from "./ui";
 
 const MapPicker = dynamic(() => import("@/components/map/MapPicker"), { ssr: false, loading: () => <div className="h-[340px] animate-pulse rounded-xl bg-(--ink)/8" /> });
 
-const EMPTY = { id: null, slug: "", name: "", name_en: "", kind: "shop", area: "", address: "", lat: null, lng: null, hours: "", instagram: "", website: "", map_url: "", note: "", genres: [], starts_on: "", ends_on: "", news_slug: "", status: "draft" };
+const EMPTY = { id: null, slug: "", name: "", name_en: "", kind: "shop", area: "", address: "", lat: null, lng: null, hours: "", instagram: "", website: "", map_url: "", note: "", genres: [], starts_on: "", ends_on: "", news_slug: "", status: "published" };
 const fromPlace = (p) => (p ? { ...EMPTY, ...Object.fromEntries(Object.entries(p).map(([k, v]) => [k, v ?? EMPTY[k] ?? ""])) } : EMPTY);
 
 export default function PlaceForm({ initial = null }) {

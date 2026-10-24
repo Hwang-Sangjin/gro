@@ -7,17 +7,9 @@ import { useTheme } from "@/lib/theme";
 import useLabReveal from "@/components/lab/useLabReveal";
 import { SERIF, ShownCtx, Reveal, Heading } from "@/components/lab/LabUI";
 import { PALETTES, PAINT, SEOUL, buildStyle } from "@/lib/map/style";
-import { loadMaplibre, HANGUL_FONT, KOREA_BOUNDS } from "@/lib/map/maplibre";
+import { loadMaplibre, HANGUL_FONT, KOREA_BOUNDS, MAP_CONTROLS, MAP_CONTROLS_DARK } from "@/lib/map/maplibre";
 
 
-// MapLibre 컨트롤(확대·축소, 출처 표기)을 사이트 톤으로 (다크 테마에선 아이콘을 뒤집음 — DARK_CONTROLS)
-const CONTROLS = [
-  // MapLibre 기본 CSS 가 더 구체적이라 ! 로 덮음
-  "[&_.maplibregl-ctrl-group]:rounded-none! [&_.maplibregl-ctrl-group]:border-2! [&_.maplibregl-ctrl-group]:border-(--ink)! [&_.maplibregl-ctrl-group]:bg-(--cream)! [&_.maplibregl-ctrl-group]:shadow-none!",
-  "[&_.maplibregl-ctrl-group_button+button]:border-t-(--ink)/30!",
-  "[&_.maplibregl-ctrl-attrib]:rounded-none! [&_.maplibregl-ctrl-attrib]:bg-(--cream)/85! [&_.maplibregl-ctrl-attrib]:text-[10px] [&_.maplibregl-ctrl-attrib]:text-(--ink)/70! [&_.maplibregl-ctrl-attrib_a]:text-(--ink)/70!",
-].join(" ");
-const DARK_CONTROLS = "[&_.maplibregl-ctrl-icon]:invert [&_.maplibregl-ctrl-attrib-button]:invert";
 
 export default function MapStudio() {
   const shown = useLabReveal();
@@ -83,7 +75,7 @@ export default function MapStudio() {
               className="relative h-[clamp(420px,calc(100svh-250px),900px)] border-2 border-(--ink) [clip-path:inset(0_50%_0_50%)] transition-[clip-path] duration-300 ease-[cubic-bezier(.22,1,.36,1)] data-[on=true]:[clip-path:inset(-2px)] data-[on=true]:duration-[1000ms] data-[on=true]:delay-150 motion-reduce:transition-none">
               {/* maplibre 가 컨테이너에 position:relative 를 덮어써서, 위치는 바깥 div 가 잡고 지도는 그 안을 꽉 채움 */}
               <div className="absolute inset-0" style={{ background: palette.land }}>
-                <div ref={box} data-lenis-prevent data-crate-ignore className={`size-full ${CONTROLS} ${theme === "dark" ? DARK_CONTROLS : ""}`} />
+                <div ref={box} data-lenis-prevent data-crate-ignore className={`size-full ${MAP_CONTROLS} ${theme === "dark" ? MAP_CONTROLS_DARK : ""}`} />
               </div>
               {/* 종이 결 — 페이지와 같은 결·같은 섞기(soft-light)로 지도도 인쇄물처럼 */}
               <span aria-hidden="true" className={`pointer-events-none absolute inset-0 bg-(image:--paper-texture-image) bg-[length:var(--paper-texture-size)_var(--paper-texture-size)] opacity-(--paper-texture-opacity) mix-blend-soft-light`} />
