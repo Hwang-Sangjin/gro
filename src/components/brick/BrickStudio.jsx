@@ -1,9 +1,10 @@
 "use client";
 // /lab/brick — 앨범 커버나 내 사진을 32×32 브릭 판으로. 왼쪽 고르기·보정 / 가운데 3D 판 / 오른쪽 필요한 브릭
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl } from "@/lib/albums";
+import useBrickReveal from "./useBrickReveal";
 import { PALETTE } from "@/lib/brick/palette";
 import { sampleImage, buildMosaic } from "@/lib/brick/mosaic";
 import CropDialog from "./CropDialog";
@@ -60,26 +61,41 @@ function useAlbums(q) {
   return { rows, more, loadMore };
 }
 
-// 뉴스 글의 "01 — Title" 머리: 굵은 줄 + 청록 번호 + 세리프 제목
-function Heading({ n, title, note, action }) {
+// 나타나기/사라지기: shown 이 true 가 되면 아래에서 올라오며 열리고(i 순서대로 차례로), false 가 되면 빠르게 닫힘
+const ShownCtx = createContext(true);
+function Reveal({ as: Tag = "div", i = 0, className = "", style, ...rest }) {
+  const on = useContext(ShownCtx);
   return (
-    <div className="mb-3 flex items-baseline justify-between gap-3 border-t-4 border-(--ink) pt-2.5">
-      <p className="flex items-baseline gap-2.5">
-        <span className="text-[11px] font-medium uppercase tracking-[0.26em] text-(--accent)">{n} —</span>
-        <span className={`${SERIF} text-[1.15rem] leading-none`}>{title}</span>
-      </p>
-      {action ?? (note && <span className="text-[11px] tracking-[0.04em] text-(--ink)/50">{note}</span>)}
+    <Tag {...rest} data-on={on} style={{ ...style, transitionDelay: on ? `${140 + i * 85}ms` : `${i * 22}ms` }}
+      className={`translate-y-6 opacity-0 [clip-path:inset(100%_0_0_0)] transition-[opacity,transform,clip-path] duration-300 ease-[cubic-bezier(.22,1,.36,1)] data-[on=true]:translate-y-0 data-[on=true]:opacity-100 data-[on=true]:[clip-path:inset(-10px)] data-[on=true]:duration-[850ms] motion-reduce:transition-none ${className}`} />
+  );
+}
+
+// 뉴스 글의 "01 — Title" 머리: 굵은 줄(왼쪽에서 그어짐) + 청록 번호 + 세리프 제목
+function Heading({ n, title, note, action }) {
+  const on = useContext(ShownCtx);
+  return (
+    <div className="mb-3">
+      <span aria-hidden="true" data-on={on}
+        className="block h-1 origin-left scale-x-0 bg-(--ink) transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] data-[on=true]:scale-x-100 data-[on=true]:duration-[900ms] motion-reduce:transition-none" />
+      <Reveal i={0} className="flex items-baseline justify-between gap-3 pt-2.5">
+        <p className="flex items-baseline gap-2.5">
+          <span className="text-[11px] font-medium uppercase tracking-[0.26em] text-(--accent)">{n} —</span>
+          <span className={`${SERIF} text-[1.15rem] leading-none`}>{title}</span>
+        </p>
+        {action ?? (note && <span className="text-[11px] tracking-[0.04em] text-(--ink)/50">{note}</span>)}
+      </Reveal>
     </div>
   );
 }
 
-function Slider({ label, value, onChange }) {
+function Slider({ label, value, onChange, i = 0 }) {
   return (
-    <label className="grid grid-cols-[56px_1fr_34px] items-center gap-3 border-b border-dashed border-(--ink)/25 py-3 text-[13px]">
+    <Reveal as="label" i={i} className="grid grid-cols-[56px_1fr_34px] items-center gap-3 border-b border-dashed border-(--ink)/25 py-3 text-[13px]">
       <span className="text-(--ink)/70">{label}</span>
       <input type="range" min="-0.5" max="0.5" step="0.05" value={value} onChange={(e) => onChange(Number(e.target.value))} className="h-1 w-full cursor-pointer accent-(--accent)" />
       <span className="text-right text-[11px] tabular-nums text-(--ink)/55">{value > 0 ? "+" : ""}{Math.round(value * 100)}</span>
-    </label>
+    </Reveal>
   );
 }
 
@@ -95,6 +111,7 @@ function Swatch({ hex, className = "size-6" }) {
 export default function BrickStudio() {
   const [q, setQ] = useState("");
   const { rows: albums, more: moreAlbums, loadMore } = useAlbums(q);
+  const shown = useBrickReveal();
   const [tab, setTab] = useState("albums");
   const [source, setSource] = useState(null);       // { key, title, sub, img, crop }
   const [pixels, setPixels] = useState(null);
@@ -140,6 +157,7 @@ export default function BrickStudio() {
   const set = (k) => (v) => setAdj((a) => ({ ...a, [k]: v }));
 
   return (
+    <ShownCtx.Provider value={shown}>
     <div className="mx-auto w-full max-w-[1600px] px-[clamp(16px,3.2vw,44px)] pb-16 pt-[calc(var(--ct-header-h,106px)+14px)] text-(--ink)">
       {/* 제목 줄 */}
       <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-2 border-b-[3px] border-(--ink) pb-3">
@@ -157,8 +175,8 @@ export default function BrickStudio() {
       <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[300px_minmax(0,1fr)_300px] lg:items-start">
         {/* 가운데: 3D 판 */}
         <section aria-label="Brick board" className="lg:order-2">
-          <div className="relative mx-auto aspect-square w-full max-w-[min(100%,calc(100svh-290px))] min-w-[280px]">
-            <BrickBoard className="absolute inset-0" mosaic={mosaic} sourceKey={source?.key} hover={hover} replay={replay} view={view} n={N} />
+          <div data-on={shown} className="relative mx-auto aspect-square w-full max-w-[min(100%,calc(100svh-290px))] min-w-[280px] opacity-0 transition-opacity duration-300 data-[on=true]:opacity-100">
+            <BrickBoard className="absolute inset-0" show={shown} mosaic={mosaic} sourceKey={source?.key} hover={hover} replay={replay} view={view} n={N} />
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
             <div role="radiogroup" aria-label="View" className="inline-flex rounded-full border border-(--ink)/40 p-1">
@@ -177,7 +195,7 @@ export default function BrickStudio() {
         {/* 오른쪽: 필요한 브릭 — 뉴스 글처럼 번호 + 굵은 줄 + 점선 줄 */}
         <section aria-label="Bricks needed" className="lg:order-3">
           <Heading n="03" title="Bricks" note="1×1 플레이트" />
-          <ul data-lenis-prevent data-crate-ignore className={`${FADE} max-h-[min(54svh,540px)] overflow-y-auto overscroll-contain pb-5 max-lg:flex max-lg:max-h-none max-lg:gap-5 max-lg:overflow-x-auto max-lg:pb-3 max-lg:[mask-image:none]`} onPointerLeave={() => setHover(null)}>
+          <Reveal as="ul" i={1} data-lenis-prevent data-crate-ignore className={`${FADE} max-h-[min(54svh,540px)] overflow-y-auto overscroll-contain pb-5 max-lg:flex max-lg:max-h-none max-lg:gap-5 max-lg:overflow-x-auto max-lg:pb-3 max-lg:[mask-image:none]`} onPointerLeave={() => setHover(null)}>
             {mosaic?.counts.map(({ index, count }) => {
               const p = PALETTE[index];
               return (
@@ -195,14 +213,14 @@ export default function BrickStudio() {
                 </li>
               );
             })}
-          </ul>
-          <div className="mt-2 border-t-[3px] border-(--ink) pt-3">
+          </Reveal>
+          <Reveal i={3} className="mt-2 border-t-[3px] border-(--ink) pt-3">
             <div className="flex items-end justify-between gap-4">
               <p className={LABEL}>Total <span className="normal-case tracking-normal text-(--ink)/45">· {total.toLocaleString()} + 예비 5%</span></p>
               <p className={`${SERIF} text-[2.4rem] leading-none tabular-nums`}>{mosaic ? mosaic.counts.reduce((s, c) => s + count5(c.count), 0).toLocaleString() : "—"}</p>
             </div>
             <p className="mt-3 break-keep text-[12px] leading-5 text-(--ink)/55">색 이름에 마우스를 올리면 판에서 그 색이 떠올라요. 누르면 그 색만 다시 끼워요.</p>
-          </div>
+          </Reveal>
         </section>
 
         {/* 왼쪽: 고르기 + 보정 */}
@@ -210,7 +228,7 @@ export default function BrickStudio() {
           <div>
             <Heading n="01" title="Source" />
             {/* 장르 바처럼: 세리프 이름 + 슬래시, 고른 것만 진하게 + 청록 밑줄 */}
-            <div role="tablist" className="flex items-baseline">
+            <Reveal i={1} role="tablist" className="flex items-baseline">
               {[["albums", "Albums"], ["upload", "Upload"]].map(([v, l], i) => (
                 <span key={v} className="flex items-baseline">
                   <button type="button" role="tab" aria-selected={tab === v} onClick={() => setTab(v)}
@@ -218,15 +236,15 @@ export default function BrickStudio() {
                   {i === 0 && <span aria-hidden="true" className="mx-3 text-[1.4rem] text-(--ink)/20">/</span>}
                 </span>
               ))}
-            </div>
+            </Reveal>
             {tab === "albums" ? (
               <>
-                <label className="mt-4 flex items-center gap-2.5 border-b border-(--ink)/35 pb-2 focus-within:border-(--ink)">
+                <Reveal as="label" i={2} className="mt-4 flex items-center gap-2.5 border-b border-(--ink)/35 pb-2 focus-within:border-(--ink)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true" className="size-[18px] shrink-0 text-(--ink)/55"><circle cx="10" cy="10" r="7" /><path d="m15 15 7 7" /></svg>
                   <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search albums, artists" aria-label="앨범·아티스트 검색"
                     className="w-full bg-transparent text-[14px] outline-none placeholder:text-(--ink)/40" />
-                </label>
-                <ul data-lenis-prevent data-crate-ignore onScroll={(e) => { const el = e.currentTarget; if (el.scrollTop + el.clientHeight > el.scrollHeight - 160) loadMore(); }}
+                </Reveal>
+                <Reveal as="ul" i={3} data-lenis-prevent data-crate-ignore onScroll={(e) => { const el = e.currentTarget; if (el.scrollTop + el.clientHeight > el.scrollHeight - 160) loadMore(); }}
                   className={`${FADE} mt-4 grid max-h-[min(44svh,460px)] grid-cols-3 content-start gap-2 overflow-y-auto overscroll-contain px-1 pb-6 pt-1`}>
                   {albums === null && Array.from({ length: 9 }, (_, i) => <li key={i} className="aspect-square animate-pulse bg-(--ink)/8" />)}
                   {albums?.length === 0 && <li className="col-span-3 py-6 text-center text-[13px] text-(--ink)/55">찾는 앨범이 없어요.</li>}
@@ -244,10 +262,10 @@ export default function BrickStudio() {
                   })}
                   {moreAlbums && albums && <li className="col-span-3 py-2 text-center">
                     <button type="button" onClick={loadMore} className="min-h-9 px-4 text-[11px] font-medium uppercase tracking-[0.22em] text-(--ink)/55 hover:text-(--ink)">More ↓</button></li>}
-                </ul>
+                </Reveal>
               </>
             ) : (
-              <div
+              <Reveal i={2}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => { e.preventDefault(); onFile(e.dataTransfer.files?.[0]); }}
                 className="mt-4 grid place-items-center gap-3 border-2 border-dashed border-(--ink)/30 px-4 py-12 text-center">
@@ -255,27 +273,27 @@ export default function BrickStudio() {
                 <button type="button" onClick={() => fileRef.current?.click()} className="min-h-11 rounded-full bg-(--ink) px-6 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">Choose image</button>
                 <p className="break-keep text-[11px] leading-5 text-(--ink)/50">사진은 이 브라우저 안에서만 쓰이고 서버에 올라가지 않아요.</p>
                 <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
-              </div>
+              </Reveal>
             )}
           </div>
 
           <div>
             <Heading n="02" title="Adjust" action={<button type="button" onClick={() => setAdj({ brightness: 0, contrast: 0, saturation: 0, dither: false, maxColors: 0 })} className="text-[11px] font-medium uppercase tracking-[0.22em] text-(--ink)/55 hover:text-(--accent)">Reset</button>} />
             <div className="grid">
-              <Slider label="밝기" value={adj.brightness} onChange={set("brightness")} />
-              <Slider label="대비" value={adj.contrast} onChange={set("contrast")} />
-              <Slider label="채도" value={adj.saturation} onChange={set("saturation")} />
-              <label className="grid grid-cols-[56px_1fr] items-center gap-3 border-b border-dashed border-(--ink)/25 py-3 text-[13px]">
+              <Slider i={1} label="밝기" value={adj.brightness} onChange={set("brightness")} />
+              <Slider i={2} label="대비" value={adj.contrast} onChange={set("contrast")} />
+              <Slider i={3} label="채도" value={adj.saturation} onChange={set("saturation")} />
+              <Reveal as="label" i={4} className="grid grid-cols-[56px_1fr] items-center gap-3 border-b border-dashed border-(--ink)/25 py-3 text-[13px]">
                 <span className="text-(--ink)/70">색 수</span>
                 <select value={adj.maxColors} onChange={(e) => set("maxColors")(Number(e.target.value))} className="h-8 border-b border-(--ink)/35 bg-transparent text-[13px] outline-none focus:border-(--ink)">
                   <option value={0}>제한 없음 ({PALETTE.length}색 중)</option>
                   {[6, 8, 12, 16, 20].map((v) => <option key={v} value={v}>최대 {v}색</option>)}
                 </select>
-              </label>
-              <label className="flex items-center justify-between gap-3 py-3 text-[13px]">
+              </Reveal>
+              <Reveal as="label" i={5} className="flex items-center justify-between gap-3 py-3 text-[13px]">
                 <span className="text-(--ink)/70">디더링 <span className="ml-1 text-[11px] text-(--ink)/45">점을 섞어 중간색 표현</span></span>
                 <input type="checkbox" checked={adj.dither} onChange={(e) => set("dither")(e.target.checked)} className="size-4 accent-(--accent)" />
-              </label>
+              </Reveal>
             </div>
           </div>
         </section>
@@ -286,6 +304,7 @@ export default function BrickStudio() {
           onDone={(crop) => { setSource({ key: `upload:${Date.now()}`, title: cropping.name || "My image", sub: "", img: cropping.img, crop }); setCropping(null); }} />
       )}
     </div>
+    </ShownCtx.Provider>
   );
 }
 

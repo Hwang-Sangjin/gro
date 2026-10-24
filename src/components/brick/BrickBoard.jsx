@@ -13,7 +13,9 @@ import { PALETTE } from "@/lib/brick/palette";
 const PLATE_T = 0.6;      // 판 두께
 const DROP = 0.42;        // 브릭 하나가 떨어지는 시간(초)
 const FALL_H = 9;         // 떨어지기 시작하는 높이
-const FLIP_T = 1.1;       // 뒤집는 시간(초)
+const FLIP_T = 1.1;
+const PLATE_IN = 1.0;      // 검은 판이 나타나는 시간(초)
+const PLATE_OUT = 0.4;     // 사라지는 시간(초)       // 뒤집는 시간(초)
 const easeOutBack = (t) => { const c = 1.6; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
 const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 const PAL = PALETTE.map((p) => new THREE.Color(p.hex));
@@ -91,7 +93,7 @@ function Side({ face, data, n, hover, geom }) {
   );
 }
 
-function Board({ mosaic, sourceKey, hover, replay, view, n }) {
+function Board({ mosaic, sourceKey, hover, replay, view, n, show }) {
   const geom = useMemo(brickGeometry, []);
   useEffect(() => () => geom.dispose(), [geom]);
   const sides = [useRef({ cells: null, start: null }), useRef({ cells: null, start: null })];
@@ -103,6 +105,12 @@ function Board({ mosaic, sourceKey, hover, replay, view, n }) {
   const hoverRef = useRef(hover);
   hoverRef.current = hover;
   const { clock, pointer } = useThree();
+  const showRef = useRef(show);
+  showRef.current = show;
+  const waiting = useRef(false);      // 판이 나타나기 전에 모자이크가 먼저 도착함 → 판이 나타난 뒤 끼우기 시작
+  const plate = useRef(null);
+  const plateMat = useRef(null);
+  const rev = useRef(0);               // 판 등장 진행도 0..1
   const reduced = useMemo(() => typeof window !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches, []);
 
   // 새 모자이크가 들어옴
@@ -111,7 +119,9 @@ function Board({ mosaic, sourceKey, hover, replay, view, n }) {
     const now = clock.elapsedTime;
     const { cells, counts } = mosaic;
     if (lastKey.current === null) {
-      sides[0].current = { cells, start: reduced ? new Float32Array(cells.length).fill(-2) : schedule(cells, counts, now + 0.3) };
+      const hold = !reduced && !showRef.current;
+      waiting.current = hold;
+      sides[0].current = { cells, start: reduced ? new Float32Array(cells.length).fill(-2) : hold ? new Float32Array(cells.length).fill(-1) : schedule(cells, counts, now + PLATE_IN * 0.7) };
     } else if (lastKey.current !== sourceKey) {
       // 다른 이미지 → 뒤집기
       const next = 1 - active.current;
@@ -128,6 +138,15 @@ function Board({ mosaic, sourceKey, hover, replay, view, n }) {
     lastKey.current = sourceKey;
   }, [mosaic]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 판이 나타나면 기다리던 브릭을 끼우기 시작
+  useEffect(() => {
+    if (!show || !waiting.current) return;
+    const s = sides[0].current;
+    if (!s.cells || !mosaic) return;
+    waiting.current = false;
+    sides[0].current = { ...s, start: schedule(s.cells, mosaic.counts, clock.elapsedTime + PLATE_IN * 0.7) };
+  }, [show]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 다시 끼우기
   useEffect(() => {
     if (!replay?.nonce || !mosaic) return;
@@ -140,6 +159,17 @@ function Board({ mosaic, sourceKey, hover, replay, view, n }) {
   }, [replay?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFrame(({ clock: c }, delta) => {
+    // 검은 판 등장/퇴장: 아래에서 커지며 올라오고(나타날 때 느리게, 사라질 때 빠르게) 투명도도 같이
+    const d = Math.min(delta, 0.1);
+    rev.current = Math.min(1, Math.max(0, rev.current + (showRef.current ? d / PLATE_IN : -d / PLATE_OUT)));
+    const e = 1 - (1 - rev.current) ** 3;
+    if (plate.current) {
+      plate.current.visible = rev.current > 0.001;
+      const sc = reduced ? 1 : 0.55 + 0.45 * e;
+      plate.current.scale.set(sc, sc, 1);
+      plate.current.position.z = reduced ? 0 : -(1 - e) * 5;
+    }
+    if (plateMat.current) plateMat.current.opacity = reduced ? (showRef.current ? 1 : 0) : e;
     const f = flip.current;
     const ease = 1 - Math.exp(-Math.min(delta, 0.1) * 6);   // 프레임 속도와 상관없이 같은 속도로 기울기 따라감
     const k = Math.min(1, Math.max(0, (c.elapsedTime - f.t0) / FLIP_T));
@@ -160,9 +190,9 @@ function Board({ mosaic, sourceKey, hover, replay, view, n }) {
   return (
     <group ref={tiltGroup}>
       <group ref={flipGroup}>
-        <mesh receiveShadow>
+        <mesh ref={plate} receiveShadow visible={false}>
           <boxGeometry args={[n + 0.6, n + 0.6, PLATE_T]} />
-          <meshStandardMaterial color="#2a222a" roughness={0.6} />
+          <meshStandardMaterial ref={plateMat} color="#2a222a" roughness={0.6} transparent opacity={0} />
         </mesh>
         <Side face={0} data={sides[0]} n={n} hover={hoverRef} geom={geom} />
         <Side face={1} data={sides[1]} n={n} hover={hoverRef} geom={geom} />
@@ -184,7 +214,7 @@ function Fit({ n }) {
   return null;
 }
 
-export default function BrickBoard({ mosaic, sourceKey, hover = null, replay, view = "3d", n = 32, className = "" }) {
+export default function BrickBoard({ mosaic, sourceKey, hover = null, replay, view = "3d", n = 32, className = "", show = true }) {
   return (
     <div className={className}>
       <Canvas dpr={[1, 2]} camera={{ fov: 30, position: [0, 0, 80] }} gl={{ antialias: true, alpha: true }} shadows>
@@ -193,7 +223,7 @@ export default function BrickBoard({ mosaic, sourceKey, hover = null, replay, vi
         <hemisphereLight args={["#fff6e8", "#3a2e36", 0.5]} />
         <directionalLight position={[-18, 26, 40]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}
           shadow-camera-left={-24} shadow-camera-right={24} shadow-camera-top={24} shadow-camera-bottom={-24} />
-        <Board mosaic={mosaic} sourceKey={sourceKey} hover={hover} replay={replay} view={view} n={n} />
+        <Board mosaic={mosaic} sourceKey={sourceKey} hover={hover} replay={replay} view={view} n={n} show={show} />
       </Canvas>
     </div>
   );
