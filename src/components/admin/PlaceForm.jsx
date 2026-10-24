@@ -1,13 +1,12 @@
 "use client";
-// 장소 등록·수정 폼 (Lab · Map)
-// 1) 카카오 검색으로 이름·주소·좌표·링크를 한 번에 채우거나  2) 지도를 눌러 위치를 정하고 나머지를 직접 입력
+// 장소 등록·수정 폼 (Lab · Map) — 지도를 누르거나 핀을 끌어서 위치를 정하고, 나머지는 직접 입력
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { GENRES } from "@/lib/genres";
 import { STORIES } from "@/content/news";
 import { KINDS, AREAS, kindOf, slugify } from "@/lib/places";
-import { field, labelCls, btnPrimary, btnGhost, card } from "./ui";
+import { field, labelCls, btnPrimary } from "./ui";
 
 const MapPicker = dynamic(() => import("@/components/map/MapPicker"), { ssr: false, loading: () => <div className="h-[340px] animate-pulse rounded-xl bg-(--ink)/8" /> });
 
@@ -19,9 +18,6 @@ export default function PlaceForm({ initial = null }) {
   const editing = Boolean(initial);
   const [f, setF] = useState(() => fromPlace(initial));
   const [slugTouched, setSlugTouched] = useState(editing);
-  const [q, setQ] = useState("");
-  const [hits, setHits] = useState(null);
-  const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -30,22 +26,6 @@ export default function PlaceForm({ initial = null }) {
     setF((x) => ({ ...x, [key]: value, ...(key === "name" && !slugTouched ? { slug: slugify(x.name_en || value) } : {}), ...(key === "name_en" && !slugTouched ? { slug: slugify(value || x.name) } : {}) }));
   };
   const toggleGenre = (slug) => setF((x) => ({ ...x, genres: x.genres.includes(slug) ? x.genres.filter((g) => g !== slug) : [...x.genres, slug] }));
-
-  async function search(e) {
-    e?.preventDefault();
-    if (!q.trim()) return;
-    setSearching(true); setHits(null);
-    try {
-      const res = await fetch(`/api/admin/places/search?q=${encodeURIComponent(q)}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setHits(json.results);
-    } catch (err) { setHits({ error: err.message }); } finally { setSearching(false); }
-  }
-  const applyHit = (h) => {
-    setF((x) => ({ ...x, name: x.name || h.name, address: h.address, area: x.area || (h.area ?? "").replace(/동$/, ""), lat: h.lat, lng: h.lng, map_url: h.map_url, slug: slugTouched ? x.slug : slugify(x.name_en || x.name || h.name) }));
-    setHits(null);
-  };
 
   async function submit(e) {
     e.preventDefault();
@@ -56,7 +36,7 @@ export default function PlaceForm({ initial = null }) {
       if (!res.ok) throw new Error(json.error);
       setResult({ ok: json });
       if (editing) router.refresh();
-      else { setF(EMPTY); setSlugTouched(false); setQ(""); }
+      else { setF(EMPTY); setSlugTouched(false); }
     } catch (err) { setResult({ error: err.message }); } finally { setBusy(false); }
   }
 
@@ -64,29 +44,6 @@ export default function PlaceForm({ initial = null }) {
   return (
     <form onSubmit={submit} className="grid gap-8 lg:grid-cols-[1fr_380px]">
       <div className="space-y-6">
-        {/* 카카오 검색 */}
-        <div className={`${card} p-4`}>
-          <label className={labelCls} htmlFor="p-search">Find on Kakao</label>
-          <div className="flex gap-2">
-            <input id="p-search" className={field} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") search(e); }} placeholder="가게 이름 (예: 김밥레코즈)" />
-            <button type="button" onClick={search} disabled={searching || !q.trim()} className={btnGhost}>{searching ? "…" : "Search"}</button>
-          </div>
-          {hits?.error && <p className="mt-3 text-[13px] text-(--danger)">{hits.error}</p>}
-          {Array.isArray(hits) && (
-            <ul className="mt-3 divide-y divide-(--ink)/10">
-              {hits.length === 0 && <li className="py-3 text-[13px] text-(--ink)/55">결과가 없어요. 지도를 눌러 위치를 정해도 돼요.</li>}
-              {hits.map((h, i) => (
-                <li key={i}>
-                  <button type="button" onClick={() => applyHit(h)} className="grid w-full gap-0.5 px-2 py-2.5 text-left hover:bg-(--ink)/5">
-                    <span className="text-[14px] font-medium">{h.name}</span>
-                    <span className="text-[12px] text-(--ink)/55">{h.address} · {h.category?.split(" > ").at(-1)}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={labelCls} htmlFor="p-name">Name</label>
@@ -152,8 +109,8 @@ export default function PlaceForm({ initial = null }) {
             <input id="p-web" type="url" className={field} value={f.website} onChange={set("website")} placeholder="https://" />
           </div>
           <div>
-            <label className={labelCls} htmlFor="p-map">Kakao Map link</label>
-            <input id="p-map" type="url" className={field} value={f.map_url} onChange={set("map_url")} placeholder="검색으로 채우면 자동" />
+            <label className={labelCls} htmlFor="p-map">Map link (optional)</label>
+            <input id="p-map" type="url" className={field} value={f.map_url} onChange={set("map_url")} placeholder="카카오맵·네이버지도 장소 링크" />
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-// /admin/places/new — 새 장소 (카카오 검색 또는 지도 클릭으로 위치)
+// /admin/places/new — 새 장소 (지도를 눌러 위치)
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminShell";
 import PlaceForm from "@/components/admin/PlaceForm";

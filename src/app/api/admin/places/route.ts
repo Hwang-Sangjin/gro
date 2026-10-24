@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     if (!slug) return Response.json({ error: "Slug is required." }, { status: 400 });
     if (!KINDS.includes(p.kind)) return Response.json({ error: "Pick a kind." }, { status: 400 });
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 33 || lat > 39.5 || lng < 124 || lng > 132) {
-      return Response.json({ error: "Set the location — search Kakao or click the map." }, { status: 400 });
+      return Response.json({ error: "Set the location — click the map." }, { status: 400 });
     }
     const row = {
       slug, name, lat, lng, kind: p.kind,

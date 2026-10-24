@@ -4,7 +4,7 @@
 -- places: 지도에 올라가는 장소 1곳 = 1줄
 -- - kind: shop(레코드숍) | bar(LP 바·카페) | listening(리스닝룸) | event(페어·팝업 — 기간 있음)
 -- - 누구나 공개(published) 장소를 읽을 수 있음. 쓰기는 관리자 화면(서버, 서비스 키)에서만
--- - lat/lng: 관리자 화면에서 카카오 검색 또는 지도 클릭으로 채움
+-- - lat/lng: 관리자 화면에서 지도를 눌러 채움
 
 create table if not exists public.places (
   id          bigint generated always as identity primary key,
@@ -19,7 +19,7 @@ create table if not exists public.places (
   hours       text,                          -- 영업시간 (자유 형식: "화–일 13:00–21:00 · 월 휴무")
   instagram   text,                          -- 아이디만 (@ 없이)
   website     text,
-  map_url     text,                          -- 카카오맵 장소 링크 (검색으로 채우면 자동)
+  map_url     text,                          -- 카카오맵·네이버지도 장소 링크 (선택)
   note        text,                          -- Grooves 톤 한 줄 소개
   genres      text[] not null default '{}',  -- 잘 맞는 장르 slug (lib/genres)
   starts_on   date,                          -- event 만: 시작일
