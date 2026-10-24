@@ -7,9 +7,8 @@ import { useTheme } from "@/lib/theme";
 import useLabReveal from "@/components/lab/useLabReveal";
 import { SERIF, ShownCtx, Reveal, Heading } from "@/components/lab/LabUI";
 import { PALETTES, PAINT, SEOUL, buildStyle } from "@/lib/map/style";
+import { loadMaplibre, HANGUL_FONT, KOREA_BOUNDS } from "@/lib/map/maplibre";
 
-const WORKER = "/maplibre/maplibre-gl-worker.mjs";
-const HANGUL_FONT = "'Hahmlet', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
 
 // MapLibre 컨트롤(확대·축소, 출처 표기)을 사이트 톤으로 (다크 테마에선 아이콘을 뒤집음 — DARK_CONTROLS)
 const CONTROLS = [
@@ -36,15 +35,14 @@ export default function MapStudio() {
   useEffect(() => {
     let gone = false;
     (async () => {
-      const { Map, NavigationControl, setWorkerUrl } = await import("maplibre-gl");
-      setWorkerUrl(new URL(WORKER, location.origin).href);   // public/maplibre/ (scripts/copy-maplibre-worker.mjs)
+      const { Map, NavigationControl } = await loadMaplibre();
       if (gone || !box.current) return;
       const m = new Map({
         container: box.current,
         style: buildStyle(latest.current),
         center: SEOUL.center, zoom: SEOUL.zoom,
         minZoom: 6, maxZoom: 18,
-        maxBounds: [[123.5, 32.5], [132.5, 39.5]],   // 한반도 남쪽 둘레
+        maxBounds: KOREA_BOUNDS,   // 한반도 남쪽 둘레
         dragRotate: false, pitchWithRotate: false, touchPitch: false,
         localIdeographFontFamily: HANGUL_FONT,
         attributionControl: { compact: true },

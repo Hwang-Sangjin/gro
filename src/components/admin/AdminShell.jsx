@@ -12,6 +12,8 @@ const NAV = [
   { href: "/admin/albums/new", label: "New album" },
   { href: "/admin/albums/cover", label: "Replace cover" },
   { href: "/admin/requests", label: "Requests", badge: true },
+  { href: "/admin/places", label: "Places", match: (p) => p === "/admin/places" || (/^\/admin\/places\/[^/]+$/.test(p) && !p.endsWith("/new")) },
+  { href: "/admin/places/new", label: "New place" },
 ];
 const SOON = ["News"];   // 다음 단계에서 열림
 

@@ -71,3 +71,18 @@ export async function getRequest(id: number) {
   const { data } = await serviceClient().from("album_requests").select(REQUEST_COLS).eq("id", id).maybeSingle();
   return data;
 }
+
+// 바이닐 장소 (Lab · Map) — 숨김 포함 전체
+const PLACE_LIST = "id, slug, name, name_en, kind, area, address, status, starts_on, ends_on, updated_at";
+export async function listPlaces() {
+  const { data, error } = await serviceClient()
+    .from("places").select(PLACE_LIST).order("updated_at", { ascending: false }).limit(2000);
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+export async function getPlaceForEdit(slug: string) {
+  const { data, error } = await serviceClient().from("places").select("*").eq("slug", slug).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
