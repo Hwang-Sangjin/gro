@@ -58,7 +58,11 @@ export default function AlbumTransitionProvider({ children }) {
     overlay.append(background, cover);
     document.body.append(overlay);
     gsap.set(background, { opacity: 0 });
-    if (box && !reduced) gsap.set(cover, { left: box.left, top: box.top, width: box.width, height: box.height });
+    if (box && !reduced) {
+      gsap.set(cover, { left: box.left, top: box.top, width: box.width, height: box.height, transformOrigin: '50% 50%' });
+      // 누른 즉시 반응: 배경이 깔리는 동안 커버가 살짝 들려 있음 (크레이트에서 판을 집어 드는 느낌)
+      gsap.to(cover, { scale: 1.04, boxShadow: '0 28px 48px -18px rgba(20, 12, 18, 0.45)', duration: 0.3, ease: 'power2.out' });
+    }
     else cover.style.display = 'none';
     const stage = document.querySelector('[data-crate-stage]');
     const flight = { overlay, source, stage, wasInert: stage?.inert, visibility: source?.style.visibility, frame: 0, landing: false };
@@ -93,12 +97,13 @@ export default function AlbumTransitionProvider({ children }) {
         if (box && !reduced) flight.tween.to(cover, {
           left: destination.left, top: destination.top,
           width: destination.width, height: destination.height,
-          duration: 0.9, ease: 'power3.inOut',
+          scale: 1, boxShadow: '0 0px 0px 0px rgba(20, 12, 18, 0)',
+          duration: 0.9, ease: 'power3.inOut', overwrite: 'auto',
         });
         flight.tween.to(overlay, { opacity: 0, duration: reduced ? 0.12 : 0.3 });
       });
     };
-    flight.tween = gsap.to(background, { opacity: 1, duration: reduced ? 0.12 : 0.45, onComplete: () => {
+    flight.tween = gsap.to(background, { opacity: 1, duration: reduced ? 0.12 : 0.3, ease: 'power1.out', onComplete: () => {
       if (active.current !== flight) return;
       flight.observer = new MutationObserver(land);
       flight.observer.observe(document.querySelector('[data-crate-stage]'), { childList: true, subtree: true });

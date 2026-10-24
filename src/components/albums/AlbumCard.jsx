@@ -45,7 +45,10 @@ export default function AlbumCard({ album }) {
     };
   }, [src]);
   // Expand the color panel even while the network is still loading the image.
-  const [revealRef, revealed] = useReveal({ randomDelay: true });
+  // 같이 보이기 시작한 카드끼리 화면 순서대로 (useReveal stagger)
+  const [revealRef, revealed] = useReveal({ stagger: true });
+  // 마우스를 올리면 상세 페이지를 통째로 미리 받아 둠 → 누른 뒤 커버가 바로 날아감 (뷰포트 기본 prefetch 는 부분만)
+  const [intent, setIntent] = useState(false);
   function move(event) {
     if (event.pointerType === "touch" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const box = event.currentTarget.getBoundingClientRect();
@@ -59,7 +62,7 @@ export default function AlbumCard({ album }) {
     art.current?.style.setProperty("--ry", "0deg");
   }
   return (
-    <Link data-crate-skip data-album-card data-album-title={album.title} data-album-artist={album.artist_names} data-album-slug={album.slug} data-album-color={album.cover_color || "#bbcbda"} data-album-image={failed ? undefined : src} onClick={open}
+    <Link prefetch={intent ? true : null} onPointerEnter={() => setIntent(true)} onFocus={() => setIntent(true)} data-crate-skip data-album-card data-album-title={album.title} data-album-artist={album.artist_names} data-album-slug={album.slug} data-album-color={album.cover_color || "#bbcbda"} data-album-image={failed ? undefined : src} onClick={open}
       // 두께 면 색 = 앨범 대표색보다 조금 진하게 (위 면은 덜, 오른쪽 면은 더 — 빛이 왼쪽 위에서 오는 느낌)
       style={{ "--sleeve-top": sleeveColors(album.cover_color).top, "--sleeve-side": sleeveColors(album.cover_color).side }}
       data-revealed={revealed}
@@ -74,10 +77,10 @@ export default function AlbumCard({ album }) {
           </span>
         </span>
       </span>
-      {/* 제목·아티스트: 커버가 다 펼쳐진 뒤 아래에서 스르륵 올라옴 (줄마다 잘라 주는 틀 안에서) */}
+      {/* 제목·아티스트: 커버가 거의 펼쳐질 즈음 아래에서 스르륵 올라옴 (줄마다 잘라 주는 틀 안에서) */}
       <span className={styles.caption}>
-        <span className="block overflow-y-clip pb-[0.1em]"><strong className="block translate-y-[110%] transition-[translate] delay-[650ms] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.title}</strong></span>
-        <span className="block overflow-y-clip"><span className="block translate-y-[110%] transition-[translate] delay-[760ms] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.artist_names}</span></span>
+        <span className="block overflow-y-clip pb-[0.1em]"><strong className="block translate-y-[110%] transition-[translate] delay-[420ms] duration-700 ease-groove group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.title}</strong></span>
+        <span className="block overflow-y-clip"><span className="block translate-y-[110%] transition-[translate] delay-[510ms] duration-700 ease-groove group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.artist_names}</span></span>
       </span>
     </Link>
   );

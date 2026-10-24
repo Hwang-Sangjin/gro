@@ -19,7 +19,9 @@ export default function CrateStage({children}) {
   const latest=useRef({done,pathname,children,context});latest.current={done,pathname,children,context};
   const drag=useRef(null), ignoreClick=useRef(false), cancelPath=useRef(null), functions=useRef({});
 
-  function lock(value){setBusy(value);document.documentElement.dataset.crateTransition=String(value);window.dispatchEvent(new Event(value?'crate:start':'crate:end'));}
+  function lock(value){setBusy(value);delete document.documentElement.dataset.crateLanded;document.documentElement.dataset.crateTransition=String(value);window.dispatchEvent(new Event(value?'crate:start':'crate:end'));}
+  // 새 페이지가 "턱" 하고 서는 순간 — 페이지 안의 등장 애니메이션은 전환이 다 끝나길 기다리지 않고 여기서 시작 (usePageSettled)
+  function land(){document.documentElement.dataset.crateLanded='true';window.dispatchEvent(new Event('crate:land'));}
   function clearWaiting(){clearTimeout(timeout.current);awaiting.current=null;}
   function draw(){if(T.current)renderCrate(T.current.t,T.current);}
   function cleanAll(){for(const node of nodes.current.values())cleanPage(measurePage(node));sleeves.current.forEach(el=>{if(el){el.style.opacity='0';el.style.transform='';}});}
@@ -41,7 +43,7 @@ export default function CrateStage({children}) {
     let start=null;const t0=tr.t,duration=tr.reduced?180:Math.max(260,1300*Math.abs(tv-t0));let hit=false;
     const step=now=>{if(T.current!==tr)return;if(start===null)start=now;const u=cl((now-start)/duration);tr.t=t0+(tv-t0)*u;draw();
       const success=(tr.dir==='fwd')===(tv===1);
-      if(success&&!hit&&(tr.dir==='fwd'?tr.t>.86:tr.t<.12)){hit=true;sfx.current?.play('thup');}
+      if(success&&!hit&&(tr.dir==='fwd'?tr.t>.86:tr.t<.12)){hit=true;sfx.current?.play('thup');land();}
       if(u<1)raf.current=requestAnimationFrame(step);else finish(success);
     };raf.current=requestAnimationFrame(step);
   }

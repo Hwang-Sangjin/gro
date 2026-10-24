@@ -6,6 +6,15 @@
   initial-value: 0;
 }
 
+/* ── 모션 토큰 (JS 쪽 값은 lib/motion.js — 둘을 같이 고친다) ──
+   ease-groove      : 등장. 빠르게 출발해 길게 스며들며 멈춤
+   ease-groove-exit : 퇴장. 천천히 출발해 빠르게 빠짐 (등장의 거울)
+   static: CSS 모듈에서 var(--ease-groove) 로도 쓰므로 항상 :root 에 내보냄 */
+@theme static {
+  --ease-groove: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-groove-exit: cubic-bezier(0.55, 0, 1, 0.45);
+}
+
 @theme {
   --animate-marquee: marquee 26s linear infinite;
 
@@ -49,7 +58,15 @@
   /* 고정 토큰. 프리로더와 타 페이지가 쓰므로 절대 보간하지 않는다 */
   --bg: var(--cream);
   --fg: var(--ink);
-  --paper: #ffffff; /* 프리로더 종이. 크림 원이 번지는 걸 보여주려면 배경과 달라야 한다 */
+  --paper: var(--cream); /* 프리로더 종이 = 사이트 바탕 (다크 모드에서는 --cream 이 브라운으로 바뀜) */
+  /* 프리로더 라벨 = Home 3D 판 라벨 색. 줌인으로 덮인 화면이 그대로 3D 라벨로 이어진다
+     (homeEngine THEME.hero.label3d / THEME.nv.label3d 와 같은 값) */
+  --intro-label: #bbcbda;
+
+  /* ── 모션 시간 ──
+     퇴장은 등장의 약 40% + ease-groove-exit. 페이지 전환(crate)이 시작되기 전에 정리되도록 짧게 */
+  --dur-enter: 850ms;
+  --dur-exit: 320ms;
 
   --stage: #2a222a;
 
@@ -91,6 +108,7 @@
 :root[data-theme="dark"] {
   --cream: #4c404a;
   --ink: #f4e7cd;
+  --intro-label: #4d5f74;
   --accent: #7fc1bd; /* 어두운 바탕에서 읽히는 밝은 청록 */
   --danger: #e09aa3;
   --cover-bg: #2a222a;
@@ -296,7 +314,7 @@ body.intro-locked {
 .preloader-disc {
   /* [수정] width 만 주고 height:auto 로 두면 레이아웃 확정 전에
      GSAP 이 CTM 을 재면서 기준점이 어긋난다. 한 변을 고정한다. */
-  --disc: min(300px, 62vmin);
+  --disc: min(440px, 42vmin, 72vw);
   display: block;
   flex: none;
   width: var(--disc);
@@ -311,9 +329,9 @@ body.intro-locked {
   stroke-linecap: round;
 }
 
-/* 가운데 라벨은 하늘색(--frame) = Home 3D 판의 라벨 색. 파고들어 덮인 화면이 그대로 3D 라벨로 이어진다 */
+/* 가운데 라벨 = Home 3D 판의 라벨 색 (테마별, --intro-label). 파고들어 덮인 화면이 그대로 3D 라벨로 이어진다 */
 .preloader-disc circle.preloader-label {
-  fill: var(--frame);
+  fill: var(--intro-label);
   stroke: none;
 }
 
