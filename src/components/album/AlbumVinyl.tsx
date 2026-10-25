@@ -3,7 +3,9 @@
 /* 앨범 상세의 3D 바이닐 — Home과 같은 잉크 드로잉 판(vinyl.glb + inkShaders).
    Home Hero의 인터랙션(누르기·헤일로)과는 분리된 단독 컴포넌트:
    - 재생 중이면 앨범 RPM으로 돌고, 멈추면 관성으로 서서히 멈춤
-   - 정면을 살짝 기울여 두께와 빛줄기가 보이게, 마우스를 따라 빛줄기가 움직임 */
+   - 정면을 살짝 기울여 두께와 빛줄기가 보이게
+   - lean: 마우스 위치에 따라 판이 커버처럼 살짝 기울어짐. 빛은 공간에 고정돼 있어서
+     판이 기울면 반사(빛줄기)가 홈을 따라 미끄러지고 밝기가 바뀜 — 실제 판을 손에 들고 기울일 때처럼 */
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
@@ -13,19 +15,25 @@ import { VINYL_URL, DRACO_PATH } from "@/lib/vinylModel";
 
 // face: 0 = 앞면(A·C), 1 = 뒷면(B·D). 바뀌면 판을 세로축으로 반 바퀴 뒤집음. snap이면 애니메이션 없이 바로
 // tilt: 판을 눕힌 각도(도). 90 = 위에서 내려다본 정면, 기본 76 = 옆면이 살짝 보이게
-type Props = { ink: string; label: string; rpm: number; playing: boolean; face?: number; snap?: boolean; tilt?: number };
+// lean: { x, y } = -1…1 (커버와 같은 기준: 오른쪽·아래가 +). wake 는 이 컴포넌트가 채워 둠 — 값을 바꾼 쪽이 불러서 그리기를 깨움
+export type Lean = { x: number; y: number; wake?: () => void };
+type Props = { ink: string; label: string; rpm: number; playing: boolean; face?: number; snap?: boolean; tilt?: number; lean?: React.MutableRefObject<Lean> };
 
 const ORTHO_EYE = 1000;
 const FLIP = { duration: 0.9, lift: 0.07 };  // 뒤집기 시간(초), 뒤집는 동안 살짝 떠오르는 정도(배율)
+const LEAN_DEG = 7;  // 마우스가 끝에 있을 때 기울어지는 각도 (커버와 같은 7°) — 반사는 이 2배만큼 움직임
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76 }: Props) {
+function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76, lean }: Props) {
   const { scene } = useGLTF(VINYL_URL, DRACO_PATH);
   const { camera, pointer, invalidate, size } = useThree();
   const comp = useRef<THREE.Group>(null);
   const spin = useRef<THREE.Group>(null);
   const omega = useRef(0);
   const flip = useRef<THREE.Group>(null);
+  const leanG = useRef<THREE.Group>(null);
+  const leanCur = useMemo(() => new THREE.Vector2(), []);
+  const leanGoal = useMemo(() => new THREE.Vector2(), []);
   // 뒤집기: 같은 방향으로 계속 반 바퀴씩 (A→B→A가 되감기처럼 보이지 않게)
   const flipState = useRef({ from: face * Math.PI, to: face * Math.PI, t: 1, face });
   const reduced = useMemo(() => typeof window !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches, []);
@@ -71,6 +79,12 @@ function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76 }: P
 
   // frameloop="demand"라 재생 상태가 바뀌면 직접 깨워야 useFrame이 돌기 시작함 (이후엔 회전 중 계속 invalidate)
   useEffect(() => { invalidate(); }, [playing, rpm, invalidate]);
+  useEffect(() => {
+    if (!lean) return;
+    const l = lean.current;
+    l.wake = invalidate;
+    return () => { if (l.wake === invalidate) l.wake = undefined; };
+  }, [lean, invalidate]);
 
   useEffect(() => {
     const f = flipState.current;
@@ -92,6 +106,7 @@ function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76 }: P
 
   const inv = useMemo(() => new THREE.Matrix4(), []);
   const compInv = useMemo(() => new THREE.Matrix4(), []);
+  const rest = useMemo(() => new THREE.Matrix4(), []);
   const v = useMemo(() => ({ fwd: new THREE.Vector3(), eye: new THREE.Vector3(), view: new THREE.Vector3(), flat: new THREE.Vector3(), major: new THREE.Vector3(), half: new THREE.Vector3(), light: new THREE.Vector3(), cam: new THREE.Vector3(), tmp: new THREE.Vector3(), smooth: new THREE.Vector2() }), []);
 
   useFrame((_, delta) => {
@@ -100,7 +115,15 @@ function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76 }: P
     const target = playing && !reduced ? -(rpm / 60) * Math.PI * 2 : 0;
     omega.current += (target - omega.current) * (1 - Math.exp(-dt / (playing ? 0.6 : 1.1)));
     if (spin.current) spin.current.rotation.y = (spin.current.rotation.y + omega.current * dt) % (Math.PI * 2);
-    v.smooth.lerp(pointer, 1 - Math.exp(-dt * 3));
+    // 기울기: 목표(마우스)를 부드럽게 따라감 — 커버의 .2s ease-out 과 비슷한 느낌
+    if (lean && !reduced) leanGoal.set(lean.current.x, lean.current.y); else leanGoal.set(0, 0);
+    leanCur.lerp(leanGoal, 1 - Math.exp(-dt * 9));
+    // lean 이 없는 곳(Footer·404)은 예전처럼 커서를 따라 빛줄기만 살짝 돎
+    if (!lean) v.smooth.lerp(pointer, 1 - Math.exp(-dt * 3));
+    if (leanG.current) {
+      // CSS rotateX(-y·7°) rotateY(x·7°) 와 같은 방향 (three 는 y축이 위라 X 회전 부호가 반대)
+      leanG.current.rotation.set(THREE.MathUtils.degToRad(leanCur.y * LEAN_DEG), THREE.MathUtils.degToRad(leanCur.x * LEAN_DEG), 0);
+    }
     const f = flipState.current;
     if (f.t < 1) f.t = Math.min(1, f.t + dt / FLIP.duration);
     if (flip.current) {
@@ -108,14 +131,17 @@ function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76 }: P
       flip.current.rotation.y = f.from + (f.to - f.from) * k;
       flip.current.scale.setScalar(1 + FLIP.lift * Math.sin(Math.PI * k));
     }
-    const moving = Math.abs(omega.current) > 0.001 || v.smooth.distanceTo(pointer) > 0.002 || f.t < 1;
+    const moving = Math.abs(omega.current) > 0.001 || leanCur.distanceTo(leanGoal) > 0.0015 || (!lean && v.smooth.distanceTo(pointer) > 0.002) || f.t < 1;
 
-    // 빛줄기 방향 (InkVinyl과 같은 계산: 화면상 장축 기준 + 커서로 살짝 회전)
+    // 빛줄기 방향 (Home Hero와 같은 계산: 화면상 장축 기준)
+    // 빛은 '기울이기 전' 자세(rest)에서 정해 공간에 고정 → 기울인 만큼 반사가 움직임 (반사각은 기운 각도의 2배)
     const c = comp.current;
     if (c && disc) {
       c.updateWorldMatrix(true, false); disc.updateWorldMatrix(true, false);
       if (Math.abs(disc.matrixWorld.determinant()) > 1e-10) {
-        compInv.copy(c.matrixWorld).invert();
+        rest.copy(c.matrixWorld);
+        if (leanG.current) rest.premultiply(compInv.copy(leanG.current.matrix).invert());
+        compInv.copy(rest).invert();
         camera.getWorldDirection(v.fwd); camera.getWorldPosition(v.eye);
         v.eye.addScaledVector(v.fwd, -ORTHO_EYE);
         v.view.copy(v.fwd).negate().transformDirection(compInv);
@@ -123,14 +149,14 @@ function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76 }: P
         if (v.flat.lengthSq() < 1e-6) v.flat.set(0, 0, 1);
         v.flat.normalize();
         v.major.set(-v.flat.z, 0, v.flat.x);
-        const a = v.smooth.x * 0.7, m = THREE.MathUtils.clamp(0.45 + v.smooth.y * 0.15, 0.1, 0.9);
+        const a = lean ? 0 : v.smooth.x * 0.7, m = lean ? 0.45 : THREE.MathUtils.clamp(0.45 + v.smooth.y * 0.15, 0.1, 0.9);
         v.half.set(v.major.x * Math.cos(a) + v.flat.x * Math.sin(a), 0, v.major.z * Math.cos(a) + v.flat.z * Math.sin(a)).multiplyScalar(m);
         // 뒤집혀 아랫면이 보이면(view.y < 0) 빛도 아랫면 쪽으로 — 어느 면이든 같은 빛줄기
         const sgn = v.view.y < 0 ? -1 : 1;
         v.half.y = sgn; v.half.normalize();
         v.light.copy(v.half).multiplyScalar(2 * v.half.dot(v.view)).sub(v.view).normalize();
         if (v.light.y * sgn < 0.3) { v.light.y = 0.3 * sgn; v.light.normalize(); }
-        v.light.transformDirection(c.matrixWorld);
+        v.light.transformDirection(rest);
         inv.copy(disc.matrixWorld).invert();
         v.cam.copy(v.eye).applyMatrix4(inv);
         v.tmp.copy(v.light).transformDirection(inv);
@@ -142,10 +168,12 @@ function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76 }: P
   });
 
   return (
-    <group ref={flip}>
-      <group ref={comp} rotation={[THREE.MathUtils.degToRad(tilt), 0, 0]}>
-        <group ref={spin}>
-          <primitive object={model} dispose={null} />
+    <group ref={leanG}>
+      <group ref={flip}>
+        <group ref={comp} rotation={[THREE.MathUtils.degToRad(tilt), 0, 0]}>
+          <group ref={spin}>
+            <primitive object={model} dispose={null} />
+          </group>
         </group>
       </group>
     </group>

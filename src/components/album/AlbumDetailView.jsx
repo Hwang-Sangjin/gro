@@ -65,17 +65,34 @@ export default function AlbumDetailView({ album }) {
     check();
     return () => { cancelAnimationFrame(frame); cancelAnimationFrame(settleFrame); observer.disconnect(); };
   }, [done, album.slug]);
+  // 커버와 판이 마우스를 따라 각자 기울어짐: 각자 자기 중심 기준으로 -1…1, 자기 밖으로 벗어나면 서서히 0으로
+  // (커버 위에선 커버가, 판 위에선 판이 크게 반응하고 반대쪽은 살짝만)
+  const coverBox = useRef(null);
+  const discBox = useRef(null);
+  const lean = useRef({ x: 0, y: 0 });
+  const local = (value) => Math.abs(value) <= 1 ? value : Math.sign(value) * Math.max(0, 2 - Math.abs(value));
+  const along = (el, event) => {
+    const box = el.getBoundingClientRect();
+    return [local((event.clientX - box.left) / box.width * 2 - 1), local((event.clientY - box.top) / box.height * 2 - 1)];
+  };
   function tilt(event) {
     if (event.pointerType === "touch" || !discReady || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const box = event.currentTarget.getBoundingClientRect();
-    const x = Math.max(-1, Math.min(1, (event.clientX - box.left) / box.width * 2 - 1));
-    const y = Math.max(-1, Math.min(1, (event.clientY - box.top) / box.height * 2 - 1));
-    art.current?.style.setProperty("--cover-rx", `${-y * 7}deg`);
-    art.current?.style.setProperty("--cover-ry", `${x * 7}deg`);
+    if (coverBox.current) {
+      const [x, y] = along(coverBox.current, event);
+      art.current?.style.setProperty("--cover-rx", `${-y * 7}deg`);
+      art.current?.style.setProperty("--cover-ry", `${x * 7}deg`);
+    }
+    if (discBox.current) {
+      const [x, y] = along(discBox.current, event);
+      lean.current.x = x; lean.current.y = y;
+      lean.current.wake?.();
+    }
   }
   function resetTilt() {
     art.current?.style.setProperty("--cover-rx", "0deg");
     art.current?.style.setProperty("--cover-ry", "0deg");
+    lean.current.x = 0; lean.current.y = 0;
+    lean.current.wake?.();
   }
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -140,8 +157,8 @@ export default function AlbumDetailView({ album }) {
         <Fade show={discReady} className="mb-10">
           <AlbumBackLink slug={album.slug} />
         </Fade>
-        <div className="album-listening-stage">
-          <div data-album-cover={album.slug} className="album-listening-cover relative aspect-square" onPointerMove={tilt} onPointerLeave={resetTilt} onPointerCancel={resetTilt}>
+        <div className="album-listening-stage" onPointerMove={tilt} onPointerLeave={resetTilt} onPointerCancel={resetTilt}>
+          <div ref={coverBox} data-album-cover={album.slug} className="album-listening-cover relative aspect-square">
             <div ref={art} className="album-cover-tilt absolute inset-0 shadow-2xl" style={{ backgroundColor: color }}>
             {/* 슬리브 두께 (Digging·이동 전환과 같은 비율·색) */}
             <span aria-hidden="true" className="pointer-events-none absolute bottom-full left-0 w-full origin-bottom-left -skew-x-45" style={{ height: SLEEVE_DEPTH, backgroundColor: sleeve.top }} />
@@ -153,7 +170,7 @@ export default function AlbumDetailView({ album }) {
             </div>
             </div>
           </div>
-          <div className="album-record-slide" data-ready={discReady} aria-hidden="true"
+          <div ref={discBox} className="album-record-slide" data-ready={discReady} aria-hidden="true"
             style={{
               transform: discReady && !swapping ? "translateX(0)" : "translateX(-85.185185%)",
               // LP 교체 때 들어가는 동작은 짧게, 나오는 동작은 원래 속도(1.15s)로
@@ -163,7 +180,7 @@ export default function AlbumDetailView({ album }) {
           <div className="absolute inset-0" data-playing={playing}>
             <AlbumVinyl ink={ink} label={album.coverColor || color}
               rpm={[33, 45, 78].includes(album.rpm) ? album.rpm : 33.333} playing={playing}
-              face={shownDisc.face} snap={shownDisc.snap} />
+              face={shownDisc.face} snap={shownDisc.snap} lean={lean} />
           </div>
           </div>
         </div>
