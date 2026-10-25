@@ -4,7 +4,7 @@
 // 고른 장소는 ?place=<slug> 로 주소에 남아서 링크로 공유 가능
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { PLACE_FIELDS, isOver, kindOf, openState } from "@/lib/places";
+import { PLACE_FIELDS, AREA_ROMAN, isOver, kindOf, openState } from "@/lib/places";
 import PlaceList from "./PlaceList";
 import PlaceDetail from "./PlaceDetail";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -12,7 +12,7 @@ import { useTheme } from "@/lib/theme";
 import useLabReveal from "@/components/lab/useLabReveal";
 import GrooveText from "@/components/lab/GrooveText";
 import { SERIF, ShownCtx, Heading } from "@/components/lab/LabUI";
-import { PALETTES, PAINT, SEOUL, buildStyle } from "@/lib/map/style";
+import { PALETTES, PAINT, SEOUL, buildStyle, nightPalette, isNight } from "@/lib/map/style";
 import { loadMaplibre, HANGUL_FONT, KOREA_BOUNDS, MAP_CONTROLS, MAP_CONTROLS_DARK } from "@/lib/map/maplibre";
 
 
@@ -35,7 +35,9 @@ export default function MapStudio() {
   const markers = useRef(new Map());               // "p:<slug>" | "c:<cluster id>" → { marker, el }
   const [markerTick, setMarkerTick] = useState(0); // 마커를 새로 만든 뒤 표시(고름·영업 중)를 다시 칠하려고
 
-  const palette = PALETTES[theme];
+  // 밤(서울 18시–6시)엔 지도가 조금 어두워짐 — 1분마다 now 가 바뀌며 다시 판정
+  const night = isNight(now);
+  const palette = useMemo(() => (night ? nightPalette(PALETTES[theme], theme) : PALETTES[theme]), [theme, night]);
   const latest = useRef(palette);
   latest.current = palette;
 
@@ -104,8 +106,21 @@ export default function MapStudio() {
     history.replaceState(history.state, "", url);
     const p = all.find((x) => x.slug === selected);
     const m = map.current;
-    if (p && m && mapReady) m.flyTo({ center: [p.lng, p.lat], zoom: Math.max(m.getZoom(), 15), duration: 900, essential: false });
+    if (p && m && mapReady) {
+      m.flyTo({ center: [p.lng, p.lat], zoom: Math.max(m.getZoom(), 15), duration: 900, essential: false });
+      ripple(m, p, kindOf(p.kind).color);   // 판을 올리는 순간처럼 마커에서 홈이 퍼짐
+    }
   }, [selected, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 동네를 고르면 지도 위에 동네 이름이 Monoton 줄무늬로 크게 잠깐
+  const [flash, setFlash] = useState(null);
+  useEffect(() => {
+    if (area === "all") return;
+    const f = { area, key: Date.now() };
+    setFlash(f);
+    const t = setTimeout(() => setFlash((cur) => (cur?.key === f.key ? null : cur)), 2300);
+    return () => clearTimeout(t);
+  }, [area]);
 
   // 동네를 고르면 그 동네 장소들이 한눈에
   useEffect(() => {
@@ -185,9 +200,11 @@ export default function MapStudio() {
       el.dataset.on = String(slug === selected);
       el.dataset.open = String(open[slug]?.state === "open");
       el.dataset.hot = String(slug === hover);
+      const k = placeBySlug.current.get(slug)?.kind;
+      el.dataset.glow = String(night && open[slug]?.state === "open" && (k === "bar" || k === "listening"));
       el.style.zIndex = slug === selected ? "3" : slug === hover ? "2" : "";
     }
-  }, [selected, hover, open, markerTick]);
+  }, [selected, hover, open, markerTick, night]);
 
 
   // 테마가 바뀌면 칠만 다시 (스타일 전체를 다시 불러오지 않음)
@@ -215,9 +232,23 @@ export default function MapStudio() {
             <div data-on={shown}
               className="relative h-[clamp(420px,calc(100svh-250px),900px)] border-2 border-(--ink) [clip-path:inset(0_50%_0_50%)] transition-[clip-path] duration-300 ease-[cubic-bezier(.22,1,.36,1)] data-[on=true]:[clip-path:inset(-2px)] data-[on=true]:duration-[1000ms] data-[on=true]:delay-150 motion-reduce:transition-none">
               {/* maplibre 가 컨테이너에 position:relative 를 덮어써서, 위치는 바깥 div 가 잡고 지도는 그 안을 꽉 채움 */}
-              <div className="absolute inset-0" style={{ background: palette.land }}>
-                <div ref={box} data-lenis-prevent data-crate-ignore className={`size-full ${MAP_CONTROLS} ${theme === "dark" ? MAP_CONTROLS_DARK : ""}`} />
+              {/* 커서: 지도 위에선 톤암, 판(마커) 위에선 바늘이 내려앉은 톤암 (사이트 원형 커서는 여기서 숨김 — data-own-cursor) */}
+              <div className="absolute inset-0" data-own-cursor style={{ background: palette.land, "--arm": ARM_CURSOR, "--arm-down": ARM_DOWN_CURSOR }}>
+                <div ref={box} data-lenis-prevent data-crate-ignore className={`size-full ${MAP_CONTROLS} ${theme === "dark" ? MAP_CONTROLS_DARK : ""} [&_.maplibregl-canvas-container.maplibregl-interactive]:[cursor:var(--arm)]! [&_.maplibregl-canvas-container.maplibregl-interactive:active]:cursor-grabbing! [&_[data-place]]:[cursor:var(--arm-down)]!`} />
               </div>
+              {night && (
+                <span className="pointer-events-none absolute left-3 top-3 z-[2] inline-flex items-center gap-1.5 bg-(--cream)/85 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-(--ink)/80">
+                  <span aria-hidden="true">☾</span> After dark
+                </span>
+              )}
+              {flash && (
+                <div key={flash.key} aria-hidden="true" className="pointer-events-none absolute inset-0 z-[3] grid place-items-center animate-[area-flash_2.2s_ease_forwards] motion-reduce:hidden">
+                  <div className="grid place-items-center gap-2 rounded-full bg-[radial-gradient(closest-side,var(--cream)_35%,transparent)] px-16 py-10 text-(--ink)">
+                    <GrooveText className="text-[clamp(2.6rem,6vw,5.4rem)] leading-none">{AREA_ROMAN[flash.area] ?? flash.area}</GrooveText>
+                    {AREA_ROMAN[flash.area] && <span className="text-[14px] font-medium tracking-[0.3em]">{flash.area}</span>}
+                  </div>
+                </div>
+              )}
               {/* 종이 결 — 페이지와 같은 결·같은 섞기(soft-light)로 지도도 인쇄물처럼 */}
               <span aria-hidden="true" className={`pointer-events-none absolute inset-0 bg-(image:--paper-texture-image) bg-[length:var(--paper-texture-size)_var(--paper-texture-size)] opacity-(--paper-texture-opacity) mix-blend-soft-light`} />
               {failed && (
@@ -257,6 +288,7 @@ function discMarker(p, color) {
   el.setAttribute("aria-label", p.name);
   el.className = "group block cursor-pointer";
   el.innerHTML = `
+    <span class="pointer-events-none absolute left-1/2 top-1/2 size-[72px] rounded-full opacity-0 transition-opacity duration-700 group-data-[glow=true]:opacity-100 group-data-[glow=true]:animate-[glow-breathe_3.2s_ease-in-out_infinite]" style="transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(255,178,96,.6) 0%,rgba(255,140,60,.2) 42%,transparent 70%)"></span>
     <span class="relative grid size-7 place-items-center rounded-full bg-[#141113] shadow-[0_4px_10px_-2px_rgba(0,0,0,.55)] transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-110 group-data-[hot=true]:scale-125 group-data-[on=true]:scale-[1.4]">
       <span class="absolute inset-0 rounded-full group-data-[open=true]:animate-[spin_2.4s_linear_infinite] motion-reduce:animate-none!" style="background:conic-gradient(from 0deg,transparent 0 18%,rgba(255,255,255,.22) 24%,transparent 30% 68%,rgba(255,255,255,.14) 74%,transparent 80%)"></span>
       <span class="absolute inset-[4px] rounded-full border border-white/10"></span>
@@ -265,6 +297,30 @@ function discMarker(p, color) {
     <span class="pointer-events-none absolute bottom-full left-1/2 mb-2.5 -translate-x-1/2 whitespace-nowrap bg-(--cream) px-2.5 py-1 text-[12px] font-medium text-(--ink) opacity-0 shadow-[0_6px_14px_-8px_rgba(0,0,0,.6)] transition-opacity duration-200 group-data-[hot=true]:opacity-100 group-data-[on=true]:opacity-100"></span>`;
   el.lastElementChild.textContent = p.name;   // 이름은 textContent 로 (HTML 로 해석되지 않게)
   return el;
+}
+
+// 톤암 커서 (32px, 바늘 끝 = 4,28). 크림 테두리 위에 잉크 선이라 밝은·어두운 지도 둘 다에서 보임
+const armSvg = (down) => `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>
+<g fill='none' stroke-linecap='round' stroke-linejoin='round'>
+<path d='M25 6 L${down ? "11 21" : "12 19"}' stroke='%23f4e7cd' stroke-width='5'/><path d='M25 6 L${down ? "11 21" : "12 19"}' stroke='%232a222a' stroke-width='2'/>
+</g>
+<circle cx='25' cy='6' r='4' fill='%23f4e7cd' stroke='%232a222a' stroke-width='1.6'/><circle cx='25' cy='6' r='1.3' fill='%232a222a'/>
+<g transform='rotate(${down ? 40 : 18} ${down ? 8 : 9} ${down ? 24 : 22})'><rect x='${down ? 4.5 : 5.5}' y='${down ? 20.5 : 18.5}' width='7' height='7' rx='1.2' fill='%23f4e7cd' stroke='%232a222a' stroke-width='1.6'/></g>
+<path d='M${down ? "6 25.5 L4 28" : "7 24.5 L5 27"}' stroke='%232a222a' stroke-width='1.6' stroke-linecap='round'/>
+${down ? "<path d='M1.5 30.5 A6 3 0 0 1 9 30' fill='none' stroke='%232a222a' stroke-width='1' stroke-opacity='.6'/>" : ""}
+</svg>`.replace(/\n/g, "").replace(/"/g, "'");
+const ARM_CURSOR = `url("data:image/svg+xml;utf8,${armSvg(false)}") 5 27, grab`;
+const ARM_DOWN_CURSOR = `url("data:image/svg+xml;utf8,${armSvg(true)}") 4 28, pointer`;
+
+// 고를 때 마커 자리에서 레코드 홈 세 겹이 퍼졌다 사라짐 (지도 좌표에 붙어서 flyTo 동안 같이 움직임)
+async function ripple(m, p, color) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const { Marker } = await loadMaplibre();
+  const el = document.createElement("div");
+  el.className = "pointer-events-none relative size-0";
+  el.innerHTML = [0, 1, 2].map((i) => `<span class="absolute left-1/2 top-1/2 size-24 rounded-full border-2 opacity-0 animate-[groove-ripple_1.5s_cubic-bezier(.22,1,.36,1)_forwards]" style="border-color:${color};animation-delay:${i * 180}ms"></span>`).join("");
+  const mk = new Marker({ element: el, anchor: "center" }).setLngLat([p.lng, p.lat]).addTo(m);
+  setTimeout(() => mk.remove(), 2100);
 }
 
 // 클러스터: 판 세 장이 겹친 더미 + 개수

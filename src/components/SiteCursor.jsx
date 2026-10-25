@@ -26,6 +26,7 @@ export default function SiteCursor() {
 
     const stateFor = (el) => {
       if (!el || el.closest("[data-home-stage]")) return "hidden";                    // Home 은 스테이지 커서
+      if (el.closest("[data-own-cursor]")) return "hidden";                            // 자기 커서가 있는 곳 (Lab Map 의 톤암)
       if (el.closest("input, textarea, select, [contenteditable=''], [contenteditable='true'], iframe")) return "hidden";
       // 열린 모달(<dialog>)은 화면 맨 위층이라 커스텀 커서가 그 뒤에 가려짐 → 원래 커서
       if (el.closest("dialog[open]")) return "hidden";

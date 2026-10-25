@@ -36,6 +36,18 @@ export const PALETTES = {
 
 const LABELS = ["label-city", "label-district", "label-place-minor", "label-road", "label-water", "label-waterway"];
 
+// 밤 지도 (서울 18시–6시): 땅·물·길을 어두운 쪽으로 조금 섞음. 글자색은 그대로
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const mixHex = (a, b, t) => "#" + hexRgb(a).map((v, i) => Math.round(v + (hexRgb(b)[i] - v) * t).toString(16).padStart(2, "0")).join("");
+export function nightPalette(p, theme) {
+  const to = theme === "dark" ? "#1b151b" : "#4c404a", t = theme === "dark" ? 0.22 : 0.16;
+  return Object.fromEntries(Object.entries(p).map(([k, v]) => [k, k === "label" ? v : mixHex(v, to, t)]));
+}
+export const isNight = (now = new Date()) => {
+  const h = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Seoul", hour: "2-digit", hour12: false }).format(now)) % 24;
+  return h >= 18 || h < 6;
+};
+
 // 팔레트 키 → [레이어 id, paint 속성] (테마가 바뀌면 스타일을 다시 불러오지 않고 이 색만 바꿈)
 export const PAINT = {
   land: [["background", "background-color"], ...LABELS.map((l) => [l, "text-halo-color"])],

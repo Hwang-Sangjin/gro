@@ -14,6 +14,14 @@ export const kindOf = (key) => KINDS.find((k) => k.key === key) ?? KINDS[0];
 export const AREAS = ["성수", "합정", "망원", "연남", "홍대", "을지로", "종로", "한남", "이태원", "신촌", "강남", "압구정", "문래", "부산"];
 
 // NFKC: 한글 음절을 자모로 쪼개지 않음 (NFKD 면 "김밥레코즈" 가 빈 문자열이 됨)
+// 동네 이름 로마자 (지도에서 동네를 고르면 Monoton 으로 크게 뜸). 없으면 한글만
+export const AREA_ROMAN = {
+  성수: "Seongsu", 합정: "Hapjeong", 망원: "Mangwon", 연남: "Yeonnam", 홍대: "Hongdae", 을지로: "Euljiro", 종로: "Jongno",
+  한남: "Hannam", 이태원: "Itaewon", 신촌: "Sinchon", 강남: "Gangnam", 압구정: "Apgujeong", 문래: "Mullae", 부산: "Busan",
+  해방촌: "Haebangchon", 대흥: "Daeheung", 신당: "Sindang", 뚝섬: "Ttukseom", 인사동: "Insadong", 충정로: "Chungjeongno",
+  황학동: "Hwanghak", 남영: "Namyeong", 삼각지: "Samgakji", 회현: "Hoehyeon", 동묘: "Dongmyo",
+};
+
 export const slugify = (s = "") =>
   s.normalize("NFKC").toLowerCase().replace(/[^a-z0-9가-힣]+/g, "-").replace(/^-+|-+$/g, "");
 
