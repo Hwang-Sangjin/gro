@@ -474,7 +474,18 @@ html[data-crate-transition="true"] .ct-page{will-change:transform,opacity;user-s
 .ct-page[data-crate-path="/"] { --ct-drop-bg: var(--page-bg); }
 .ct-page[data-crate-path="/"] > .ct-navbar { transition: opacity .5s, background-color .3s ease; }
 .ct-page[data-crate-path="/"] > .ct-navbar[data-drop="true"] { background-color: var(--page-bg); }
-/* 헤더(바·메뉴 패널)는 모든 페이지에서 종이 결 없이 민무늬 — 홈과 같은 모습 */
+/* 헤더 바: 평소엔 페이지와 같은 종이 결, 메뉴가 펼쳐지면(data-drop) 결이 빠지고 바·패널이 한 장의 민무늬 (홈과 같은 모습) */
+.ct-page:has(.paper-textured) > .ct-navbar::before {
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  opacity:var(--paper-texture-opacity);
+  background-color:var(--ct-header-bg);
+  background-image:var(--paper-texture-image);
+  background-size:var(--paper-texture-size) var(--paper-texture-size);
+  background-position:0 var(--paper-header-y,0px);
+  background-repeat:repeat;background-blend-mode:soft-light;
+  transition:opacity .3s ease;
+}
+.ct-page:has(.paper-textured) > .ct-navbar[data-drop="true"]::before { opacity:0; }
 html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 
 /* Digging cover flight: body portal stays outside CrateStage transforms. */
