@@ -1,6 +1,7 @@
 "use client";
 // 개인정보처리방침·이용약관 공용 틀: 제목 + 시행일 + (데스크톱) 왼쪽 목차 + 번호 붙은 조항
 // 목차는 지금 읽는 조항을 따라 표시됨
+import { MONOTON } from "@/lib/fonts";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import PageShell from "@/components/layout/PageShell";
@@ -44,7 +45,7 @@ export default function LegalPage({ path, title, intro, sections }) {
                 className="relative border-b border-transparent pb-1 opacity-50 transition-opacity before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[''] hover:opacity-100 aria-[current=page]:border-current aria-[current=page]:opacity-100">{name}</Link>
             ))}
           </nav>
-          <RiseText as="h1" lines={[title]} className={`${SERIF} mt-8 text-[clamp(3rem,8vw,7.5rem)] leading-[0.9]`} />
+          <RiseText as="h1" lines={[title]} className={`${MONOTON} mt-8 text-[clamp(2.2rem,5.6vw,5.4rem)] leading-[1.04]`} />
           <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
             <p className="max-w-[60ch] text-[16px] leading-7 text-(--ink)/80">{intro}</p>
             <p className="text-[11px] uppercase tracking-[0.22em] text-(--ink)/55 tabular-nums">Effective {formatDate(SITE.legalUpdated)}</p>

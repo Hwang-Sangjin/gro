@@ -40,7 +40,7 @@ export default function Collection() {
     <PageShell className={`${styles.page} paper-textured`}>
       <header className={styles.header}>
         <div ref={titleRef} className={`${styles.titleRow} ${styles.titleReveal}`} data-revealed={titleRevealed}>
-          <span className={styles.titleMask}><h1 className={`${styles.title} text-[clamp(2.25rem,8.6vw,10rem)]!`}>COLLECTION</h1></span>
+          <span className={styles.titleMask}><h1 className={`${styles.title} text-[clamp(2rem,6.4vw,7.4rem)]!`}>COLLECTION</h1></span>
           <img className={`${styles.mark} w-[clamp(84px,11vw,200px)]! ml-[clamp(0.25rem,1vw,1rem)]!`} src="/images/grooves/title-vinyl.gif" alt="" />
         </div>
       </header>

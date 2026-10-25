@@ -1,5 +1,6 @@
 "use client";
 // 스토리 한 편의 틀: 위에 ← News 와 분류·날짜, 본문(글마다 자유), 맨 아래 다음 글
+import { MONOTON } from "@/lib/fonts";
 import Link from "next/link";
 import PageShell from "@/components/layout/PageShell";
 import StoryBody from "@/content/news/stories";
@@ -36,7 +37,7 @@ export default function StoryShell({ meta }) {
                 <StoryCover name={next.cover} className="aspect-square rounded-sm [&_svg]:transition-transform [&_svg]:duration-700 group-hover:[&_svg]:scale-105" />
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-(--accent)">{categoryName(next.category)}</p>
-                  <p className={`${SERIF} mt-2 text-[clamp(2rem,4vw,3.6rem)] leading-[0.95]`}>{next.title} <span aria-hidden="true" className="inline-block transition-transform duration-500 group-hover:translate-x-2">→</span></p>
+                  <p className={`${MONOTON} mt-2 text-[clamp(1.5rem,2.9vw,2.6rem)] leading-[1.1]`}>{next.title} <span aria-hidden="true" className="inline-block transition-transform duration-500 group-hover:translate-x-2">→</span></p>
                 </div>
               </Link>
             </Reveal>

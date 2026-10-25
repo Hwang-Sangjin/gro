@@ -6,6 +6,7 @@
 //       · Fig.03 파형 그려짐 · 마무리(톤암이 판 위로 내려앉음)
 // 히어로 → 01 What to know → 홈 → 02 Made of PVC → 한 줄 → 03 저장 → 03 재생 → 마무리 → (아래 Next story)
 // 손그림: 사이트 제목 GIF + public/images/news/what-is-vinyl/ (흰 배경을 지우고 #BBCBDA 단색으로 맞춘 webp)
+import { MONOTON } from "@/lib/fonts";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import Reveal, { RiseText } from "@/components/story/Reveal";
@@ -242,7 +243,7 @@ export default function Story() {
           <div>
             <Reveal as="p" className={`${LABEL} ${RUST}`}>Vinyl A to Z · Chapter 01</Reveal>
             {/* 제목: 줄 단위로 마스크 아래에서 올라옴 */}
-            <RiseText as="h1" lines={["What Is", "Vinyl?"]} delay={120} className={`${BODONI} mt-5 text-[clamp(3.6rem,8vw,8.6rem)] leading-[0.86] tracking-[-0.01em]`} />
+            <RiseText as="h1" lines={["What Is", "Vinyl?"]} delay={120} className={`${MONOTON} mt-5 text-[clamp(2.6rem,6vw,6.4rem)] leading-[1.02]`} />
             <Reveal as="p" delay={450} className="mt-7 max-w-md text-[clamp(1.1rem,1.5vw,1.35rem)] font-semibold leading-relaxed">
               바이닐이란 무엇인가 — 소리를 홈으로 새기고, 그 홈을 다시 소리로 되돌리는 음반에 대하여.
             </Reveal>

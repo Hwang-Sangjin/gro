@@ -176,7 +176,6 @@ export default function Navbar({path}){
       return <div key={group.label} id={on?'site-drop':undefined} inert={!on} data-open={on}
         onPointerEnter={()=>openDrop(group.label)} onPointerLeave={()=>closeDrop()}
         className="absolute inset-x-0 top-full isolate hidden bg-[var(--ct-drop-bg,var(--ct-header-bg))] text-(--ct-header-fg) shadow-[0_24px_40px_-30px_rgba(0,0,0,.45)] transition-[clip-path] duration-500 ease-[cubic-bezier(.76,0,.24,1)] [clip-path:inset(0_0_100%_0)] data-[open=true]:[clip-path:inset(0_0_-40px_0)] md:block">
-        <span aria-hidden="true" className="ct-drop-paper"/>{/* 헤더 바와 같은 종이 결 (globals.css) */}
         <span aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-current/15"/>
         <ul className="grid grid-cols-2 px-[clamp(16px,3.2vw,44px)]">
           {group.children.map((c,k)=>{

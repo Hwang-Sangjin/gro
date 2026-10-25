@@ -1,6 +1,7 @@
 "use client";
 // 내 계정: 프로필(Google) · 내 판 숫자 · 로그아웃 · 계정 삭제
 // 삭제: 지워지는 것 안내 → 대화상자에서 DELETE 입력 → /api/account/delete → 이 브라우저 세션 정리 → 끝 화면
+import { MONOTON } from "@/lib/fonts";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import PageShell from "@/components/layout/PageShell";
@@ -113,7 +114,7 @@ export default function AccountView() {
     return (
       <PageShell className="paper-textured">
         <section ref={doneRef} className={`${WRAP} grid min-h-[60svh] place-content-center text-center text-(--ink)`}>
-          <RiseText as="h1" lines={["Your account", "has been deleted."]} className={`${SERIF} text-[clamp(2.6rem,6vw,5rem)] leading-[0.92]`} />
+          <RiseText as="h1" lines={["Your account", "has been deleted."]} className={`${MONOTON} text-[clamp(1.9rem,4.4vw,3.6rem)] leading-[1.06]`} />
           <p className="mx-auto mt-5 max-w-md text-[15px] leading-7 text-(--ink)/70">Thanks for digging with us. You can still browse {SITE.name} any time, and you’re always welcome back.</p>
           <Link href="/" className={`${BTN} mx-auto mt-8 bg-(--ink) px-8 text-(--cream) hover:bg-(--accent)`}>Back to home</Link>
         </section>
@@ -128,7 +129,7 @@ export default function AccountView() {
 
         {user === null ? (
           <section className="py-10">
-            <RiseText as="h1" lines={["Log in to see", "your account."]} className={`${SERIF} text-[clamp(2.6rem,6vw,5rem)] leading-[0.92]`} />
+            <RiseText as="h1" lines={["Log in to see", "your account."]} className={`${MONOTON} text-[clamp(1.9rem,4.4vw,3.6rem)] leading-[1.06]`} />
             <Link href="/login?next=/account" className={`${BTN} mt-8 bg-(--ink) px-8 text-(--cream) hover:bg-(--accent)`}>Log in</Link>
           </section>
         ) : (

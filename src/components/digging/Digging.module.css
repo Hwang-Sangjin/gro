@@ -22,11 +22,12 @@
   gap: 0.4rem;
 }
 .title {
-  font-family: "Grooves Display", "Hahmlet", Georgia, serif;
-  font-weight: 900;
-  font-size: clamp(4rem, 12.5vw, 12rem);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
+  /* Monoton — 레코드 홈 같은 여러 줄 글씨 (lib/fonts.js) */
+  font-family: "Monoton", "Hahmlet", Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(3rem, 9vw, 9rem);
+  line-height: 1.12;
+  letter-spacing: 0.02em;
   margin: 0;
 }
 .mark {
@@ -348,7 +349,7 @@
     padding-top: 7rem;
   }
   .title {
-    font-size: 15vw;
+    font-size: 11vw;
   }
   .mark {
     width: 25vw;

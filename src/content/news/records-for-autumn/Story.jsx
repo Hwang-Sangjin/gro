@@ -3,6 +3,7 @@
 // 1 히어로 → 2 일곱 장(모두 LP가 있는 앨범, 버튼은 YouTube · Grooves 앨범 페이지) (스크롤하면 슬리브에서 판이 빠져나오며 돎) → 3 한 장짜리 믹스테이프(A/B면) → 4 마무리(낙엽 더미)
 // 낙엽은 페이지 전체에서 떨어지고(화면에 붙은 층), 마지막 섹션 바닥에 쌓여 있음
 // 슬리브는 실제 앨범 커버 대신 글자로 만든 그림 (저작권 이미지 사용 안 함)
+import { MONOTON } from "@/lib/fonts";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Reveal, { RiseText } from "@/components/story/Reveal";
@@ -404,7 +405,7 @@ export default function Story() {
       <section className="relative grid min-h-svh place-items-center overflow-hidden pb-16 pt-[calc(var(--ct-header-h,106px)+80px)]">
         <div className={`${WRAP} relative text-center`}>
           <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--accent)">Picks · Autumn 2026</Reveal>
-          <RiseText as="h1" lines={["Records for an", "autumn evening"]} delay={120} className={`${SERIF} mt-6 text-[clamp(2.9rem,10vw,10rem)] leading-[0.86]`} />
+          <RiseText as="h1" lines={["Records for an", "autumn evening"]} delay={120} className={`${MONOTON} mt-6 text-[clamp(2.2rem,7vw,7rem)] leading-[1.02]`} />
           <Reveal delay={500} as="p" className="mx-auto mt-8 max-w-xl text-[17px] leading-8 text-(--ink)/80">
             일곱 장의 앨범과 앨범마다 한 곡. 선선한 바람이 불기 시작할 때 꺼내 듣기 좋은 판들이에요. 모두 바이닐로 구할 수 있어요.
           </Reveal>

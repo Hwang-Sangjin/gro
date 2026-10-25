@@ -3,6 +3,7 @@
 // 1 히어로(카운트다운 + Pop-up crate) → 2 소개 → 3 장소·일시 → 4 입장 방식 → 5 15회 한정반(대표곡 YouTube)
 // → 6 최초공개반·셀러 부스 → 7 온라인 판매 중인 한정반(앨범만) → 8 Grooves 컬렉션 → 9 공식 채널
 // 사실 정보는 recordfair.kr 공지(2026-10-13·18 확인)와 지난 회차 기사 기준. 커버 이미지는 받는 대로 img 경로를 채움
+import { MONOTON } from "@/lib/fonts";
 import { useEffect, useRef, useState } from "react";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 import Link from "next/link";
@@ -508,7 +509,7 @@ export default function Story() {
           <p aria-hidden="true" className={`${SERIF} mt-2 text-[clamp(7rem,16vw,15rem)] leading-[0.78] text-transparent [-webkit-text-stroke:2px_var(--ink)]`}>
             <span className="inline-block animate-[sheet-up_1.2s_cubic-bezier(.22,1,.36,1)_both]">15</span>
           </p>
-          <RiseText as="h1" lines={["Seoul", "Record Fair"]} delay={150} lineClassName="whitespace-nowrap" className={`${SERIF} mt-[0.08em] text-[clamp(3.2rem,7vw,7rem)] leading-[0.88]`} />
+          <RiseText as="h1" lines={["Seoul", "Record Fair"]} delay={150} lineClassName="whitespace-nowrap" className={`${MONOTON} mt-[0.08em] text-[clamp(2.3rem,5vw,5rem)] leading-[1.04]`} />
           <Reveal delay={450} as="p" className="mt-6 text-[clamp(1.1rem,2vw,1.5rem)] font-medium tabular-nums">2026. 10. 31 – 11. 1 · PUBG 성수</Reveal>
           <Reveal delay={650} className="mt-7 w-fit rounded-[6px] bg-(--cream)/85 p-4 backdrop-blur-sm">
             <Countdown />

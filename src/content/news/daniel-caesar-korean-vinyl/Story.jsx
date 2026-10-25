@@ -3,6 +3,7 @@
 // 1 히어로(앨범 커버 세 장) → 2 왜 반가운지 → 3 세 장 (발매순, 판 사양 + 추천곡) → 4 구매 안내 → 5 Grooves 컬렉션 · 출처
 // 사실 정보는 세컨드트랙 코리아 공지(인스타그램, 2026-10)와 발매 정보 기준
 // 앨범 커버·링크는 Grooves DB(albums)에서 가져옴 — 없으면 마블 판만 보여줌
+import { MONOTON } from "@/lib/fonts";
 import { useRef } from "react";
 import Link from "next/link";
 import { coverUrl } from "@/lib/albums";
@@ -151,7 +152,7 @@ export default function Story() {
         <div className={`${WRAP} grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)]`}>
           <div>
             <Reveal as="p" className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--accent)">News · Release</Reveal>
-            <RiseText as="h1" lines={["Daniel Caesar,", "pressed for Korea"]} delay={120} className={`${SERIF} mt-5 text-[clamp(3rem,7vw,7rem)] leading-[0.88]`} />
+            <RiseText as="h1" lines={["Daniel Caesar,", "pressed for Korea"]} delay={120} className={`${MONOTON} mt-5 text-[clamp(2.1rem,5vw,5rem)] leading-[1.04]`} />
             <Reveal delay={450} as="p" className="mt-7 max-w-[44ch] break-keep text-[clamp(1rem,1.4vw,1.2rem)] leading-8 text-(--ink)/80">
               세컨드트랙이 다니엘 시저의 세 장을 국내에서 정식 LP로 발매해요. Pilgrim’s Paradise, Freudian, Case Study 01 — 모두 마블 컬러 180g 판이에요.
             </Reveal>

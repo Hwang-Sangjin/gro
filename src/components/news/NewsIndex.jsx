@@ -1,5 +1,6 @@
 "use client";
 // /news — 스토리 목록: 큰 제목, 카테고리 탭(All / News / Vinyl A to Z / Picks), 맨 앞 글은 크게, 나머지는 카드
+import { MONOTON } from "@/lib/fonts";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CATEGORIES, STORIES, categoryName, formatDate } from "@/content/news";
@@ -39,7 +40,7 @@ export default function NewsIndex() {
     <div className="mx-auto w-full max-w-[1500px] px-[clamp(20px,4vw,72px)] pb-24 pt-[clamp(8rem,12vw,11rem)] text-(--ink)">
       <header className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex items-end gap-[clamp(0.5rem,2vw,2rem)]">
-          <RiseText as="h1" lines={["News &", "Stories"]} className={`${SERIF} text-[clamp(4rem,11vw,11rem)] leading-[0.86]`} />
+          <RiseText as="h1" lines={["News &", "Stories"]} className={`${MONOTON} text-[clamp(2.8rem,7.6vw,7.8rem)] leading-[1.02]`} />
           {/* 제목 옆 움직이는 턴테이블 그림 (Digging·Collection 제목 옆 그림과 같은 계열) */}
           <Reveal delay={250} className="shrink-0 pb-[0.4em]">
             <img src="/images/grooves/title-turntable.gif" alt="" className="w-[clamp(84px,13vw,230px)]" />
@@ -77,7 +78,7 @@ export default function NewsIndex() {
               <StoryCover name={lead.cover} className="aspect-square rounded-sm transition-[scale] duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-[1.015] [&_svg]:transition-transform [&_svg]:duration-[1200ms] group-hover:[&_svg]:scale-105" />
               <div>
                 <Meta s={lead} />
-                <h2 className={`${SERIF} mt-5 text-[clamp(2.6rem,5vw,5.2rem)] leading-[1.02]`}>
+                <h2 className={`${MONOTON} mt-5 text-[clamp(1.9rem,3.6vw,3.8rem)] leading-[1.12]`}>
                   {/* 밑줄: 글자 박스 맨 아래가 아니라 기준선 바로 밑에 (줄마다 그려져 다음 줄 글자를 가리지 않게) */}
                   <span className="box-decoration-clone bg-[linear-gradient(currentColor,currentColor)] bg-[length:0%_0.045em] bg-[position:0_calc(100%-0.16em)] bg-no-repeat transition-[background-size] duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover:bg-[length:100%_0.045em]">{lead.title}</span>
                 </h2>
@@ -97,7 +98,7 @@ export default function NewsIndex() {
                 <Link href={`/news/${s.slug}`} className="group block">
                   <StoryCover name={s.cover} className="aspect-square rounded-sm [&_svg]:transition-transform [&_svg]:duration-[1200ms] [&_svg]:ease-[cubic-bezier(.22,1,.36,1)] group-hover:[&_svg]:scale-105" />
                   <div className="mt-5"><Meta s={s} /></div>
-                  <h3 className={`${SERIF} mt-3 text-[clamp(1.7rem,2.4vw,2.4rem)] leading-[0.98]`}>{s.title}</h3>
+                  <h3 className={`${MONOTON} mt-3 text-[clamp(1.25rem,1.75vw,1.75rem)] leading-[1.15]`}>{s.title}</h3>
                   <p className="mt-3 break-keep text-[14px] leading-6 text-(--ink)/70">{s.dek}</p>
                 </Link>
               </Reveal>

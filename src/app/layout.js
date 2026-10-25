@@ -3,6 +3,7 @@ import "@fontsource/hahmlet/400.css";
 import "@fontsource/hahmlet/500.css";
 import "@fontsource/hahmlet/700.css";
 import "@fontsource/hahmlet/900.css";
+import "@fontsource/monoton/400.css";   // 디스플레이 제목 (lib/fonts.js MONOTON)
 import "./globals.css";
 import { THEME_BOOT } from "@/lib/themeBoot";
 import { SITE } from "@/lib/site";

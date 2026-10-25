@@ -6,6 +6,7 @@
    - 로그인한 상태면 바늘이 판 위에 있고 라벨에 프로필 사진 → My collection / Log out
    ?next=/collection 처럼 넘어오면 로그인 후 그 페이지로 돌아감. ?error= 가 있으면 실패 안내
    글자는 모두 영어 (Bodoni 제목 + 본문 산세리프) */
+import { MONOTON } from "@/lib/fonts";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import PageShell from "@/components/layout/PageShell";
@@ -91,7 +92,7 @@ export default function AuthPanel() {
     <PageShell className="paper-textured" footer={false}>
       <section className="flex min-h-[calc(100svh-var(--ct-header-h,106px))] w-full overflow-x-clip flex-col items-center justify-center gap-[clamp(18px,2.6vh,32px)] px-5 pb-12 pt-6 text-center font-['Hahmlet',Georgia,serif] text-(--ink)">
         <p className="text-[11px] font-medium uppercase tracking-[0.3em] opacity-60">Login</p>
-        <h1 className={`${SERIF} text-[clamp(40px,6vw,76px)] leading-[0.95]`}>
+        <h1 className={`${MONOTON} text-[clamp(30px,4.4vw,56px)] leading-[1.1]`}>
           {state === "done" ? <>Welcome back{p.name ? <>, <span className="whitespace-nowrap">{p.name.split(" ")[0]}</span></> : ""}</> : "Drop the needle"}
         </h1>
 

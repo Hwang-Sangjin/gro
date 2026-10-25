@@ -13,6 +13,7 @@ import StoryCover from "@/content/news/Covers";
 import { createHomeEngine } from "./homeEngine";
 import { STORIES, CATEGORIES, categoryName } from "@/content/news";
 import SiteFooter from "@/components/layout/SiteFooter";
+import { MONOTON } from "@/lib/fonts";
 
 /* Home 4개 섹션을 한 화면(100svh)에서 전환하는 스테이지.
    0 Hero → 1 New Vinyls → 2 Genre dial → 3 News
@@ -152,7 +153,7 @@ export default function HomeStage() {
 
       {/* 01 — Hero */}
       {/* 글자는 처음에 h1 아래에 숨어 있다가 인트로 뒤 하나씩 올라옴 (overflow-y-clip이 잘라 줌) */}
-      <h1 id="title" className={`pointer-events-none absolute inset-x-0 top-[calc(50%-var(--hs-top,0px)/2)] -translate-y-1/2 select-none overflow-y-clip py-[0.06em] text-center ${SERIF} text-[12.5vw] font-black leading-none tracking-[-0.02em] will-change-transform`} aria-label="Grooves">
+      <h1 id="title" className={`pointer-events-none absolute inset-x-0 top-[calc(50%-var(--hs-top,0px)/2)] -translate-y-1/2 select-none overflow-y-clip py-[0.06em] text-center ${MONOTON} text-[11vw] leading-none will-change-transform`} aria-label="Grooves">
         {"Grooves".split("").map((ch, i) => <span key={i} aria-hidden="true" className="inline-block origin-bottom translate-y-[110%]">{ch}</span>)}
       </h1>
 

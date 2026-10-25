@@ -2,6 +2,7 @@
 // Vinyl A to Z · Chapter 02 — "The Vinyl Dictionary"
 // 히어로 → 01 형식(LP·EP·Single, 판 위 트랙 띠) → 02 크기(7·10·12인치 실제 비율) → 03 속도(33⅓·45·78 상대 회전, 같은 소리의 홈 길이) → 04 용어(사전) → 마무리
 // 그림: 1화의 위에서 본 레코드 손그림 하나를 마스크로 써서 테마 색(--cover-art)으로 칠함
+import { MONOTON } from "@/lib/fonts";
 import { useEffect, useId, useRef, useState } from "react";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 
@@ -135,7 +136,7 @@ export default function Story() {
         <div className={`${WRAP} grid items-center gap-10 md:grid-cols-2`}>
           <div>
             <Reveal as="p" className={`${LABEL} ${ACC}`}>Vinyl A to Z · Chapter 02</Reveal>
-            <RiseText as="h1" lines={["The Vinyl", "Dictionary"]} delay={120} className={`${BODONI} mt-5 text-[clamp(3.4rem,7.6vw,8.2rem)] leading-[0.86] tracking-[-0.01em]`} />
+            <RiseText as="h1" lines={["The Vinyl", "Dictionary"]} delay={120} className={`${MONOTON} mt-5 text-[clamp(2.4rem,5.6vw,6rem)] leading-[1.02]`} />
             <Reveal as="p" delay={400} className="mt-7 text-[clamp(1.15rem,1.6vw,1.4rem)] font-semibold">바이닐을 이해하기 위한 기본 용어</Reveal>
             <Reveal as="p" delay={480} className={`${BODY} mt-5 max-w-[34rem] opacity-85`}>
               Chapter 01에서 바이닐이 무엇이고 어떻게 소리를 저장하고 재생하는지 살펴봤다면, Chapter 02에서는 레코드를 고르고 재생할 때 가장 자주 만나는 세 가지를 정리한다. 세 가지는 서로 관련이 있지만 각각 다른 것을 가리킨다.
