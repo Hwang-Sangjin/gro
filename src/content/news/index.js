@@ -11,6 +11,16 @@ export const categoryName = (key) => CATEGORIES.find((c) => c.key === key)?.name
 
 export const STORIES = [
   {
+    slug: "sse-pbr-fest",
+    category: "news",
+    title: "SSE PBR FEST",
+    dek: "쎄 프로젝트 18년의 아카이브가 동대문 DDP에 한 달간 열려요. 팝업과 라이브·토크, 그리고 김현창의 바이닐 발매까지.",
+    date: "2026-10-26",
+    read: "6 min",
+    cover: "sse-poster",
+    homeArt: "press",
+  },
+  {
     slug: "daniel-caesar-korean-vinyl",
     category: "news",
     title: "Daniel Caesar, Pressed for Korea",

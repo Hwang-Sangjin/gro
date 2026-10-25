@@ -26,7 +26,8 @@
     "sharp": "^0.34.3",
     "@fontsource/black-han-sans": "5.3.0",
     "@fontsource/hahmlet": "^5.3.0",
-    "@fontsource/monoton": "5.3.0"
+    "@fontsource/monoton": "5.3.0",
+    "@fontsource/rubik": "^5.3.0"
   },
   "devDependencies": {
     "tailwindcss": "^4.1.0",

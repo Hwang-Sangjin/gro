@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 
 const STORY = {
+  "sse-pbr-fest": dynamic(() => import("./sse-pbr-fest/Story")),
   "daniel-caesar-korean-vinyl": dynamic(() => import("./daniel-caesar-korean-vinyl/Story")),
   "seoul-record-fair-2026": dynamic(() => import("./seoul-record-fair-2026/Story")),
   "records-for-autumn": dynamic(() => import("./records-for-autumn/Story")),

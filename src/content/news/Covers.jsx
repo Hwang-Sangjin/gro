@@ -25,6 +25,15 @@ function FairPoster() {
     </svg>
   );
 }
+// SSE PBR FEST: 공식 포스터의 글자 쌓기 부분을 정사각형으로 (© 쎄 프로젝트)
+function SsePoster() {
+  return (
+    <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
+      <rect width="400" height="400" fill="#fff" />
+      <image href="/images/news/sse-pbr-fest/poster-square.webp" width="400" height="400" preserveAspectRatio="xMidYMid slice" />
+    </svg>
+  );
+}
 function Autumn() {
   const sleeves = ["#8a3b1f", "#c9822b", "#e3b04b", "#5b4a2e"];
   return (
@@ -132,7 +141,7 @@ function AtoZ02() {
   );
 }
 
-const COVERS = { caesar: Caesar, "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
+const COVERS = { caesar: Caesar, "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, "sse-poster": SsePoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
 export default function StoryCover({ name, className = "" }) {
   const C = COVERS[name] ?? Record;
   return <span className={`relative block overflow-hidden [container-type:inline-size] ${className}`}><C /></span>;
