@@ -2,7 +2,7 @@
 // 관리자 장소 목록: 검색(이름·동네·주소), 종류 필터, 지도에 보이기/숨기기(바로 반영)
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { KINDS, kindOf } from "@/lib/places";
+import { KINDS, kindOf, kindsOf, hasKind } from "@/lib/places";
 import { field } from "./ui";
 
 export default function PlaceTable({ places: initial }) {
@@ -15,7 +15,7 @@ export default function PlaceTable({ places: initial }) {
 
   const shown = useMemo(() => {
     const q = query.trim().toLocaleLowerCase();
-    return places.filter((p) => (kind === "all" || p.kind === kind) && (!noPin || p.lat == null) &&
+    return places.filter((p) => (kind === "all" || hasKind(p, kind)) && (!noPin || p.lat == null) &&
       (!q || `${p.name} ${p.name_en ?? ""} ${p.area ?? ""} ${p.address ?? ""} ${p.slug}`.toLocaleLowerCase().includes(q)));
   }, [places, query, kind, noPin]);
 
@@ -58,7 +58,7 @@ export default function PlaceTable({ places: initial }) {
                 <Link href={`/admin/places/${encodeURIComponent(p.slug)}`} className="block truncate text-[15px] font-medium hover:underline">{p.name}</Link>
                 <p className="truncate text-[12px] text-(--ink)/55">
                   {p.lat == null && <span className="mr-2 rounded-full bg-(--danger)/12 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-(--danger)">No pin</span>}
-                  {[k.ko, p.area, p.address].filter(Boolean).join(" · ")}
+                  {[kindsOf(p).map((x) => kindOf(x).ko).join(" + "), p.area, p.address].filter(Boolean).join(" · ")}
                 </p>
               </div>
               <span className="hidden text-[12px] text-(--ink)/55 md:block">{p.kind === "event" && (p.starts_on || p.ends_on) ? `${p.starts_on ?? ""} – ${p.ends_on ?? ""}` : ""}</span>

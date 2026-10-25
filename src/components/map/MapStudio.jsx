@@ -4,7 +4,7 @@
 // 고른 장소는 ?place=<slug> 로 주소에 남아서 링크로 공유 가능
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { PLACE_FIELDS, AREA_ROMAN, isOver, kindOf, openState } from "@/lib/places";
+import { PLACE_FIELDS, AREA_ROMAN, isOver, kindOf, hasKind, openState } from "@/lib/places";
 import PlaceList from "./PlaceList";
 import PlaceDetail from "./PlaceDetail";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -93,9 +93,9 @@ export default function MapStudio() {
   // 지금 영업 중인지 (판이 돌고 있으면 영업 중)
   const open = useMemo(() => Object.fromEntries(all.map((p) => [p.slug, openState(p, now)])), [all, now]);
   const openCount = Object.values(open).filter((o) => o.state === "open").length;
-  const shownPlaces = useMemo(() => all.filter((p) => (kind === "all" || p.kind === kind) && (area === "all" || p.area === area)
+  const shownPlaces = useMemo(() => all.filter((p) => (kind === "all" || hasKind(p, kind)) && (area === "all" || p.area === area)
     && (!openOnly || open[p.slug]?.state === "open")), [all, kind, area, openOnly, open]);
-  const counts = useMemo(() => Object.fromEntries(["shop", "bar", "listening", "event"].map((k) => [k, all.filter((p) => p.kind === k).length])), [all]);
+  const counts = useMemo(() => Object.fromEntries(["shop", "bar", "listening", "event"].map((k) => [k, all.filter((p) => hasKind(p, k)).length])), [all]);
   const place = all.find((p) => p.slug === selected) ?? null;
 
   // 고르기: 지도 이동 + 주소에 남기기
@@ -287,12 +287,15 @@ function discMarker(p, color) {
   el.dataset.place = p.slug;
   el.setAttribute("aria-label", p.name);
   el.className = "group block cursor-pointer";
+  // 2번 종류부터: 판 가장자리에 작은 색 점 (예: 레코드숍 + 리스닝룸)
+  const extra = (p.also ?? []).slice(0, 2).map((k, i) => `<span class="absolute ${i ? "-bottom-0.5 -right-0.5" : "-right-0.5 -top-0.5"} size-[9px] rounded-full ring-2 ring-[#141113]" style="background:${kindOf(k).color}"></span>`).join("");
   el.innerHTML = `
     <span class="pointer-events-none absolute left-1/2 top-1/2 size-[72px] rounded-full opacity-0 transition-opacity duration-700 group-data-[glow=true]:opacity-100 group-data-[glow=true]:animate-[glow-breathe_3.2s_ease-in-out_infinite]" style="transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(255,178,96,.6) 0%,rgba(255,140,60,.2) 42%,transparent 70%)"></span>
     <span class="relative grid size-7 place-items-center rounded-full bg-[#141113] shadow-[0_4px_10px_-2px_rgba(0,0,0,.55)] transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-110 group-data-[hot=true]:scale-125 group-data-[on=true]:scale-[1.4]">
       <span class="absolute inset-0 rounded-full group-data-[open=true]:animate-[spin_2.4s_linear_infinite] motion-reduce:animate-none!" style="background:conic-gradient(from 0deg,transparent 0 18%,rgba(255,255,255,.22) 24%,transparent 30% 68%,rgba(255,255,255,.14) 74%,transparent 80%)"></span>
       <span class="absolute inset-[4px] rounded-full border border-white/10"></span>
       <span class="relative size-2.5 rounded-full ring-2 ring-[#141113]" style="background:${color}"></span>
+      ${extra}
     </span>
     <span class="pointer-events-none absolute bottom-full left-1/2 mb-2.5 -translate-x-1/2 whitespace-nowrap bg-(--cream) px-2.5 py-1 text-[12px] font-medium text-(--ink) opacity-0 shadow-[0_6px_14px_-8px_rgba(0,0,0,.6)] transition-opacity duration-200 group-data-[hot=true]:opacity-100 group-data-[on=true]:opacity-100"></span>`;
   el.lastElementChild.textContent = p.name;   // 이름은 textContent 로 (HTML 로 해석되지 않게)

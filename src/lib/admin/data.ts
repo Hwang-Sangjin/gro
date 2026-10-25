@@ -73,7 +73,7 @@ export async function getRequest(id: number) {
 }
 
 // 바이닐 장소 (Lab · Map) — 숨김 포함 전체
-const PLACE_LIST = "id, slug, name, name_en, kind, area, address, lat, lng, status, starts_on, ends_on, updated_at";
+const PLACE_LIST = "id, slug, name, name_en, kind, also, area, address, lat, lng, status, starts_on, ends_on, updated_at";
 export async function listPlaces() {
   const { data, error } = await serviceClient()
     .from("places").select(PLACE_LIST).order("updated_at", { ascending: false }).limit(2000);

@@ -9,6 +9,9 @@ export const KINDS = [
   { key: "event", label: "Events", one: "Fair · pop-up", ko: "페어·팝업", color: "#c9952c" },
 ];
 export const kindOf = (key) => KINDS.find((k) => k.key === key) ?? KINDS[0];
+// 한 장소가 여러 종류일 수 있음: kind = 1번(대표, 마커 색), also = 2번부터 (고른 순서)
+export const kindsOf = (p) => [p.kind, ...(p.also ?? [])];
+export const hasKind = (p, key) => p.kind === key || (p.also ?? []).includes(key);
 
 // 자주 쓰는 동네 (입력 도우미 — 이 밖의 동네도 자유롭게 입력 가능)
 export const AREAS = ["성수", "합정", "망원", "연남", "홍대", "을지로", "종로", "한남", "이태원", "신촌", "강남", "압구정", "문래", "부산"];
@@ -34,13 +37,13 @@ export const naverSearch = (p) => `https://map.naver.com/p/search/${encodeURICom
 
 // 행사 기간 안인가 (오늘 기준, 날짜만 비교)
 export function isOnNow(p, today = new Date()) {
-  if (p.kind !== "event") return false;
+  if (!hasKind(p, "event")) return false;
   const d = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(today);   // 서울 날짜 (YYYY-MM-DD)
   return (!p.starts_on || p.starts_on <= d) && (!p.ends_on || d <= p.ends_on);
 }
 
 // 지도에서 읽는 칸 (공개 장소만 — RLS)
-export const PLACE_FIELDS = "id, slug, name, name_en, kind, area, address, lat, lng, hours, instagram, website, map_url, note, genres, starts_on, ends_on, news_slug";
+export const PLACE_FIELDS = "id, slug, name, name_en, kind, also, area, address, lat, lng, hours, instagram, website, map_url, note, genres, starts_on, ends_on, news_slug";
 
 // ── 영업시간 ──
 // 관리자 입력 규칙: "월–목 14:00–21:00 (휴게 17:30–18:00) · 금 14:00–21:00 · 토 14:00–20:00 · 일 14:00–18:00 · 월 휴무"

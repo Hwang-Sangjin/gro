@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { GENRES } from "@/lib/genres";
 import { STORIES } from "@/content/news";
-import { KINDS, kindOf, parseHours, isOnNow, naverSearch } from "@/lib/places";
+import { KINDS, kindOf, kindsOf, hasKind, parseHours, isOnNow, naverSearch } from "@/lib/places";
 import { SERIF, Reveal } from "@/components/lab/LabUI";
 import StoryCover from "@/content/news/Covers";
 import { Disc } from "./PlaceList";
@@ -27,7 +27,8 @@ export default function PlaceDetail({ place, places, counts, open = {}, onPick, 
     <div key={place.slug} className="grid">
       <Reveal i={1} className="flex items-center justify-between gap-3">
         <span className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.22em]">
-          <span className="size-2.5 rounded-full" style={{ background: k.color }} />{k.one}{place.area ? ` · ${place.area}` : ""}
+          {kindsOf(place).map((x) => <span key={x} className="size-2.5 rounded-full" style={{ background: kindOf(x).color }} />)}
+          {kindsOf(place).map((x) => kindOf(x).one).join(" · ")}{place.area ? ` · ${place.area}` : ""}
         </span>
         <button type="button" onClick={onClose} aria-label="Close" className="grid size-9 place-items-center rounded-full text-[18px] text-(--ink)/55 hover:bg-(--ink)/8 hover:text-(--ink)">×</button>
       </Reveal>
@@ -45,7 +46,7 @@ export default function PlaceDetail({ place, places, counts, open = {}, onPick, 
       )}
       {place.note && <Reveal as="p" i={3} className="mt-4 break-keep text-[14px] leading-7 text-(--ink)/85">{place.note}</Reveal>}
 
-      {place.kind === "event" && (place.starts_on || place.ends_on) && (
+      {hasKind(place, "event") && (place.starts_on || place.ends_on) && (
         <Reveal i={4} className="mt-4 border-y border-dashed border-(--ink)/25 py-3">
           <p className={KEY}>Dates</p>
           <p className={`${SERIF} mt-1 text-[1.4rem] leading-none`}>{fmt(place.starts_on)} – {fmt(place.ends_on)}</p>
@@ -109,7 +110,7 @@ export default function PlaceDetail({ place, places, counts, open = {}, onPick, 
 
 // 고르기 전: 지금·곧 열리는 행사 + 범례
 function NowOn({ places, counts, open, onPick }) {
-  const events = places.filter((p) => p.kind === "event").sort((a, b) => (a.starts_on ?? "").localeCompare(b.starts_on ?? "")).slice(0, 3);
+  const events = places.filter((p) => hasKind(p, "event") && (p.starts_on || p.ends_on)).sort((a, b) => (a.starts_on ?? "").localeCompare(b.starts_on ?? "")).slice(0, 3);
   return (
     <div className="grid">
       <Reveal i={1}>

@@ -10,7 +10,7 @@ import { field, labelCls, btnPrimary } from "./ui";
 
 const MapPicker = dynamic(() => import("@/components/map/MapPicker"), { ssr: false, loading: () => <div className="h-[340px] animate-pulse rounded-xl bg-(--ink)/8" /> });
 
-const EMPTY = { id: null, slug: "", name: "", name_en: "", kind: "shop", area: "", address: "", lat: null, lng: null, hours: "", instagram: "", website: "", map_url: "", note: "", genres: [], starts_on: "", ends_on: "", news_slug: "", status: "published" };
+const EMPTY = { id: null, slug: "", name: "", name_en: "", kind: "shop", also: [], area: "", address: "", lat: null, lng: null, hours: "", instagram: "", website: "", map_url: "", note: "", genres: [], starts_on: "", ends_on: "", news_slug: "", status: "published" };
 const fromPlace = (p) => (p ? { ...EMPTY, ...Object.fromEntries(Object.entries(p).map(([k, v]) => [k, v ?? EMPTY[k] ?? ""])) } : EMPTY);
 
 export default function PlaceForm({ initial = null }) {
@@ -41,6 +41,14 @@ export default function PlaceForm({ initial = null }) {
   }
 
   const kind = kindOf(f.kind);
+  // 종류 여러 개: 누를 때마다 붙이거나 빼고, 맨 앞이 1번(대표). 하나는 꼭 남김
+  const order = [f.kind, ...(f.also ?? [])].filter(Boolean);
+  const toggleKind = (key) => setF((x) => {
+    const cur = [x.kind, ...(x.also ?? [])].filter(Boolean);
+    const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key];
+    if (!next.length) return x;
+    return { ...x, kind: next[0], also: next.slice(1) };
+  });
   return (
     <form onSubmit={submit} className="grid gap-8 lg:grid-cols-[1fr_380px]">
       <div className="space-y-6">
@@ -58,19 +66,25 @@ export default function PlaceForm({ initial = null }) {
             <input id="p-slug" className={`${field} font-mono`} value={f.slug} onChange={(e) => { setSlugTouched(true); setF((x) => ({ ...x, slug: e.target.value })); }} required />
           </div>
           <div>
-            <span className={labelCls}>Kind</span>
-            <div role="radiogroup" aria-label="Kind" className="flex flex-wrap gap-1.5">
-              {KINDS.map((k) => (
-                <button key={k.key} type="button" role="radio" aria-checked={f.kind === k.key} onClick={() => setF((x) => ({ ...x, kind: k.key }))}
-                  className="inline-flex items-center gap-2 rounded-full border border-(--ink)/20 px-3.5 py-2 text-[12px] aria-checked:border-(--ink) aria-checked:bg-(--ink) aria-checked:text-(--cream)">
-                  <span className="size-2.5 rounded-full" style={{ background: k.color }} />{k.ko}
-                </button>
-              ))}
+            <span className={labelCls}>Kind — 고른 순서대로 1, 2 (1번이 지도 색)</span>
+            <div role="group" aria-label="Kind" className="flex flex-wrap gap-1.5">
+              {KINDS.map((k) => {
+                const n = order.indexOf(k.key) + 1;   // 0 = 안 고름
+                return (
+                  <button key={k.key} type="button" aria-pressed={n > 0} onClick={() => toggleKind(k.key)}
+                    className="inline-flex items-center gap-2 rounded-full border border-(--ink)/20 py-2 pl-2.5 pr-3.5 text-[12px] aria-pressed:border-(--ink) aria-pressed:bg-(--ink) aria-pressed:text-(--cream)">
+                    {n > 0
+                      ? <span className="grid size-[18px] place-items-center rounded-full text-[10px] font-medium text-white" style={{ background: k.color }}>{n}</span>
+                      : <span className="m-[4px] size-2.5 rounded-full" style={{ background: k.color }} />}
+                    {k.ko}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {f.kind === "event" && (
+        {order.includes("event") && (
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className={labelCls} htmlFor="p-start">Starts</label>

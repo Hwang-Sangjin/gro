@@ -1,7 +1,7 @@
 "use client";
 // /lab/map 왼쪽 "01 — Places": 종류(세리프 + 슬래시, Brick 의 Albums / Upload 와 같은 문법) · 동네 칩 · 목록
 // 목록에 올리면 지도 마커가 떠오르고, 누르면 고름
-import { KINDS, kindOf } from "@/lib/places";
+import { KINDS, kindOf, kindsOf, hasKind } from "@/lib/places";
 import { SERIF, Reveal } from "@/components/lab/LabUI";
 
 // 작은 판 — 지금 영업 중이면 돎 (지도 마커와 같은 문법)
@@ -23,7 +23,7 @@ export default function PlaceList({ places, all, kind, setKind, area, setArea, a
     <>
       <Reveal i={1} role="tablist" aria-label="Kind" className="flex flex-wrap items-baseline gap-y-1">
         {tabs.map((t, i) => {
-          const n = t.key === "all" ? all.length : all.filter((p) => p.kind === t.key).length;
+          const n = t.key === "all" ? all.length : all.filter((p) => hasKind(p, t.key)).length;
           return (
             <span key={t.key} className="flex items-baseline">
               <button type="button" role="tab" aria-selected={kind === t.key} onClick={() => setKind(t.key)}
@@ -71,7 +71,7 @@ export default function PlaceList({ places, all, kind, setKind, area, setArea, a
                 <Disc color={k.color} spinning={open[p.slug]?.state === "open"} />
                 <span className="min-w-0">
                   <span className="block truncate text-[14px] leading-tight">{p.name}</span>
-                  <span className="block truncate text-[11px] text-(--ink)/50">{[k.ko, p.area].filter(Boolean).join(" · ")}</span>
+                  <span className="block truncate text-[11px] text-(--ink)/50">{[kindsOf(p).map((x) => kindOf(x).ko).join(" + "), p.area].filter(Boolean).join(" · ")}</span>
                 </span>
               </button>
             </li>
