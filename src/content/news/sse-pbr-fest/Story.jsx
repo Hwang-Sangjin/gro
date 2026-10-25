@@ -7,7 +7,9 @@
 import "@fontsource/rubik/700.css";
 import "@fontsource/rubik/900.css";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import Reveal from "@/components/story/Reveal";
+import { RELEASES, findRow, coverOf, useKimHyunchang } from "./albums";
 import { CAL_DAYS, CLOSE_AT, EVENTS, EVENT_DAYS, OPEN_AT, RUN_FROM, RUN_TO, TYPES, typesOn, weekdayOf } from "./events";
 
 const WRAP = "mx-auto w-full max-w-[1500px] px-[clamp(20px,4vw,72px)]";
@@ -91,7 +93,7 @@ function Hero() {
           <Reveal as="p" delay={200} className="break-keep font-['Hahmlet',serif] text-[clamp(1.6rem,3vw,2.5rem)] font-black leading-[1.2]">쎄 프로젝트 18년의 아카이브,<br />동대문에서 한 달간</Reveal>
           <Reveal delay={300}><Countdown /></Reveal>
           <Reveal delay={350}>
-            <p className="max-w-[56ch] break-keep text-[16px] leading-7 text-(--ink)/75">시각예술 전문 출판사이자 독립 음반 레이블 쎄 프로젝트가 아트북과 진, 피지컬 음반을 한자리에 모아 팝업과 페스티벌로 엽니다. 라이브와 토크, 워크샵, 사인회가 한 달 가까이 이어져요.</p>
+            <p className="max-w-[56ch] break-keep text-[17px] leading-8 text-(--ink)/90">시각예술 전문 출판사이자 독립 음반 레이블 쎄 프로젝트가 아트북과 진, 피지컬 음반을 한자리에 모아 팝업과 페스티벌로 엽니다. 라이브와 토크, 워크샵, 사인회가 한 달 가까이 이어져요.</p>
             <ul className="mt-5 flex flex-wrap gap-2" aria-label="프로그램 키워드">
               {[["POP-UP", "bg-(--sse-p)"], ["BOOK", "bg-(--sse-g)"], ["RECORD", "bg-(--sse-t)"], ["LIVE & TALK", "bg-(--sse-k)"], ["WORKSHOP", "bg-(--sse-y)"]].map(([t, bg]) => (
                 <li key={t} className={`${DISPLAY} rounded-full px-3.5 py-1.5 text-[13px] tracking-[0.04em] text-(--sse-on) ${bg}`}>{t}</li>
@@ -112,7 +114,7 @@ function Head({ n, label, title, bg, children }) {
         <Reveal as="p" className={`${LABEL} text-(--accent) tabular-nums`}>{n} — {label}</Reveal>
         <Reveal as="h2" delay={100} className={`${DISPLAY} mt-4 inline-block rounded-[clamp(20px,3vw,40px)] px-[clamp(18px,2.6vw,36px)] pb-[.12em] pt-[.06em] text-[clamp(2.4rem,6vw,5.6rem)] uppercase leading-[1.02] tracking-[-0.01em] text-(--sse-on) ${bg}`}>{title}</Reveal>
       </div>
-      {children && <Reveal delay={200} as="p" className="max-w-[46ch] break-keep text-[15px] leading-7 text-(--ink)/75 md:pb-2">{children}</Reveal>}
+      {children && <Reveal delay={200} as="p" className="max-w-[46ch] break-keep text-[15px] leading-7 text-(--ink)/90 md:pb-2">{children}</Reveal>}
     </div>
   );
 }
@@ -155,7 +157,7 @@ function Row({ k, children, sub }) {
   return (
     <div className="grid grid-cols-[96px_1fr] gap-4 border-b-2 border-(--sse-on)/15 py-3.5 last:border-b-0 sm:grid-cols-[130px_1fr]">
       <dt className={`${DISPLAY} pt-0.5 text-[13px] tracking-[0.04em]`}>{k}</dt>
-      <dd className="break-keep text-[16px] leading-7">{children}{sub && <small className="block text-[13.5px] opacity-70">{sub}</small>}</dd>
+      <dd className="break-keep text-[16px] leading-7">{children}{sub && <small className="block text-[15px] opacity-70">{sub}</small>}</dd>
     </div>
   );
 }
@@ -207,7 +209,7 @@ function Entry() {
             <span className={`${DISPLAY} grid size-12 place-items-center rounded-full bg-(--sse-g) text-[22px] text-(--sse-on)`}>{i + 1}</span>
             <div>
               <p className="break-keep font-['Hahmlet',serif] text-[18px] font-black leading-snug">{t}</p>
-              <p className="mt-1 break-keep text-[15px] leading-7 text-(--ink)/70">{d}</p>
+              <p className="mt-1 break-keep text-[15px] leading-7 text-(--ink)/90">{d}</p>
             </div>
           </Reveal>
         ))}
@@ -233,9 +235,9 @@ function Floor() {
             <p className={`${DISPLAY} text-[12px] tracking-[0.1em]`}>{z.z}</p>
             <p className={`${DISPLAY} text-[clamp(2.2rem,4.4vw,2.9rem)] leading-[.95] tracking-[-0.02em]`}>{z.t}</p>
             <p className="font-['Hahmlet',serif] text-[16px] font-black leading-snug">{z.k}</p>
-            <p className="break-keep text-[14.5px] leading-6">{z.d}</p>
+            <p className="break-keep text-[15.5px] leading-6">{z.d}</p>
             <ul className="mt-1 flex flex-wrap gap-1.5">{z.tags.map((t) => <li key={t} className={`${DISPLAY} rounded-full bg-white/55 px-2.5 py-0.5 text-[11px] tracking-[0.06em]`}>{t}</li>)}</ul>
-            {z.note && <p className="mt-1 break-keep border-t-2 border-dashed border-(--sse-on)/50 pt-2.5 text-[13px] leading-5">{z.note}</p>}
+            {z.note && <p className="mt-1 break-keep border-t-2 border-dashed border-(--sse-on)/50 pt-2.5 text-[14.5px] leading-6">{z.note}</p>}
           </Reveal>
         ))}
       </div>
@@ -258,21 +260,34 @@ const SALE = [
   { d: "11월 중순", w: "", t: "일반 판매", p: "구체적인 일정은 추후 공지돼요.", bg: "border-(--ink)" },
 ];
 function Vinyl() {
+  const rows = useKimHyunchang();
   return (
     <section id="vinyl" className={`${SECTION} pt-0`}>
       <Head n="05" label="Vinyl" title="Vinyl" bg="bg-(--sse-p)">이번 행사의 바이닐 발매. 김현창의 두 장.</Head>
       <Reveal as="p" className="mt-12 max-w-[62ch] break-keep text-[clamp(1.05rem,1.5vw,1.2rem)] leading-8">김현창의 EP 《마침내 우리가 화원이 되기를》과 정규 1집 《살아서 슬퍼야지, 그렇게 선명히 너를 사랑해야지》가 바이닐로 발매돼요.</Reveal>
       <div className="mt-8 grid gap-4 md:grid-cols-2">
-        {[["EP · VINYL", "마침내 우리가 화원이 되기를", "bg-(--sse-g)"], ["1st ALBUM · VINYL", "살아서 슬퍼야지, 그렇게 선명히 너를 사랑해야지", "bg-(--sse-p)"]].map(([ty, t, bg], i) => (
-          <Reveal key={t} delay={i * 110} className={`flex items-center gap-5 rounded-[clamp(24px,3vw,32px)] p-[clamp(1.25rem,2.4vw,1.75rem)] text-(--sse-on) ${bg}`}>
-            <Disc className="size-[clamp(72px,9vw,92px)]" />
-            <div>
-              <p className={`${DISPLAY} text-[12px] tracking-[0.1em]`}>{ty}</p>
-              <p className="mt-1 break-keep font-['Hahmlet',serif] text-[19px] font-black leading-snug">{t}</p>
-              <p className="mt-1 text-[13.5px]">김현창</p>
-            </div>
-          </Reveal>
-        ))}
+        {RELEASES.map((r, i) => {
+          const row = findRow(rows, r), img = coverOf(row);
+          const inner = (
+            <>
+              {img
+                ? <img src={img} alt="" loading="lazy" decoding="async" draggable={false} className="size-[clamp(96px,12vw,132px)] shrink-0 rounded-[6px] object-cover shadow-[0_10px_18px_-8px_rgba(0,0,0,.5)]" style={{ background: row.cover_color || "#888" }} />
+                : <Disc className="size-[clamp(72px,9vw,92px)]" />}
+              <div>
+                <p className={`${DISPLAY} text-[12px] tracking-[0.1em]`}>{r.kind}</p>
+                <p className="mt-1 break-keep font-['Hahmlet',serif] text-[clamp(1.15rem,1.6vw,1.35rem)] font-black leading-snug">{r.title}</p>
+                <p className="mt-1 text-[15px] font-bold">김현창</p>
+                {row && <p className={`${DISPLAY} mt-3 text-[12px] tracking-[0.08em]`}>Grooves에서 보기 <span aria-hidden="true" className="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span></p>}
+              </div>
+            </>
+          );
+          const cls = `group flex items-center gap-5 rounded-[clamp(24px,3vw,32px)] p-[clamp(1.25rem,2.4vw,1.75rem)] text-(--sse-on) ${r.bg}`;
+          return (
+            <Reveal key={r.title} delay={i * 110}>
+              {row ? <Link href={`/album/${row.slug}`} aria-label={`${r.title} — Grooves에서 보기`} className={`${cls} transition-transform duration-300 hover:-translate-y-0.5`}>{inner}</Link> : <div className={cls}>{inner}</div>}
+            </Reveal>
+          );
+        })}
       </div>
       <Reveal as="dl" className="mt-4 rounded-[clamp(24px,3vw,28px)] bg-(--ink)/[0.07] px-[clamp(1.25rem,2.4vw,1.75rem)] py-2">
         {SPEC.map(([k, v]) => (
@@ -287,11 +302,11 @@ function Vinyl() {
           <Reveal as="li" key={s.t} delay={i * 90} className={`rounded-[clamp(24px,3vw,28px)] border-[3px] p-[clamp(1.1rem,2vw,1.4rem)] ${s.bg}`}>
             <p className={`${DISPLAY} text-[clamp(1.9rem,3.4vw,2.5rem)] leading-none tracking-[-0.02em]`}>{s.d}{s.w && <small className="ml-1.5 text-[13px] tracking-[0.04em]">{s.w}</small>}</p>
             <p className="mt-2.5 break-keep font-['Hahmlet',serif] text-[16px] font-black leading-snug">{s.t}</p>
-            <p className="mt-1 break-keep text-[14px] leading-6 opacity-80">{s.p}</p>
+            <p className="mt-1 break-keep text-[15px] leading-6 opacity-80">{s.p}</p>
           </Reveal>
         ))}
       </ol>
-      <Reveal className="mt-3.5 flex items-start gap-3.5 rounded-[24px] bg-(--ink)/[0.07] px-5 py-4 text-[14.5px] leading-6">
+      <Reveal className="mt-3.5 flex items-start gap-3.5 rounded-[24px] bg-(--ink)/[0.07] px-5 py-4 text-[15.5px] leading-6">
         <b className={`${LABEL} mt-0.5 shrink-0 rounded-full bg-(--ink) px-3 py-0.5 !tracking-[0.1em] text-(--cream)`}>NOTE</b>
         <span className="break-keep">구매 수량은 1인 2개까지예요. 발매 기념 공연 티켓은 바이닐과 별도로 예매해야 하고, 공연 티켓도 10월 26일 낮 12시에 열려요.</span>
       </Reveal>
@@ -326,7 +341,7 @@ function Schedule() {
         <Disc className="size-14" />
         <div>
           <p className="break-keep font-['Hahmlet',serif] text-[18px] font-black leading-snug">바이닐이 궁금하다면 11월 7일</p>
-          <p className="mt-1 break-keep text-[14.5px] leading-6">김현창 바이닐 발매 라이브와 사인회가 오후 3시와 6시, 두 번 열려요. 리스닝 존의 청음 부스와 함께 들러보기 좋아요.</p>
+          <p className="mt-1 break-keep text-[15.5px] leading-6">김현창 바이닐 발매 라이브와 사인회가 오후 3시와 6시, 두 번 열려요. 리스닝 존의 청음 부스와 함께 들러보기 좋아요.</p>
           <button type="button" onClick={() => { setSel("2026-11-07"); setFilter("all"); }} className="mt-2.5 inline-flex min-h-9 items-center rounded-full border-[3px] border-(--sse-on) px-4 text-[13px] font-black transition-colors hover:bg-(--sse-on) hover:text-white">11월 7일 일정 보기 →</button>
         </div>
       </Reveal>
@@ -382,7 +397,7 @@ function Schedule() {
             <p className={`${DISPLAY} text-xl leading-snug tabular-nums`}>{e.t.map((t) => <span key={t} className="block">{t}</span>)}</p>
             <div>
               <p className="break-keep font-['Hahmlet',serif] text-xl font-black leading-snug [text-wrap:balance]">{e.h}</p>
-              {e.p && <p className="mt-1 text-[14.5px] leading-6 text-(--ink)/70">{e.p}</p>}
+              {e.p && <p className="mt-1 text-[15.5px] leading-6 text-(--ink)/90">{e.p}</p>}
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {e.k.map((t) => <span key={t} className={`${DISPLAY} rounded-full px-3 py-0.5 text-[11px] uppercase tracking-[0.06em] text-(--sse-on)`} style={{ background: TYPES[t].c }}>{TYPES[t].n}</span>)}
                 {e.v && <button type="button" onClick={goVinyl} className={`${DISPLAY} rounded-full bg-(--sse-on) px-3 py-0.5 text-[11px] uppercase tracking-[0.06em] text-(--sse-y)`}>Vinyl release ↑</button>}
@@ -394,7 +409,7 @@ function Schedule() {
 
       <Reveal className="mt-5 flex flex-wrap items-baseline gap-x-6 gap-y-1.5 rounded-[28px] bg-(--sse-y) px-[clamp(1.25rem,2.6vw,1.75rem)] py-5 text-(--sse-on)">
         <b className={`${DISPLAY} text-[clamp(2rem,4vw,2.6rem)] uppercase leading-none tracking-[-0.02em]`}>and more</b>
-        <p className="break-keep text-[14.5px] leading-6">이 밖에도 프로그램이 더 추가될 예정이에요. 새 소식이 나오면 이 글에 이어서 올릴게요.</p>
+        <p className="break-keep text-[15.5px] leading-6">이 밖에도 프로그램이 더 추가될 예정이에요. 새 소식이 나오면 이 글에 이어서 올릴게요.</p>
       </Reveal>
     </section>
   );
@@ -428,7 +443,7 @@ function Closing() {
     <section className={`${WRAP} flex flex-col items-center pb-10 pt-[clamp(1rem,4vw,3rem)] text-center`}>
       <Reveal className="size-20 overflow-hidden rounded-full bg-white"><img src="/images/news/sse-pbr-fest/mascot.webp" alt="쎄 프로젝트 마스코트" className="size-full object-cover" loading="lazy" /></Reveal>
       <Reveal delay={150} as="p" className={`${DISPLAY} mt-6 text-[clamp(2.2rem,5vw,4.4rem)] uppercase leading-[0.95] tracking-[-0.02em]`}>See you at DDP</Reveal>
-      <Reveal delay={300} as="p" className="mx-auto mt-5 max-w-md break-keep text-[14px] leading-6 text-(--ink)/65">주최 측 공지를 기준으로 정리했어요. 일정은 바뀔 수 있으니 최신 소식은 sse-record.com에서 확인하세요.</Reveal>
+      <Reveal delay={300} as="p" className="mx-auto mt-5 max-w-md break-keep text-[15px] leading-6 text-(--ink)/85">주최 측 공지를 기준으로 정리했어요. 일정은 바뀔 수 있으니 최신 소식은 sse-record.com에서 확인하세요.</Reveal>
       <Reveal delay={400} className="mt-8"><a href={SITE} target="_blank" rel="noreferrer" className={BTN}>sse-record.com <span aria-hidden="true">↗︎</span></a></Reveal>
       <p className="mt-10 text-[11px] text-(--ink)/45">포스터·마스코트 © 쎄 프로젝트(SSE PROJECT)</p>
     </section>
@@ -437,7 +452,7 @@ function Closing() {
 
 export default function Story() {
   return (
-    <div style={VARS}>
+    <div style={VARS} className="font-bold">
       <Hero />
       <About />
       <Venue />
