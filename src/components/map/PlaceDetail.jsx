@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { GENRES } from "@/lib/genres";
 import { STORIES } from "@/content/news";
-import { KINDS, kindOf, parseHours, isOnNow, kakaoDirections, naverSearch } from "@/lib/places";
+import { KINDS, kindOf, parseHours, isOnNow, naverSearch } from "@/lib/places";
 import { SERIF, Reveal } from "@/components/lab/LabUI";
 
 const genreName = (slug) => GENRES.find((g) => g.slug === slug)?.name ?? slug;
@@ -49,8 +49,8 @@ export default function PlaceDetail({ place, places, counts, onPick, onClose }) 
             {hours.map((h, i) => (
               <li key={i} data-today={h.today}
                 className="grid grid-cols-[64px_1fr] gap-3 border-b border-dashed border-(--ink)/20 py-1.5 text-[13px] text-(--ink)/75 data-[today=true]:font-medium data-[today=true]:text-(--ink)">
-                <span className="flex items-center gap-1.5">{h.days ?? ""}{h.today && <span className="size-1.5 rounded-full bg-(--accent)" title="오늘" />}</span>
-                <span className={h.closed ? "text-(--ink)/45" : ""}>{h.text}</span>
+                {h.days && <span className="flex items-center gap-1.5">{h.days}{h.today && <span className="size-1.5 rounded-full bg-(--accent)" title="오늘" />}</span>}
+                <span className={`${h.days ? "" : "col-span-2"} ${h.closed ? "text-(--ink)/45" : ""}`}>{h.text}</span>
               </li>
             ))}
           </ul>
@@ -76,8 +76,7 @@ export default function PlaceDetail({ place, places, counts, onPick, onClose }) 
       )}
 
       <Reveal i={8} className="mt-5 grid grid-cols-2 gap-2 border-t-[3px] border-(--ink) pt-4">
-        <a href={kakaoDirections(place)} target="_blank" rel="noreferrer" className={`${pill} bg-(--ink) text-(--cream) hover:bg-(--accent)`}>Kakao ↗︎</a>
-        <a href={place.map_url || naverSearch(place)} target="_blank" rel="noreferrer" className={`${pill} border border-(--ink)/40 hover:border-(--ink)`}>Naver ↗︎</a>
+        <a href={place.map_url || naverSearch(place)} target="_blank" rel="noreferrer" className={`${pill} col-span-2 bg-(--ink) text-(--cream) hover:bg-(--accent)`}>Naver Map ↗︎</a>
         {place.instagram && <a href={`https://www.instagram.com/${place.instagram}/`} target="_blank" rel="noreferrer" className={`${pillBase} col-span-2 border border-(--ink)/25 text-[13px] hover:border-(--ink)`}>@{place.instagram}</a>}
         {place.website && <a href={place.website} target="_blank" rel="noreferrer" className={`${pill} col-span-2 border border-(--ink)/25 hover:border-(--ink)`}>Website ↗︎</a>}
       </Reveal>

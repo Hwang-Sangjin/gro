@@ -470,6 +470,10 @@ html[data-crate-transition="true"] .ct-page{will-change:transform,opacity;user-s
 /* Home: 헤더는 투명 — 아래 페이지 배경(--wire-t로 크림 ↔ 잉크)이 그대로 비침 */
 .ct-page[data-crate-path="/"] { --ct-header-bg:transparent; --ct-header-fg:var(--page-fg); }
 .ct-page[data-crate-path="/"] > .ct-navbar::before { display:none; }
+/* 홈: 2단 메뉴 패널은 3D 위에서도 읽히게 늘 불투명. 패널이 열려 있는 동안엔 1단 바도 같이 채워서 한 장의 종이처럼 */
+.ct-page[data-crate-path="/"] { --ct-drop-bg: var(--page-bg); }
+.ct-page[data-crate-path="/"] > .ct-navbar { transition: opacity .5s, background-color .3s ease; }
+.ct-page[data-crate-path="/"] > .ct-navbar[data-drop="true"] { background-color: var(--page-bg); }
 .ct-page:has(.paper-textured) > .ct-navbar::before {
   content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
   opacity:var(--paper-texture-opacity);

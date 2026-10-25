@@ -21,8 +21,7 @@ export const slugify = (s = "") =>
 export const cleanInstagram = (v = "") =>
   v.trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/^@/, "").replace(/[/?#].*$/, "");
 
-// 길찾기 링크 (앱 키 없이 열리는 공개 링크)
-export const kakaoDirections = (p) => `https://map.kakao.com/link/to/${encodeURIComponent(p.name)},${p.lat},${p.lng}`;
+// 길찾기 링크 (네이버지도 — 관리자가 넣은 장소 링크가 없을 때 주소·이름으로 검색)
 export const naverSearch = (p) => `https://map.naver.com/p/search/${encodeURIComponent(p.address || p.name)}`;
 
 // 행사 기간 안인가 (오늘 기준, 날짜만 비교)

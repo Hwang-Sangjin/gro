@@ -140,7 +140,7 @@ export default function Navbar({path}){
   // 관리자 화면은 자체 메뉴가 있어서 사이트 헤더를 숨김 (훅들 뒤에서 판단)
   if(path?.startsWith('/admin'))return null;
 
-  return <nav ref={nav} aria-label="Main" data-home={path==='/'?'true':'false'} data-ready={done?'true':'false'}
+  return <nav ref={nav} aria-label="Main" data-home={path==='/'?'true':'false'} data-ready={done?'true':'false'} data-drop={drop!==null?'true':'false'}
     className={`navbar ct-navbar inset-x-0 flex items-center justify-between gap-4 px-[clamp(16px,3.2vw,44px)] h-(--ct-header-h) transition-opacity duration-500 md:grid md:grid-cols-[1fr_auto_1fr]`}>
     {/* 스크롤 헤어라인 */}
     <span aria-hidden="true" className={`pointer-events-none absolute inset-x-0 bottom-0 h-px bg-current/15 transition-opacity duration-500 ${scrolled?'opacity-100':'opacity-0'}`}/>
@@ -169,13 +169,13 @@ export default function Navbar({path}){
       })}
     </ul>
 
-    {/* 펼침 패널 — 헤더 바로 아래에 같은 바탕으로 내려옴 (헤더 높이는 그대로) */}
+    {/* 펼침 패널 — 헤더 바로 아래에 같은 바탕으로 내려옴 (헤더 높이는 그대로). 홈에선 헤더가 투명해도 패널은 늘 불투명(--ct-drop-bg) */}
     {MENU.filter(m=>m.children).map(group=>{
       const gi=MENU.indexOf(group);
       const on=drop===group.label;
       return <div key={group.label} id={on?'site-drop':undefined} inert={!on} data-open={on}
         onPointerEnter={()=>openDrop(group.label)} onPointerLeave={()=>closeDrop()}
-        className="absolute inset-x-0 top-full hidden bg-(--ct-header-bg) text-(--ct-header-fg) shadow-[0_24px_40px_-30px_rgba(0,0,0,.45)] transition-[clip-path] duration-500 ease-[cubic-bezier(.76,0,.24,1)] [clip-path:inset(0_0_100%_0)] data-[open=true]:[clip-path:inset(0_0_-40px_0)] md:block">
+        className="absolute inset-x-0 top-full hidden bg-[var(--ct-drop-bg,var(--ct-header-bg))] text-(--ct-header-fg) shadow-[0_24px_40px_-30px_rgba(0,0,0,.45)] transition-[clip-path] duration-500 ease-[cubic-bezier(.76,0,.24,1)] [clip-path:inset(0_0_100%_0)] data-[open=true]:[clip-path:inset(0_0_-40px_0)] md:block">
         <span aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-current/15"/>
         <ul className="grid grid-cols-2 px-[clamp(16px,3.2vw,44px)]">
           {group.children.map((c,k)=>{
