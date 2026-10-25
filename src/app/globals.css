@@ -519,3 +519,10 @@ html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 @keyframes groove-ripple { from { transform: translate(-50%,-50%) scale(.2); opacity: .9; } to { transform: translate(-50%,-50%) scale(2.8); opacity: 0; } }
 @keyframes glow-breathe { 0%,100% { transform: translate(-50%,-50%) scale(.92); opacity: .75; } 50% { transform: translate(-50%,-50%) scale(1.08); opacity: 1; } }
 @keyframes area-flash { 0% { opacity: 0; transform: scale(.94); } 18% { opacity: 1; transform: none; } 72% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(1.03); } }
+
+/* Lab Map: 지도 위에선 톤암(Tonearm.jsx)이 커서 — 원래 커서는 숨김 (확대 버튼·출처 표기 위는 원래 커서) */
+@media (hover: hover) and (pointer: fine) {
+  [data-own-cursor], [data-own-cursor] * { cursor: none !important; }
+  [data-own-cursor] .maplibregl-ctrl, [data-own-cursor] .maplibregl-ctrl * { cursor: pointer !important; }
+}
+@keyframes needle-cue { from { transform: translate(-50%,-50%) scale(.3); opacity: .9; } to { transform: translate(-50%,-50%) scale(1.6); opacity: 0; } }

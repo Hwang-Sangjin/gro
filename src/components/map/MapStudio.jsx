@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/client";
 import { PLACE_FIELDS, AREA_ROMAN, isOver, kindOf, hasKind, openState } from "@/lib/places";
 import PlaceList from "./PlaceList";
 import PlaceDetail from "./PlaceDetail";
+import Tonearm from "./Tonearm";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "@/lib/theme";
 import useLabReveal from "@/components/lab/useLabReveal";
@@ -30,6 +31,7 @@ export default function MapStudio() {
   const [openOnly, setOpenOnly] = useState(false); // 지금 영업 중인 곳만
   const [now, setNow] = useState(() => new Date()); // 1분마다 → 영업 중 다시 계산
   const box = useRef(null);
+  const armHost = useRef(null);
   const map = useRef(null);
   const ready = useRef(false);
   const markers = useRef(new Map());               // "p:<slug>" | "c:<cluster id>" → { marker, el }
@@ -232,9 +234,10 @@ export default function MapStudio() {
             <div data-on={shown}
               className="relative h-[clamp(420px,calc(100svh-250px),900px)] border-2 border-(--ink) [clip-path:inset(0_50%_0_50%)] transition-[clip-path] duration-300 ease-[cubic-bezier(.22,1,.36,1)] data-[on=true]:[clip-path:inset(-2px)] data-[on=true]:duration-[1000ms] data-[on=true]:delay-150 motion-reduce:transition-none">
               {/* maplibre 가 컨테이너에 position:relative 를 덮어써서, 위치는 바깥 div 가 잡고 지도는 그 안을 꽉 채움 */}
-              {/* 커서: 지도 위에선 톤암, 판(마커) 위에선 바늘이 내려앉은 톤암 (사이트 원형 커서는 여기서 숨김 — data-own-cursor) */}
-              <div className="absolute inset-0" data-own-cursor style={{ background: palette.land, "--arm": ARM_CURSOR, "--arm-down": ARM_DOWN_CURSOR }}>
-                <div ref={box} data-lenis-prevent data-crate-ignore className={`size-full ${MAP_CONTROLS} ${theme === "dark" ? MAP_CONTROLS_DARK : ""} [&_.maplibregl-canvas-container.maplibregl-interactive]:[cursor:var(--arm)]! [&_.maplibregl-canvas-container.maplibregl-interactive:active]:cursor-grabbing! [&_[data-place]]:[cursor:var(--arm-down)]!`} />
+              {/* 커서: 지도 위에선 톤암이 따라다님 (Tonearm). 사이트 원형 커서·원래 커서는 여기서 숨김 — data-own-cursor (globals.css) */}
+              <div ref={armHost} className="absolute inset-0" data-own-cursor style={{ background: palette.land }}>
+                <div ref={box} data-lenis-prevent data-crate-ignore className={`size-full ${MAP_CONTROLS} ${theme === "dark" ? MAP_CONTROLS_DARK : ""}`} />
+                <Tonearm host={armHost} />
               </div>
               {night && (
                 <span className="pointer-events-none absolute left-3 top-3 z-[2] inline-flex items-center gap-1.5 bg-(--cream)/85 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-(--ink)/80">
@@ -301,19 +304,6 @@ function discMarker(p, color) {
   el.lastElementChild.textContent = p.name;   // 이름은 textContent 로 (HTML 로 해석되지 않게)
   return el;
 }
-
-// 톤암 커서 (32px, 바늘 끝 = 4,28). 크림 테두리 위에 잉크 선이라 밝은·어두운 지도 둘 다에서 보임
-const armSvg = (down) => `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>
-<g fill='none' stroke-linecap='round' stroke-linejoin='round'>
-<path d='M25 6 L${down ? "11 21" : "12 19"}' stroke='%23f4e7cd' stroke-width='5'/><path d='M25 6 L${down ? "11 21" : "12 19"}' stroke='%232a222a' stroke-width='2'/>
-</g>
-<circle cx='25' cy='6' r='4' fill='%23f4e7cd' stroke='%232a222a' stroke-width='1.6'/><circle cx='25' cy='6' r='1.3' fill='%232a222a'/>
-<g transform='rotate(${down ? 40 : 18} ${down ? 8 : 9} ${down ? 24 : 22})'><rect x='${down ? 4.5 : 5.5}' y='${down ? 20.5 : 18.5}' width='7' height='7' rx='1.2' fill='%23f4e7cd' stroke='%232a222a' stroke-width='1.6'/></g>
-<path d='M${down ? "6 25.5 L4 28" : "7 24.5 L5 27"}' stroke='%232a222a' stroke-width='1.6' stroke-linecap='round'/>
-${down ? "<path d='M1.5 30.5 A6 3 0 0 1 9 30' fill='none' stroke='%232a222a' stroke-width='1' stroke-opacity='.6'/>" : ""}
-</svg>`.replace(/\n/g, "").replace(/"/g, "'");
-const ARM_CURSOR = `url("data:image/svg+xml;utf8,${armSvg(false)}") 5 27, grab`;
-const ARM_DOWN_CURSOR = `url("data:image/svg+xml;utf8,${armSvg(true)}") 4 28, pointer`;
 
 // 고를 때 마커 자리에서 레코드 홈 세 겹이 퍼졌다 사라짐 (지도 좌표에 붙어서 flyTo 동안 같이 움직임)
 async function ripple(m, p, color) {
