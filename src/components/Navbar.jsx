@@ -177,7 +177,7 @@ export default function Navbar({path}){
         onPointerEnter={()=>openDrop(group.label)} onPointerLeave={()=>closeDrop()}
         className="absolute inset-x-0 top-full isolate hidden bg-[var(--ct-drop-bg,var(--ct-header-bg))] text-(--ct-header-fg) shadow-[0_24px_40px_-30px_rgba(0,0,0,.45)] transition-[clip-path] duration-500 ease-[cubic-bezier(.76,0,.24,1)] [clip-path:inset(0_0_100%_0)] data-[open=true]:[clip-path:inset(0_0_-40px_0)] md:block">
         <span aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-current/15"/>
-        <ul className="grid grid-cols-2 px-[clamp(16px,3.2vw,44px)]">
+        <ul className="grid px-[clamp(16px,3.2vw,44px)]" style={{gridTemplateColumns:`repeat(${group.children.length},minmax(0,1fr))`}}>
           {group.children.map((c,k)=>{
             const count=countLine(c.preview,preview,user===undefined?undefined:user);
             const body=<>
@@ -187,11 +187,11 @@ export default function Navbar({path}){
                 <span className="mt-3 text-[14px] leading-6 opacity-70">{c.desc}</span>
                 <span className="mt-4 flex items-center gap-3 text-[11px] uppercase tracking-[.18em] opacity-55"><span className="h-px w-10 bg-current"/>{count??(c.soon?'Coming soon':'Open')}</span>
               </span>
-              <span className="pointer-events-none flex h-[clamp(96px,9vw,128px)] w-[clamp(140px,14vw,200px)] shrink-0 items-center justify-end">
+              <span className={`pointer-events-none flex h-[clamp(96px,9vw,128px)] shrink-0 items-center justify-end ${group.children.length>2?'w-[clamp(96px,10vw,170px)]':'w-[clamp(140px,14vw,200px)]'}`}>
                 <MenuPreview kind={c.preview} data={preview} signedIn={user===undefined?undefined:user}/>
               </span>
             </>;
-            const cell=`group/item flex items-center justify-between gap-6 py-[clamp(22px,2.6vw,36px)] transition-[translate,opacity] duration-700 ease-[cubic-bezier(.22,1,.36,1)] ${k?'border-l border-current/15 pl-[clamp(20px,3vw,48px)]':'pr-[clamp(20px,3vw,48px)]'} ${on?'translate-y-0 opacity-100':'translate-y-4 opacity-0'}`;
+            const cell=`group/item flex items-center justify-between gap-6 py-[clamp(22px,2.6vw,36px)] transition-[translate,opacity] duration-700 ease-[cubic-bezier(.22,1,.36,1)] ${k?'border-l border-current/15 pl-[clamp(20px,3vw,48px)]':''} ${k<group.children.length-1?'pr-[clamp(20px,3vw,48px)]':''} ${on?'translate-y-0 opacity-100':'translate-y-4 opacity-0'}`;
             return <li key={c.label} style={{transitionDelay:on?`${120+k*90}ms`:'0ms'}} className={cell}>
               {c.soon
                 ?<span aria-disabled="true" className="flex w-full cursor-default items-center justify-between gap-6 opacity-80">{body}</span>

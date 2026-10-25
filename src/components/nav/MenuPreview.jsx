@@ -43,7 +43,7 @@ function Stack({items}){
   </span>;
 }
 
-// Lab 썸네일 — 실제 화면에서 뜬 이미지 (public/images/lab): Brick 은 커버를 브릭으로 끼운 판, Map 은 지도 위 바이닐 마커
+// Lab 썸네일 — 실제 화면에서 뜬 이미지 (public/images/lab): Brick 은 커버를 브릭으로 끼운 판, Map 은 지도 위 바이닐 마커, Spin 은 프레임이 둘러 놓인 판
 function LabThumb({src}){
   return <span className="block h-[82%] overflow-hidden rounded-[3px] shadow-[0_14px_22px_-12px_rgba(0,0,0,.55)] transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover/item:-translate-y-1 group-hover/item:scale-[1.03]">
     <img src={src} alt="" loading="lazy" decoding="async" draggable={false} className="block h-full w-auto select-none"/>
@@ -57,6 +57,7 @@ export default function MenuPreview({kind,data,signedIn}){
     :<Stack items={data?.shelf?.items}/>;
   if(kind==='brick')return <LabThumb src="/images/lab/brick-thumb.webp"/>;
   if(kind==='map')return <LabThumb src="/images/lab/map-thumb.webp"/>;
+  if(kind==='spin')return <LabThumb src="/images/lab/spin-thumb.webp"/>;
   return null;
 }
 
