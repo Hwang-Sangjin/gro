@@ -4,7 +4,7 @@
 // 고른 장소는 ?place=<slug> 로 주소에 남아서 링크로 공유 가능
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { PLACE_FIELDS, isOver, kindOf } from "@/lib/places";
+import { PLACE_FIELDS, isOver, kindOf, openState } from "@/lib/places";
 import PlaceList from "./PlaceList";
 import PlaceDetail from "./PlaceDetail";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -26,10 +26,12 @@ export default function MapStudio() {
   const [area, setArea] = useState("all");
   const [selected, setSelected] = useState(null);  // slug
   const [hover, setHover] = useState(null);        // slug
+  const [now, setNow] = useState(() => new Date()); // 1분마다 → 영업 중 다시 계산
   const box = useRef(null);
   const map = useRef(null);
   const ready = useRef(false);
   const markers = useRef(new Map());               // slug → { marker, el }
+  const [markerTick, setMarkerTick] = useState(0); // 마커를 새로 만든 뒤 표시(고름·영업 중)를 다시 칠하려고
 
   const palette = PALETTES[theme];
   const latest = useRef(palette);
@@ -86,6 +88,9 @@ export default function MapStudio() {
   const shownPlaces = useMemo(() => all.filter((p) => (kind === "all" || p.kind === kind) && (area === "all" || p.area === area)), [all, kind, area]);
   const counts = useMemo(() => Object.fromEntries(["shop", "bar", "listening", "event"].map((k) => [k, all.filter((p) => p.kind === k).length])), [all]);
   const place = all.find((p) => p.slug === selected) ?? null;
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(t); }, []);
+  // 지금 영업 중인지 (판이 돌고 있으면 영업 중)
+  const open = useMemo(() => Object.fromEntries(all.map((p) => [p.slug, openState(p, now)])), [all, now]);
 
   // 고르기: 지도 이동 + 주소에 남기기
   const pick = useCallback((slug) => setSelected((cur) => (cur === slug ? cur : slug)), []);
@@ -125,6 +130,7 @@ export default function MapStudio() {
         const marker = new Marker({ element: el, anchor: "center" }).setLngLat([p.lng, p.lat]).addTo(m);
         markers.current.set(p.slug, { marker, el });
       }
+      setMarkerTick((t) => t + 1);
     })();
   }, [shownPlaces, mapReady, pick]);
 
@@ -132,10 +138,11 @@ export default function MapStudio() {
   useEffect(() => {
     for (const [slug, { el }] of markers.current) {
       el.dataset.on = String(slug === selected);
+      el.dataset.open = String(open[slug]?.state === "open");
       el.dataset.hot = String(slug === hover);
       el.style.zIndex = slug === selected ? "3" : slug === hover ? "2" : "";
     }
-  }, [selected, hover, shownPlaces]);
+  }, [selected, hover, open, markerTick]);
 
 
   // 테마가 바뀌면 칠만 다시 (스타일 전체를 다시 불러오지 않음)
@@ -177,14 +184,14 @@ export default function MapStudio() {
           {/* 오른쪽: 상세 — 모바일에선 지도 바로 아래 (DOM 순서), 큰 화면에선 오른쪽 */}
           <section aria-label="Place detail" aria-live="polite" className="lg:order-3">
             <Heading n="02" title="Detail" />
-            <PlaceDetail place={place} places={all} counts={counts} onPick={pick} onClose={() => setSelected(null)} />
+            <PlaceDetail place={place} places={all} counts={counts} open={open} onPick={pick} onClose={() => setSelected(null)} />
           </section>
 
           {/* 왼쪽: 장소 목록 */}
           <section aria-label="Places" className="lg:order-1">
             <Heading n="01" title="Places" note={places ? `${shownPlaces.length} on the map` : ""} />
             <PlaceList places={shownPlaces} all={all} kind={kind} setKind={setKind} area={area} setArea={setArea} areas={areas}
-              selected={selected} onPick={pick} onHover={setHover} loading={places === null} />
+              selected={selected} open={open} onPick={pick} onHover={setHover} loading={places === null} />
           </section>
         </div>
       </div>
@@ -193,7 +200,7 @@ export default function MapStudio() {
 }
 
 // 마커: 작은 바이닐 디스크 (라벨 색 = 종류). maplibre 가 바깥 요소의 transform 으로 위치를 잡아서
-// 크기·회전은 안쪽 요소에. data-on(고름) / data-hot(올림)에 따라 커지고, 고르면 홈 빛이 돌고 이름표가 뜸
+// 크기·회전은 안쪽 요소에. data-on(고름) / data-hot(올림)에 따라 커지고 이름표가 뜸. data-open(지금 영업 중)이면 판이 돎
 function discMarker(p, color) {
   const el = document.createElement("button");
   el.type = "button";
@@ -202,7 +209,7 @@ function discMarker(p, color) {
   el.className = "group block cursor-pointer";
   el.innerHTML = `
     <span class="relative grid size-7 place-items-center rounded-full bg-[#141113] shadow-[0_4px_10px_-2px_rgba(0,0,0,.55)] transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-110 group-data-[hot=true]:scale-125 group-data-[on=true]:scale-[1.4]">
-      <span class="absolute inset-0 rounded-full group-data-[on=true]:animate-[spin_1.8s_linear_infinite]" style="background:conic-gradient(from 0deg,transparent 0 18%,rgba(255,255,255,.22) 24%,transparent 30% 68%,rgba(255,255,255,.14) 74%,transparent 80%)"></span>
+      <span class="absolute inset-0 rounded-full group-data-[open=true]:animate-[spin_2.4s_linear_infinite] motion-reduce:animate-none!" style="background:conic-gradient(from 0deg,transparent 0 18%,rgba(255,255,255,.22) 24%,transparent 30% 68%,rgba(255,255,255,.14) 74%,transparent 80%)"></span>
       <span class="absolute inset-[4px] rounded-full border border-white/10"></span>
       <span class="relative size-2.5 rounded-full ring-2 ring-[#141113]" style="background:${color}"></span>
     </span>

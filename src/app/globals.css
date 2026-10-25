@@ -483,6 +483,17 @@ html[data-crate-transition="true"] .ct-page{will-change:transform,opacity;user-s
   background-position:0 var(--paper-header-y,0px);
   background-repeat:repeat;background-blend-mode:soft-light;
 }
+/* 2단 메뉴 패널도 헤더 바와 같은 종이 결 — 바 바로 아래에서 결이 이어지게 (홈은 바에 결이 없어서 패널도 없음) */
+.ct-drop-paper { display:none; }
+.ct-page:has(.paper-textured):not([data-crate-path="/"]) .ct-drop-paper {
+  display:block;position:absolute;inset:0;z-index:-1;pointer-events:none;
+  opacity:var(--paper-texture-opacity);
+  background-color:var(--ct-header-bg);
+  background-image:var(--paper-texture-image);
+  background-size:var(--paper-texture-size) var(--paper-texture-size);
+  background-position:0 calc(var(--paper-header-y,0px) - var(--ct-header-h,106px));
+  background-repeat:repeat;background-blend-mode:soft-light;
+}
 html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
 
 /* Digging cover flight: body portal stays outside CrateStage transforms. */

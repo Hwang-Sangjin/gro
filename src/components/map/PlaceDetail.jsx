@@ -7,6 +7,8 @@ import { GENRES } from "@/lib/genres";
 import { STORIES } from "@/content/news";
 import { KINDS, kindOf, parseHours, isOnNow, naverSearch } from "@/lib/places";
 import { SERIF, Reveal } from "@/components/lab/LabUI";
+import StoryCover from "@/content/news/Covers";
+import { Disc } from "./PlaceList";
 
 const genreName = (slug) => GENRES.find((g) => g.slug === slug)?.name ?? slug;
 const fmt = (d) => (d ? d.slice(5).replace("-", ".") : "");
@@ -14,11 +16,12 @@ const KEY = "text-[11px] font-medium uppercase tracking-[0.22em] text-(--ink)/50
 const pillBase = "inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-4 transition-colors";
 const pill = `${pillBase} text-[11px] font-medium uppercase tracking-[0.16em]`;
 
-export default function PlaceDetail({ place, places, counts, onPick, onClose }) {
-  if (!place) return <NowOn places={places} counts={counts} onPick={onPick} />;
+export default function PlaceDetail({ place, places, counts, open = {}, onPick, onClose }) {
+  if (!place) return <NowOn places={places} counts={counts} open={open} onPick={onPick} />;
   const k = kindOf(place.kind);
   const hours = parseHours(place.hours ?? "");
   const story = place.news_slug ? STORIES.find((s) => s.slug === place.news_slug) : null;
+  const st = open[place.slug] ?? { state: null };
   return (
     // key 가 바뀌면 다시 마운트 → 고를 때마다 한 줄씩 다시 올라옴
     <div key={place.slug} className="grid">
@@ -32,6 +35,14 @@ export default function PlaceDetail({ place, places, counts, onPick, onClose }) 
         <h2 className={`${SERIF} break-keep text-[clamp(1.8rem,2.4vw,2.3rem)] leading-[1.02]`}>{place.name}</h2>
         {place.name_en && place.name_en !== place.name && <p className="mt-1 text-[13px] text-(--ink)/55">{place.name_en}</p>}
       </Reveal>
+      {st.state && (
+        <Reveal i={3} className="mt-3 flex items-center gap-2.5 text-[13px]">
+          <Disc color={k.color} spinning={st.state === "open"} className="size-5" />
+          {st.state === "open" && <span><span className="font-medium text-(--accent)">지금 영업 중</span><span className="text-(--ink)/55"> · {st.until}까지</span></span>}
+          {st.state === "break" && <span><span className="font-medium">쉬는 시간</span><span className="text-(--ink)/55"> · {st.back}에 다시 열어요</span></span>}
+          {st.state === "closed" && <span className="text-(--ink)/60">지금은 닫혀 있어요</span>}
+        </Reveal>
+      )}
       {place.note && <Reveal as="p" i={3} className="mt-4 break-keep text-[14px] leading-7 text-(--ink)/85">{place.note}</Reveal>}
 
       {place.kind === "event" && (place.starts_on || place.ends_on) && (
@@ -83,9 +94,12 @@ export default function PlaceDetail({ place, places, counts, onPick, onClose }) 
 
       {story && (
         <Reveal i={9} className="mt-4">
-          <Link href={`/news/${story.slug}`} className="group block border-b border-dashed border-(--ink)/25 py-3">
-            <p className={KEY}>From News</p>
-            <p className={`${SERIF} mt-1 text-[1.1rem] leading-tight group-hover:text-(--accent)`}>{story.title} →</p>
+          <Link href={`/news/${story.slug}`} className="group grid grid-cols-[1fr_72px] items-center gap-4 border-b border-dashed border-(--ink)/25 py-3">
+            <span className="min-w-0">
+              <span className={`${KEY} block`}>From News</span>
+              <span className={`${SERIF} mt-1 block break-keep text-[1.1rem] leading-tight group-hover:text-(--accent)`}>{story.title} →</span>
+            </span>
+            <StoryCover name={story.cover} className="aspect-square w-[72px] rounded-sm shadow-[0_8px_14px_-10px_rgba(0,0,0,.55)] [&_svg]:transition-transform [&_svg]:duration-700 group-hover:[&_svg]:scale-105" />
           </Link>
         </Reveal>
       )}
@@ -94,7 +108,7 @@ export default function PlaceDetail({ place, places, counts, onPick, onClose }) 
 }
 
 // 고르기 전: 지금·곧 열리는 행사 + 범례
-function NowOn({ places, counts, onPick }) {
+function NowOn({ places, counts, open, onPick }) {
   const events = places.filter((p) => p.kind === "event").sort((a, b) => (a.starts_on ?? "").localeCompare(b.starts_on ?? "")).slice(0, 3);
   return (
     <div className="grid">
@@ -128,7 +142,10 @@ function NowOn({ places, counts, onPick }) {
             </li>
           ))}
         </ul>
-        <p className="mt-3 break-keep text-[12px] leading-5 text-(--ink)/55">지도의 디스크를 누르거나 왼쪽 목록에서 고르면 여기에 자세한 정보가 떠요.</p>
+        <p className="mt-3 flex items-center gap-2 text-[12px] text-(--ink)/65">
+          <Disc color="#f4e7cd" spinning className="size-4" /> 돌고 있는 판 = 지금 영업 중 <span className="tabular-nums text-(--ink)/45">({Object.values(open).filter((o) => o.state === "open").length}곳)</span>
+        </p>
+        <p className="mt-2 break-keep text-[12px] leading-5 text-(--ink)/55">지도의 판을 누르거나 왼쪽 목록에서 고르면 여기에 자세한 정보가 떠요.</p>
       </Reveal>
     </div>
   );

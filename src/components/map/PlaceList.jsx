@@ -4,9 +4,20 @@
 import { KINDS, kindOf } from "@/lib/places";
 import { SERIF, Reveal } from "@/components/lab/LabUI";
 
+// 작은 판 — 지금 영업 중이면 돎 (지도 마커와 같은 문법)
+export function Disc({ color, spinning, className = "size-[18px]" }) {
+  return (
+    <span className={`relative grid shrink-0 place-items-center rounded-full bg-[#141113] ${className}`} title={spinning ? "지금 영업 중" : undefined}>
+      <span aria-hidden="true" className={`absolute inset-0 rounded-full ${spinning ? "animate-[spin_2.4s_linear_infinite] motion-reduce:animate-none" : ""}`}
+        style={{ background: "conic-gradient(from 0deg,transparent 0 18%,rgba(255,255,255,.28) 24%,transparent 30% 68%,rgba(255,255,255,.18) 74%,transparent 80%)" }} />
+      <span className="relative size-[38%] rounded-full" style={{ background: color }} />
+    </span>
+  );
+}
+
 const FADE = "[mask-image:linear-gradient(to_bottom,#000_calc(100%-28px),transparent)]";
 
-export default function PlaceList({ places, all, kind, setKind, area, setArea, areas, selected, onPick, onHover, loading }) {
+export default function PlaceList({ places, all, kind, setKind, area, setArea, areas, selected, open = {}, onPick, onHover, loading }) {
   const tabs = [{ key: "all", label: "All" }, ...KINDS];
   return (
     <>
@@ -49,7 +60,7 @@ export default function PlaceList({ places, all, kind, setKind, area, setArea, a
               <button type="button" onClick={() => onPick(p.slug)} onPointerEnter={() => onHover(p.slug)} onFocus={() => onHover(p.slug)} onBlur={() => onHover(null)}
                 aria-pressed={selected === p.slug}
                 className="grid w-full grid-cols-[18px_1fr] items-center gap-3 border-l-[3px] border-transparent py-2.5 pl-2.5 text-left transition-colors hover:border-(--accent) aria-pressed:border-(--accent)">
-                <span className="grid size-[18px] place-items-center rounded-full bg-[#141113]"><span className="size-[7px] rounded-full" style={{ background: k.color }} /></span>
+                <Disc color={k.color} spinning={open[p.slug]?.state === "open"} />
                 <span className="min-w-0">
                   <span className="block truncate text-[14px] leading-tight">{p.name}</span>
                   <span className="block truncate text-[11px] text-(--ink)/50">{[k.ko, p.area].filter(Boolean).join(" · ")}</span>

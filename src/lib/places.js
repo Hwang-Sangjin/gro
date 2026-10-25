@@ -27,7 +27,7 @@ export const naverSearch = (p) => `https://map.naver.com/p/search/${encodeURICom
 // 행사 기간 안인가 (오늘 기준, 날짜만 비교)
 export function isOnNow(p, today = new Date()) {
   if (p.kind !== "event") return false;
-  const d = today.toISOString().slice(0, 10);
+  const d = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(today);   // 서울 날짜 (YYYY-MM-DD)
   return (!p.starts_on || p.starts_on <= d) && (!p.ends_on || d <= p.ends_on);
 }
 
@@ -71,4 +71,41 @@ export function parseHours(hours = "", today = seoulDay()) {
 export function isOver(p, today = new Date()) {
   if (p.kind !== "event" || !p.ends_on) return false;
   return p.ends_on < new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(today);
+}
+
+// ── 지금 영업 중? ──
+// 서울 시간 기준. 오늘 줄의 시간(자정 넘김 포함)과 어제 줄의 자정 넘긴 시간을 같이 봄. 휴게시간은 빼고, "휴무" 는 닫힘
+// → { state: "open" | "break" | "closed" | null, until?: "21:00", back?: "18:00" }   null = 영업시간을 못 읽음
+const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+const RANGE = /(\d{1,2}:\d{2})\s*[–~-]\s*(\d{1,2}:\d{2})/;
+function rangeOf(text) {
+  if (/휴무/.test(text)) return { closed: true };
+  const brk = text.match(/휴게[^\d]*(\d{1,2}:\d{2})\s*[–~-]\s*(\d{1,2}:\d{2})/);
+  const main = text.replace(/\(?휴게[^)]*\)?/, "").match(RANGE);
+  if (!main) return null;
+  return { start: toMin(main[1]), end: toMin(main[2]), endText: main[2], brk: brk && { start: toMin(brk[1]), end: toMin(brk[2]), endText: brk[2] } };
+}
+function seoulClock(now) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Seoul", hour12: false, hour: "2-digit", minute: "2-digit" }).formatToParts(now).map((p) => [p.type, p.value]));
+  return (Number(parts.hour) % 24) * 60 + Number(parts.minute);
+}
+export function openState(p, now = new Date()) {
+  if (p.kind === "event" && !isOnNow(p, now)) return { state: "closed" };
+  if (!p.hours) return { state: null };
+  const day = seoulDay(now), min = seoulClock(now);
+  const rows = parseHours(p.hours, day);
+  const dayless = rows.length && rows.every((r) => !r.days);          // "10:00–18:00" 처럼 요일 없이 = 매일
+  const today = dayless ? rows[0] : rows.find((r) => r.today);
+  const yesterday = dayless ? rows[0] : parseHours(p.hours, (day + 6) % 7).find((r) => r.today);
+  // 어제 시작해서 자정을 넘긴 영업 (예: 20:30–01:30 의 새벽)
+  const y = yesterday && rangeOf(yesterday.text);
+  if (y && !y.closed && y.end < y.start && min < y.end) return { state: "open", until: y.endText };
+  if (!today) return { state: rows.some((r) => r.days) ? "closed" : null };
+  const r = rangeOf(today.text);
+  if (!r) return { state: null };
+  if (r.closed) return { state: "closed" };
+  const inRange = r.end > r.start ? min >= r.start && min < r.end : min >= r.start;
+  if (!inRange) return { state: "closed" };
+  if (r.brk && min >= r.brk.start && min < r.brk.end) return { state: "break", back: r.brk.endText };
+  return { state: "open", until: r.endText };
 }
