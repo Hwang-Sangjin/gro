@@ -17,7 +17,7 @@ export function Disc({ color, spinning, className = "size-[18px]" }) {
 
 const FADE = "[mask-image:linear-gradient(to_bottom,#000_calc(100%-28px),transparent)]";
 
-export default function PlaceList({ places, all, kind, setKind, area, setArea, areas, selected, open = {}, onPick, onHover, loading }) {
+export default function PlaceList({ places, all, kind, setKind, area, setArea, areas, selected, open = {}, openOnly, setOpenOnly, openCount = 0, onPick, onHover, loading }) {
   const tabs = [{ key: "all", label: "All" }, ...KINDS];
   return (
     <>
@@ -36,8 +36,16 @@ export default function PlaceList({ places, all, kind, setKind, area, setArea, a
         })}
       </Reveal>
 
+      {/* 지금 영업 중인 곳만 — 판이 도는 칩 */}
+      <Reveal i={2} className="mt-3">
+        <button type="button" aria-pressed={openOnly} onClick={() => setOpenOnly(!openOnly)}
+          className="inline-flex items-center gap-2 rounded-full border border-(--ink)/25 py-1 pl-1.5 pr-3 text-[12px] text-(--ink)/75 transition-colors hover:border-(--ink) aria-pressed:border-(--accent) aria-pressed:bg-(--accent) aria-pressed:text-(--cream)">
+          <Disc color="#f4e7cd" spinning={openOnly || openCount > 0} className="size-[18px]" />
+          Open now <span className="tabular-nums opacity-70">{openCount}</span>
+        </button>
+      </Reveal>
       {areas.length > 1 && (
-        <Reveal i={2} className="mt-3 flex flex-wrap gap-1.5">
+        <Reveal i={2} className="mt-2 flex flex-wrap gap-1.5">
           {["all", ...areas].map((a) => (
             <button key={a} type="button" aria-pressed={area === a} onClick={() => setArea(a)}
               className="rounded-full border border-(--ink)/25 px-3 py-1 text-[12px] text-(--ink)/70 transition-colors hover:border-(--ink) aria-pressed:border-(--ink) aria-pressed:bg-(--ink) aria-pressed:text-(--cream)">
@@ -51,7 +59,7 @@ export default function PlaceList({ places, all, kind, setKind, area, setArea, a
         className={`${FADE} mt-3 max-h-[min(52svh,560px)] overflow-y-auto overscroll-contain pb-6 max-lg:max-h-[42svh]`}>
         {loading && Array.from({ length: 6 }, (_, i) => <li key={i} className="my-2 h-11 animate-pulse bg-(--ink)/8" />)}
         {!loading && places.length === 0 && (
-          <li className="py-6 break-keep text-[13px] leading-6 text-(--ink)/55">{all.length ? "이 조건에 맞는 장소가 없어요." : "아직 지도에 올라온 장소가 없어요."}</li>
+          <li className="py-6 break-keep text-[13px] leading-6 text-(--ink)/55">{!all.length ? "아직 지도에 올라온 장소가 없어요." : openOnly ? "지금 문을 연 곳이 없어요. Open now 를 끄면 모든 장소가 보여요." : "이 조건에 맞는 장소가 없어요."}</li>
         )}
         {places.map((p) => {
           const k = kindOf(p.kind);

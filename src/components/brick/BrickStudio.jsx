@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl } from "@/lib/albums";
 import useLabReveal from "@/components/lab/useLabReveal";
+import GrooveText from "@/components/lab/GrooveText";
 import { SERIF, LABEL, ShownCtx, Reveal, Heading } from "@/components/lab/LabUI";
 import { PALETTE } from "@/lib/brick/palette";
 import { sampleImage, buildMosaic } from "@/lib/brick/mosaic";
@@ -133,7 +134,7 @@ export default function BrickStudio() {
       {/* 제목 줄 */}
       <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-2 border-b-[3px] border-(--ink) pb-3">
         <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
-          <h1 className={`${SERIF} text-[clamp(2.2rem,4.2vw,3.8rem)] leading-[0.95]`}>Brick it.</h1>
+          <GrooveText as="h1" className="text-[clamp(2.1rem,4vw,3.6rem)] leading-[1.05]">Brick it.</GrooveText>
           <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-(--accent)">Lab · Brick</p>
         </div>
         <p className="max-w-[46ch] break-keep text-[13px] leading-6 text-(--ink)/70 max-md:hidden">앨범 커버나 내 사진을 브릭 판으로 만들고, 어떤 색이 몇 개 필요한지 바로 확인해요.</p>
