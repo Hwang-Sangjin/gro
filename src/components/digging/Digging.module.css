@@ -168,21 +168,14 @@
   text-decoration: none;
   color: inherit;
 }
-/* 빠르게 스크롤하면 크레이트 속 판처럼: 커버가 아래쪽을 축으로 젖혀지고, 오른쪽 열일수록 조금 늦게 따라옴
-   --scroll-v = 스프링으로 다듬은 스크롤 속도 (usePageLenis 가 페이지 스크롤 영역에 넣음), --c = 열 번호 */
-.grid > * {
-  --c: 0;
-  transform: translate3d(0, calc(var(--scroll-v, 0) * var(--c) * 1.1px), 0);
-}
-.grid > :nth-child(4n + 2) { --c: 1; }
-.grid > :nth-child(4n + 3) { --c: 2; }
-.grid > :nth-child(4n + 4) { --c: 3; }
+/* 빠르게 스크롤하면 크레이트 속 판처럼: 모든 커버가 같은 각도로 아래쪽을 축으로 살짝 젖혀짐 (최대 약 5°)
+   --scroll-v = 부드럽게 다듬은 스크롤 속도 (usePageLenis 가 페이지 스크롤 영역에 넣음) */
 .hitArea {
   display: block;
   aspect-ratio: 1;
   perspective: 900px;
   position: relative;
-  transform: perspective(1400px) rotateX(calc(var(--scroll-v, 0) * 0.55deg));
+  transform: perspective(1400px) rotateX(calc(var(--scroll-v, 0) * 0.42deg));
   transform-origin: 50% 100%;
 }
 .art {
@@ -354,9 +347,6 @@
   .grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .grid > :nth-child(n) { --c: 0; }
-  .grid > :nth-child(3n + 2) { --c: 1; }
-  .grid > :nth-child(3n + 3) { --c: 2; }
 }
 @media (max-width: 600px) {
   .page :global(.page-content) {
@@ -380,8 +370,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem 22px;
   }
-  .grid > :nth-child(n) { --c: 0; }
-  .grid > :nth-child(2n + 2) { --c: 1; }
   .filters a,
   .filters button {
     font-size: 0.75rem;
@@ -403,8 +391,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .art,
-  .hitArea,
-  .grid > * {
+  .hitArea {
     transform: none;
   }
   .art,

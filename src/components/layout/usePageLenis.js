@@ -41,15 +41,19 @@ export default function usePageLenis({
     wrapper.addEventListener("page:scrollto", scrollTo);
     if (document.documentElement.dataset.crateTransition === "true") stop();
 
-    // 스크롤 속도 → 스프링 → wrapper 의 --scroll-v (px/프레임, ±22). 앨범 그리드가 크레이트 속 판처럼 젖혀지는 데 씀 (Digging.module.css)
-    // 멈출 때 살짝 지나쳤다 돌아오게 감쇠를 약간 덜 줌. 움직임 줄이기면 0 고정
+    // 스크롤 속도 → 부드럽게 → wrapper 의 --scroll-v (0…±12). 앨범 그리드가 크레이트 속 판처럼 젖혀지는 데 씀 (Digging.module.css)
+    // 차분하게: 천천히 읽으며 내리는 속도(4 이하)는 무시, 휠 한 칸마다 튀는 값은 한 번 걸러서, 멈출 때 출렁이지 않게(임계 감쇠)
+    // 움직임 줄이기면 0 고정
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const SPRING = { max: 22, stiff: 170, bounce: 0.45 };
-    let sv = 0, svVel = 0, svLast = performance.now(), svShown = 0;
+    const SPRING = { max: 12, dead: 4, stiff: 60, bounce: 0 };
+    let sv = 0, svVel = 0, svIn = 0, svLast = performance.now(), svShown = 0;
     const springScroll = (now) => {
       const dt = Math.min(0.05, (now - svLast) / 1000); svLast = now;
       if (reduced) return;
-      const target = Math.max(-SPRING.max, Math.min(SPRING.max, lenis.velocity || 0));
+      const raw = lenis.velocity || 0;
+      svIn += (raw - svIn) * (1 - Math.exp(-dt * 6));                       // 휠 한 칸마다 튀는 속도를 고르게
+      const mag = Math.max(0, Math.abs(svIn) - SPRING.dead);
+      const target = Math.sign(svIn) * Math.min(SPRING.max, mag * 0.6);
       const damp = 2 * Math.sqrt(SPRING.stiff) * (1 - SPRING.bounce * 0.75);
       svVel += (SPRING.stiff * (target - sv) - damp * svVel) * dt;
       sv += svVel * dt;
