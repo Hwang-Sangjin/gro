@@ -41,9 +41,27 @@ export default function usePageLenis({
     wrapper.addEventListener("page:scrollto", scrollTo);
     if (document.documentElement.dataset.crateTransition === "true") stop();
 
+    // 스크롤 속도 → 스프링 → wrapper 의 --scroll-v (px/프레임, ±22). 앨범 그리드가 크레이트 속 판처럼 젖혀지는 데 씀 (Digging.module.css)
+    // 멈출 때 살짝 지나쳤다 돌아오게 감쇠를 약간 덜 줌. 움직임 줄이기면 0 고정
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const SPRING = { max: 22, stiff: 170, bounce: 0.45 };
+    let sv = 0, svVel = 0, svLast = performance.now(), svShown = 0;
+    const springScroll = (now) => {
+      const dt = Math.min(0.05, (now - svLast) / 1000); svLast = now;
+      if (reduced) return;
+      const target = Math.max(-SPRING.max, Math.min(SPRING.max, lenis.velocity || 0));
+      const damp = 2 * Math.sqrt(SPRING.stiff) * (1 - SPRING.bounce * 0.75);
+      svVel += (SPRING.stiff * (target - sv) - damp * svVel) * dt;
+      sv += svVel * dt;
+      if (Math.abs(sv) < 0.002 && Math.abs(svVel) < 0.01 && target === 0) { sv = 0; svVel = 0; }
+      const shown = Math.round(sv * 1000) / 1000;
+      if (shown !== svShown) { svShown = shown; wrapper.style.setProperty("--scroll-v", String(shown)); }
+    };
+
     let raf = 0;
     const tick = (time) => {
       lenis.raf(time);
+      springScroll(time);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -56,6 +74,7 @@ export default function usePageLenis({
       wrapper.removeEventListener("page:unlock", unlock);
       wrapper.removeEventListener("page:scrollto", scrollTo);
       lenis.destroy();
+      wrapper.style.removeProperty("--scroll-v");
     };
   }, [wrapperRef, contentRef, enabled]);
 }
