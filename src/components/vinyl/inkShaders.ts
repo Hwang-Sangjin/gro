@@ -44,6 +44,9 @@ uniform vec3 uInk, uLabel;
 uniform vec3 uCamLocal, uLightLocal;
 uniform float uLineFreq, uStreak, uSharp, uRough, uWobble, uBase;
 uniform float uTrackCount, uGapWidth, uInnerR, uOuterR, uLabelR, uHoleR, uTopY, uBotY;
+// 커서 조명 (앨범 상세): 판 위에 떠 있는 점광원. uPointOn 0 이면 꺼짐, uAmbient 는 고정 빛의 세기(기본 1)
+uniform vec3 uPointLocal;
+uniform float uAmbient, uPointOn, uPointR, uPointK;
 ${NOISE}
 
 vec4 over(vec4 top, vec4 bottom){ // premultiplied over
@@ -70,6 +73,19 @@ void main(){
   float kk = sqrt(max(0.0, 1.0 - th * th));
   float spec = pow(kk, uSharp) + 0.35 * pow(kk, uSharp * 0.12);
   spec *= smoothstep(0.0, 0.15, dot(N, V)) * smoothstep(-0.1, 0.25, dot(N, L));
+  spec *= uAmbient;
+  // 커서 조명: 빛 아래 홈만 반짝이고(같은 Kajiya-Kay), 멀어질수록 약해짐 (손전등)
+  float pool = 0.0;
+  if (uPointOn > 0.001) {
+    vec3 Lp = normalize(uPointLocal - p);
+    vec3 Hp = normalize(Lp + V);
+    float tp = dot(T, Hp);
+    float kp = sqrt(max(0.0, 1.0 - tp * tp));
+    float sp = (pow(kp, uSharp) + 0.35 * pow(kp, uSharp * 0.12)) * smoothstep(0.0, 0.15, dot(N, V)) * smoothstep(-0.1, 0.25, dot(N, Lp));
+    float dp = length(p.xz - uPointLocal.xz);
+    pool = exp(-dp * dp / max(uPointR * uPointR, 1e-4)) * uPointOn;
+    spec += sp * pool * uPointK;
+  }
 
   vec4 col = vec4(0.0);
 
@@ -90,7 +106,7 @@ void main(){
 
     if (r < uLabelR) {
       // ---- 라벨: 옅은 블루 면 + 동심원 몇 줄 + 테두리 ----
-      fill = vec4(uLabel, 1.0) * 0.9;
+      fill = vec4(uLabel * (1.0 + pool * 0.35), 1.0) * 0.9;
       float rings = max(ring(rr, uLabelR * 0.91, 0.6), ring(rr, uLabelR * 0.84, 0.5));
       rings = max(rings, ring(rr, uLabelR * 0.42, 0.5));
       rings = max(rings, ring(rr, uLabelR * 0.30, 0.5));
@@ -100,14 +116,14 @@ void main(){
     } else if (r < uInnerR) {
       // ---- 런아웃: 아주 성긴 선 ----
       float n = noise3(vec3(cs * 2.5, r * 70.0));
-      float d = clamp(uBase * 0.6 + spec * uStreak * 0.5 + (n - 0.5) * 0.4 * uRough, 0.0, 1.0);
+      float d = clamp(uBase * 0.6 + pool * 0.05 + spec * uStreak * 0.5 + (n - 0.5) * 0.4 * uRough, 0.0, 1.0);
       ink = hatch(rr * uLineFreq * 0.35, d * 0.5) * 0.8;
       ink = max(ink, ring(r, uInnerR, 0.8));
     } else if (r < uOuterR) {
       // ---- grooves: 빛줄기 = 잉크 밀도 ----
       float n = noise3(vec3(cs * 2.2, r * 85.0));          // r로 빠르게, θ로 느리게 → 불꽃 모양 스트로크
       float n2 = noise3(vec3(cs * 9.0, r * 300.0));
-      float d = uBase + spec * uStreak;
+      float d = uBase + pool * 0.09 + spec * uStreak;          // 빛이 닿는 곳은 홈선이 조금 더 보임
       d += (n - 0.5) * 0.9 * uRough + (n2 - 0.5) * 0.25 * uRough;
       d = smoothstep(0.08, 0.95, d);
 

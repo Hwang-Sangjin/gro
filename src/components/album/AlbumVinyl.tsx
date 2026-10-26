@@ -4,6 +4,8 @@
    Home Hero의 인터랙션(누르기·헤일로)과는 분리된 단독 컴포넌트:
    - 재생 중이면 앨범 RPM으로 돌고, 멈추면 관성으로 서서히 멈춤
    - 정면을 살짝 기울여 두께와 빛줄기가 보이게
+   - 커서 조명(lean.light): 커서가 판 위에 있으면 그 자리 위에 작은 조명이 떠서 빛 아래 홈만 반짝임 (손전등)
+     켜지는 동안 방의 고정 빛은 조금 낮춰 커서 빛이 돋보이게
    - lean: 마우스 위치에 따라 판이 커버처럼 살짝 기울어짐. 빛은 공간에 고정돼 있어서
      판이 기울면 반사(빛줄기)가 홈을 따라 미끄러지고 밝기가 바뀜 — 실제 판을 손에 들고 기울일 때처럼 */
 import { Suspense, useEffect, useMemo, useRef } from "react";
@@ -16,11 +18,13 @@ import { VINYL_URL, DRACO_PATH } from "@/lib/vinylModel";
 // face: 0 = 앞면(A·C), 1 = 뒷면(B·D). 바뀌면 판을 세로축으로 반 바퀴 뒤집음. snap이면 애니메이션 없이 바로
 // tilt: 판을 눕힌 각도(도). 90 = 위에서 내려다본 정면, 기본 76 = 옆면이 살짝 보이게
 // lean: { x, y } = -1…1 (커버와 같은 기준: 오른쪽·아래가 +). wake 는 이 컴포넌트가 채워 둠 — 값을 바꾼 쪽이 불러서 그리기를 깨움
-export type Lean = { x: number; y: number; wake?: () => void };
+// light: 커서가 판 위에 있는지 (true 면 x, y 자리에 커서 조명)
+export type Lean = { x: number; y: number; light?: boolean; wake?: () => void };
 type Props = { ink: string; label: string; rpm: number; playing: boolean; face?: number; snap?: boolean; tilt?: number; lean?: React.MutableRefObject<Lean> };
 
 const ORTHO_EYE = 1000;
 const FLIP = { duration: 0.9, lift: 0.07 };  // 뒤집기 시간(초), 뒤집는 동안 살짝 떠오르는 정도(배율)
+const LIGHT = { height: 0.81, radius: 0.42, power: 1.15, ambient: 0.35 };   // 높이는 판 기준 0.45 (모델이 세로로 1.8배라 여기선 0.81), ambient = 커서 빛이 켜졌을 때 고정 빛 세기
 const LEAN_DEG = 7;  // 마우스가 끝에 있을 때 기울어지는 각도 (커버와 같은 7°) — 반사는 이 2배만큼 움직임
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
@@ -47,6 +51,8 @@ function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76, lea
     uInnerR: { value: inkDefaults.innerR }, uOuterR: { value: inkDefaults.outerR },
     uLabelR: { value: inkDefaults.labelR }, uHoleR: { value: inkDefaults.holeR },
     uTopY: { value: inkDefaults.topY }, uBotY: { value: inkDefaults.botY },
+    uPointLocal: { value: new THREE.Vector3(0, 1, 0) }, uAmbient: { value: 1 }, uPointOn: { value: 0 },
+    uPointR: { value: LIGHT.radius }, uPointK: { value: LIGHT.power },
   }), []);
 
   const { inkMat, depthMat } = useMemo(() => ({
@@ -107,6 +113,7 @@ function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76, lea
   const inv = useMemo(() => new THREE.Matrix4(), []);
   const compInv = useMemo(() => new THREE.Matrix4(), []);
   const rest = useMemo(() => new THREE.Matrix4(), []);
+  const lightRef = useMemo(() => ({ on: 0, pos: new THREE.Vector3(0, LIGHT.height, 0), goal: new THREE.Vector3(0, LIGHT.height, 0), ray: new THREE.Ray(), plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), m: new THREE.Matrix4(), hit: new THREE.Vector3() }), []);
   const v = useMemo(() => ({ fwd: new THREE.Vector3(), eye: new THREE.Vector3(), view: new THREE.Vector3(), flat: new THREE.Vector3(), major: new THREE.Vector3(), half: new THREE.Vector3(), light: new THREE.Vector3(), cam: new THREE.Vector3(), tmp: new THREE.Vector3(), smooth: new THREE.Vector2() }), []);
 
   useFrame((_, delta) => {
@@ -131,7 +138,12 @@ function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76, lea
       flip.current.rotation.y = f.from + (f.to - f.from) * k;
       flip.current.scale.setScalar(1 + FLIP.lift * Math.sin(Math.PI * k));
     }
-    const moving = Math.abs(omega.current) > 0.001 || leanCur.distanceTo(leanGoal) > 0.0015 || (!lean && v.smooth.distanceTo(pointer) > 0.002) || f.t < 1;
+    const lt = lightRef;
+    const lightOn = lean?.current.light && !reduced ? 1 : 0;
+    lt.on += (lightOn - lt.on) * (1 - Math.exp(-dt * 8));
+    if (Math.abs(lightOn - lt.on) < 0.002) lt.on = lightOn;
+    const lightMoving = lt.on !== lightOn || (lt.on > 0 && lt.pos.distanceTo(lt.goal) > 0.002);
+    const moving = Math.abs(omega.current) > 0.001 || leanCur.distanceTo(leanGoal) > 0.0015 || (!lean && v.smooth.distanceTo(pointer) > 0.002) || f.t < 1 || lightMoving;
 
     // 빛줄기 방향 (Home Hero와 같은 계산: 화면상 장축 기준)
     // 빛은 '기울이기 전' 자세(rest)에서 정해 공간에 고정 → 기울인 만큼 반사가 움직임 (반사각은 기운 각도의 2배)
@@ -162,6 +174,20 @@ function Disc({ ink, label, rpm, playing, face = 0, snap = false, tilt = 76, lea
         v.tmp.copy(v.light).transformDirection(inv);
         uniforms.uCamLocal.value.copy(v.cam);
         uniforms.uLightLocal.value.copy(v.tmp);
+
+        // 커서 조명: 포인터 광선을 지금 기운 판 평면에 맞힌 자리 위로 띄움 (판이 돌아도 빛은 제자리)
+        if (lean && lt.on > 0) {
+          const cam = camera as THREE.OrthographicCamera;
+          lt.ray.origin.set(lean.current.x * size.width / 2 / cam.zoom, -lean.current.y * size.height / 2 / cam.zoom, 100);
+          lt.ray.direction.set(0, 0, -1);
+          lt.ray.applyMatrix4(lt.m.copy(c.matrixWorld).invert());
+          if (lean.current.light && lt.ray.intersectPlane(lt.plane, lt.hit)) lt.goal.set(lt.hit.x, LIGHT.height, lt.hit.z);
+          if (lt.on < 0.02 && lightOn) lt.pos.copy(lt.goal);   // 켜지는 순간엔 그 자리에서 시작
+          lt.pos.lerp(lt.goal, 1 - Math.exp(-dt * 14));
+          uniforms.uPointLocal.value.copy(lt.pos).applyMatrix4(c.matrixWorld).applyMatrix4(inv);
+        }
+        uniforms.uPointOn.value = lt.on;
+        uniforms.uAmbient.value = 1 - (1 - LIGHT.ambient) * lt.on;
       }
     }
     if (moving) invalidate();

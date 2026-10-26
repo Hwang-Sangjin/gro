@@ -78,9 +78,10 @@ export default function AlbumDetailView({ album }) {
     art.current?.style.setProperty("--cover-rx", `${-y * 7}deg`);
     art.current?.style.setProperty("--cover-ry", `${x * 7}deg`);
   };
-  const setDisc = (x, y) => {
-    if (lean.current.x === x && lean.current.y === y) return;
-    lean.current.x = x; lean.current.y = y;
+  // light: 커서가 판 위 → 그 자리에 커서 조명 (AlbumVinyl)
+  const setDisc = (x, y, light = false) => {
+    if (lean.current.x === x && lean.current.y === y && lean.current.light === light) return;
+    lean.current.x = x; lean.current.y = y; lean.current.light = light;
     lean.current.wake?.();
   };
   function tilt(event) {
@@ -89,7 +90,7 @@ export default function AlbumDetailView({ album }) {
     if (onCover) { const [x, y] = along(coverBox.current, event); setCover(Math.max(-1, Math.min(1, x)), Math.max(-1, Math.min(1, y))); }
     else setCover(0, 0);
     const [dx, dy] = discBox.current && !onCover ? along(discBox.current, event) : [9, 9];
-    if (Math.hypot(dx, dy) <= 1) setDisc(dx, dy); else setDisc(0, 0);
+    if (Math.hypot(dx, dy) <= 1) setDisc(dx, dy, true); else setDisc(0, 0);
   }
   function resetTilt() { setCover(0, 0); setDisc(0, 0); }
   const [failed, setFailed] = useState(false);
