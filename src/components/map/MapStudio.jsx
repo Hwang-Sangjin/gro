@@ -7,7 +7,6 @@ import { createClient } from "@/utils/supabase/client";
 import { PLACE_FIELDS, AREA_ROMAN, isOver, kindOf, hasKind, openState } from "@/lib/places";
 import PlaceList from "./PlaceList";
 import PlaceDetail from "./PlaceDetail";
-import Tonearm from "./Tonearm";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "@/lib/theme";
 import useLabReveal from "@/components/lab/useLabReveal";
@@ -31,7 +30,6 @@ export default function MapStudio() {
   const [openOnly, setOpenOnly] = useState(false); // 지금 영업 중인 곳만
   const [now, setNow] = useState(() => new Date()); // 1분마다 → 영업 중 다시 계산
   const box = useRef(null);
-  const armHost = useRef(null);
   const map = useRef(null);
   const ready = useRef(false);
   const markers = useRef(new Map());               // "p:<slug>" | "c:<cluster id>" → { marker, el }
@@ -234,10 +232,8 @@ export default function MapStudio() {
             <div data-on={shown}
               className="relative h-[clamp(420px,calc(100svh-250px),900px)] border-2 border-(--ink) [clip-path:inset(0_50%_0_50%)] transition-[clip-path] duration-300 ease-[cubic-bezier(.22,1,.36,1)] data-[on=true]:[clip-path:inset(-2px)] data-[on=true]:duration-[1000ms] data-[on=true]:delay-150 motion-reduce:transition-none">
               {/* maplibre 가 컨테이너에 position:relative 를 덮어써서, 위치는 바깥 div 가 잡고 지도는 그 안을 꽉 채움 */}
-              {/* 커서: 지도 위에선 톤암이 따라다님 (Tonearm). 사이트 원형 커서·원래 커서는 여기서 숨김 — data-own-cursor (globals.css) */}
-              <div ref={armHost} className="absolute inset-0" data-own-cursor style={{ background: palette.land }}>
+              <div className="absolute inset-0" style={{ background: palette.land }}>
                 <div ref={box} data-lenis-prevent data-crate-ignore className={`size-full ${MAP_CONTROLS} ${theme === "dark" ? MAP_CONTROLS_DARK : ""}`} />
-                <Tonearm host={armHost} />
               </div>
               {night && (
                 <span className="pointer-events-none absolute left-3 top-3 z-[2] inline-flex items-center gap-1.5 bg-(--cream)/85 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-(--ink)/80">

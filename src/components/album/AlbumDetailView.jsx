@@ -65,35 +65,33 @@ export default function AlbumDetailView({ album }) {
     check();
     return () => { cancelAnimationFrame(frame); cancelAnimationFrame(settleFrame); observer.disconnect(); };
   }, [done, album.slug]);
-  // 커버와 판이 마우스를 따라 각자 기울어짐: 각자 자기 중심 기준으로 -1…1, 자기 밖으로 벗어나면 서서히 0으로
-  // (커버 위에선 커버가, 판 위에선 판이 크게 반응하고 반대쪽은 살짝만)
+  // 커버와 판은 따로 움직임: 마우스가 올라간 쪽만 자기 중심 기준(-1…1)으로 기울고, 다른 쪽은 평평하게 돌아감
+  // 판은 둥근 판 위(반지름 안)에 있을 때만 — 네모 칸의 빈 모서리에선 반응하지 않음
   const coverBox = useRef(null);
   const discBox = useRef(null);
   const lean = useRef({ x: 0, y: 0 });
-  const local = (value) => Math.abs(value) <= 1 ? value : Math.sign(value) * Math.max(0, 2 - Math.abs(value));
   const along = (el, event) => {
     const box = el.getBoundingClientRect();
-    return [local((event.clientX - box.left) / box.width * 2 - 1), local((event.clientY - box.top) / box.height * 2 - 1)];
+    return [(event.clientX - box.left) / box.width * 2 - 1, (event.clientY - box.top) / box.height * 2 - 1];
+  };
+  const setCover = (x, y) => {
+    art.current?.style.setProperty("--cover-rx", `${-y * 7}deg`);
+    art.current?.style.setProperty("--cover-ry", `${x * 7}deg`);
+  };
+  const setDisc = (x, y) => {
+    if (lean.current.x === x && lean.current.y === y) return;
+    lean.current.x = x; lean.current.y = y;
+    lean.current.wake?.();
   };
   function tilt(event) {
     if (event.pointerType === "touch" || !discReady || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    if (coverBox.current) {
-      const [x, y] = along(coverBox.current, event);
-      art.current?.style.setProperty("--cover-rx", `${-y * 7}deg`);
-      art.current?.style.setProperty("--cover-ry", `${x * 7}deg`);
-    }
-    if (discBox.current) {
-      const [x, y] = along(discBox.current, event);
-      lean.current.x = x; lean.current.y = y;
-      lean.current.wake?.();
-    }
+    const onCover = coverBox.current?.contains(event.target);
+    if (onCover) { const [x, y] = along(coverBox.current, event); setCover(Math.max(-1, Math.min(1, x)), Math.max(-1, Math.min(1, y))); }
+    else setCover(0, 0);
+    const [dx, dy] = discBox.current && !onCover ? along(discBox.current, event) : [9, 9];
+    if (Math.hypot(dx, dy) <= 1) setDisc(dx, dy); else setDisc(0, 0);
   }
-  function resetTilt() {
-    art.current?.style.setProperty("--cover-rx", "0deg");
-    art.current?.style.setProperty("--cover-ry", "0deg");
-    lean.current.x = 0; lean.current.y = 0;
-    lean.current.wake?.();
-  }
+  function resetTilt() { setCover(0, 0); setDisc(0, 0); }
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [playing, setPlaying] = useState(false);
