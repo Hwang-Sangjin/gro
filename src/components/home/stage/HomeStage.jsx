@@ -60,8 +60,14 @@ function getGenreCovers(slug) {
   return coverCache.get(slug);
 }
 
-export default function HomeStage() {
+// onHeroLeave: Hero 에서 아래로 가면 New Vinyls 대신 이걸 부름 (/lab/room-test 의 3D 거실이 이어 받음)
+// onEngine: 엔진이 준비되면 넘겨 줌 (heroPose 등)
+export default function HomeStage({ onHeroLeave, onEngine } = {}) {
   const hostRef = useRef(null);
+  const leaveRef = useRef(onHeroLeave);
+  leaveRef.current = onHeroLeave;
+  const engineCbRef = useRef(onEngine);
+  engineCbRef.current = onEngine;
   const sourceRef = useRef(null);
   const engineRef = useRef(null);
   const { done } = useIntro();
@@ -104,13 +110,16 @@ export default function HomeStage() {
       initialDial,
       onSectionChange: (n) => { memory.section = n; },
       onOpenAlbum: openAlbum,
+      onHeroLeave: leaveRef.current ? () => leaveRef.current?.() : undefined,
     }).then((engine) => {
       if (cancelled) { engine.dispose(); return; }
       engineRef.current = engine;
+      engineCbRef.current?.(engine);
       // 모델을 불러오는 사이에 인트로가 끝났을 수 있음
       engine.setIntroDone(doneRef.current);
       memory.section = initialSection;
-      loadAlbums(engine);
+      // Hero 다음을 바깥이 이어 받으면 New Vinyls 릴을 보여 줄 일이 없음 → 목록은 바깥이 받음
+      if (!leaveRef.current) loadAlbums(engine);
     }, (error) => console.error("Home stage could not start", error));
 
     async function loadAlbums(engine) {

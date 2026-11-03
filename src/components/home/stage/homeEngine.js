@@ -2283,6 +2283,13 @@ export async function createHomeEngine(opts) {
     next = Math.max(0, Math.min(3, next));
     if (next === section) return;
     const prev = section;
+    // Hero 다음을 바깥(예: /lab/room-test 의 3D 거실)이 이어 받으면 New Vinyls 로 가지 않음
+    if (prev === 0 && next === 1 && opts.onHeroLeave) {
+      wheelAcc = 0;
+      lockUntil = nowSec() + SECTION.cooldown;
+      opts.onHeroLeave();
+      return;
+    }
     section = next;
     wheelAcc = 0;
     if ((prev === 2 && next === 3) || (prev === 3 && next === 2)) {
@@ -2475,10 +2482,11 @@ export async function createHomeEngine(opts) {
   let dragWeight = 1;
   let fxLevel = 0;
   const parallaxTarget = new THREE.Vector2();
+  let paused = false;   // setPaused: 바깥이 화면을 가리는 동안(예: room-test 의 3D 거실) 그리지 않음
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
     // 인트로(프리로더)가 화면을 덮고 있는 동안은 그리지 않음 → 프리로더 애니메이션에 GPU를 양보
-    if (!introDone) return;
+    if (!introDone || paused) return;
 
     // 0) 스크롤 진행도: 0 = Hero, 1 = New Vinyls. 살짝 스무딩해서 휠 스크롤도 부드럽게
     //    스크롤 위치가 아니라 '섹션 전환 트윈'이 진행도를 시간에 따라 0 ↔︎ 1로 움직임
@@ -2710,6 +2718,22 @@ export async function createHomeEngine(opts) {
     },
     get section() { return section; },
     get dialIndex() { return dialIndex; },
+    /** 그리기 멈춤/다시 시작 (멈춘 동안의 시간은 건너뜀) */
+    setPaused(p) { paused = !!p; },
+    /** 지금 화면에 보이는 판의 자세 (onHeroLeave 로 이어 받는 쪽이 같은 자리에서 시작하도록)
+     *  x·y: 캔버스 가운데 기준 px(위가 +), radius: 판 반지름 px, quat: 카메라 기준 회전, rect: 캔버스 화면 사각형 */
+    heroPose() {
+      scene.updateMatrixWorld(true);
+      camera.updateMatrixWorld();
+      const m = new THREE.Matrix4().multiplyMatrices(camera.matrixWorldInverse, spin.matrixWorld);
+      const pos = new THREE.Vector3(), quat = new THREE.Quaternion(), scl = new THREE.Vector3();
+      m.decompose(pos, quat, scl);
+      return {
+        x: pos.x * camera.zoom, y: pos.y * camera.zoom, radius: scl.x * camera.zoom, quat,
+        rect: canvas.getBoundingClientRect(),
+        ink: uniforms.uInk.value.clone(), label: uniforms.uLabel.value.clone(),
+      };
+    },
     dispose() {
       if (disposed) return;
       disposed = true;

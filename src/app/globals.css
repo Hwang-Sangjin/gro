@@ -501,6 +501,13 @@ html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
   html.site-cursor, html.site-cursor * { cursor: none !important; }
 }
 
+/* /lab/room-test: Home 처럼 헤더를 투명하게 — 3D 장면 바탕이 그대로 비침.
+   글자색(--ct-header-fg)·펼친 메뉴 패널색(--ct-drop-bg)은 페이지가 지금 바탕에 맞춰 넣음 */
+.ct-page:has([data-header-see-through]) { --ct-header-bg: transparent; }
+.ct-page:has([data-header-see-through]) > .ct-navbar::before { display: none; }
+.ct-page:has([data-header-see-through]) > .ct-navbar { transition: background-color .3s ease; }
+.ct-page:has([data-header-see-through]) > .ct-navbar[data-drop="true"] { background-color: var(--ct-drop-bg); }
+
 /* Digging: 헤더는 본문 종이색과 같게 */
 .ct-page[data-crate-path="/digging"] { --ct-header-bg: var(--cream); }
 

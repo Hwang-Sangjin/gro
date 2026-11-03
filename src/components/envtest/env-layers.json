@@ -1,0 +1,244 @@
+{
+  "_note": "Hybrid 배경 레이어 설정. D = 방 가운데에서 카메라 반대쪽으로 떨어진 거리(m), s = 기준 카메라(A 25°, 16:9) 화면에서 레이어 윗선 높이 (0 아래 ~ 1 위). 하늘은 화면 배경이라 깊이 없음. spec 은 /lab/env-test 의 analyze() 결과 (2026-11-03, 궤도 ±3°/±1.5° + 평행 ±0.75m/±0.4m, 방 가림 무시 = 넉넉하게).",
+  "camera": {
+    "preset": "B",
+    "aspect": "16:9",
+    "fovY": 17.19,
+    "far": 4000,
+    "parallax": {
+      "type": "orbit",
+      "yawDeg": 3,
+      "pitchDeg": 1.5,
+      "amount": 0.3,
+      "_note": "amount = yawDeg·pitchDeg 에 곱하는 세기. 사용자 결정 0.3 (= 좌우 ±0.9°, 위아래 ±0.45°). 이미지 영역은 ×1 기준이라 여유 있음"
+    },
+    "_note": "2026-11-03 사용자 결정: B 18° 가 가장 자연스러움, 마우스 궤도 시차 기본 켬"
+  },
+  "layers": [
+    {
+      "id": "h_far",
+      "name": "먼 스카이라인",
+      "color": "#5b4a78",
+      "D": 350,
+      "place": "screen",
+      "s": 0.8,
+      "look": "skyline",
+      "seed": 3,
+      "img": "/models/room/env/skyline_far_01.png",
+      "fill": "#544374",
+      "band": 0.16,
+      "on": true,
+      "confirmed": "2026-11-03"
+    },
+    {
+      "id": "h_apts",
+      "name": "강 건너 아파트",
+      "color": "#7d5468",
+      "D": 150,
+      "place": "screen",
+      "s": 0.72,
+      "look": "skyline",
+      "seed": 7,
+      "lit": true,
+      "on": true,
+      "img": "/models/room/env/apts_01.png",
+      "fill": "#583e5a",
+      "band": 0.2,
+      "tint": 0.7,
+      "confirmed": "2026-11-03"
+    },
+    {
+      "id": "h_river",
+      "name": "한강",
+      "color": "#34466e",
+      "D": 70,
+      "place": "screen",
+      "s": 0.58,
+      "look": "water",
+      "on": true,
+      "img": "/models/room/env/river_01.png",
+      "fill": "#2a2b62",
+      "band": 0.3,
+      "confirmed": "2026-11-03"
+    },
+    {
+      "id": "h_bank",
+      "name": "가까운 둔치·나무",
+      "color": "#2f3d36",
+      "D": 32,
+      "place": "screen",
+      "s": 0.38,
+      "look": "skyline",
+      "seed": 11,
+      "band": 0.22,
+      "on": true,
+      "img": "/models/room/env/bank_01.png",
+      "fill": "#1d312d",
+      "confirmed": "2026-11-03"
+    },
+    {
+      "id": "h_lawn",
+      "name": "강둑 잔디·길",
+      "color": "#3b4a3a",
+      "D": 14,
+      "place": "screen",
+      "s": 0.2,
+      "look": "solid",
+      "band": 0.24,
+      "on": true,
+      "img": "/models/room/env/lawn_01.png",
+      "fill": "#172221",
+      "confirmed": "2026-11-03"
+    },
+    {
+      "id": "h_near",
+      "name": "가까운 건물",
+      "color": "#3f7f8c",
+      "D": 25,
+      "place": "ground",
+      "H": 22,
+      "look": "solid",
+      "W": 14,
+      "x": [
+        -16,
+        16
+      ],
+      "on": false
+    }
+  ],
+  "spec": {
+    "sky": {
+      "type": "screen",
+      "image": "16:9 불투명",
+      "visibleFromScreen": 0.55,
+      "px": [
+        3840,
+        2160
+      ]
+    },
+    "h_far": {
+      "topY": -77.12,
+      "distFromCam": 364.0,
+      "needM": [
+        241.28,
+        9.73
+      ],
+      "imageM": [
+        298.9,
+        12.1
+      ],
+      "px": [
+        4096,
+        322
+      ],
+      "alpha": true,
+      "topOnScreen": [
+        0.715,
+        0.884
+      ]
+    },
+    "h_apts": {
+      "topY": -35.78,
+      "distFromCam": 164.0,
+      "needM": [
+        109.06,
+        7.83
+      ],
+      "imageM": [
+        135.6,
+        9.8
+      ],
+      "px": [
+        4096,
+        359
+      ],
+      "alpha": true,
+      "topOnScreen": [
+        0.64,
+        0.8
+      ]
+    },
+    "h_river": {
+      "topY": -19.36,
+      "distFromCam": 84.1,
+      "needM": [
+        58.76,
+        20.1
+      ],
+      "imageM": [
+        74.9,
+        26.2
+      ],
+      "px": [
+        4096,
+        1219
+      ],
+      "alpha": true,
+      "topOnScreen": [
+        0.507,
+        0.652
+      ]
+    },
+    "_note": "기준 카메라 B 18° (2026-11-03 재계산). 판 높이는 기준 카메라 화면 윗선 s 로 역산되므로 카메라를 바꾸면 topY 가 바뀜",
+    "h_bank": {
+      "topY": -11.1,
+      "distFromCam": 46.2,
+      "needM": [
+        30.6,
+        3.15
+      ],
+      "topOnScreen": [
+        0.318,
+        0.441
+      ],
+      "alpha": true,
+      "visible": "방 건물 양옆, 화면 폭의 약 10%씩"
+    },
+    "h_lawn": {
+      "topY": -6.28,
+      "distFromCam": 28.3,
+      "needM": [
+        18.53,
+        2.77
+      ],
+      "topOnScreen": [
+        0.154,
+        0.245
+      ],
+      "alpha": true,
+      "visible": "방 건물 양옆 아래, 화면 폭의 약 10%씩"
+    }
+  },
+  "sky": {
+    "image": "/models/room/env/sky_01.webp",
+    "size": [
+      2000,
+      1125
+    ],
+    "offsetY": -0.57,
+    "scaleY": 1,
+    "confirmed": "2026-11-03",
+    "_note": "화면 v(0 아래~1 위)에 이미지 높이 offsetY + v*scaleY. 노을 가장 밝은 줄(이미지 아래 15%)을 먼 스카이라인 윗선(화면 72%) 뒤에 맞춤"
+  },
+  "window": {
+    "image": "/models/room/env/window_namsan_01.jpg",
+    "src": "/models/room/env/window_namsan_01_src.webp",
+    "crop": "원본 1536×1024 에서 위 156px 부터 711px (판 비율 2.16:1)",
+    "_note": "Window_City 판 4.9×2.27m, flipY false",
+    "imageHeightM": 2.27
+  },
+  "dof": {
+    "strength": 2,
+    "_note": "깊이 흐림: 무한히 먼 것(하늘)이 1080p 화면에서 흐려지는 px. 레이어는 strength × (1 − 초점거리/거리). 방이 초점",
+    "confirmed": "2026-11-03"
+  },
+  "light": {
+    "hemiSky": "#9c8ccc",
+    "hemiGround": "#2a2030",
+    "hemiIntensity": 0.75,
+    "sunColor": "#ff9c78",
+    "sunIntensity": 0.8,
+    "_note": "노을 조명: 주변광(하늘 보라·땅 어두운 자주) + 창문 쪽에서 들어오는 따뜻한 노을빛(원래 차가운 달빛 자리). room-test 는 방 완성 칸으로 다가가며 이 색으로 바뀜",
+    "confirmed": "2026-11-03"
+  }
+}

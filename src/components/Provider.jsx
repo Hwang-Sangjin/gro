@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { ReactLenis } from "lenis/react";
+import { usePathname } from "next/navigation";
 
 import { IntroProvider, useIntro } from "./intro/intro-context";
 import Preloader from "./intro/Preloader";
@@ -32,14 +33,22 @@ function ScrollLock({ lenisRef }) {
   return null;
 }
 
+// 배경 테스트 페이지(/lab/env-test)는 인트로 없이 바로 열리게: 인트로를 끝난 것으로만 표시
+function SkipIntro() {
+  const { finish } = useIntro();
+  useEffect(() => { finish(); }, [finish]);
+  return null;
+}
+
 export default function Providers({ children }) {
   const lenisRef = useRef(null);
+  const skipIntro = usePathname()?.startsWith("/lab/env-test");
 
   return (
     <IntroProvider>
       <ReactLenis root ref={lenisRef} />
       <ScrollLock lenisRef={lenisRef} />
-      <Preloader />
+      {skipIntro ? <SkipIntro /> : <Preloader />}
       <SpinningFavicon />
       <SiteCursor />
       <CrateProvider>
