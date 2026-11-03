@@ -145,7 +145,8 @@
       "blurMul": 2,
       "img": "/models/room/env/rooftop_fg_01.png",
       "fill": "#764e57",
-      "fadeX": 0.1
+      "fadeX": 0.1,
+      "roomTest": false
     },
     {
       "id": "h_fg_l",
@@ -153,19 +154,20 @@
       "color": "#6b5a66",
       "D": -6,
       "place": "screen",
-      "s": 0.4,
+      "s": 0.45,
       "look": "solid",
-      "band": 0.45,
+      "band": 0.5,
       "W": 3,
       "x": [
-        -1.22
+        -1.15
       ],
-      "img": "/models/room/env/fg_left_01.png",
+      "img": "/models/room/env/fg_left_03.png",
       "single": true,
       "noFill": true,
       "blurMul": 0,
       "on": true,
-      "_note": "위에서 내려다본 이웃 옥상 모서리. 한 장(반복 없음), 화면 왼쪽 아래 모서리에 붙임"
+      "_note": "위에서 내려다본 이웃 옥상 모서리. 한 장(반복 없음), 화면 왼쪽 아래 모서리에 붙임",
+      "roomTest": false
     },
     {
       "id": "h_fg_r",
@@ -185,7 +187,8 @@
       "noFill": true,
       "blurMul": 0,
       "on": true,
-      "_note": "위에서 내려다본 이웃 건물 모서리. 한 장, 화면 오른쪽 아래 모서리에 붙임. 흐림 없음(사용자 결정)"
+      "_note": "위에서 내려다본 이웃 건물 모서리. 한 장, 화면 오른쪽 아래 모서리에 붙임. 흐림 없음(사용자 결정)",
+      "roomTest": false
     }
   ],
   "spec": {
@@ -307,7 +310,8 @@
     "src": "/models/room/env/window_namsan_01_src.webp",
     "crop": "원본 1536×1024 에서 위 156px 부터 711px (판 비율 2.16:1)",
     "_note": "Window_City 판 4.9×2.27m, flipY false",
-    "imageHeightM": 2.27
+    "imageHeightM": 2.27,
+    "mode": "glass"
   },
   "dof": {
     "strength": 2,
@@ -325,13 +329,53 @@
   },
   "walls": {
     "section": {
-      "color": "#2a2f52",
-      "emissive": "#14172c"
+      "top": "#2a2f52",
+      "ledge": "#e2cfb8",
+      "left": "#5a5f84",
+      "right": "#262a46",
+      "other": "#3a3e60",
+      "ledgeBelowY": 1.0,
+      "emissive": 0.55
     },
     "building": {
-      "color": "#8a90aa",
-      "emissive": "#4c5270"
+      "top": "#9aa0bb",
+      "ledge": "#9aa0bb",
+      "left": "#8a90ab",
+      "right": "#4c5170",
+      "other": "#6e7490",
+      "emissive": 0.5
     },
-    "_note": "원래: 절단면 #efe1cb (발광 #787166), 건물 텍스처 × 흰색 (발광 #959595). 목표 이미지처럼 짙은 남색 절단면 + 푸른 회색 건물"
-  }
+    "_note": "면 방향마다 곱하는 색. 위(높은 곳)=top, 위(낮은 앞 턱)=ledge, 화면 왼쪽 면=left, 화면 오른쪽 면=right(가장 어둡게). emissive = 재질 발광 세기(0~1)"
+  },
+  "neighbors": [
+    {
+      "id": "nb_left",
+      "name": "왼쪽 이웃 옥상",
+      "x": [
+        -6.0,
+        3.0
+      ],
+      "y": [
+        -9.0,
+        -3.0
+      ],
+      "deck": 0.1,
+      "parapet": 0.9
+    },
+    {
+      "id": "nb_right",
+      "name": "오른쪽 이웃 옥상",
+      "x": [
+        3.4,
+        9.0
+      ],
+      "y": [
+        -0.5,
+        7.0
+      ],
+      "deck": -0.2,
+      "parapet": 0.9
+    }
+  ],
+  "neighbors_note": "3D 이웃 옥상 자리잡기 상자 (env-test ?nb=1). Blender 좌표(m): x·y 는 바닥 범위, deck 은 옥상 바닥 높이 Z (방 바닥 = 0), 건물은 땅(Z −12.13)까지"
 }

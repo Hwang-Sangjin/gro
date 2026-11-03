@@ -197,14 +197,16 @@ export function windowBlurPx(cfg, rig, base, imgH) {
   return dofImagePx(cfg.dof?.strength ?? 0, imgH, cfg.window.imageHeightM / viewH);
 }
 
-// room-test 용: 레이어 판들(이미지 있는 것만) + 하늘 + 창문 재질을 한 번에. fade(k) 로 같이 나타냄
-export function createEnv(rig, base, cfg) {
+// room-test 용: 레이어 판들(이미지 있는 것만) + 하늘 + 창문 + 바깥 면 색을 한 번에. fade(k) 로 같이 나타냄
+// 창문: cfg.window.mode "glass" 면 그림 판을 숨기고 유리 → 창 너머로 레이어(남산 포함)가 보임. 아니면 남산 그림 판
+// roomTest: false 인 레이어는 room-test 에서 뺌 (3D 로 바꿀 좌우 전경 등)
+export function createEnv(rig, base, cfg, root) {
   const group = new THREE.Group();
   group.name = "env_layers";
   const mats = [];
   const rotY = Math.atan2(-rig.fH.x, -rig.fH.z);                 // 판 앞면이 카메라 쪽
   for (const L of cfg.layers) {
-    if (!L.on || !L.img) continue;
+    if (!L.on || !L.img || L.roomTest === false) continue;
     const g = layerGeom(L, rig, base);
     const { tint, fill } = layerColors(L);
     const fade = edgeFadeTexture(L.fadeX);
@@ -247,10 +249,14 @@ export function createEnv(rig, base, cfg) {
     windowMat.needsUpdate = true;
   });
   if (rig.windowCity) rig.windowCity.material = windowMat;
+  const glass = cfg.window.mode === "glass" && root ? createWindowGlass(root) : null;
+  if (glass && rig.windowCity) rig.windowCity.visible = false;
+  if (root) applyWallColors(root, cfg.walls);
   return {
-    group, sky, windowMat,
+    group, sky, windowMat, glass,
     fade(k) {
       group.visible = k > 0.001;
+      if (glass) glass.material.opacity = k;
       sky.visible = group.visible && !!sky.material.uniforms.map.value;
       sky.material.uniforms.uOpacity.value = k;
       for (const m of mats) { m.opacity = k; m.transparent = k < 1 || m.alphaTest > 0; m.depthWrite = k >= 1; }
@@ -288,11 +294,15 @@ export function createWindowGlass(root) {
   if (thin === "x") mesh.rotation.y = Math.PI / 2;
   mesh.name = "window_glass";
   mesh.renderOrder = 5;
+  frame.attach(mesh);   // 창틀에 붙여 reveal 애니메이션을 따라 움직이게 (방이 다 지어진 자세에서 부를 것)
   return mesh;
 }
 
-// 방 바깥 면 색: 벽·바닥 절단면(mat_wall_section)과 방 아래 건물 외벽(mat_building_wall)을 어둡게 (env-layers.json 의 walls).
-// 밝은 크림색이면 노을 배경에서 혼자 떠 보여서, 목표 이미지처럼 짙은 남색 절단면 + 푸른 회색 건물로. 방 안쪽 벽은 그대로
+// 방 바깥 면 색: 벽·바닥 절단면(mat_wall_section)과 방 아래 건물 외벽(mat_building_wall)을 면 방향마다 다른 색으로 (env-layers.json 의 walls).
+// 한 재질이라 조명만으로는 면마다 차이가 거의 안 나서, 셰이더에서 면의 월드 방향으로 색을 곱함:
+//   위를 보는 면: 낮은 곳(ledgeBelowY 아래 = 바닥 높이의 앞 턱)은 ledge(밝게), 높은 곳(벽 윗면)은 top
+//   +x 를 보는 면(화면 오른쪽 면) = right(가장 어둡게), +z(glTF) 를 보는 면(화면 왼쪽 면) = left(덜 어둡게), 나머지 = other
+// 재질 색·발광은 흰색·회색으로 두고 그 위에 곱함 (건물은 원래 텍스처·불 켜진 창 발광 유지)
 export function applyWallColors(root, walls) {
   if (!walls) return;
   root.traverse((o) => {
@@ -301,8 +311,24 @@ export function applyWallColors(root, walls) {
       const w = m.name === "mat_wall_section" ? walls.section : m.name === "mat_building_wall" ? walls.building : null;
       if (!w || m.userData.wallTinted) continue;
       m.userData.wallTinted = true;
-      m.color.set(w.color);
-      m.emissive?.set(w.emissive);
+      m.color.set("#ffffff");
+      m.emissive?.setScalar(w.emissive ?? 0.5);
+      const col = (c) => ({ value: new THREE.Color(c) });
+      const u = { uTop: col(w.top), uLedge: col(w.ledge ?? w.top), uLeft: col(w.left), uRight: col(w.right), uOther: col(w.other ?? w.left), uLedgeY: { value: w.ledgeBelowY ?? -1e9 } };
+      m.onBeforeCompile = (sh) => {
+        Object.assign(sh.uniforms, u);
+        sh.vertexShader = "varying vec3 vWallN; varying float vWallY;\n" + sh.vertexShader.replace("#include <begin_vertex>",
+          "#include <begin_vertex>\n vWallN = normalize(mat3(modelMatrix) * objectNormal); vWallY = (modelMatrix * vec4(transformed, 1.0)).y;");
+        const tint = `
+          vec3 wn = normalize(vWallN);
+          vec3 wt = abs(wn.x) > abs(wn.z) ? (wn.x > 0.0 ? uRight : uOther) : (wn.z > 0.0 ? uLeft : uOther);
+          if (wn.y > 0.7) wt = vWallY < uLedgeY ? uLedge : uTop;`;
+        sh.fragmentShader = "uniform vec3 uTop, uLedge, uLeft, uRight, uOther; uniform float uLedgeY; varying vec3 vWallN; varying float vWallY;\n" + sh.fragmentShader
+          .replace("#include <map_fragment>", "#include <map_fragment>\n" + tint + "\n diffuseColor.rgb *= wt;")
+          .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n totalEmissiveRadiance *= wt;");
+      };
+      m.customProgramCacheKey = () => "wallTint";
+      m.needsUpdate = true;
     }
   });
 }

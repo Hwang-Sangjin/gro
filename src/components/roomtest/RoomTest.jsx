@@ -428,7 +428,7 @@ export default function RoomTest() {
       //  레이어 높이는 기준 카메라(B 18°) 화면 기준이라, 방 완성 칸의 카메라도 그 기준 카메라 그대로
       st.rig = computeRig(root, gltf.cameras[0]);
       st.base = makeBase(st.rig, { A: null, B: 18, C: 12 }[LAYER_CFG.camera.preset]);
-      st.env = createEnv(st.rig, st.base, LAYER_CFG);
+      st.env = createEnv(st.rig, st.base, LAYER_CFG, root);   // 유리 창·남산·바깥 면 색 포함 (방이 다 지어진 자세에서)
       scene.add(st.env.group, st.env.sky);
       st.env.fade(0);
 

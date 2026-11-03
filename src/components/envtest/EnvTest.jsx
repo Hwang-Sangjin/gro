@@ -271,8 +271,7 @@ function WindowView({ rig, base, kind, dof }) {
     if (kind !== "glass" || !m) return;
     const glass = createWindowGlass(rig.root);
     m.visible = false;
-    if (glass) rig.root.add(glass);
-    return () => { m.visible = true; if (glass) { rig.root.remove(glass); glass.material.map.dispose(); glass.material.dispose(); glass.geometry.dispose(); } };
+    return () => { m.visible = true; if (glass) { glass.removeFromParent(); glass.material.map.dispose(); glass.material.dispose(); glass.geometry.dispose(); } };
   }, [rig, kind]);
   useEffect(() => {
     const m = rig.windowCity;
@@ -477,6 +476,31 @@ function Readout({ rig, infoRef, probeRef, probeOn, measureReq }) {
 }
 
 // dusk: 노을 조명 (env-layers.json 의 light). 끄면 room-test 원래 밤빛(차가운 달빛)
+// 이웃 옥상 3D 자리잡기용 상자 (env-layers.json 의 neighbors, Blender 좌표: x, y 범위·deck = 옥상 바닥 높이 Z, 방 바닥 = 0)
+// 건물 상자(땅 ~ 옥상 바닥) + 난간 네 변. glTF 좌표로: (x, Z, −y)
+function NeighborBlockout({ rig }) {
+  const items = LAYER_CFG.neighbors ?? [];
+  return items.filter((n) => n.on !== false).map((n) => {
+    const [x0, x1] = n.x, [y0, y1] = n.y, top = n.deck, bot = rig.ground, ph = n.parapet ?? 1, t = 0.18;
+    const cx = (x0 + x1) / 2, cz = -(y0 + y1) / 2, w = x1 - x0, d = y1 - y0;
+    const walls = [[cx, -y0, w, t], [cx, -y1, w, t], [x0, cz, t, d], [x1, cz, t, d]];
+    return (
+      <group key={n.id} userData={{ kind: kindIndex("h_fg_l") }}>
+        <mesh position={[cx, (top + bot) / 2, cz]}>
+          <boxGeometry args={[w, top - bot, d]} />
+          <meshStandardMaterial color={n.color ?? "#d9c6b0"} roughness={0.9} />
+        </mesh>
+        {walls.map(([x, z, ww, dd], i) => (
+          <mesh key={i} position={[x, top + ph / 2, z]}>
+            <boxGeometry args={[ww, ph, dd]} />
+            <meshStandardMaterial color={n.parapetColor ?? "#efe2cf"} roughness={0.9} />
+          </mesh>
+        ))}
+      </group>
+    );
+  });
+}
+
 function Lights({ dusk }) {
   const L = LAYER_CFG.light;
   return dusk ? (
@@ -513,7 +537,7 @@ export default function EnvTest() {
   const [region, setRegion] = useState(q.get("region") === "1");
   const [panel, setPanel] = useState(q.get("panel") !== "0");
   const [report, setReport] = useState(null);
-  const [windowView, setWindowView] = useState(q.get("win") ?? "image");
+  const [windowView, setWindowView] = useState(q.get("win") ?? (LAYER_CFG.window.mode === "glass" ? "glass" : "image"));   // 기본 = env-layers.json (유리)
   const [skyKind, setSkyKind] = useState(q.get("sky") === "grad" ? "gradient" : "image");
   const [sky, setSky] = useState(() => (q.has("skyoff") ? { off: qn("skyoff"), scale: q.has("skyscale") ? qn("skyscale") : 1 } : SKY_FITS["노을↔스카이라인"]));
   const [probeOn, setProbeOn] = useState(false);
@@ -575,6 +599,7 @@ export default function EnvTest() {
               <CameraRig rig={rig} base={base} cam={cam} parallax={parallax} amt={pAmt} />
               <WindowView rig={rig} base={base} kind={windowView} dof={dof} />
               <RegionView on={region} />
+              {q.get("nb") === "1" && <NeighborBlockout rig={rig} />}
               {layers[mode].filter((L) => L.on).map((L) => <Layer key={L.id + presetId} L={L} rig={rig} base={base} dof={dof} />)}
               {M.ground && (
                 <>
