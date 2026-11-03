@@ -87,9 +87,10 @@ export function layerGeom(L, rig, base) {
   return { at, dist, viewH, W, top, bandH, bottom, xs: L.x ?? [0] };
 }
 
-// 깊이 흐림(DOF 흉내): 방이 초점. 거리 dist 의 것은 화면에서 strength × (1 − 초점 거리/dist) px 만큼 흐림
-// (1080p 화면 기준 px, 무한히 먼 하늘 = strength). 실행 중 후처리 대신 이미지를 불러올 때 한 번만 흐림
-export const dofScreenPx = (strength, focus, dist) => (strength > 0 ? strength * Math.max(0, 1 - focus / dist) : 0);
+// 깊이 흐림(DOF 흉내): 방이 초점. 거리 dist 의 것은 화면에서 strength × |1 − 초점 거리/dist| px 만큼 흐림
+// (1080p 화면 기준 px, 무한히 먼 하늘 = strength, 카메라 쪽은 초점의 절반 거리면 같은 만큼·더 가까우면 더 흐림, 최대 ×4)
+// 실행 중 후처리 대신 이미지를 불러올 때 한 번만 흐림
+export const dofScreenPx = (strength, focus, dist) => (strength > 0 ? strength * Math.min(4, Math.abs(1 - focus / dist)) : 0);
 // 화면 px → 이미지 px: 이미지 세로 한 장이 화면 세로의 screenFrac 만큼일 때
 export const dofImagePx = (screenPx, imgH, screenFrac) => (screenPx * imgH) / (screenFrac * 1080);
 
@@ -129,20 +130,38 @@ export function imageTexture(img, px, { flipY = true, wrapS = THREE.ClampToEdgeW
 }
 
 // 레이어 이미지 텍스처: 띠 한 장을 좌우로 뒤집어 가며 이어 붙임(끝끼리 맞지 않아도 이음매가 안 생김)
-// blurFor(이미지 세로 px) → 흐림 px (없으면 흐리지 않음)
-export function loadLayerTexture(url, onLoad, blurFor) {
-  new THREE.ImageLoader().load(url, (img) => onLoad?.(imageTexture(img, blurFor?.(img.height) ?? 0, { wrapS: THREE.MirroredRepeatWrapping, grow: true })));
+// blurFor(이미지 세로 px) → 흐림 px (없으면 흐리지 않음). single: 반복하지 않는 한 장짜리 그림(예: 남산)
+export function loadLayerTexture(url, onLoad, blurFor, single = false) {
+  new THREE.ImageLoader().load(url, (img) => onLoad?.(imageTexture(img, blurFor?.(img.height) ?? 0, { wrapS: single ? THREE.ClampToEdgeWrapping : THREE.MirroredRepeatWrapping, grow: true })));
 }
-// 레이어 하나의 흐림: 띠 이미지 세로 = 화면 세로의 band 만큼
-export const layerBlurFor = (L, g, base, strength) => (imgH) => dofImagePx(dofScreenPx(strength, base.sph.radius, g.dist), imgH, L.band ?? 0.16);
+// 레이어 하나의 흐림: 띠 이미지 세로 = 화면 세로의 band 만큼. blurMul: 레이어별 배율 (카메라 앞 전경은 목표 이미지처럼 더 뭉갬)
+export const layerBlurFor = (L, g, base, strength) => (imgH) => dofImagePx(dofScreenPx(strength, base.sph.radius, g.dist) * (L.blurMul ?? 1), imgH, L.band ?? 0.16);
 // 띠 높이 bandH, 한 장 폭 = bandH × 이미지 비율, 판 가운데에 이미지 가운데가 오게
-// 흐림 여백(growTop)이 있으면 띠를 그만큼 위로 늘림 → 원래 그림의 자리·크기는 그대로. 늘어난 { h, up } 을 돌려줌
-export function fitLayerTexture(tex, W, bandH) {
-  const grow = tex.userData.growTop ?? 0, h = bandH * (1 + grow);
-  const r = W / (h * (tex.image.width / tex.image.height));
+// 흐림 여백(growTop)이 있으면 띠를 그만큼 위로 늘림 → 원래 그림의 자리·크기는 그대로. 늘어난 { h, up, w } 을 돌려줌
+// single: 한 장짜리 그림은 판 폭을 그림 비율대로 줄임 (w), 반복 없음
+export function fitLayerTexture(tex, W, bandH, single = false) {
+  const grow = tex.userData.growTop ?? 0, h = bandH * (1 + grow), aspect = tex.image.width / tex.image.height;
+  if (single) { tex.repeat.x = 1; tex.offset.x = 0; return { h, up: bandH * grow, w: h * aspect }; }
+  const r = W / (h * aspect);
   tex.repeat.x = r; tex.offset.x = 0.5 - 0.5 * r;
-  return { h, up: bandH * grow };
+  return { h, up: bandH * grow, w: W };
 }
+// 판 양 끝을 서서히 투명하게 하는 알파 맵 (fadeX = 양쪽에서 판 폭의 이만큼씩). 모서리에만 놓는 전경처럼 판이 화면 안에서 끝날 때
+const fadeCache = new Map();
+export function edgeFadeTexture(fadeX) {
+  if (!(fadeX > 0)) return null;
+  if (fadeCache.has(fadeX)) return fadeCache.get(fadeX);
+  const c = document.createElement("canvas");
+  c.width = 256; c.height = 1;
+  const g = c.getContext("2d");
+  const gr = g.createLinearGradient(0, 0, 256, 0);
+  gr.addColorStop(0, "#000"); gr.addColorStop(fadeX, "#fff"); gr.addColorStop(1 - fadeX, "#fff"); gr.addColorStop(1, "#000");
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 1);
+  const t = new THREE.CanvasTexture(c);
+  fadeCache.set(fadeX, t);
+  return t;
+}
+
 // tint: 이미지 색에 곱하는 밝기 (1 = 그대로, 눈에 보이는 밝기 기준). 띠 아래 채움 색에도 같이 곱함
 export function layerColors(L) {
   const t = L.tint ?? 1, tint = new THREE.Color().setRGB(t, t, t, THREE.SRGBColorSpace);
@@ -188,15 +207,17 @@ export function createEnv(rig, base, cfg) {
     if (!L.on || !L.img) continue;
     const g = layerGeom(L, rig, base);
     const { tint, fill } = layerColors(L);
-    const band = new THREE.MeshBasicMaterial({ color: tint, transparent: true, alphaTest: 0.01, toneMapped: false, opacity: 0 });
-    const fillMat = new THREE.MeshBasicMaterial({ color: fill, transparent: true, toneMapped: false, opacity: 0 });
+    const fade = edgeFadeTexture(L.fadeX);
+    const band = new THREE.MeshBasicMaterial({ color: tint, transparent: true, alphaTest: L.alphaTest ?? 0.01, toneMapped: false, opacity: 0, alphaMap: fade });   // alphaTest: 투명 가장자리가 어두운 테두리로 보이는 그림(남산)은 높여서 잘라 냄
+    const fillMat = new THREE.MeshBasicMaterial({ color: fill, transparent: true, toneMapped: false, opacity: 0, alphaMap: fade });
     mats.push(band, fillMat);
-    const bandMeshes = [];
+    const bandMeshes = [], fillMeshes = [];
     loadLayerTexture(L.img, (t) => {
-      const { h, up } = fitLayerTexture(t, g.W, g.bandH);
-      for (const bm of bandMeshes) { bm.scale.y = h / g.bandH; bm.position.y = -g.bandH / 2 + up / 2; }
+      const { h, up, w } = fitLayerTexture(t, g.W, g.bandH, L.single);
+      for (const bm of bandMeshes) { bm.scale.set(w / g.W, h / g.bandH, 1); bm.position.y = -g.bandH / 2 + up / 2; }
+      for (const fm of fillMeshes) fm.scale.x = w / g.W;
       band.map = t; band.needsUpdate = true;
-    }, layerBlurFor(L, g, base, cfg.dof?.strength ?? 0));
+    }, layerBlurFor(L, g, base, cfg.dof?.strength ?? 0), L.single);
     for (const x of g.xs) {
       const p = g.at.clone().addScaledVector(rig.right, x);
       const holder = new THREE.Group();
@@ -206,9 +227,14 @@ export function createEnv(rig, base, cfg) {
       const bm = new THREE.Mesh(new THREE.PlaneGeometry(g.W, g.bandH), band);
       bm.position.y = -g.bandH / 2;
       bandMeshes.push(bm);
-      const fm = new THREE.Mesh(new THREE.PlaneGeometry(g.W, 2000), fillMat);
-      fm.position.y = -g.bandH * 0.99 - 1000;
-      holder.add(bm, fm);
+      holder.add(bm);
+      // 띠 아래 채움 (noFill: 그림 아래쪽이 투명한 모서리 전경은 채우지 않음)
+      if (!L.noFill) {
+        const fm = new THREE.Mesh(new THREE.PlaneGeometry(g.W, 2000), fillMat);
+        fm.position.y = -g.bandH * 0.99 - 1000;
+        fillMeshes.push(fm);
+        holder.add(fm);
+      }
       group.add(holder);
     }
   }
@@ -231,4 +257,52 @@ export function createEnv(rig, base, cfg) {
     },
     night(k) { windowMat.color.setScalar(k); },
   };
+}
+
+// 창문 유리: 창틀 안쪽에 옅은 하늘빛 + 비스듬한 반사 줄만 있는 얇은 판 (진짜 굴절 대신 흉내).
+// 창문 그림 판(Window_City)을 숨기면 창 너머로 바깥 배경 레이어가 그대로 보임 → 창 안에서도 시차가 생김
+export function createWindowGlass(root) {
+  const frame = root.getObjectByName("window_frame");
+  if (!frame) return null;
+  const b = new THREE.Box3().setFromObject(frame);
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const g = c.getContext("2d");
+  g.fillStyle = "rgba(190, 205, 255, 0.06)";
+  g.fillRect(0, 0, 256, 256);
+  for (const [x0, w, a] of [[40, 70, 0.10], [130, 28, 0.07]]) {   // 비스듬한 반사 줄 두 개
+    const gr = g.createLinearGradient(x0, 0, x0 + w, 0);
+    gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(0.5, `rgba(255,255,255,${a})`); gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.save(); g.translate(128, 128); g.rotate(-0.5); g.translate(-128, -128);
+    g.fillStyle = gr; g.fillRect(x0, -200, w, 656);
+    g.restore();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+  // 창틀 상자에서 가장 얇은 축이 창의 두께 방향
+  const s = b.getSize(new THREE.Vector3()), ctr = b.getCenter(new THREE.Vector3());
+  const thin = s.x <= s.z ? "x" : "z";
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(thin === "x" ? s.z : s.x, s.y), mat);
+  mesh.position.copy(ctr);
+  if (thin === "x") mesh.rotation.y = Math.PI / 2;
+  mesh.name = "window_glass";
+  mesh.renderOrder = 5;
+  return mesh;
+}
+
+// 방 바깥 면 색: 벽·바닥 절단면(mat_wall_section)과 방 아래 건물 외벽(mat_building_wall)을 어둡게 (env-layers.json 의 walls).
+// 밝은 크림색이면 노을 배경에서 혼자 떠 보여서, 목표 이미지처럼 짙은 남색 절단면 + 푸른 회색 건물로. 방 안쪽 벽은 그대로
+export function applyWallColors(root, walls) {
+  if (!walls) return;
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of [o.material].flat()) {
+      const w = m.name === "mat_wall_section" ? walls.section : m.name === "mat_building_wall" ? walls.building : null;
+      if (!w || m.userData.wallTinted) continue;
+      m.userData.wallTinted = true;
+      m.color.set(w.color);
+      m.emissive?.set(w.emissive);
+    }
+  });
 }

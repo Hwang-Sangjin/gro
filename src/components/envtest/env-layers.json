@@ -16,6 +16,27 @@
   },
   "layers": [
     {
+      "id": "h_namsan",
+      "name": "남산(창 너머)",
+      "color": "#5a3f6e",
+      "D": 250,
+      "place": "screen",
+      "s": 0.8,
+      "look": "solid",
+      "band": 0.16,
+      "W": 46,
+      "x": [
+        -11
+      ],
+      "on": true,
+      "_note": "창 너머에만 보이게: 꼭대기를 창문 벽 윗선보다 낮게, 폭은 창문 벽 안쪽으로",
+      "img": "/models/room/env/namsan_01.png",
+      "fill": "#3b3157",
+      "single": true,
+      "blurMul": 0,
+      "alphaTest": 0.6
+    },
+    {
       "id": "h_far",
       "name": "먼 스카이라인",
       "color": "#5b4a78",
@@ -104,6 +125,67 @@
         16
       ],
       "on": false
+    },
+    {
+      "id": "h_fg",
+      "name": "카메라 앞 옥상(전경)",
+      "color": "#6b5a66",
+      "D": -6,
+      "place": "screen",
+      "s": 0.2,
+      "look": "solid",
+      "band": 0.2,
+      "W": 4.4,
+      "x": [
+        -3.35,
+        3.35
+      ],
+      "on": false,
+      "_note": "방보다 카메라 쪽(D 음수). 화면 아래 양 모서리. 가장 가까워 흐림·시차가 가장 큼",
+      "blurMul": 2,
+      "img": "/models/room/env/rooftop_fg_01.png",
+      "fill": "#764e57",
+      "fadeX": 0.1
+    },
+    {
+      "id": "h_fg_l",
+      "name": "카메라 앞 옥상 왼쪽",
+      "color": "#6b5a66",
+      "D": -6,
+      "place": "screen",
+      "s": 0.4,
+      "look": "solid",
+      "band": 0.45,
+      "W": 3,
+      "x": [
+        -1.22
+      ],
+      "img": "/models/room/env/fg_left_01.png",
+      "single": true,
+      "noFill": true,
+      "blurMul": 0,
+      "on": true,
+      "_note": "위에서 내려다본 이웃 옥상 모서리. 한 장(반복 없음), 화면 왼쪽 아래 모서리에 붙임"
+    },
+    {
+      "id": "h_fg_r",
+      "name": "카메라 앞 옥상 오른쪽",
+      "color": "#6b5a66",
+      "D": -6,
+      "place": "screen",
+      "s": 0.38,
+      "look": "solid",
+      "band": 0.42,
+      "W": 3,
+      "x": [
+        0.64
+      ],
+      "img": "/models/room/env/fg_right_01.png",
+      "single": true,
+      "noFill": true,
+      "blurMul": 0,
+      "on": true,
+      "_note": "위에서 내려다본 이웃 건물 모서리. 한 장, 화면 오른쪽 아래 모서리에 붙임. 흐림 없음(사용자 결정)"
     }
   ],
   "spec": {
@@ -240,5 +322,16 @@
     "sunIntensity": 0.8,
     "_note": "노을 조명: 주변광(하늘 보라·땅 어두운 자주) + 창문 쪽에서 들어오는 따뜻한 노을빛(원래 차가운 달빛 자리). room-test 는 방 완성 칸으로 다가가며 이 색으로 바뀜",
     "confirmed": "2026-11-03"
+  },
+  "walls": {
+    "section": {
+      "color": "#2a2f52",
+      "emissive": "#14172c"
+    },
+    "building": {
+      "color": "#8a90aa",
+      "emissive": "#4c5270"
+    },
+    "_note": "원래: 절단면 #efe1cb (발광 #787166), 건물 텍스처 × 흰색 (발광 #959595). 목표 이미지처럼 짙은 남색 절단면 + 푸른 회색 건물"
   }
 }

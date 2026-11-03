@@ -15,7 +15,7 @@ import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import LAYER_CFG from "./env-layers.json";
-import { D2R, ASPECT, computeRig, makeBase as makeBaseElev, layerGeom, loadLayerTexture, fitLayerTexture, layerColors, layerBlurFor, imageTexture, dofImagePx, windowBlurPx } from "./envCore";
+import { D2R, ASPECT, computeRig, makeBase as makeBaseElev, layerGeom, loadLayerTexture, fitLayerTexture, layerColors, layerBlurFor, imageTexture, dofImagePx, windowBlurPx, createWindowGlass, edgeFadeTexture, applyWallColors } from "./envCore";
 
 // 프리셋 기준 카메라 (envCore 는 내려다보는 각만 받음)
 const makeBase = (rig, preset) => makeBaseElev(rig, preset.elev);
@@ -155,6 +155,7 @@ function Room({ onReady, replayRef }) {
     replayRef.current = () => { action.reset(); action.play(); };
 
     const root = gltf.scene;
+    applyWallColors(root, LAYER_CFG.walls);   // 절단면·건물 외벽을 어둡게
     onReady({ ...computeRig(root, gltf.cameras[0]), root });
     return () => { mixer.stopAllAction(); };
   }, [gltf, mixer, onReady, replayRef]);
@@ -178,12 +179,12 @@ function applyPose(camera, rig, base, p) {
 }
 
 // blurFor: 깊이 흐림 px (blurKey 가 바뀌면 다시 흐림)
-function useLayerImage(url, blurFor, blurKey) {
+function useLayerImage(url, blurFor, blurKey, single) {
   const [tex, setTex] = useState(null);
   useEffect(() => {
     if (!url) return;
     let t, live = true;
-    loadLayerTexture(url, (x) => { if (live) { t = x; setTex(x); } else x.dispose(); }, blurFor);
+    loadLayerTexture(url, (x) => { if (live) { t = x; setTex(x); } else x.dispose(); }, blurFor, single);
     return () => { live = false; t?.dispose(); setTex(null); };
   }, [url, blurKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   return tex;
@@ -192,17 +193,18 @@ function useLayerImage(url, blurFor, blurKey) {
 function Layer({ L, rig, base, dof }) {
   const useImg = !!L.img && L.useImg !== false;
   const g = layerGeom(L, rig, base);
-  const img = useLayerImage(useImg ? L.img : null, layerBlurFor(L, g, base, dof), `${dof}|${L.band}|${L.D}`);
+  const img = useLayerImage(useImg ? L.img : null, layerBlurFor(L, g, base, dof), `${dof}|${L.band}|${L.D}`, L.single);
   const draw = useMemo(() => (L.look === "solid" ? solidTexture(L) : bandTexture(L)), [L]);
   useEffect(() => () => draw.dispose(), [draw]);
   const { at, W, top, bandH } = g;
   const rotY = Math.atan2(-rig.fH.x, -rig.fH.z);                 // 판 앞면이 카메라 쪽
   const kind = kindIndex(L.id);
-  const fillH = L.place === "screen" ? 2000 : 0;
+  const fillH = L.place === "screen" && !L.noFill ? 2000 : 0;   // noFill: 그림 아래쪽이 투명한 모서리 전경
   const tex = useImg && img ? img : draw;
   const { tint, fill } = layerColors(L);
-  let bandMeshH = bandH, bandUp = 0;
-  if (tex === img) { const f = fitLayerTexture(tex, W, bandH); bandMeshH = f.h; bandUp = f.up; }
+  const fade = edgeFadeTexture(L.fadeX);   // 판 양 끝 서서히 투명 (모서리 전경)
+  let bandMeshH = bandH, bandUp = 0, bandW = W;
+  if (tex === img) { const f = fitLayerTexture(tex, W, bandH, L.single); bandMeshH = f.h; bandUp = f.up; bandW = f.w; }
   else if (L.look !== "solid") { tex.repeat.x = Math.max(1, Math.round(W / (bandH * 4))); tex.needsUpdate = true; }
 
   return (L.x ?? [0]).map((x, i) => {
@@ -210,13 +212,13 @@ function Layer({ L, rig, base, dof }) {
     return (
       <group key={i} position={[p.x, top, p.z]} rotation={[0, rotY, 0]} userData={{ kind }}>
         <mesh position={[0, -bandH / 2 + bandUp / 2, 0]}>
-          <planeGeometry args={[W, bandMeshH]} />
-          <meshBasicMaterial map={tex} color={tex === img ? tint : "#ffffff"} transparent={L.look !== "solid"} alphaTest={tex === img ? 0.01 : 0.5} toneMapped={false} />
+          <planeGeometry args={[bandW, bandMeshH]} />
+          <meshBasicMaterial map={tex} color={tex === img ? tint : "#ffffff"} transparent={tex === img || L.look !== "solid" || !!fade} alphaTest={tex === img ? L.alphaTest ?? 0.01 : 0.5} alphaMap={fade} toneMapped={false} />
         </mesh>
         {fillH > 0 && (
           <mesh position={[0, -bandH * 0.99 - fillH / 2, 0]}>
-            <planeGeometry args={[W, fillH]} />
-            <meshBasicMaterial color={useImg && L.fill ? fill : L.color} toneMapped={false} />
+            <planeGeometry args={[bandW, fillH]} />
+            <meshBasicMaterial color={useImg && L.fill ? fill : L.color} transparent={!!fade} alphaMap={fade} toneMapped={false} />
           </mesh>
         )}
       </group>
@@ -263,9 +265,18 @@ function WindowView({ rig, base, kind, dof }) {
     return () => { live = false; t?.dispose(); setImg(null); };
   }, [kind, dof, rig, base]);
   const mat = useMemo(() => new THREE.MeshBasicMaterial({ toneMapped: false }), []);
+  // "glass": 창문 그림 판을 숨기고 유리만 → 창 너머로 바깥 레이어
   useEffect(() => {
     const m = rig.windowCity;
-    if (!m || kind === "glb") return;
+    if (kind !== "glass" || !m) return;
+    const glass = createWindowGlass(rig.root);
+    m.visible = false;
+    if (glass) rig.root.add(glass);
+    return () => { m.visible = true; if (glass) { rig.root.remove(glass); glass.material.map.dispose(); glass.material.dispose(); glass.geometry.dispose(); } };
+  }, [rig, kind]);
+  useEffect(() => {
+    const m = rig.windowCity;
+    if (!m || kind === "glb" || kind === "glass") return;
     mat.map = kind === "image" && img ? img : tex;
     mat.needsUpdate = true;
     const orig = m.material;
@@ -376,7 +387,7 @@ function analyze(rig, base, layers, poseSets = POSES) {
 // 영역 보기: 종류마다 단색으로 칠해 레이어 경계를 보이게 (하늘 = 노랑)
 const REGION = { 배경: "#ffd36b", 방: "#9a9a9a", "방 아래 건물": "#5f5f66", 땅: "#3c3c44", "창문 배경(남산)": "#ff5fc8",
   "먼 스카이라인": "#7b68e0", "강 건너 아파트": "#e0705f", 한강: "#36a2e0", "가까운 건물": "#3fbf8c",
-  "가까운 둔치·나무": "#2fbf6a", "강둑 잔디·길": "#c8e64a" };
+  "가까운 둔치·나무": "#2fbf6a", "강둑 잔디·길": "#c8e64a", "남산(창 너머)": "#ff9f1c", "카메라 앞 옥상(전경)": "#ff4f4f", "카메라 앞 옥상 왼쪽": "#ff4f4f", "카메라 앞 옥상 오른쪽": "#ff4f4f" };
 function RegionView({ on }) {
   const { scene } = useThree();
   const mats = useMemo(() => KINDS.map((k) => new THREE.MeshBasicMaterial({ color: REGION[k] ?? "#ffffff", toneMapped: false, side: THREE.DoubleSide })), []);
@@ -384,7 +395,7 @@ function RegionView({ on }) {
     if (!on) return;
     // 매 프레임 다시 칠함 (레이어를 켜고 끄면 새 메시가 생기므로)
     scene.traverse((o) => {
-      if (!o.isMesh) return;
+      if (!o.isMesh || o.name === "window_glass") return;   // 유리는 그대로 (창 너머가 보이게)
       const m = mats[kindOf(o)];
       if (o.material !== m) { o.userData.origMat = o.material; o.material = m; }
     });
@@ -664,6 +675,7 @@ export default function EnvTest() {
           {btn(windowView === "image", "남산 이미지", () => setWindowView("image"))}
           {btn(windowView === "test", "테스트 그림", () => setWindowView("test"))}
           {btn(windowView === "glb", "GLB 원래", () => setWindowView("glb"))}
+          {btn(windowView === "glass", "유리", () => setWindowView("glass"))}
         </div>
         {slider("노출", exposure, 0.2, 3, 0.05, setExposure, (x) => x.toFixed(2))}
         <label className="flex gap-2"><input type="checkbox" checked={probeOn} onChange={(e) => setProbeOn(e.target.checked)} />화면 비율 계속 측정 (1초마다, 무거움)</label>
