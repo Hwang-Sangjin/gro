@@ -21,9 +21,17 @@ import { STORIES, CATEGORIES, categoryName } from "@/content/news";
 import HomeStage from "@/components/home/stage/HomeStage";
 import LAYER_CFG from "@/components/envtest/env-layers.json";
 import { D2R, ASPECT, computeRig, makeBase, createEnv } from "@/components/envtest/envCore";
+import { attachFlipClock } from "./flipClock";
+import { addShelfTestProps, applyNowPlaying } from "./shelfTestProps";
 
 const MODEL_URL = "/models/room/grooves_room_blockout_reveal.glb";
 const VINYL_URL = "/models/vinyl.glb";
+// 램프가 아닌 불빛: 이름으로 pivot 을 못 찾으니 따로 지정 (캔들은 Lv3 소품 pivot, 이웃 옥상은 전구 줄 · 랜턴 pivot 이 다 놓인 뒤 켜짐)
+const LIGHT_PIVOT = {
+  light_candle: "pivot_prop_ct_candle",
+  light_nb_left_string: "pivot_nb_left_lights", light_nb_left_lantern: "pivot_nb_left_table",
+  light_nb_right_string: "pivot_nb_right_lights", light_nb_right_lantern: "pivot_nb_right_lantern",
+};
 
 // 이야기 진행도 P (0~1). [시작, 길이]
 const STORY = {
@@ -49,6 +57,7 @@ const STAGE_P = [0, 0.18, 0.34, 0.76, 0.86, 0.96];
 const STAGE_DUR = [1.6, 2.2, null, 1.2, 1.0];   // [i]↔[i+1] 한 칸을 지나는 시간(초). null = 방 생성: Blender 클립 길이 그대로
 const STEP_FROM = 2;                            // 이 칸부터는 한 번에 한 칸
 const STEP = { threshold: 24, touch: 40, cooldown: 0.45 };   // Home 엔진 SECTION 과 같은 값
+const HERO_HOLD = 0.4;   // Hero 를 이어 받은 판이 제자리에 머무는 시간(초). Hero 레이어가 걷히는 0.5초와 거의 같게
 const NV_BACK_WAIT = 1.0;                       // New Vinyls → 방: 커버가 선반으로 돌아가는 시간(핸드오프 1초)만큼 카메라가 기다림
 const SCROLL = {
   speed: 0.8,       // 착지까지: 스크롤·붙는 속도 배율 (1 보다 작으면 더 천천히)
@@ -173,6 +182,7 @@ export default function RoomTest() {
   const [error, setError] = useState(null);
   const [hud, setHud] = useState({ p: 0, stage: STAGES[0][1] });
   const [albums, setAlbums] = useState([]);
+  const [shelfReady, setShelfReady] = useState(0);   // 창가 선반 확인용 소품이 얹히면 재킷 앨범을 다시 입힘
   const [camName, setCamName] = useState("story");
   const [lightScale, setLightScale] = useState(0); // log10 배율 (Unitless export 라 1배가 기본)
   const [exposure, setExposure] = useState(1);
@@ -293,13 +303,16 @@ export default function RoomTest() {
       st.inputAt = now();
     };
     // Hero → 1: Home 엔진의 판 자리에서 이어 받고 1 칸으로 미끄러짐 (onHeroLeave)
+    //  판은 한 장으로 보이게: Home 판은 바로 숨기고(부르는 쪽), 이 판은 Hero 레이어가 걷히는 동안 그 자리에 머문 뒤 움직임
     st.leaveHero = (pose) => {
-      if (!st.ready || !st.inHero) return;
+      if (!st.ready || !st.inHero) return false;
       if (pose) takeHero(pose);
       st.inHero = false;
       st.s = st.sTarget = 0;
       st.onHero?.(false);
       goStage(1);
+      st.goalAt = now() + (st.reduced ? 0 : HERO_HOLD);
+      return true;
     };
 
     // ── 입력 (Hero 에서는 Home 엔진이 받음)
@@ -414,7 +427,7 @@ export default function RoomTest() {
       st.roomR = roomBox.getSize(new THREE.Vector3()).length() / 2;
       // 램프 재질은 램프마다 따로 (켜짐 표현). 재질이 여러 개일 수 있음.
       // Blender 에 Emission 이 있으면 그 값을 켜짐 정도만큼, 없는 램프는 갓 전체에 웜톤
-      for (const name of ["lamp_floor", "lamp_table", "lamp_window"]) {
+      for (const name of ["lamp_floor", "lamp_table", "lamp_window", "lamp_circle"]) {
         const lamp = root.getObjectByName(name);
         if (!lamp) continue;
         const mats = [];
@@ -431,6 +444,14 @@ export default function RoomTest() {
       st.env = createEnv(st.rig, st.base, LAYER_CFG, root);   // 유리 창·남산·바깥 면 색 포함 (방이 다 지어진 자세에서)
       scene.add(st.env.group, st.env.sky);
       st.env.fade(0);
+      // 창가 선반 새 소품(플립 시계 · 지금 듣는 판): 방 GLB 에 없으면 확인용 GLB 를 선반에 얹음
+      //  시계는 현재 시각, 분이 바뀌면 판이 넘어감
+      const shelfFinal = root.getObjectByName("pivot_bookshelf")?.matrixWorld.clone();
+      st.dropShelfTest = addShelfTestProps(root, shelfFinal, () => {
+        if (st.disposed) return;
+        st.clock = attachFlipClock(root);
+        st.onShelfReady?.();
+      });
 
       // 선반 커버: 앞면에 신보 커버를 붙일 판
       for (const n of ["cover_shelf_01", "cover_shelf_02", "cover_shelf_03"]) {
@@ -439,7 +460,7 @@ export default function RoomTest() {
       }
 
       // 클립 타이밍에 맞춘 웹 연출: 램프는 놓인 뒤 켜짐, 야경은 창문 벽이 다 선 뒤
-      for (const [lampPivot] of st.lampMats) { const r = nodeRange(st.clip, lampPivot); if (r) st.lampAt.set(lampPivot, clipP(r[1]) + STORY.lampDelay); }
+      for (const lampPivot of [...st.lampMats.keys(), ...Object.values(LIGHT_PIVOT)]) { const r = nodeRange(st.clip, lampPivot); if (r) st.lampAt.set(lampPivot, clipP(r[1]) + STORY.lampDelay); }
       const win = nodeRange(st.clip, "pivot_wall_window");
       st.night = [win ? clipP(win[1]) : STORY.build[0] + STORY.build[1] * 0.5, STORY.nightDur];
       // 마지막에 놓이는 커버 = 가장 최신 신보 (핸드오프 대상)
@@ -584,7 +605,7 @@ export default function RoomTest() {
       st.heroInk = new THREE.Color(pose.ink.x, pose.ink.y, pose.ink.z);
       st.heroLabel = new THREE.Color(pose.label.x, pose.label.y, pose.label.z);
       st.ownSpin = 0;   // Home 의 회전각은 heroQuat 에 들어 있음
-      st.ownVel = RPM(10);
+      st.ownVel = pose.omega != null ? -pose.omega : RPM(10);   // Home 은 +omega 로, 이 판은 -ownVel 로 돎 → 같은 속도로 이어서
     };
 
     // ── 진행도 → 장면
@@ -626,7 +647,7 @@ export default function RoomTest() {
 
       // 판: 떠서 돌다가(10 RPM) 멈추며 플래터에 앉음 → 이후 플래터와 같이 돎
       const lk = easeInOut(seg(p, STORY.land));
-      st.ownVel += ((st.reduced ? 0 : RPM(10) * (1 - lk)) - st.ownVel) * (1 - Math.exp(-dt * 3));
+      st.ownVel += ((st.reduced ? 0 : RPM(10) * (1 - lk)) - st.ownVel) * (1 - Math.exp(-dt * 1.5));   // Hero 에서 빨리 돌던 판도 1초 남짓에 걸쳐 10 RPM 으로
       st.ownSpin -= st.ownVel * dt;
       st.seat.getWorldPosition(_p);
       st.seat.getWorldQuaternion(_q2);
@@ -671,7 +692,7 @@ export default function RoomTest() {
       moon.color.copy(MOON).lerp(DUSK.sunColor, ek);
       moon.intensity = nk * THREE.MathUtils.lerp(0.7, DUSK.sunIntensity, ek);
       for (const l of st.lights) {
-        const pivot = "pivot_" + l.name.replace(/^light_/, "");
+        const pivot = LIGHT_PIVOT[l.name] ?? "pivot_" + l.name.replace(/^light_/, "");
         const on = easeInOut(seg(p, [st.lampAt.get(pivot) ?? 2, STORY.lampDur]));
         l.intensity = st.baseIntensity.get(l) * st.lightMul * on;
         for (const { m, k } of st.lampMats.get(pivot) ?? []) m.emissiveIntensity = on * k;
@@ -729,8 +750,8 @@ export default function RoomTest() {
             const base = Math.floor(st.sTarget), f = st.sTarget - base;
             if (f > 1e-4) st.goal = st.dir > 0 ? (f > SCROLL.bias ? base + 1 : base) : (f < 1 - SCROLL.bias ? base : base + 1);
           }
-          // 칸으로 미끄러짐: 지나는 칸의 길이만큼의 속도 × speed
-          if (st.goal != null) {
+          // 칸으로 미끄러짐: 지나는 칸의 길이만큼의 속도 × speed (Hero 를 막 이어 받았으면 잠깐 그 자리에)
+          if (st.goal != null && t >= (st.goalAt ?? 0)) {
             const d = st.goal - st.sTarget;
             const i = Math.max(0, Math.min(LAST - 1, d > 0 ? Math.floor(st.sTarget) : Math.ceil(st.sTarget) - 1));
             const stepS = st.reduced ? Infinity : (dt * SCROLL.speed) / segDur(i);
@@ -750,6 +771,7 @@ export default function RoomTest() {
             st.onHero?.(true);
           }
         }
+        st.clock?.update(dt);
         apply(st.p, dt, time);   // 판 빛줄기는 직전 프레임 카메라 기준 (한 프레임 차이라 보이지 않음)
         placeStoryCam(st.p);
         orbitByPointer(st.p, dt);
@@ -786,6 +808,7 @@ export default function RoomTest() {
 
     return () => {
       st.disposed = true;
+      st.dropShelfTest?.();
       cancelAnimationFrame(st.raf);
       ro.disconnect();
       layer.removeEventListener("wheel", onWheel);
@@ -836,7 +859,9 @@ export default function RoomTest() {
         mat.map = tex; mat.emissiveMap = tex; mat.color.set("#ffffff"); mat.needsUpdate = true;
       });
     });
-  }, [albums, info]);
+    // 창가 선반 "지금 듣는 판" 재킷: 벽 선반에 없는 앨범 중 무작위 (페이지를 열 때마다 바뀜)
+    st.nowPlaying = applyNowPlaying(st.root, albums, st.covers.length);
+  }, [albums, info, shelfReady]);
 
   // 섹션 전환 · 핸드오프 (3D 마지막 커버 자리 ↔ New Vinyls 첫 칸)
   useEffect(() => {
@@ -882,13 +907,17 @@ export default function RoomTest() {
   useEffect(() => {
     const st = apiRef.current; if (!st) return;
     st.onHero = (on) => setHeroOn(on);
+    st.onShelfReady = () => setShelfReady((n) => n + 1);
   }, []);
-  const leaveHero = () => apiRef.current?.leaveHero(homeRef.current?.heroPose?.());
+  const leaveHero = () => {
+    const home = homeRef.current;
+    if (apiRef.current?.leaveHero(home?.heroPose?.())) home?.setDiscHidden?.(true);   // 이어 받았으면 Home 판은 바로 숨김 (두 장 겹쳐 보이지 않게)
+  };
   // Hero 가 가려진 동안 Home 엔진은 그리지 않음 (레이어가 다 사라진 뒤 멈추고, 돌아올 땐 바로 다시)
   useEffect(() => {
     const engine = homeRef.current;
     if (!engine?.setPaused) return;
-    if (heroOn) { engine.setPaused(false); return; }
+    if (heroOn) { engine.setPaused(false); engine.setDiscHidden?.(false); return; }
     const t = setTimeout(() => engine.setPaused(true), reduced ? 0 : 550);
     return () => clearTimeout(t);
   }, [heroOn, reduced]);

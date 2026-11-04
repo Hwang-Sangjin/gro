@@ -15,6 +15,8 @@ import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import LAYER_CFG from "./env-layers.json";
+import { attachFlipClock } from "@/components/roomtest/flipClock";
+import { addShelfTestProps } from "@/components/roomtest/shelfTestProps";
 import { D2R, ASPECT, computeRig, makeBase as makeBaseElev, layerGeom, loadLayerTexture, fitLayerTexture, layerColors, layerBlurFor, imageTexture, dofImagePx, windowBlurPx, createWindowGlass, edgeFadeTexture, applyWallColors } from "./envCore";
 
 // 프리셋 기준 카메라 (envCore 는 내려다보는 각만 받음)
@@ -160,7 +162,19 @@ function Room({ onReady, replayRef }) {
     return () => { mixer.stopAllAction(); };
   }, [gltf, mixer, onReady, replayRef]);
 
-  useFrame((_, dt) => mixer.update(Math.min(dt, 0.05)));
+  // 창가 선반 새 소품(플립 시계 · 지금 듣는 판): 방 GLB 에 없으면 확인용 GLB 를 선반에 얹음. 시계는 현재 시각
+  //  ?clockfast=1 이면 1분이 2초로 빨리 감 (넘어가는 모습 확인용)
+  const clockRef = useRef(null);
+  useEffect(() => {
+    const q = new URLSearchParams(location.search);
+    const t0 = Date.now(), fast = q.get("clockfast") === "1";
+    const now = fast ? () => new Date(t0 + (Date.now() - t0) * 30) : undefined;
+    gltf.scene.updateMatrixWorld(true);
+    const shelfFinal = gltf.scene.getObjectByName("pivot_bookshelf")?.matrixWorld.clone();
+    const drop = addShelfTestProps(gltf.scene, shelfFinal, () => { clockRef.current = attachFlipClock(gltf.scene, { now }); });
+    return () => { drop(); clockRef.current = null; };
+  }, [gltf]);
+  useFrame((_, dt) => { mixer.update(Math.min(dt, 0.05)); clockRef.current?.update(Math.min(dt, 0.1)); });
   return <primitive object={gltf.scene} />;
 }
 
@@ -529,7 +543,7 @@ export default function EnvTest() {
     return o;
   })])));
   const [presetId, setPresetId] = useState(() => (PRESETS.some((p) => p.id === q.get("preset")) ? q.get("preset") : LAYER_CFG.camera.preset));   // 기본 = env-layers.json (B 18°)
-  const [cam, setCam] = useState(() => ({ ...CAM0, yaw: qn("yaw"), pitch: qn("pitch"), tx: qn("tx"), ty: qn("ty") }));
+  const [cam, setCam] = useState(() => ({ ...CAM0, yaw: qn("yaw"), pitch: qn("pitch"), tx: qn("tx"), ty: qn("ty"), zoom: q.has("zoom") ? qn("zoom") : 1 }));   // ?zoom=4 처럼 확대해서 열기
   const [parallax, setParallax] = useState(q.get("parallax") ?? LAYER_CFG.camera.parallax.type);   // 기본 = 마우스 궤도 ±3°
   const [pAmt, setPAmt] = useState(() => (q.has("pamt") ? qn("pamt") : LAYER_CFG.camera.parallax.amount ?? 1));   // 시차 세기 기본 = env-layers.json (×0.3)
   const [dusk, setDusk] = useState(q.get("dusk") !== "0");   // 노을 조명

@@ -2720,8 +2720,11 @@ export async function createHomeEngine(opts) {
     get dialIndex() { return dialIndex; },
     /** 그리기 멈춤/다시 시작 (멈춘 동안의 시간은 건너뜀) */
     setPaused(p) { paused = !!p; },
+    /** 판만 숨김/다시 보임 (바깥이 같은 자리의 판을 이어 받는 동안 판이 두 장 겹쳐 보이지 않게. 링·먼지는 그대로) */
+    setDiscHidden(h) { flip.visible = !h; },
     /** 지금 화면에 보이는 판의 자세 (onHeroLeave 로 이어 받는 쪽이 같은 자리에서 시작하도록)
-     *  x·y: 캔버스 가운데 기준 px(위가 +), radius: 판 반지름 px, quat: 카메라 기준 회전, rect: 캔버스 화면 사각형 */
+     *  x·y: 캔버스 가운데 기준 px(위가 +), radius: 판 반지름 px, quat: 카메라 기준 회전, rect: 캔버스 화면 사각형
+     *  omega: 지금 회전 각속도(rad/s, 판 축 기준. 이어 받는 쪽이 같은 속도로 이어 돌게) */
     heroPose() {
       scene.updateMatrixWorld(true);
       camera.updateMatrixWorld();
@@ -2732,6 +2735,7 @@ export async function createHomeEngine(opts) {
         x: pos.x * camera.zoom, y: pos.y * camera.zoom, radius: scl.x * camera.zoom, quat,
         rect: canvas.getBoundingClientRect(),
         ink: uniforms.uInk.value.clone(), label: uniforms.uLabel.value.clone(),
+        omega,
       };
     },
     dispose() {

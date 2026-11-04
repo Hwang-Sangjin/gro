@@ -39,9 +39,23 @@
 - 외벽: 난간 아래 외벽에 불 켜진 창 한 줄 (발광 주황)
 - 색: 외벽 크림(#e8d4bc) 또는 우리 건물과 맞춘 푸른 회색 중 선택, 그늘 짙은 보라
 
-## 웹에 넣는 방법 (제안)
+## 지금 상태 (2026-11-04)
 
-- 별도 GLB `neighbors.glb` 로 내보내기 (방 GLB 의 reveal 합치기 과정을 다시 안 돌려도 됨)
-- 오브젝트 이름 `nb_left_*`, `nb_right_*`, 방 `pivot_root` 아래에 넣지 않기 (reveal 애니메이션과 무관하게)
-- 좌표는 방 GLB 와 같은 원점 그대로 (따로 옮기지 않음)
-- room-test 에서는 방 완성 칸에서 배경과 같이 나타나게 할 예정
+- 모델: `grooves_room/neighbors/build_neighbors.py` → `neighbors.blend` (컬렉션 `nb_right` · `nb_left`)
+  - 왼쪽은 가이드 출발값보다 0.5m 낮춤 (옥상 바닥 Z −0.4)
+- `Grooves_Room.blend` 에 두 컬렉션을 넣었고, **방 GLB 의 reveal 클립에 같이 들어감** (별도 `neighbors.glb` 계획은 접음)
+  - 방과 같은 타임라인에서 움직이려면 같은 클립이 간단해서
+- 오브젝트 이름 `nb_left_*`, `nb_right_*`. 좌표는 방 GLB 와 같은 원점
+
+## reveal 애니메이션 (`blender/exports/animate_neighbors.py`)
+
+방 이동(`pivot_root` 30~70)이 끝난 뒤에 나옴. 키는 씬 규약대로 `pivot_nb_*` Empty 에만, `pivot_root` 밖 (방 이동에 끌려가지 않음)
+
+| 단계 | 프레임 | 대상 (pivot) | 움직임 |
+|---|---|---|---|
+| N1 건물 | 왼쪽 70~84, 오른쪽 74~88 | `pivot_nb_left` / `pivot_nb_right` (몸통 · 난간 · 창) | 3m 아래에서 솟아오름, 그 전에는 숨김 |
+| N2 옥상 소품 | 84~102 | `pivot_nb_<쪽>_<소품>` (벤치 · 테이블 · 화분 · 플랜터 · 랜턴 · 식물) | 제자리 커짐 10프레임, 식물은 화분보다 2프레임 늦게 |
+| N3 전구 줄 | 왼쪽 96~106, 오른쪽 100~110 | `pivot_nb_<쪽>_lights` | 35cm 위에서 내려오며 나타남 |
+| N4 불 켜짐 | 웹 | 전구 줄 · 랜턴 불빛 | `RoomTest.jsx` 의 `LIGHT_PIVOT` 으로 각 pivot 이 끝난 뒤 켜짐 |
+
+- 남은 것: 전구 발광을 줄 따라 차례로 켜는 물결 (웹, GLB 내보낸 뒤)
