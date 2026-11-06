@@ -23,6 +23,7 @@ import LAYER_CFG from "@/components/envtest/env-layers.json";
 import { D2R, ASPECT, computeRig, makeBase, createEnv } from "@/components/envtest/envCore";
 import { attachFlipClock } from "./flipClock";
 import { addShelfTestProps, applyNowPlaying } from "./shelfTestProps";
+import { applyLightmaps } from "./lightmaps";
 
 const MODEL_URL = "/models/room/grooves_room_blockout_reveal.glb";
 const VINYL_URL = "/models/vinyl.glb";
@@ -519,6 +520,9 @@ export default function RoomTest() {
       };
       prewarm();
       st.env.ready.then(prewarm);
+      // 구운 빛 (?bake=0 이면 끄고 실시간 조명으로 비교). 재질이 바뀌니 다 입힌 뒤 한 번 더 미리 데움
+      if (new URLSearchParams(location.search).get("bake") !== "0")
+        applyLightmaps(root).then((n) => { st.baked = n; if (n) prewarm(); });
       setInfo({
         loadMs: Math.round(performance.now() - t0),
         size: roomBox.getSize(new THREE.Vector3()).toArray().map((v) => v.toFixed(2)).join(" × "),
@@ -884,7 +888,7 @@ export default function RoomTest() {
       });
     });
     // 창가 선반 "지금 듣는 판" 재킷: 벽 선반에 없는 앨범 중 무작위 (페이지를 열 때마다 바뀜)
-    st.nowPlaying = applyNowPlaying(st.root, albums, st.covers.length);
+    if (st.root) st.nowPlaying = applyNowPlaying(st.root, albums, st.covers.length);   // 다시 마운트(개발 중 새로 고침) 직후엔 방이 아직 없을 수 있음
   }, [albums, info, shelfReady]);
 
   // 섹션 전환 · 핸드오프 (3D 마지막 커버 자리 ↔ New Vinyls 첫 칸)
