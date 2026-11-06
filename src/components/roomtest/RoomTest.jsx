@@ -57,6 +57,8 @@ const STAGE_P = [0, 0.18, 0.34, 0.76, 0.86, 0.96];
 const STAGE_DUR = [1.6, 2.2, null, 1.2, 1.0];   // [i]↔[i+1] 한 칸을 지나는 시간(초). null = 방 생성: Blender 클립 길이 그대로
 const STEP_FROM = 2;                            // 이 칸부터는 한 번에 한 칸
 const STEP = { threshold: 24, touch: 40, cooldown: 0.45 };   // Home 엔진 SECTION 과 같은 값
+// 해상도: 4K 화면에서 픽셀 비율 2 면 한 장에 수백만 픽셀 × 조명 수십 개 → 1.5 로 묶고, 그래도 느리면 1 까지 자동으로 낮춤
+const DPR_MAX = 1.5, DPR_MIN = 1, DPR_SLOW_FPS = 45;
 const HERO_HOLD = 0.4;   // Hero 를 이어 받은 판이 제자리에 머무는 시간(초). Hero 레이어가 걷히는 0.5초와 거의 같게
 const NV_BACK_WAIT = 1.0;                       // New Vinyls → 방: 커버가 선반으로 돌아가는 시간(핸드오프 1초)만큼 카메라가 기다림
 const SCROLL = {
@@ -200,7 +202,7 @@ export default function RoomTest() {
   useEffect(() => {
     const host = hostRef.current;
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, DPR_MAX));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NeutralToneMapping;
     host.appendChild(renderer.domElement);
@@ -501,6 +503,22 @@ export default function RoomTest() {
 
       st.ready = true;
       resize();
+      // 미리 데우기: 처음 보이는 순간의 셰이더 컴파일·텍스처 업로드가 스크롤 중 끊김이 되지 않게 Hero 동안 끝내 둠
+      //  (숨겨 둔 것도 잠깐 보이게 해서 같이 컴파일. 배경 이미지는 늦게 붙어 재질이 바뀌니 다 붙은 뒤 한 번 더)
+      const prewarm = () => {
+        if (st.disposed) return;
+        const hidden = [st.env.group, st.env.sky, st.ttRise].filter((o) => o && !o.visible);
+        for (const o of hidden) o.visible = true;
+        scene.traverse((o) => {
+          if (!o.isMesh) return;
+          for (const m of Array.isArray(o.material) ? o.material : [o.material])
+            for (const k of ["map", "emissiveMap", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "alphaMap"]) if (m?.[k]) renderer.initTexture(m[k]);
+        });
+        renderer.compileAsync(scene, storyCam).catch(() => {});   // 그릴 목록은 부르는 순간 모음 → 바로 되돌려도 됨
+        for (const o of hidden) o.visible = false;                 // (apply 가 매 프레임 진행도대로 다시 정함)
+      };
+      prewarm();
+      st.env.ready.then(prewarm);
       setInfo({
         loadMs: Math.round(performance.now() - t0),
         size: roomBox.getSize(new THREE.Vector3()).toArray().map((v) => v.toFixed(2)).join(" × "),
@@ -790,10 +808,16 @@ export default function RoomTest() {
       controls.enabled = st.camMode === "orbit";
       if (controls.enabled) controls.update();
       const cam = st.camMode === "story" ? storyCam : st.camMode === "orbit" ? orbitCam : st.gltfCams[st.camMode] ?? storyCam;
-      renderer.render(scene, cam);
+      // Hero 동안은 Home 엔진 레이어가 이 캔버스를 다 덮음 → 그리지 않음 (GPU 를 Home 판에 양보)
+      if (!st.inHero || !st.ready) renderer.render(scene, cam);
       acc += dt; frames++;
       if (acc > 0.5) {
-        setStats({ fps: Math.round(frames / acc), calls: renderer.info.render.calls, tris: renderer.info.render.triangles });
+        const fps = frames / acc;
+        setStats({ fps: Math.round(fps), calls: renderer.info.render.calls, tris: renderer.info.render.triangles });
+        // 느린 구간이 두 번 이어지면 해상도를 한 단계 낮춤 (한 번 끊긴 건 무시, 다시 올리지는 않음 = 오르내림 반복 방지)
+        st.slow = st.ready && st.inHero === false && fps < DPR_SLOW_FPS ? (st.slow ?? 0) + 1 : 0;   // 인트로·Hero 동안의 느림은 3D 탓이 아님
+        const pr = renderer.getPixelRatio();
+        if (st.slow >= 2 && pr > DPR_MIN) { renderer.setPixelRatio(Math.max(DPR_MIN, pr - 0.25)); resize(); st.slow = 0; }
         acc = 0; frames = 0;
       }
       syncHeader();

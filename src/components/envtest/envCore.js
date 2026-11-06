@@ -187,7 +187,10 @@ export function createSkyQuad(url, off, scale, blur = 0) {
   mesh.renderOrder = -10;
   mesh.visible = false;
   // 이미지 세로 한 장 = 화면 세로의 1/scale. blur = 화면 px (가장 먼 것이라 흐림 세기 그대로)
-  new THREE.ImageLoader().load(url, (img) => { mat.uniforms.map.value = imageTexture(img, dofImagePx(blur, img.height, 1 / scale)); mesh.visible = true; });
+  // userData.ready: 이미지가 붙으면 끝나는 Promise (부르는 쪽이 셰이더·텍스처를 미리 올릴 때)
+  mesh.userData.ready = new Promise((res) => new THREE.ImageLoader().load(url, (img) => {
+    mat.uniforms.map.value = imageTexture(img, dofImagePx(blur, img.height, 1 / scale)); mesh.visible = true; res();
+  }, undefined, res));
   return mesh;
 }
 
@@ -204,6 +207,7 @@ export function createEnv(rig, base, cfg, root) {
   const group = new THREE.Group();
   group.name = "env_layers";
   const mats = [];
+  const loads = [];   // 이미지가 다 붙으면 ready 가 끝남 → 부르는 쪽이 나타나기 전에 미리 컴파일·업로드 (배경이 나타나는 순간 끊기지 않게)
   const rotY = Math.atan2(-rig.fH.x, -rig.fH.z);                 // 판 앞면이 카메라 쪽
   for (const L of cfg.layers) {
     if (!L.on || !L.img || L.roomTest === false) continue;
@@ -214,12 +218,13 @@ export function createEnv(rig, base, cfg, root) {
     const fillMat = new THREE.MeshBasicMaterial({ color: fill, transparent: true, toneMapped: false, opacity: 0, alphaMap: fade });
     mats.push(band, fillMat);
     const bandMeshes = [], fillMeshes = [];
-    loadLayerTexture(L.img, (t) => {
+    loads.push(new Promise((res) => loadLayerTexture(L.img, (t) => {
       const { h, up, w } = fitLayerTexture(t, g.W, g.bandH, L.single);
       for (const bm of bandMeshes) { bm.scale.set(w / g.W, h / g.bandH, 1); bm.position.y = -g.bandH / 2 + up / 2; }
       for (const fm of fillMeshes) fm.scale.x = w / g.W;
       band.map = t; band.needsUpdate = true;
-    }, layerBlurFor(L, g, base, cfg.dof?.strength ?? 0), L.single);
+      res();
+    }, layerBlurFor(L, g, base, cfg.dof?.strength ?? 0), L.single)));
     for (const x of g.xs) {
       const p = g.at.clone().addScaledVector(rig.right, x);
       const holder = new THREE.Group();
@@ -244,16 +249,19 @@ export function createEnv(rig, base, cfg, root) {
   sky.name = "env_sky";
   // 창문 안: 남산 이미지 (GLB UV 기준이라 flipY 끔). 밝기는 night(0~1) 로
   const windowMat = new THREE.MeshBasicMaterial({ color: 0x000000, toneMapped: false });
-  new THREE.ImageLoader().load(cfg.window.image, (img) => {
+  loads.push(new Promise((res) => new THREE.ImageLoader().load(cfg.window.image, (img) => {
     windowMat.map = imageTexture(img, windowBlurPx(cfg, rig, base, img.height), { flipY: false });
     windowMat.needsUpdate = true;
-  });
+    res();
+  }, undefined, res)));
+  loads.push(sky.userData.ready);
   if (rig.windowCity) rig.windowCity.material = windowMat;
   const glass = cfg.window.mode === "glass" && root ? createWindowGlass(root) : null;
   if (glass && rig.windowCity) rig.windowCity.visible = false;
   if (root) applyWallColors(root, cfg.walls);
   return {
     group, sky, windowMat, glass,
+    ready: Promise.all(loads),
     fade(k) {
       group.visible = k > 0.001;
       if (glass) glass.material.opacity = k;
