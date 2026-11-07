@@ -24,6 +24,7 @@ import { D2R, ASPECT, computeRig, makeBase, createEnv } from "@/components/envte
 import { attachFlipClock } from "./flipClock";
 import { addShelfTestProps, applyNowPlaying } from "./shelfTestProps";
 import { applyLightmaps, setLightmapState } from "./lightmaps";
+import { createPost } from "./post";
 
 const MODEL_URL = "/models/room/grooves_room_blockout_reveal.glb";
 const VINYL_URL = "/models/vinyl.glb";
@@ -63,6 +64,7 @@ const DPR_MAX = 1.5, DPR_MIN = 1, DPR_SLOW_FPS = 45;
 const HERO_HOLD = 0.4;
 // 구운 빛: 빈 방 → 가구 있는 방 으로 바뀌는 reveal 클립 프레임 (Lv1 큰 가구 시작 44 ~ Lv3 소품 끝 108, docs: 방 reveal 단계 구조)
 const LM_BUILD = [44, 108];   // Hero 를 이어 받은 판이 제자리에 머무는 시간(초). Hero 레이어가 걷히는 0.5초와 거의 같게
+const POST_TILT = [0.62, 0.12];   // 틸트시프트가 켜지는 진행도 구간 (방 완성 무렵)
 const LM_LIT = [20, 50];     // 구운 램프 빛이 켜지는 클립 프레임: 방 뼈대가 서는 동안 빈 방이 따뜻하게 밝아짐 (그 뒤 가구는 켜진 빛 속에 놓임)
 const NV_BACK_WAIT = 1.0;                       // New Vinyls → 방: 커버가 선반으로 돌아가는 시간(핸드오프 1초)만큼 카메라가 기다림
 const SCROLL = {
@@ -210,6 +212,9 @@ export default function RoomTest() {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NeutralToneMapping;
     host.appendChild(renderer.domElement);
+    // 화면 후처리 (빛 번짐 · 틸트시프트 · 비네트). ?post=0 이면 끔
+    const post = createPost(renderer);
+    post.params.enabled = new URLSearchParams(location.search).get("post") !== "0";
 
     const scene = new THREE.Scene();
     // 사이트 테마의 크림 (다크 모드면 크림 ↔ 잉크가 바뀌어 있음) = Hero 바탕 · New Vinyls·News 종이색
@@ -258,11 +263,14 @@ export default function RoomTest() {
       ctPage.style.setProperty("--ct-header-fg", `#${_hf.getHexString()}`);
       ctPage.style.setProperty("--ct-drop-bg", `#${_hb.getHexString()}`);
     };
+    st.post = post;
     window.__room = st; // 콘솔 디버깅용
 
     const resize = () => {
       const w = host.clientWidth, h = host.clientHeight;
       renderer.setSize(w, h);
+      const pr = renderer.getPixelRatio();
+      post.setSize(w * pr, h * pr);
       for (const c of [storyCam, orbitCam, ...Object.values(st.gltfCams)]) { c.aspect = w / h; c.updateProjectionMatrix(); }
     };
     const ro = new ResizeObserver(resize);
@@ -519,6 +527,7 @@ export default function RoomTest() {
             for (const k of ["map", "emissiveMap", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "alphaMap"]) if (m?.[k]) renderer.initTexture(m[k]);
         });
         renderer.compileAsync(scene, storyCam).catch(() => {});   // 그릴 목록은 부르는 순간 모음 → 바로 되돌려도 됨
+        post.prewarm();
         for (const o of hidden) o.visible = false;                 // (apply 가 매 프레임 진행도대로 다시 정함)
       };
       prewarm();
@@ -728,6 +737,8 @@ export default function RoomTest() {
       const frameK = ([a, b]) => easeInOut(THREE.MathUtils.clamp((frame - a) / (b - a), 0, 1));
       const lampOn = Math.max(0, ...[...st.lampAt.values()].map((at) => easeInOut(seg(p, [at, STORY.lampDur]))));
       setLightmapState(frameK(LM_BUILD), Math.max(lampOn, frameK(LM_LIT)));
+      // 미니어처 흐림(틸트시프트)은 방이 다 지어진 뒤에 (짓는 동안엔 카메라가 움직이며 아래쪽 턴테이블 · 가구가 흐려 보이지 않게)
+      post.params.tilt = easeInOut(seg(p, POST_TILT));
 
       // 선반 커버: 핸드오프 중이면 마지막 커버는 DOM 이 대신 보여 줌
       st.covers.forEach((c, i) => {
@@ -822,7 +833,7 @@ export default function RoomTest() {
       if (controls.enabled) controls.update();
       const cam = st.camMode === "story" ? storyCam : st.camMode === "orbit" ? orbitCam : st.gltfCams[st.camMode] ?? storyCam;
       // Hero 동안은 Home 엔진 레이어가 이 캔버스를 다 덮음 → 그리지 않음 (GPU 를 Home 판에 양보)
-      if (!st.inHero || !st.ready) renderer.render(scene, cam);
+      if (!st.inHero || !st.ready) { renderer.render(scene, cam); post.run(); }
       acc += dt; frames++;
       if (acc > 0.5) {
         const fps = frames / acc;
@@ -865,6 +876,7 @@ export default function RoomTest() {
           m.dispose();
         }
       });
+      post.dispose();
       renderer.dispose();
       renderer.domElement.remove();
       if (window.__room === st) delete window.__room;
