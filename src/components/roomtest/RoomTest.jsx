@@ -23,7 +23,7 @@ import LAYER_CFG from "@/components/envtest/env-layers.json";
 import { D2R, ASPECT, computeRig, makeBase, createEnv } from "@/components/envtest/envCore";
 import { attachFlipClock } from "./flipClock";
 import { addShelfTestProps, applyNowPlaying } from "./shelfTestProps";
-import { applyLightmaps } from "./lightmaps";
+import { applyLightmaps, setLightmapState } from "./lightmaps";
 
 const MODEL_URL = "/models/room/grooves_room_blockout_reveal.glb";
 const VINYL_URL = "/models/vinyl.glb";
@@ -60,7 +60,10 @@ const STEP_FROM = 2;                            // 이 칸부터는 한 번에 �
 const STEP = { threshold: 24, touch: 40, cooldown: 0.45 };   // Home 엔진 SECTION 과 같은 값
 // 해상도: 4K 화면에서 픽셀 비율 2 면 한 장에 수백만 픽셀 × 조명 수십 개 → 1.5 로 묶고, 그래도 느리면 1 까지 자동으로 낮춤
 const DPR_MAX = 1.5, DPR_MIN = 1, DPR_SLOW_FPS = 45;
-const HERO_HOLD = 0.4;   // Hero 를 이어 받은 판이 제자리에 머무는 시간(초). Hero 레이어가 걷히는 0.5초와 거의 같게
+const HERO_HOLD = 0.4;
+// 구운 빛: 빈 방 → 가구 있는 방 으로 바뀌는 reveal 클립 프레임 (Lv1 큰 가구 시작 44 ~ Lv3 소품 끝 108, docs: 방 reveal 단계 구조)
+const LM_BUILD = [44, 108];   // Hero 를 이어 받은 판이 제자리에 머무는 시간(초). Hero 레이어가 걷히는 0.5초와 거의 같게
+const LM_LIT = [20, 50];     // 구운 램프 빛이 켜지는 클립 프레임: 방 뼈대가 서는 동안 빈 방이 따뜻하게 밝아짐 (그 뒤 가구는 켜진 빛 속에 놓임)
 const NV_BACK_WAIT = 1.0;                       // New Vinyls → 방: 커버가 선반으로 돌아가는 시간(핸드오프 1초)만큼 카메라가 기다림
 const SCROLL = {
   speed: 0.8,       // 착지까지: 스크롤·붙는 속도 배율 (1 보다 작으면 더 천천히)
@@ -719,6 +722,12 @@ export default function RoomTest() {
         l.intensity = st.baseIntensity.get(l) * st.lightMul * on;
         for (const { m, k } of st.lampMats.get(pivot) ?? []) m.emissiveIntensity = on * k;
       }
+      // 구운 빛 상태: 방 뼈대가 서며(LM_LIT) 빈 방에 램프 빛이 켜지고, 가구가 놓이는 동안(클립 Lv1 시작 ~ Lv3 끝) 빈 방 → 가구 있는 방
+      //  램프가 먼저 켜지는 경우(가장 먼저 켜지는 램프 기준)도 빛은 켜짐
+      const frame = seg(p, STORY.build) * st.clip.duration * 24;
+      const frameK = ([a, b]) => easeInOut(THREE.MathUtils.clamp((frame - a) / (b - a), 0, 1));
+      const lampOn = Math.max(0, ...[...st.lampAt.values()].map((at) => easeInOut(seg(p, [at, STORY.lampDur]))));
+      setLightmapState(frameK(LM_BUILD), Math.max(lampOn, frameK(LM_LIT)));
 
       // 선반 커버: 핸드오프 중이면 마지막 커버는 DOM 이 대신 보여 줌
       st.covers.forEach((c, i) => {
