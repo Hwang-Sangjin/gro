@@ -9,15 +9,16 @@ export const BAKE_URL = "/models/room/bake/";
 
 // 끝나면 바꾼 메시 수를 돌려줌. 이미 바꾼 재질은 (원래 재질, 그룹) 마다 하나만 만들어 같이 씀
 export async function applyLightmaps(root) {
-  const man = await fetch(BAKE_URL + "lightmaps.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  // 다시 구워도 파일 이름이 같아 브라우저가 예전 그림을 씀 → 목록은 매번 새로, 그림은 굽은 때(version)를 붙여서
+  const man = await fetch(BAKE_URL + "lightmaps.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   if (!man) return 0;
   const loader = new THREE.TextureLoader();
   const maps = {};
-  await Promise.all(Object.entries(man.groups).map(([g, v]) => loader.loadAsync(BAKE_URL + v.file).then((t) => {
+  await Promise.all(Object.entries(man.groups).map(([g, v]) => loader.loadAsync(BAKE_URL + v.file + (man.version ? "?v=" + man.version : "")).then((t) => {
     t.colorSpace = THREE.SRGBColorSpace;
     t.flipY = false;          // glTF UV 기준
     t.channel = 1;            // BakeUV (TEXCOORD_1)
-    maps[g] = { t, k: v.scale * Math.PI };
+    maps[g] = { t, k: v.scale * (v.gain ?? 1) * Math.PI };   // gain: 그룹별 밝기 배율 (너무 어두운 이웃 옥상 등)
   })));
   const made = new Map();
   let n = 0;
@@ -30,12 +31,14 @@ export async function applyLightmaps(root) {
       if (!o.geometry.attributes.uv1) continue;
       const src = o.material;
       // 스스로 빛나는 재질(건물 창 · 이름판 등)은 실시간 그대로 (빛 계산 없는 재질로 바꾸면 발광이 사라짐 · 램프 켜짐 연출도)
-      if (src.emissive && src.emissive.getHex() !== 0 && (src.emissiveIntensity ?? 1) > 0) continue;
+      //  단 envCore.applyWallColors 가 면 방향 색을 내려고 붙인 발광(wallTinted)은 진짜 발광이 아님 → 구운 빛으로 바꾸고 원래 색(baseColor)을 씀
+      const tinted = src.userData.wallTinted;
+      if (!tinted && src.emissive && src.emissive.getHex() !== 0 && (src.emissiveIntensity ?? 1) > 0) continue;
       const key = src.uuid + g;
       let m = made.get(key);
       if (!m) {
         m = new THREE.MeshBasicMaterial({
-          name: src.name + "_baked", map: src.map ?? null, color: src.color?.clone() ?? new THREE.Color(1, 1, 1),
+          name: src.name + "_baked", map: src.map ?? null, color: (tinted ? src.userData.baseColor : src.color)?.clone() ?? new THREE.Color(1, 1, 1),
           lightMap: maps[g].t, lightMapIntensity: maps[g].k,
           side: src.side, transparent: src.transparent, opacity: src.opacity, alphaTest: src.alphaTest,
         });

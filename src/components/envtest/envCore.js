@@ -319,6 +319,7 @@ export function applyWallColors(root, walls) {
       const w = m.name === "mat_wall_section" ? walls.section : m.name === "mat_building_wall" ? walls.building : null;
       if (!w || m.userData.wallTinted) continue;
       m.userData.wallTinted = true;
+      m.userData.baseColor = m.color.clone();   // 구운 빛(lightmaps.js)으로 바꿀 때 원래 색이 필요
       m.color.set("#ffffff");
       m.emissive?.setScalar(w.emissive ?? 0.5);
       const col = (c) => ({ value: new THREE.Color(c) });

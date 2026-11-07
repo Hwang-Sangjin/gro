@@ -2,43 +2,50 @@
  "groups": {
   "shell": {
    "file": "shell.jpg",
-   "scale": 3.3518,
-   "size": 1024,
+   "scale": 10.117,
+   "gain": 1.0,
+   "size": 2048,
    "uv": "BakeUV"
   },
   "furniture": {
    "file": "furniture.jpg",
-   "scale": 8.0615,
+   "scale": 8.836,
+   "gain": 1.0,
    "size": 2048,
    "uv": "BakeUV"
   },
   "audio": {
    "file": "audio.jpg",
-   "scale": 12.1155,
+   "scale": 13.0012,
+   "gain": 1.0,
    "size": 1024,
    "uv": "BakeUV"
   },
   "props": {
    "file": "props.jpg",
-   "scale": 5.3984,
+   "scale": 5.6952,
+   "gain": 1.0,
    "size": 1024,
    "uv": "BakeUV"
   },
   "building": {
    "file": "building.jpg",
-   "scale": 1.0534,
+   "scale": 1.0577,
+   "gain": 1.0,
    "size": 1024,
    "uv": "BakeUV"
   },
   "nb_left": {
    "file": "nb_left.jpg",
-   "scale": 0.4475,
+   "scale": 0.4684,
+   "gain": 2.0,
    "size": 1024,
    "uv": "BakeUV"
   },
   "nb_right": {
    "file": "nb_right.jpg",
-   "scale": 0.4675,
+   "scale": 0.5755,
+   "gain": 2.0,
    "size": 1024,
    "uv": "BakeUV"
   }
@@ -57,7 +64,6 @@
   "sofa_pillow_olive": "furniture",
   "sofa_pillow_stripe": "furniture",
   "rug": "furniture",
-  "coffee_table": "furniture",
   "coffee_leg_A": "furniture",
   "coffee_leg_B": "furniture",
   "side_table": "furniture",
@@ -115,5 +121,6 @@
   "nb_right_planter_2": "nb_right",
   "nb_right_plant_sansevieria": "nb_right",
   "nb_right_plant_strelitzia": "nb_right"
- }
+ },
+ "version": 1794052621
 }
