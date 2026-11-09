@@ -1,29 +1,9 @@
 {
  "groups": {
   "shell": {
-   "file": "shell.jpg",
-   "scale": 16.4326,
    "gain": 1.0,
-   "size": 2048,
+   "size": 4096,
    "uv": "BakeUV",
-   "variants": {
-    "on": {
-     "file": "shell.jpg",
-     "scale": 16.4326
-    },
-    "off": {
-     "file": "shell_off.jpg",
-     "scale": 1.0289
-    },
-    "empty": {
-     "file": "shell_empty.jpg",
-     "scale": 1.025
-    },
-    "empty_lit": {
-     "file": "shell_empty_lit.jpg",
-     "scale": 31.0287
-    }
-   },
    "color": {
     "on": {
      "file": "shell_color.jpg"
@@ -37,21 +17,9 @@
    }
   },
   "furniture": {
-   "file": "furniture.jpg",
-   "scale": 30.1108,
    "gain": 1.0,
-   "size": 2048,
+   "size": 4096,
    "uv": "BakeUV",
-   "variants": {
-    "on": {
-     "file": "furniture.jpg",
-     "scale": 30.1108
-    },
-    "off": {
-     "file": "furniture_off.jpg",
-     "scale": 0.4181
-    }
-   },
    "color": {
     "on": {
      "file": "furniture_color.jpg"
@@ -59,21 +27,9 @@
    }
   },
   "audio": {
-   "file": "audio.jpg",
-   "scale": 15.8048,
    "gain": 1.0,
-   "size": 1024,
+   "size": 2048,
    "uv": "BakeUV",
-   "variants": {
-    "on": {
-     "file": "audio.jpg",
-     "scale": 15.8048
-    },
-    "off": {
-     "file": "audio_off.jpg",
-     "scale": 0.0725
-    }
-   },
    "color": {
     "on": {
      "file": "audio_color.jpg"
@@ -81,21 +37,9 @@
    }
   },
   "props": {
-   "file": "props.jpg",
-   "scale": 28.1703,
    "gain": 1.0,
-   "size": 1024,
+   "size": 2048,
    "uv": "BakeUV",
-   "variants": {
-    "on": {
-     "file": "props.jpg",
-     "scale": 28.1703
-    },
-    "off": {
-     "file": "props_off.jpg",
-     "scale": 0.2363
-    }
-   },
    "color": {
     "on": {
      "file": "props_color.jpg"
@@ -157,21 +101,9 @@
    }
   },
   "seating": {
-   "file": "seating.jpg",
-   "scale": 9.0386,
    "gain": 1.0,
-   "size": 2048,
+   "size": 4096,
    "uv": "BakeUV",
-   "variants": {
-    "on": {
-     "file": "seating.jpg",
-     "scale": 9.0386
-    },
-    "off": {
-     "file": "seating_off.jpg",
-     "scale": 0.2385
-    }
-   },
    "color": {
     "on": {
      "file": "seating_color.jpg"
@@ -180,15 +112,19 @@
   }
  },
  "objects": {
-  "sofa": "seating",
-  "sofa_pillow_rust": "seating",
-  "sofa_pillow_olive": "seating",
-  "sofa_pillow_stripe": "seating",
-  "rug": "seating",
-  "ottoman": "seating",
-  "armchair_cushion_seat": "seating",
-  "armchair_cushion_back": "seating",
-  "armchair_pillow": "seating",
+  "building": "building",
+  "nb_left_body": "nb_left",
+  "nb_left_bench": "nb_left",
+  "nb_left_pot_1": "nb_left",
+  "nb_left_pot_2": "nb_left",
+  "nb_left_plant_sansevieria": "nb_left",
+  "nb_left_plant_strelitzia": "nb_left",
+  "nb_right_body": "nb_right",
+  "nb_right_rail": "nb_right",
+  "nb_right_planter_1": "nb_right",
+  "nb_right_planter_2": "nb_right",
+  "nb_right_plant_sansevieria": "nb_right",
+  "nb_right_plant_strelitzia": "nb_right",
   "floor": "shell",
   "wall_window": "shell",
   "wall_audio": "shell",
@@ -197,6 +133,15 @@
   "wall_cut_side": "shell",
   "molding_window": "shell",
   "molding_audio": "shell",
+  "sofa": "seating",
+  "sofa_pillow_rust": "seating",
+  "sofa_pillow_olive": "seating",
+  "sofa_pillow_stripe": "seating",
+  "armchair_cushion_seat": "seating",
+  "armchair_cushion_back": "seating",
+  "armchair_pillow": "seating",
+  "ottoman": "seating",
+  "rug": "seating",
   "coffee_leg_A": "furniture",
   "coffee_leg_B": "furniture",
   "side_table": "furniture",
@@ -236,20 +181,7 @@
   "prop_cs_np": "props",
   "prop_cs_clock": "props",
   "plant_sansevieria": "props",
-  "plant_strelitzia": "props",
-  "building": "building",
-  "nb_left_body": "nb_left",
-  "nb_left_bench": "nb_left",
-  "nb_left_pot_1": "nb_left",
-  "nb_left_pot_2": "nb_left",
-  "nb_left_plant_sansevieria": "nb_left",
-  "nb_left_plant_strelitzia": "nb_left",
-  "nb_right_body": "nb_right",
-  "nb_right_rail": "nb_right",
-  "nb_right_planter_1": "nb_right",
-  "nb_right_planter_2": "nb_right",
-  "nb_right_plant_sansevieria": "nb_right",
-  "nb_right_plant_strelitzia": "nb_right"
+  "plant_strelitzia": "props"
  },
- "version": 1794066785
+ "version": 1794077779
 }

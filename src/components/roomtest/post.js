@@ -42,6 +42,7 @@ uniform float uVignette; uniform float uAspect; varying vec2 vUv;
 void main() {
   vec3 base = texture2D(tBase, vUv).rgb;
   // 틸트시프트: 초점 띠(가로)에서 위아래로 멀어질수록 흐림 → 장난감 방(미니어처) 느낌
+  //  띠는 방 전체가 들어가게 넓게 (화면 아래 22% ~ 위 82%) → 하늘 · 앞쪽 난간만 흐려짐
   float d = abs(vUv.y - uFocusY);
   float t = smoothstep(uFocusHalf, uFocusHalf + uFocusRamp, d) * uTilt;
   vec3 c = mix(base, texture2D(tSoft, vUv).rgb, smoothstep(0.0, 0.5, t));
@@ -67,10 +68,10 @@ export function createPost(renderer) {
   const up = mk(UP, { tSrc: { value: null }, tAdd: { value: null }, uTexel: { value: new THREE.Vector2() }, uAddMode: { value: 0 }, uThresh: { value: new THREE.Vector2(0.86, 0.1) } });
   const comp = mk(COMPOSITE, {
     tBase: { value: null }, tSoft: { value: null }, tBlur: { value: null }, tBloom: { value: null },
-    uBloom: { value: 0.45 }, uTilt: { value: 1 }, uFocusY: { value: 0.47 }, uFocusHalf: { value: 0.16 }, uFocusRamp: { value: 0.34 },
+    uBloom: { value: 0.45 }, uTilt: { value: 1 }, uFocusY: { value: 0.52 }, uFocusHalf: { value: 0.3 }, uFocusRamp: { value: 0.2 },
     uVignette: { value: 0.28 }, uAspect: { value: 1 },
   });
-  const params = { enabled: true, bloom: 0.45, threshold: 0.86, knee: 0.1, tilt: 1, focusY: 0.47, focusHalf: 0.16, focusRamp: 0.34, vignette: 0.28 };
+  const params = { enabled: true, bloom: 0.45, threshold: 0.86, knee: 0.1, tilt: 1, focusY: 0.52, focusHalf: 0.3, focusRamp: 0.2, vignette: 0.28 };
 
   let base = null, D = [], U = [], B = [], W = 0, H = 0;
   const rt = (w, h) => new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });

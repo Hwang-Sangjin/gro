@@ -104,7 +104,7 @@ export async function applyLightmaps(root) {
     colors[g] = out;
   }));
   const maps = {};
-  await Promise.all(Object.entries(man.groups).filter(([g]) => !colors[g]).map(async ([g, v]) => {
+  await Promise.all(Object.entries(man.groups).filter(([g, v]) => !colors[g] && (v.variants || v.file)).map(async ([g, v]) => {
     const gain = (v.gain ?? 1) * Math.PI;   // gain: 그룹별 밝기 배율 (너무 어두운 이웃 옥상 등)
     const variants = v.variants ?? { on: { file: v.file, scale: v.scale } };
     const out = {};
