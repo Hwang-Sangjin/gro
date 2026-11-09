@@ -10,7 +10,7 @@
 //   setLightmapState(build, lit) 로 모든 재질이 같이 섞임. 없는 상태는 가까운 상태로 대신 (empty → off → on, empty_lit → on)
 import * as THREE from "three";
 
-export const BAKE_URL = "/models/room/bake/";
+export const BAKE_URL = new URLSearchParams(location.search).get("quality") === "mobile" ? "/models/room/bake_mobile/" : "/models/room/bake/";
 
 // 모든 구운 재질이 같이 쓰는 섞는 비율 (on, off, empty, empty_lit)
 const state = { value: new THREE.Vector4(1, 0, 0, 0) };

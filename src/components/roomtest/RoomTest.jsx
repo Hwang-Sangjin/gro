@@ -65,7 +65,7 @@ const HERO_HOLD = 0.4;
 // 구운 빛: 빈 방 → 가구 있는 방 으로 바뀌는 reveal 클립 프레임 (Lv1 큰 가구 시작 44 ~ Lv3 소품 끝 108, docs: 방 reveal 단계 구조)
 const LM_BUILD = [44, 108];   // Hero 를 이어 받은 판이 제자리에 머무는 시간(초). Hero 레이어가 걷히는 0.5초와 거의 같게
 const POST_TILT = [0.62, 0.12];   // 틸트시프트가 켜지는 진행도 구간 (방 완성 무렵)
-const LM_LIT = [20, 50];     // 구운 램프 빛이 켜지는 클립 프레임: 방 뼈대가 서는 동안 빈 방이 따뜻하게 밝아짐 (그 뒤 가구는 켜진 빛 속에 놓임)
+const LM_LIT = [108, 115];     // 가구 배치가 끝난 뒤 실제 램프와 베이크를 함께 점등
 const NV_BACK_WAIT = 1.0;                       // New Vinyls → 방: 커버가 선반으로 돌아가는 시간(핸드오프 1초)만큼 카메라가 기다림
 const SCROLL = {
   speed: 0.8,       // 착지까지: 스크롤·붙는 속도 배율 (1 보다 작으면 더 천천히)
@@ -712,7 +712,11 @@ export default function RoomTest() {
       uniforms.uCamLocal.value.copy(camL);
       uniforms.uLightLocal.value.copy(_light);
 
-      // 빛: 어둠 속 턴테이블만 → 방이 생기며 밤 주변광 → 램프 하나씩 → 창밖 야경
+      // Bake v17: keep the room unlit through furniture placement (frame 108).
+      const frame = seg(p, STORY.build) * st.clip.duration * 24;
+      const frameK = ([a, b]) => easeInOut(THREE.MathUtils.clamp((frame - a) / (b - a), 0, 1));
+      const bakeLightProgress = frameK(LM_LIT);
+      // 빛: 턴테이블 Hero → 어두운 방·가구 배치 → 실제 램프와 베이크 동시 점등
       key.intensity = 3.2 * rise * (1 - 0.8 * easeInOut(seg(p, [0.38, 0.12])));
       const rk = easeInOut(seg(p, STORY.room));
       const nk = easeInOut(seg(p, st.night));
@@ -722,28 +726,35 @@ export default function RoomTest() {
       // 밤 주변광·창 쪽 달빛 → 바깥 배경이 나타나며 노을 조명으로 (env-layers.json 의 light)
       hemi.color.copy(HEMI_SKY).lerp(DUSK.hemiSky, ek);
       hemi.groundColor.copy(HEMI_GROUND).lerp(DUSK.hemiGround, ek);
-      hemi.intensity = rk * THREE.MathUtils.lerp(1.0, DUSK.hemiIntensity, ek);
+      hemi.intensity = rk * THREE.MathUtils.lerp(1.0, DUSK.hemiIntensity, ek) * THREE.MathUtils.lerp(0.15, 1.0, bakeLightProgress);
       moon.color.copy(MOON).lerp(DUSK.sunColor, ek);
-      moon.intensity = nk * THREE.MathUtils.lerp(0.7, DUSK.sunIntensity, ek);
+      moon.intensity = nk * THREE.MathUtils.lerp(0.7, DUSK.sunIntensity, ek) * bakeLightProgress;
       for (const l of st.lights) {
         const pivot = LIGHT_PIVOT[l.name] ?? "pivot_" + l.name.replace(/^light_/, "");
-        const on = easeInOut(seg(p, [st.lampAt.get(pivot) ?? 2, STORY.lampDur]));
+        const on = bakeLightProgress;
         l.intensity = st.baseIntensity.get(l) * st.lightMul * on;
         for (const { m, k } of st.lampMats.get(pivot) ?? []) m.emissiveIntensity = on * k;
       }
-      // 구운 빛 상태: 방 뼈대가 서며(LM_LIT) 빈 방에 램프 빛이 켜지고, 가구가 놓이는 동안(클립 Lv1 시작 ~ Lv3 끝) 빈 방 → 가구 있는 방
-      //  램프가 먼저 켜지는 경우(가장 먼저 켜지는 램프 기준)도 빛은 켜짐
-      const frame = seg(p, STORY.build) * st.clip.duration * 24;
-      const frameK = ([a, b]) => easeInOut(THREE.MathUtils.clamp((frame - a) / (b - a), 0, 1));
-      const lampOn = Math.max(0, ...[...st.lampAt.values()].map((at) => easeInOut(seg(p, [at, STORY.lampDur]))));
-      setLightmapState(frameK(LM_BUILD), Math.max(lampOn, frameK(LM_LIT)));
+      // Same blend as the real lamps: empty→off during construction, off→on only after it.
+      setLightmapState(frameK(LM_BUILD), bakeLightProgress);
+      // Do not leave original building/window/clock emitters glowing before lights-on.
+      const lampControlled = new Set([...st.lampMats.values()].flat().map(({ m }) => m));
+      st.bakeEmitters ??= new Map();
+      st.root?.traverse((o) => {
+        if (!o.isMesh) return;
+        for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+          if (!m?.emissive || m.isMeshBasicMaterial || lampControlled.has(m)) continue;
+          if (!st.bakeEmitters.has(m)) st.bakeEmitters.set(m, m.emissiveIntensity ?? 1);
+          m.emissiveIntensity = st.bakeEmitters.get(m) * bakeLightProgress;
+        }
+      });
       // 미니어처 흐림(틸트시프트)은 방이 다 지어진 뒤에 (짓는 동안엔 카메라가 움직이며 아래쪽 턴테이블 · 가구가 흐려 보이지 않게)
       post.params.tilt = easeInOut(seg(p, POST_TILT));
 
       // 선반 커버: 핸드오프 중이면 마지막 커버는 DOM 이 대신 보여 줌
       st.covers.forEach((c, i) => {
         c.face.visible = !(st.hideLastCover && i === st.covers.length - 1);
-        c.mat.emissiveIntensity = c.mat.map ? 0.35 : 0;
+        c.mat.emissiveIntensity = c.mat.map ? 0.35 * bakeLightProgress : 0;
       });
     };
 

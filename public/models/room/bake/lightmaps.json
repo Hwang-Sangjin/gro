@@ -1,187 +1,266 @@
 {
- "groups": {
-  "shell": {
-   "gain": 1.0,
-   "size": 4096,
-   "uv": "BakeUV",
-   "color": {
-    "on": {
-     "file": "shell_color.jpg"
+  "version": "v17-20261109213550",
+  "groups": {
+    "shell": {
+      "color": {
+        "on": {
+          "file": "shell_color.jpg"
+        },
+        "off": {
+          "file": "shell_color_off.jpg"
+        },
+        "empty": {
+          "file": "shell_color_empty.jpg"
+        }
+      },
+      "size": 2048
     },
-    "empty_lit": {
-     "file": "shell_color_empty_lit.jpg"
+    "seating": {
+      "color": {
+        "on": {
+          "file": "seating_color.jpg"
+        },
+        "off": {
+          "file": "seating_color_off.jpg"
+        }
+      },
+      "size": 2048
     },
-    "empty": {
-     "file": "shell_color_empty.jpg"
+    "furniture": {
+      "color": {
+        "on": {
+          "file": "furniture_color.jpg"
+        },
+        "off": {
+          "file": "furniture_color_off.jpg"
+        }
+      },
+      "size": 2048
+    },
+    "audio": {
+      "color": {
+        "on": {
+          "file": "audio_color.jpg"
+        },
+        "off": {
+          "file": "audio_color_off.jpg"
+        }
+      },
+      "size": 2048
+    },
+    "props": {
+      "color": {
+        "on": {
+          "file": "props_color.jpg"
+        },
+        "off": {
+          "file": "props_color_off.jpg"
+        }
+      },
+      "size": 2048
+    },
+    "building": {
+      "color": {
+        "on": {
+          "file": "building_color.jpg"
+        },
+        "off": {
+          "file": "building_color_off.jpg"
+        }
+      },
+      "size": 2048
+    },
+    "nb_left": {
+      "color": {
+        "on": {
+          "file": "nb_left_color.jpg"
+        },
+        "off": {
+          "file": "nb_left_color_off.jpg"
+        }
+      },
+      "size": 2048
+    },
+    "nb_right": {
+      "color": {
+        "on": {
+          "file": "nb_right_color.jpg"
+        },
+        "off": {
+          "file": "nb_right_color_off.jpg"
+        }
+      },
+      "size": 2048
     }
-   }
   },
-  "furniture": {
-   "gain": 1.0,
-   "size": 4096,
-   "uv": "BakeUV",
-   "color": {
-    "on": {
-     "file": "furniture_color.jpg"
-    }
-   }
+  "objects": {
+    "floor": "shell",
+    "wall_window": "shell",
+    "wall_audio": "shell",
+    "window_frame": "shell",
+    "wall_cut_front": "shell",
+    "wall_cut_side": "shell",
+    "molding_window": "shell",
+    "molding_audio": "shell",
+    "sofa": "seating",
+    "sofa_pillow_rust": "seating",
+    "sofa_pillow_olive": "seating",
+    "sofa_pillow_stripe": "seating",
+    "armchair_cushion_seat": "seating",
+    "armchair_cushion_back": "seating",
+    "armchair_pillow": "seating",
+    "ottoman": "seating",
+    "rug": "seating",
+    "coffee_leg_A": "furniture",
+    "coffee_leg_B": "furniture",
+    "side_table": "furniture",
+    "bookshelf": "furniture",
+    "armchair": "furniture",
+    "armchair_seat_board": "furniture",
+    "armchair_back_board": "furniture",
+    "sideboard": "furniture",
+    "sideboard_drawer_top": "furniture",
+    "sideboard_drawer_bottom": "furniture",
+    "sideboard_door": "furniture",
+    "sideboard_records": "furniture",
+    "shelf_floating": "furniture",
+    "curtain": "furniture",
+    "Turntable_Plinth": "audio",
+    "amp": "audio",
+    "Amp_Knob_Selector": "audio",
+    "Amp_Knob_Volume": "audio",
+    "Amp_Knob_Bass": "audio",
+    "Amp_Knob_Treble": "audio",
+    "Amp_Knob_Balance": "audio",
+    "speaker_L": "audio",
+    "speaker_L_woofer": "audio",
+    "speaker_L_tweeter": "audio",
+    "speaker_L_port": "audio",
+    "speaker_R": "audio",
+    "speaker_R_woofer": "audio",
+    "speaker_R_tweeter": "audio",
+    "speaker_R_port": "audio",
+    "wall_art": "props",
+    "prop_ct_book": "props",
+    "prop_st_book_a": "props",
+    "prop_st_book_b": "props",
+    "prop_ct_cup": "props",
+    "prop_ct_plant": "props",
+    "prop_cs_vinyl_box": "props",
+    "prop_cs_np": "props",
+    "prop_cs_clock": "props",
+    "plant_sansevieria": "props",
+    "plant_strelitzia": "props",
+    "building": "building",
+    "nb_left_body": "nb_left",
+    "nb_left_bench": "nb_left",
+    "nb_left_pot_1": "nb_left",
+    "nb_left_pot_2": "nb_left",
+    "nb_left_plant_sansevieria": "nb_left",
+    "nb_left_plant_strelitzia": "nb_left",
+    "nb_right_body": "nb_right",
+    "nb_right_rail": "nb_right",
+    "nb_right_planter_1": "nb_right",
+    "nb_right_planter_2": "nb_right",
+    "nb_right_plant_sansevieria": "nb_right",
+    "nb_right_plant_strelitzia": "nb_right"
   },
-  "audio": {
-   "gain": 1.0,
-   "size": 2048,
-   "uv": "BakeUV",
-   "color": {
-    "on": {
-     "file": "audio_color.jpg"
-    }
-   }
-  },
-  "props": {
-   "gain": 1.0,
-   "size": 2048,
-   "uv": "BakeUV",
-   "color": {
-    "on": {
-     "file": "props_color.jpg"
-    }
-   }
-  },
-  "building": {
-   "file": "building.jpg",
-   "scale": 1.6539,
-   "gain": 1.0,
-   "size": 2048,
-   "uv": "BakeUV",
-   "variants": {
-    "on": {
-     "file": "building.jpg",
-     "scale": 1.6539
-    }
-   },
-   "color": {
-    "on": {
-     "file": "building_color.jpg"
-    }
-   }
-  },
-  "nb_left": {
-   "file": "nb_left.jpg",
-   "scale": 0.9826,
-   "gain": 2.0,
-   "size": 2048,
-   "uv": "BakeUV",
-   "variants": {
-    "on": {
-     "file": "nb_left.jpg",
-     "scale": 0.9826
-    }
-   },
-   "color": {
-    "on": {
-     "file": "nb_left_color.jpg"
-    }
-   }
-  },
-  "nb_right": {
-   "file": "nb_right.jpg",
-   "scale": 1.1059,
-   "gain": 2.0,
-   "size": 2048,
-   "uv": "BakeUV",
-   "variants": {
-    "on": {
-     "file": "nb_right.jpg",
-     "scale": 1.1059
-    }
-   },
-   "color": {
-    "on": {
-     "file": "nb_right_color.jpg"
-    }
-   }
-  },
-  "seating": {
-   "gain": 1.0,
-   "size": 4096,
-   "uv": "BakeUV",
-   "color": {
-    "on": {
-     "file": "seating_color.jpg"
-    }
-   }
-  }
- },
- "objects": {
-  "building": "building",
-  "nb_left_body": "nb_left",
-  "nb_left_bench": "nb_left",
-  "nb_left_pot_1": "nb_left",
-  "nb_left_pot_2": "nb_left",
-  "nb_left_plant_sansevieria": "nb_left",
-  "nb_left_plant_strelitzia": "nb_left",
-  "nb_right_body": "nb_right",
-  "nb_right_rail": "nb_right",
-  "nb_right_planter_1": "nb_right",
-  "nb_right_planter_2": "nb_right",
-  "nb_right_plant_sansevieria": "nb_right",
-  "nb_right_plant_strelitzia": "nb_right",
-  "floor": "shell",
-  "wall_window": "shell",
-  "wall_audio": "shell",
-  "window_frame": "shell",
-  "wall_cut_front": "shell",
-  "wall_cut_side": "shell",
-  "molding_window": "shell",
-  "molding_audio": "shell",
-  "sofa": "seating",
-  "sofa_pillow_rust": "seating",
-  "sofa_pillow_olive": "seating",
-  "sofa_pillow_stripe": "seating",
-  "armchair_cushion_seat": "seating",
-  "armchair_cushion_back": "seating",
-  "armchair_pillow": "seating",
-  "ottoman": "seating",
-  "rug": "seating",
-  "coffee_leg_A": "furniture",
-  "coffee_leg_B": "furniture",
-  "side_table": "furniture",
-  "bookshelf": "furniture",
-  "armchair": "furniture",
-  "armchair_seat_board": "furniture",
-  "armchair_back_board": "furniture",
-  "sideboard": "furniture",
-  "sideboard_drawer_top": "furniture",
-  "sideboard_drawer_bottom": "furniture",
-  "sideboard_door": "furniture",
-  "sideboard_records": "furniture",
-  "shelf_floating": "furniture",
-  "curtain": "furniture",
-  "Turntable_Plinth": "audio",
-  "amp": "audio",
-  "Amp_Knob_Selector": "audio",
-  "Amp_Knob_Volume": "audio",
-  "Amp_Knob_Bass": "audio",
-  "Amp_Knob_Treble": "audio",
-  "Amp_Knob_Balance": "audio",
-  "speaker_L": "audio",
-  "speaker_L_woofer": "audio",
-  "speaker_L_tweeter": "audio",
-  "speaker_L_port": "audio",
-  "speaker_R": "audio",
-  "speaker_R_woofer": "audio",
-  "speaker_R_tweeter": "audio",
-  "speaker_R_port": "audio",
-  "wall_art": "props",
-  "prop_ct_book": "props",
-  "prop_st_book_a": "props",
-  "prop_st_book_b": "props",
-  "prop_ct_cup": "props",
-  "prop_ct_plant": "props",
-  "prop_cs_vinyl_box": "props",
-  "prop_cs_np": "props",
-  "prop_cs_clock": "props",
-  "plant_sansevieria": "props",
-  "plant_strelitzia": "props"
- },
- "version": 1794077779
+  "furnishedObjects": [
+    "Amp_Knob_Balance",
+    "Amp_Knob_Bass",
+    "Amp_Knob_Selector",
+    "Amp_Knob_Treble",
+    "Amp_Knob_Volume",
+    "Amp_LED",
+    "Amp_VU_Faces",
+    "Amp_VU_Needle_L",
+    "Amp_VU_Needle_R",
+    "Tonearm_Arm",
+    "Tonearm_ArmRest",
+    "Tonearm_Base",
+    "Tonearm_Cartridge",
+    "Tonearm_Collar",
+    "Tonearm_Counterweight",
+    "Tonearm_GimbalAxle",
+    "Tonearm_GimbalBlock",
+    "Tonearm_Headshell",
+    "Tonearm_Pillar",
+    "Tonearm_Post_L",
+    "Tonearm_Post_R",
+    "Tonearm_Stylus",
+    "Turntable_DustCover",
+    "Turntable_DustCover_HingeArms",
+    "Turntable_Hinges",
+    "Turntable_Platter",
+    "Turntable_Plinth",
+    "amp",
+    "armchair",
+    "armchair_back_board",
+    "armchair_cushion_back",
+    "armchair_cushion_seat",
+    "armchair_pillow",
+    "armchair_seat_board",
+    "bookshelf",
+    "coffee_leg_A",
+    "coffee_leg_B",
+    "coffee_table",
+    "cover_shelf_01",
+    "cover_shelf_02",
+    "cover_shelf_03",
+    "curtain",
+    "lamp_circle",
+    "lamp_floor",
+    "lamp_floor_shade",
+    "lamp_table",
+    "lamp_window",
+    "ottoman",
+    "plant_sansevieria",
+    "plant_strelitzia",
+    "prop_cs_clock",
+    "prop_cs_clock_hour_bot",
+    "prop_cs_clock_hour_flap",
+    "prop_cs_clock_hour_top",
+    "prop_cs_clock_min_bot",
+    "prop_cs_clock_min_flap",
+    "prop_cs_clock_min_top",
+    "prop_cs_np",
+    "prop_cs_np_cover",
+    "prop_cs_vinyl_box",
+    "prop_cs_vinyl_box_cover",
+    "prop_ct_book",
+    "prop_ct_candle",
+    "prop_ct_cup",
+    "prop_ct_plant",
+    "prop_st_book_a",
+    "prop_st_book_b",
+    "rug",
+    "shelf_floating",
+    "side_table",
+    "sideboard",
+    "sideboard_door",
+    "sideboard_drawer_bottom",
+    "sideboard_drawer_top",
+    "sideboard_records",
+    "sofa",
+    "sofa_pillow_olive",
+    "sofa_pillow_rust",
+    "sofa_pillow_stripe",
+    "speaker_L",
+    "speaker_L_port",
+    "speaker_L_tweeter",
+    "speaker_L_woofer",
+    "speaker_R",
+    "speaker_R_port",
+    "speaker_R_tweeter",
+    "speaker_R_woofer",
+    "wall_art"
+  ],
+  "lightingFrames": [
+    108,
+    115
+  ],
+  "buildFrames": [
+    44,
+    108
+  ]
 }
