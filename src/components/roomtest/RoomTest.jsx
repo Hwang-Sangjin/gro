@@ -66,6 +66,13 @@ const HERO_HOLD = 0.4;
 const LM_BUILD = [44, 108];   // Hero 를 이어 받은 판이 제자리에 머무는 시간(초). Hero 레이어가 걷히는 0.5초와 거의 같게
 const POST_TILT = [0.62, 0.12];   // 틸트시프트가 켜지는 진행도 구간 (방 완성 무렵)
 const LM_LIT = [108, 115];     // 가구 배치가 끝난 뒤 실제 램프와 베이크를 함께 점등
+// 램프 갓 발광 색 (선형, 톤매핑 없이 화면에 그대로): Blender 렌더에서 잰 갓 평균색 ÷ 갓 텍스처 평균색 (텍스처 없는 재질은 그 색 그대로)
+const LAMP_GLOW = {
+  mat_lamp_shade_pattern: [1.31, 1.32, 2.8],   // 스탠드 갓 → 렌더 sRGB (246,163,113)
+  mat_lamp_globe: [1.7, 1.55, 2.0],            // 창가 구 → (217,136,63). 텍스처가 위아래로 어두운 그라데이션이라 Blender(AgX 가 밝은 쪽을 눌러 고르게)처럼 보이게 더 밝게
+  mat_lamp_table_shade: [0.56, 0.42, 1.0],     // 테이블 램프 갓 → (174,56,38)
+  mat_lamp_circle_shade: [0.965, 0.708, 0.558], // 콘솔 원형 램프 → (251,219,197)
+};
 const NV_BACK_WAIT = 1.0;                       // New Vinyls → 방: 커버가 선반으로 돌아가는 시간(핸드오프 1초)만큼 카메라가 기다림
 const SCROLL = {
   speed: 0.8,       // 착지까지: 스크롤·붙는 속도 배율 (1 보다 작으면 더 천천히)
@@ -240,8 +247,7 @@ export default function RoomTest() {
       lights: [], baseIntensity: new Map(), lampMats: new Map(), lampAt: new Map(), helpers: [], lightMul: 1,
       p: 0, target: 0, auto: false, ownSpin: 0, ownVel: RPM(10), platterVel: 0, section: 0, hideLastCover: false,
       covers: [], ptr: new THREE.Vector2(), ptrS: new THREE.Vector2(),
-    };
-    st.reduced = reduced;
+    };    st.reduced = reduced;
     st.themeCream = scene.background.clone();
     st.heroBg = st.themeCream.clone();
     apiRef.current = st;
@@ -441,16 +447,34 @@ export default function RoomTest() {
       st.roomR = roomBox.getSize(new THREE.Vector3()).length() / 2;
       // 램프 재질은 램프마다 따로 (켜짐 표현). 재질이 여러 개일 수 있음.
       // Blender 에 Emission 이 있으면 그 값을 켜짐 정도만큼, 없는 램프는 갓 전체에 웜톤
-      for (const name of ["lamp_floor", "lamp_table", "lamp_window", "lamp_circle"]) {
+      //  갓(LAMP_GLOW)은 빛 계산 없는 재질로 바꿔 Blender 렌더(AgX)에서 잰 색 그대로 (톤매핑 끔)
+      //   실시간 재질이면 갓 바로 안의 점광원 반사로 하얗게 타고, 웹 톤매핑이 강한 주황 발광을 흰색으로 날림
+      //  스탠드 갓은 기둥(lamp_floor)과 따로인 오브젝트(lamp_floor_shade) → 같은 램프(pivot_lamp_floor)로 묶음
+      const lampGroups = new Map();
+      for (const [name, pivot] of [["lamp_floor"], ["lamp_floor_shade", "lamp_floor"], ["lamp_table"], ["lamp_window"], ["lamp_circle"]]) {
         const lamp = root.getObjectByName(name);
         if (!lamp) continue;
-        const mats = [];
-        lamp.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); mats.push(o.material); } });
-        const authored = mats.filter((m) => m.emissive.getHex() !== 0);
-        st.lampMats.set("pivot_" + name, authored.length
-          ? authored.map((m) => ({ m, k: m.emissiveIntensity }))
-          : mats.map((m) => { m.emissive = new THREE.Color("#ffc988"); return { m, k: 1.6 }; }));
+        const key = "pivot_" + (pivot ?? name);
+        const g = lampGroups.get(key) ?? { mats: [], authored: [] };
+        lamp.traverse((o) => {
+          if (!o.isMesh) return;
+          const src = o.material, glow = LAMP_GLOW[src.name.replace(/\.\d+$/, "")];
+          if (glow) {
+            const m = new THREE.MeshBasicMaterial({ name: src.name + "_glow", map: src.emissiveMap ?? null, side: src.side, toneMapped: false });
+            m.userData.glow = new THREE.Color(...glow);
+            m.userData.off = src.color.clone().multiplyScalar(0.025);   // 꺼짐: 어두운 방의 갓 (바탕색을 아주 어둡게)
+            o.material = m; g.authored.push({ m, k: 1 });
+            return;
+          }
+          o.material = src.clone(); g.mats.push(o.material);
+          if (o.material.emissive.getHex() !== 0) g.authored.push({ m: o.material, k: o.material.emissiveIntensity });
+        });
+        lampGroups.set(key, g);
       }
+      // 발광 재질이 하나도 없는 램프만 갓 전체에 웜톤
+      for (const [key, g] of lampGroups) st.lampMats.set(key, g.authored.length
+        ? g.authored
+        : g.mats.map((m) => { m.emissive = new THREE.Color("#ffc988"); return { m, k: 1.6 }; }));
       // 방 바깥 2.5D 배경: /lab/env-test 에서 확정한 Hybrid 레이어 · 하늘 · 창문 안 남산 (env-layers.json)
       //  레이어 높이는 기준 카메라(B 18°) 화면 기준이라, 방 완성 칸의 카메라도 그 기준 카메라 그대로
       st.rig = computeRig(root, gltf.cameras[0]);
@@ -733,7 +757,10 @@ export default function RoomTest() {
         const pivot = LIGHT_PIVOT[l.name] ?? "pivot_" + l.name.replace(/^light_/, "");
         const on = bakeLightProgress;
         l.intensity = st.baseIntensity.get(l) * st.lightMul * on;
-        for (const { m, k } of st.lampMats.get(pivot) ?? []) m.emissiveIntensity = on * k;
+        for (const { m, k } of st.lampMats.get(pivot) ?? []) {
+          if (m.userData.glow) m.color.copy(m.userData.off).lerp(m.userData.glow, on);
+          else m.emissiveIntensity = on * k;
+        }
       }
       // Same blend as the real lamps: empty→off during construction, off→on only after it.
       setLightmapState(frameK(LM_BUILD), bakeLightProgress);
