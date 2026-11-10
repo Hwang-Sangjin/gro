@@ -92,6 +92,7 @@ export async function applyLightmaps(root) {
     t.colorSpace = THREE.SRGBColorSpace;
     t.flipY = false;          // glTF UV 기준
     t.channel = 1;            // BakeUV (TEXCOORD_1)
+    t.anisotropy = 8;         // 비스듬히 보이는 바닥 · 벽이 뭉개지지 않게 (기기 최대값으로 자동으로 줄어듦)
     return t;
   });
   // 색까지 구운 그림(color)이 있는 그룹은 그 그림을 그대로 (Blender 에서 Lookdev 톤매핑까지 입힘 → 웹 톤매핑 끔)
