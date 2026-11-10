@@ -462,7 +462,7 @@ export default function RoomTest() {
           if (glow) {
             const m = new THREE.MeshBasicMaterial({ name: src.name + "_glow", map: src.emissiveMap ?? null, side: src.side, toneMapped: false });
             m.userData.glow = new THREE.Color(...glow);
-            m.userData.off = src.color.clone().multiplyScalar(0.025);   // 꺼짐: 어두운 방의 갓 (바탕색을 아주 어둡게)
+            m.userData.off = src.color.clone().multiplyScalar(0.12);   // 꺼짐: 보조 조명만 있는 dim 방의 갓 (바탕색을 어둡게)
             o.material = m; g.authored.push({ m, k: 1 });
             return;
           }
@@ -750,9 +750,9 @@ export default function RoomTest() {
       // 밤 주변광·창 쪽 달빛 → 바깥 배경이 나타나며 노을 조명으로 (env-layers.json 의 light)
       hemi.color.copy(HEMI_SKY).lerp(DUSK.hemiSky, ek);
       hemi.groundColor.copy(HEMI_GROUND).lerp(DUSK.hemiGround, ek);
-      hemi.intensity = rk * THREE.MathUtils.lerp(1.0, DUSK.hemiIntensity, ek) * THREE.MathUtils.lerp(0.15, 1.0, bakeLightProgress);
+      hemi.intensity = rk * THREE.MathUtils.lerp(1.0, DUSK.hemiIntensity, ek) * THREE.MathUtils.lerp(0.55, 1.0, bakeLightProgress);   // v18 dim 베이크(보조 조명만)와 맞춤
       moon.color.copy(MOON).lerp(DUSK.sunColor, ek);
-      moon.intensity = nk * THREE.MathUtils.lerp(0.7, DUSK.sunIntensity, ek) * bakeLightProgress;
+      moon.intensity = nk * THREE.MathUtils.lerp(0.7, DUSK.sunIntensity, ek) * THREE.MathUtils.lerp(0.4, 1.0, bakeLightProgress);
       for (const l of st.lights) {
         const pivot = LIGHT_PIVOT[l.name] ?? "pivot_" + l.name.replace(/^light_/, "");
         const on = bakeLightProgress;

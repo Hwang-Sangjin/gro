@@ -1,5 +1,5 @@
 {
-  "version": "v17-20261109213550",
+  "version": "v18-20261110180705",
   "groups": {
     "shell": {
       "color": {
@@ -7,13 +7,13 @@
           "file": "shell_color.jpg"
         },
         "off": {
-          "file": "shell_color_off.jpg"
+          "file": "shell_color_dim.jpg"
         },
         "empty": {
           "file": "shell_color_empty.jpg"
         }
       },
-      "size": 2048
+      "size": 4096
     },
     "seating": {
       "color": {
@@ -21,7 +21,7 @@
           "file": "seating_color.jpg"
         },
         "off": {
-          "file": "seating_color_off.jpg"
+          "file": "seating_color_dim.jpg"
         }
       },
       "size": 2048
@@ -32,7 +32,7 @@
           "file": "furniture_color.jpg"
         },
         "off": {
-          "file": "furniture_color_off.jpg"
+          "file": "furniture_color_dim.jpg"
         }
       },
       "size": 2048
@@ -43,7 +43,7 @@
           "file": "audio_color.jpg"
         },
         "off": {
-          "file": "audio_color_off.jpg"
+          "file": "audio_color_dim.jpg"
         }
       },
       "size": 2048
@@ -54,7 +54,7 @@
           "file": "props_color.jpg"
         },
         "off": {
-          "file": "props_color_off.jpg"
+          "file": "props_color_dim.jpg"
         }
       },
       "size": 2048
@@ -65,7 +65,7 @@
           "file": "building_color.jpg"
         },
         "off": {
-          "file": "building_color_off.jpg"
+          "file": "building_color_dim.jpg"
         }
       },
       "size": 2048
@@ -76,7 +76,7 @@
           "file": "nb_left_color.jpg"
         },
         "off": {
-          "file": "nb_left_color_off.jpg"
+          "file": "nb_left_color_dim.jpg"
         }
       },
       "size": 2048
@@ -87,7 +87,7 @@
           "file": "nb_right_color.jpg"
         },
         "off": {
-          "file": "nb_right_color_off.jpg"
+          "file": "nb_right_color_dim.jpg"
         }
       },
       "size": 2048
