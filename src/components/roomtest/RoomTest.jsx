@@ -585,7 +585,7 @@ export default function RoomTest() {
       st.env.ready.then(prewarm);
       // 구운 빛 (?bake=0 이면 끄고 실시간 조명으로 비교). 재질이 바뀌니 다 입힌 뒤 한 번 더 미리 데움
       if (new URLSearchParams(location.search).get("bake") !== "0")
-        applyLightmaps(root).then((n) => { st.baked = n; if (n) prewarm(); st.setupInteract(); });
+        applyLightmaps(root, renderer).then((n) => { st.baked = n; if (n) prewarm(); st.setupInteract(); });
       else st.setupInteract();
       setInfo({
         loadMs: Math.round(performance.now() - t0),

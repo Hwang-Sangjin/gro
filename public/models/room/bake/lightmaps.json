@@ -4,13 +4,16 @@
     "shell": {
       "color": {
         "on": {
-          "file": "shell_color.jpg"
+          "file": "shell_color.jpg",
+          "ktx2All": "shell_color_etc1s.ktx2"
         },
         "off": {
-          "file": "shell_color_dim.jpg"
+          "file": "shell_color_dim.jpg",
+          "ktx2": "shell_color_dim.ktx2"
         },
         "empty": {
-          "file": "shell_color_empty.jpg"
+          "file": "shell_color_empty.jpg",
+          "ktx2": "shell_color_empty.ktx2"
         }
       },
       "size": 4096
@@ -18,10 +21,12 @@
     "seating": {
       "color": {
         "on": {
-          "file": "seating_color.jpg"
+          "file": "seating_color.jpg",
+          "ktx2All": "seating_color_etc1s.ktx2"
         },
         "off": {
-          "file": "seating_color_dim.jpg"
+          "file": "seating_color_dim.jpg",
+          "ktx2": "seating_color_dim.ktx2"
         }
       },
       "size": 4096
@@ -29,10 +34,12 @@
     "furniture": {
       "color": {
         "on": {
-          "file": "furniture_color.jpg"
+          "file": "furniture_color.jpg",
+          "ktx2All": "furniture_color_etc1s.ktx2"
         },
         "off": {
-          "file": "furniture_color_dim.jpg"
+          "file": "furniture_color_dim.jpg",
+          "ktx2": "furniture_color_dim.ktx2"
         }
       },
       "size": 4096
@@ -40,10 +47,12 @@
     "audio": {
       "color": {
         "on": {
-          "file": "audio_color.jpg"
+          "file": "audio_color.jpg",
+          "ktx2": "audio_color.ktx2"
         },
         "off": {
-          "file": "audio_color_dim.jpg"
+          "file": "audio_color_dim.jpg",
+          "ktx2": "audio_color_dim.ktx2"
         }
       },
       "size": 2048
@@ -51,10 +60,12 @@
     "props": {
       "color": {
         "on": {
-          "file": "props_color.jpg"
+          "file": "props_color.jpg",
+          "ktx2": "props_color.ktx2"
         },
         "off": {
-          "file": "props_color_dim.jpg"
+          "file": "props_color_dim.jpg",
+          "ktx2": "props_color_dim.ktx2"
         }
       },
       "size": 2048
@@ -62,10 +73,12 @@
     "building": {
       "color": {
         "on": {
-          "file": "building_color.jpg"
+          "file": "building_color.jpg",
+          "ktx2": "building_color.ktx2"
         },
         "off": {
-          "file": "building_color_dim.jpg"
+          "file": "building_color_dim.jpg",
+          "ktx2": "building_color_dim.ktx2"
         }
       },
       "size": 2048
@@ -73,10 +86,12 @@
     "nb_left": {
       "color": {
         "on": {
-          "file": "nb_left_color.jpg"
+          "file": "nb_left_color.jpg",
+          "ktx2": "nb_left_color.ktx2"
         },
         "off": {
-          "file": "nb_left_color_dim.jpg"
+          "file": "nb_left_color_dim.jpg",
+          "ktx2": "nb_left_color_dim.ktx2"
         }
       },
       "size": 2048
@@ -84,10 +99,12 @@
     "nb_right": {
       "color": {
         "on": {
-          "file": "nb_right_color.jpg"
+          "file": "nb_right_color.jpg",
+          "ktx2": "nb_right_color.ktx2"
         },
         "off": {
-          "file": "nb_right_color_dim.jpg"
+          "file": "nb_right_color_dim.jpg",
+          "ktx2": "nb_right_color_dim.ktx2"
         }
       },
       "size": 2048
@@ -95,10 +112,12 @@
     "lamps": {
       "color": {
         "on": {
-          "file": "lamps_color.jpg"
+          "file": "lamps_color.jpg",
+          "ktx2": "lamps_color.ktx2"
         },
         "off": {
-          "file": "lamps_color_dim.jpg"
+          "file": "lamps_color_dim.jpg",
+          "ktx2": "lamps_color_dim.ktx2"
         }
       },
       "size": 2048,

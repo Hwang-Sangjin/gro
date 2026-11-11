@@ -9,6 +9,7 @@
 //   가구가 놓이며 empty(_lit) → off/on (바닥에 아직 없는 가구 그림자가 미리 찍히지 않게), 빛이 켜지며 off → on
 //   setLightmapState(build, lit) 로 모든 재질이 같이 섞임. 없는 상태는 가까운 상태로 대신 (empty → off → on, empty_lit → on)
 import * as THREE from "three";
+import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 
 export const BAKE_URL = new URLSearchParams(location.search).get("quality") === "mobile" ? "/models/room/bake_mobile/" : "/models/room/bake/";
 
@@ -83,14 +84,26 @@ function variantShader(m, v) {
 }
 
 // 끝나면 바꾼 메시 수를 돌려줌. 이미 바꾼 재질은 (원래 재질, 그룹) 마다 하나만 만들어 같이 씀
-export async function applyLightmaps(root) {
+// GPU 압축 텍스처(KTX2) 읽개는 한 번만 (해석기 wasm 은 public/basis/ 에서). renderer 가 있어야 기기가 받는 압축 형식을 고름
+let ktx2Loader = null;
+const getKtx2Loader = (renderer) => {
+  if (!ktx2Loader) ktx2Loader = new KTX2Loader().setTranscoderPath("/basis/").detectSupport(renderer);
+  return ktx2Loader;
+};
+
+// renderer 를 넘기면 목록에 ktx2 가 있는 그림은 KTX2(GPU 압축)로: GPU 메모리 약 1/6, 다운로드도 비슷하거나 작음
+export async function applyLightmaps(root, renderer = null) {
   // 다시 구워도 파일 이름이 같아 브라우저가 예전 그림을 씀 → 목록은 매번 새로, 그림은 굽은 때(version)를 붙여서
   const man = await fetch(BAKE_URL + "lightmaps.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   if (!man) return 0;
   const loader = new THREE.TextureLoader();
-  const load = (file) => loader.loadAsync(BAKE_URL + file + (man.version ? "?v=" + man.version : "")).then((t) => {
+  //  가장 크게 보이는 켜짐 4K 세 장(shell · seating · furniture)은 화질 때문에 JPEG 그대로 (목록에 ktx2 없음, ktx2All 에만 ETC1S)
+  //  ?ktx2=0 이면 전부 JPEG, ?ktx2=all 이면 그 세 장까지 KTX2 (화질 비교용)
+  const ktxMode = new URLSearchParams(location.search).get("ktx2");
+  const ktx = renderer && ktxMode !== "0" ? getKtx2Loader(renderer) : null;
+  const load = (file, ktxFile) => (ktx && ktxFile ? ktx : loader).loadAsync(BAKE_URL + (ktx && ktxFile ? ktxFile : file) + (man.version ? "?v=" + man.version : "")).then((t) => {
     t.colorSpace = THREE.SRGBColorSpace;
-    t.flipY = false;          // glTF UV 기준
+    t.flipY = false;          // glTF UV 기준 (KTX2 는 원래 뒤집지 않음)
     t.channel = 1;            // BakeUV (TEXCOORD_1)
     t.anisotropy = 8;         // 비스듬히 보이는 바닥 · 벽이 뭉개지지 않게 (기기 최대값으로 자동으로 줄어듦)
     return t;
@@ -101,7 +114,7 @@ export async function applyLightmaps(root) {
   const colors = {};
   if (useColor) await Promise.all(Object.entries(man.groups).filter(([, v]) => v.color?.on).map(async ([g, v]) => {
     const out = {};
-    await Promise.all(Object.entries(v.color).map(async ([name, e]) => { out[name] = { t: await load(e.file) }; }));
+    await Promise.all(Object.entries(v.color).map(async ([name, e]) => { out[name] = { t: await load(e.file, ktxMode === "all" ? e.ktx2All ?? e.ktx2 : e.ktx2) }; }));
     colors[g] = out;
   }));
   const maps = {};
