@@ -16,12 +16,11 @@
   },
   "layers": [
     {
-      "id": "h_namsan",
-      "name": "남산(창 너머)",
+      "id": "h_namsan", "name": "남산(창 너머)",
       "color": "#5a3f6e",
       "D": 250,
       "place": "screen",
-      "s": 0.8,
+      "s": 0.75,
       "look": "solid",
       "band": 0.16,
       "W": 46,
@@ -29,16 +28,15 @@
         -11
       ],
       "on": true,
-      "_note": "창 너머에만 보이게: 꼭대기를 창문 벽 윗선보다 낮게, 폭은 창문 벽 안쪽으로",
+      "_note": "2026-11-11 s 0.8→0.75 (타워 머리까지 창 안), 강 건너 아파트를 0.66 으로 내려 산이 보이게. 그래도 창 위로 나오는 안테나 끝은 room-test 가 잘라 냄(RoomTest namsanClip). 창 너머에만 보이게: 꼭대기를 창문 벽 윗선보다 낮게, 폭은 창문 벽 안쪽으로",
       "img": "/models/room/env/namsan_01.png",
-      "fill": "#3b3157",
+      "fill": "#191b38",
       "single": true,
       "blurMul": 0,
       "alphaTest": 0.6
     },
     {
-      "id": "h_far",
-      "name": "먼 스카이라인",
+      "id": "h_far", "name": "먼 스카이라인",
       "color": "#5b4a78",
       "D": 350,
       "place": "screen",
@@ -46,7 +44,7 @@
       "look": "skyline",
       "seed": 3,
       "img": "/models/room/env/skyline_far_01.png",
-      "fill": "#544374",
+      "fill": "#0f122d",
       "band": 0.16,
       "on": true,
       "confirmed": "2026-11-03"
@@ -57,15 +55,15 @@
       "color": "#7d5468",
       "D": 150,
       "place": "screen",
-      "s": 0.72,
+      "s": 0.66,
       "look": "skyline",
       "seed": 7,
       "lit": true,
       "on": true,
+      "_note": "2026-11-11 s 0.72→0.66: 창 너머 남산 능선이 아파트에 가리지 않게.",
       "img": "/models/room/env/apts_01.png",
-      "fill": "#583e5a",
+      "fill": "#0f1127",
       "band": 0.2,
-      "tint": 0.7,
       "confirmed": "2026-11-03"
     },
     {
@@ -78,7 +76,7 @@
       "look": "water",
       "on": true,
       "img": "/models/room/env/river_01.png",
-      "fill": "#2a2b62",
+      "fill": "#191c3c",
       "band": 0.3,
       "confirmed": "2026-11-03"
     },
@@ -94,7 +92,7 @@
       "band": 0.22,
       "on": true,
       "img": "/models/room/env/bank_01.png",
-      "fill": "#1d312d",
+      "fill": "#0e1d27",
       "confirmed": "2026-11-03"
     },
     {
@@ -108,7 +106,7 @@
       "band": 0.24,
       "on": true,
       "img": "/models/room/env/lawn_01.png",
-      "fill": "#172221",
+      "fill": "#0e181f",
       "confirmed": "2026-11-03"
     },
     {
@@ -302,7 +300,8 @@
     ],
     "offsetY": -0.57,
     "scaleY": 1,
-    "grade": { "gain": 0.74, "sat": 0.86, "_note": "2026-11-11 하늘을 조금 어둡고 덜 진하게: 따뜻한 방이 화면에서 가장 밝게 보이도록. 1, 1 이면 그림 그대로" },
+    "grade": { "gain": 0.74, "sat": 0.86, "_note": "2026-11-11 하늘을 조금 어둡고 덜 진하게: 따뜻한 방이 화면에서 가장 밝게 보이도록. 1, 1 이면 그림 그대로",
+      "night": { "top": "#060b22", "mid": "#142048", "from": 0.6, "to": 0.82, "amount": 0, "_note": "2026-11-11 임시 남색 덮기 (블루아워 그림 v2 를 넣어 지금은 끔, amount 0)" } },
     "confirmed": "2026-11-03",
     "_note": "화면 v(0 아래~1 위)에 이미지 높이 offsetY + v*scaleY. 노을 가장 밝은 줄(이미지 아래 15%)을 먼 스카이라인 윗선(화면 72%) 뒤에 맞춤"
   },

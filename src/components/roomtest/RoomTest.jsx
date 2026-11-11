@@ -100,7 +100,10 @@ const DISC_R = 0.15;              // LP 반지름 (m)
 const ARM_SWING = -0.42;          // 톤암이 판 위로 들어가는 각도 (rad, 톤암 기둥 기준)
 const ROOM_ZOOM = 1.2;             // 방 완성 구도를 기준 카메라보다 이만큼 당김 (시야각만 좁힘 → 배경 레이어 원근 · 정렬은 그대로, 방이 화면을 더 채움)
 const FOV0 = 30;                  // 이야기 카메라 시야. 방 완성 칸에서는 GLB 카메라 시야(약 17°)로 바뀜
-const ENV_IN = [0.46, 0.10];      // 바깥 배경(하늘·도시·한강)이 서서히 나타나는 구간 (방 완성 구도로 다가갈 때)
+const ENV_IN = [0.46, 0.10];
+// 배경 레이어 등장: 인형극 무대 배경처럼 가까운 레이어부터 아래에서 위로 스르륵 (레이어마다 STAGGER 만큼 늦게, DUR 동안)
+//  떨어진 깊이 = 레이어까지 거리 × DROP (화면에서 대략 같은 높이만큼 내려가 있다 올라옴)
+const LAYER_RISE = { start: 0.46, stagger: 0.014, dur: 0.075, drop: 0.11 };      // 바깥 배경(하늘·도시·한강)이 서서히 나타나는 구간 (방 완성 구도로 다가갈 때)
 const HEMI_SKY = new THREE.Color("#9fb0d8"), HEMI_GROUND = new THREE.Color("#2a2230"), MOON = new THREE.Color("#8fa6d8");
 const DUSK = {
   hemiSky: new THREE.Color(LAYER_CFG.light.hemiSky), hemiGround: new THREE.Color(LAYER_CFG.light.hemiGround),
@@ -226,6 +229,7 @@ export default function RoomTest() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, DPR_MAX));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NeutralToneMapping;
+    renderer.localClippingEnabled = true;   // 남산 레이어를 창문 위 테두리에서 잘라 냄 (벽 위로 타워가 삐져나오지 않게)
     host.appendChild(renderer.domElement);
     // 화면 후처리 (빛 번짐 · 틸트시프트 · 비네트). ?post=0 이면 끔
     const post = createPost(renderer);
@@ -876,6 +880,40 @@ export default function RoomTest() {
       const ek = easeInOut(seg(p, ENV_IN));
       st.env.night(nk);                                   // 창문 안 남산: 창문 벽이 다 선 뒤 밝아짐
       st.env.fade(ek);                                    // 바깥 배경: 방 완성 구도로 다가가며
+      // 레이어가 가까운 것부터 아래에서 올라옴 (fade 가 정한 투명도에 레이어별 등장 정도를 곱함)
+      if (!st.layerRise) {
+        const byId = Object.fromEntries(LAYER_CFG.layers.map((L) => [L.id, L]));
+        const roomCam = st.rig.target.clone().addScaledVector(new THREE.Vector3().setFromSpherical(st.base.sph).normalize(), st.base.sph.radius);   // 방 완성 칸 카메라 자리
+        st.layerRise = st.env.group.children.filter((g) => g.name.startsWith("env_") && byId[g.name.slice(4)])
+          .map((g) => {
+            const mats = [];
+            g.traverse((o) => { if (o.isMesh) mats.push(o.material); });
+            return { g, D: byId[g.name.slice(4)].D, baseY: g.position.y, mats, dist: g.getWorldPosition(new THREE.Vector3()).distanceTo(roomCam) };
+          })
+          .sort((a, b) => a.D - b.D);
+      }
+      st.env.group.visible = p >= LAYER_RISE.start;
+      st.layerRise.forEach((L, i) => {
+        const k = st.reduced ? ek : easeInOut(seg(p, [LAYER_RISE.start + i * LAYER_RISE.stagger, LAYER_RISE.dur]));
+        L.g.position.y = L.baseY - (1 - k) * L.dist * LAYER_RISE.drop;
+        const op = Math.min(1, k * 2.5);   // 올라오기 시작하면 금방 또렷하게 (전체 fade 와 따로 → 올라오는 움직임이 보이게)
+        for (const m of L.mats) { m.opacity = op; m.transparent = m.alphaTest > 0 || op < 1; m.depthWrite = op >= 1; }
+      });
+      // 남산은 창문 너머로만: 카메라와 창문 위 테두리를 지나는 평면 위쪽은 잘라 냄 (마우스 시차로 카메라가 움직여도 매 프레임 다시)
+      if (st.env.glass) {
+        if (!st.namsanClip) {
+          st.namsanClip = new THREE.Plane();
+          st.env.group.getObjectByName("env_h_namsan")?.traverse((o) => { if (o.isMesh && o.material.map) o.material.clippingPlanes = [st.namsanClip]; });
+        }
+        const gl = st.env.glass, gp = gl.geometry.parameters;
+        gl.updateWorldMatrix(true, false);
+        const a = new THREE.Vector3(-gp.width / 2, gp.height / 2, 0).applyMatrix4(gl.matrixWorld);
+        const b = new THREE.Vector3(gp.width / 2, gp.height / 2, 0).applyMatrix4(gl.matrixWorld);
+        st.namsanClip.setFromCoplanarPoints(storyCam.position, a, b);
+        // 창문 아래쪽(창 가운데)이 남는 쪽이 되게 방향을 맞춤
+        const mid = new THREE.Vector3(0, -gp.height / 2, 0).applyMatrix4(gl.matrixWorld);
+        if (st.namsanClip.distanceToPoint(mid) < 0) st.namsanClip.negate();
+      }
       // 밤 주변광·창 쪽 달빛 → 바깥 배경이 나타나며 노을 조명으로 (env-layers.json 의 light)
       hemi.color.copy(HEMI_SKY).lerp(DUSK.hemiSky, ek);
       hemi.groundColor.copy(HEMI_GROUND).lerp(DUSK.hemiGround, ek);

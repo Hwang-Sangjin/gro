@@ -171,15 +171,22 @@ export function layerColors(L) {
 // 하늘: 화면 전체를 덮는 판. 깊이는 맨 뒤(1.0)라 방·레이어 뒤에만 보이고, 투명도로 서서히 나타낼 수 있음
 // 화면 높이 v(0 아래 ~ 1 위) 에 이미지 높이 off + v × scale 이 옴 (이미지 밖은 끝 색이 늘어남)
 // grade: { gain, sat } — 하늘 밝기 · 채도 배율 (방보다 하늘이 더 밝고 진해 눈이 하늘로 먼저 가지 않게). 없으면 그림 그대로
+//  grade.night: { top, mid, from, to, amount } — 화면 위쪽을 남색 밤하늘로 덮음 (from~to: 화면 높이 0 아래 ~ 1 위, 그 사이로 점점).
+//   아래쪽 스카이라인 뒤의 노을 띠는 그대로 남아, 주황 방과 보색인 남색 하늘 + 지평선의 얇은 노을이 됨
 export function createSkyQuad(url, off, scale, blur = 0, grade = null) {
   const mat = new THREE.ShaderMaterial({
-    uniforms: { map: { value: null }, uOff: { value: off }, uScale: { value: scale }, uOpacity: { value: 1 }, uGrade: { value: new THREE.Vector2(grade?.gain ?? 1, grade?.sat ?? 1) } },
+    uniforms: { map: { value: null }, uOff: { value: off }, uScale: { value: scale }, uOpacity: { value: 1 }, uGrade: { value: new THREE.Vector2(grade?.gain ?? 1, grade?.sat ?? 1) },
+      uTop: { value: new THREE.Color(grade?.night?.top ?? "#000000") }, uMid: { value: new THREE.Color(grade?.night?.mid ?? "#000000") },
+      uNight: { value: new THREE.Vector3(grade?.night?.from ?? 1, grade?.night?.to ?? 1.01, grade?.night?.amount ?? 0) } },
     vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 1.0, 1.0); }",
-    fragmentShader: `uniform sampler2D map; uniform float uOff, uScale, uOpacity; uniform vec2 uGrade; varying vec2 vUv;
+    fragmentShader: `uniform sampler2D map; uniform float uOff, uScale, uOpacity; uniform vec2 uGrade; uniform vec3 uTop, uMid, uNight; varying vec2 vUv;
       void main() {
         vec2 uv = vec2(vUv.x, clamp(uOff + vUv.y * uScale, 0.001, 0.999));
         vec3 c = texture2D(map, uv).rgb;
         c = mix(vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), c, uGrade.y) * uGrade.x;
+        float nk = smoothstep(uNight.x, uNight.y, vUv.y) * uNight.z;
+        vec3 navy = mix(uMid, uTop, smoothstep(uNight.x, 1.0, vUv.y));
+        c = mix(c, navy, nk);
         gl_FragColor = vec4(c, uOpacity);
         #include <colorspace_fragment>
       }`,
