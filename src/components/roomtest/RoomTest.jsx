@@ -25,6 +25,7 @@ import { attachFlipClock } from "./flipClock";
 import { addShelfTestProps, applyNowPlaying } from "./shelfTestProps";
 import { applyLightmaps, setLightmapState } from "./lightmaps";
 import { createPost } from "./post";
+import { createRoomSound } from "./roomSound";
 
 const MODEL_URL = "/models/room/grooves_room_blockout_reveal.glb";
 const VINYL_URL = "/models/vinyl.glb";
@@ -47,7 +48,7 @@ const STORY = {
   room: [0.34, 0.20],             // 방 주변광
   lidAt: 0.20,                    // 턴테이블이 다 올라온 뒤·판이 내려앉기 전에 먼지 덮개가 열림
   spinAt: 0.70, armDur: 0.05,
-  camFinal: 0.68,
+  camFinal: 0.54,                 // reveal v2(64프레임): 큰 가구가 놓일 무렵 완성 구도에 도착 → 소품이 튀어나오는 건 고정된 구도에서
   roomHold: 0.76,                 // 방 전체 구도는 여기까지 (= 3칸)
   // [열림, 닫힘] 진행도 (되돌아갈 때 덜컹이지 않게 간격). New Vinyls 는 카메라가 커버 앞에 거의 다 왔을 때 넘김
   nv: [0.85, 0.84], news: [0.93, 0.90],
@@ -63,9 +64,13 @@ const STEP = { threshold: 24, touch: 40, cooldown: 0.45 };   // Home 엔진 SECT
 const DPR_MAX = 1.5, DPR_MIN = 1, DPR_SLOW_FPS = 45;
 const HERO_HOLD = 0.4;
 // 구운 빛: 빈 방 → 가구 있는 방 으로 바뀌는 reveal 클립 프레임 (Lv1 큰 가구 시작 44 ~ Lv3 소품 끝 108, docs: 방 reveal 단계 구조)
-const LM_BUILD = [44, 108];   // Hero 를 이어 받은 판이 제자리에 머무는 시간(초). Hero 레이어가 걷히는 0.5초와 거의 같게
-const POST_TILT = [0.62, 0.12];   // 틸트시프트가 켜지는 진행도 구간 (방 완성 무렵)
-const LM_LIT = [108, 115];     // 가구 배치가 끝난 뒤 실제 램프와 베이크를 함께 점등
+const LM_BUILD = [22, 58];   // reveal v2: 큰 가구 시작 22 ~ 소품 끝 무렵 58 (예전 클립은 44 ~ 108)   //   // Hero 를 이어 받은 판이 제자리에 머무는 시간(초). Hero 레이어가 걷히는 0.5초와 거의 같게
+const POST_TILT = [0.56, 0.10];   // 틸트시프트가 켜지는 진행도 구간 (방 완성 무렵)
+const BUILD_SLOW = 1.25;          // 방 짓는 재생 속도: 클립 길이의 이 배만큼 천천히 (클립 자체는 그대로)
+// 불 켜짐: 램프가 놓일 때마다 그 램프 몫만큼 차례로 밝아짐 (램프 pivot → 전체 밝기에서 차지하는 몫). 한 번 켜지는 길이 = LAMP_ON_DUR
+const LAMP_SHARE = { pivot_lamp_floor: 0.4, pivot_lamp_circle: 0.2, pivot_lamp_window: 0.15, pivot_lamp_table: 0.25 };
+const LAMP_ON_DUR = 0.035, LAMP_ON_LEAD = 0.03;   // LEAD: 램프가 다 자리 잡기 조금 전(튀어나와 출렁일 때)부터 켜지기 시작
+const LIT_P = [0.655, 0.10];   // 불 켜짐 [시작, 길이] 진행도: 소품이 다 놓일 무렵 시작해 방 완성 칸까지 약 1.4초에 걸쳐 천천히 밝아짐 (예전엔 클립 끝 0.3초)
 // 램프 갓 발광 색 (선형, 톤매핑 없이 화면에 그대로): Blender 렌더에서 잰 갓 평균색 ÷ 갓 텍스처 평균색 (텍스처 없는 재질은 그 색 그대로)
 const LAMP_GLOW = {
   mat_lamp_shade_pattern: [1.31, 1.32, 2.8],   // 스탠드 갓 → 렌더 sRGB (246,163,113)
@@ -93,8 +98,9 @@ const INK_ON_CREAM = new THREE.Color("#4c404a"), INK_ON_NIGHT = new THREE.Color(
 const LABEL_ON_CREAM = new THREE.Color("#2d6a6a"), LABEL_ON_NIGHT = new THREE.Color("#7fc1bd");
 const DISC_R = 0.15;              // LP 반지름 (m)
 const ARM_SWING = -0.42;          // 톤암이 판 위로 들어가는 각도 (rad, 톤암 기둥 기준)
+const ROOM_ZOOM = 1.2;             // 방 완성 구도를 기준 카메라보다 이만큼 당김 (시야각만 좁힘 → 배경 레이어 원근 · 정렬은 그대로, 방이 화면을 더 채움)
 const FOV0 = 30;                  // 이야기 카메라 시야. 방 완성 칸에서는 GLB 카메라 시야(약 17°)로 바뀜
-const ENV_IN = [0.58, 0.10];      // 바깥 배경(하늘·도시·한강)이 서서히 나타나는 구간 (방 완성 구도로 다가갈 때)
+const ENV_IN = [0.46, 0.10];      // 바깥 배경(하늘·도시·한강)이 서서히 나타나는 구간 (방 완성 구도로 다가갈 때)
 const HEMI_SKY = new THREE.Color("#9fb0d8"), HEMI_GROUND = new THREE.Color("#2a2230"), MOON = new THREE.Color("#8fa6d8");
 const DUSK = {
   hemiSky: new THREE.Color(LAYER_CFG.light.hemiSky), hemiGround: new THREE.Color(LAYER_CFG.light.hemiGround),
@@ -206,6 +212,8 @@ export default function RoomTest() {
   const [stats, setStats] = useState({ fps: 0, calls: 0, tris: 0 });
   const [section, setSection] = useState(0);   // 0 방 · 1 New Vinyls · 2 News
   const [flyer, setFlyer] = useState(null);   // { rect, animate, landed, closing }
+  const [soundOn, setSoundOn] = useState(false);   // 효과음은 사용자가 켤 때만 (브라우저 자동 재생 규칙)
+  const tipRef = useRef(null);                      // 방 안 물체 위에 뜨는 이름표
   const [heroOn, setHeroOn] = useState(true);   // Hero = Home 엔진 레이어가 보이는 동안
   // 모션 줄이기: 칸 이동은 바로, 회전·떠 있는 흔들림·커버 날아가기 없음 (프로젝트 공통 규칙)
   const [reduced] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -287,7 +295,7 @@ export default function RoomTest() {
     const LAST = STAGE_P.length - 1;
     st.s = 0; st.sTarget = 0; st.goal = null; st.stage = 0; st.dir = 1; st.inputAt = 0; st.touching = false; st.inHero = true;
     st.tween = null; st.lockUntil = 0;
-    const segDur = (i) => STAGE_DUR[i] ?? (st.clip.duration * (STAGE_P[i + 1] - STAGE_P[i])) / STORY.build[1];
+    const segDur = (i) => STAGE_DUR[i] ?? (st.clip.duration * BUILD_SLOW * (STAGE_P[i + 1] - STAGE_P[i])) / STORY.build[1];
     // 착지까지: 그 칸으로 미끄러져 붙음
     const goStage = (n) => { st.goal = Math.max(0, Math.min(STEP_FROM, n)); st.dir = Math.sign(st.goal - st.sTarget) || st.dir; };
     // 3D 방부터: 한 칸을 시간으로 재생 (방 생성은 선형 = Blender 타이밍 그대로, 나머지는 ease)
@@ -480,6 +488,8 @@ export default function RoomTest() {
       st.rig = computeRig(root, gltf.cameras[0]);
       st.base = makeBase(st.rig, { A: null, B: 18, C: 12 }[LAYER_CFG.camera.preset]);
       st.env = createEnv(st.rig, st.base, LAYER_CFG, root);   // 유리 창·남산·바깥 면 색 포함 (방이 다 지어진 자세에서)
+      // 하늘은 화면에 붙은 그림 → 당긴 만큼 같이 키워 스카이라인 뒤 노을 줄이 그대로 맞게
+      { const u = st.env.sky.material.uniforms; u.uOff.value += 0.5 * u.uScale.value * (1 - 1 / ROOM_ZOOM); u.uScale.value /= ROOM_ZOOM; }
       scene.add(st.env.group, st.env.sky);
       st.env.fade(0);
       // 창가 선반 새 소품(플립 시계 · 지금 듣는 판): 방 GLB 에 없으면 확인용 GLB 를 선반에 얹음
@@ -495,6 +505,16 @@ export default function RoomTest() {
       for (const n of ["cover_shelf_01", "cover_shelf_02", "cover_shelf_03"]) {
         const mesh = root.getObjectByName(n);
         if (mesh) st.covers.push({ pivot: "pivot_" + n, ...makeCoverFace(mesh, st.roomCenter) });
+      }
+
+      // 다른 면 바로 앞에 붙은 얇은 판(재킷 0.4mm · VU 창 0.17mm · 시계 숫자판 1mm): 방 전체 구도(카메라 약 15m)에선 깊이 값이 뒤 면과 겹쳐
+      //  점무늬로 가려짐 → 깊이를 카메라 쪽으로 살짝 당김 (재질을 복제해도 따라감)
+      for (const n of ["prop_cs_np_cover", "prop_cs_vinyl_box_cover", "Amp_VU_Faces", "Amp_VU_Needle_L", "Amp_VU_Needle_R",
+        ...["hour", "min"].flatMap((k) => ["top", "bot", "flap"].map((s) => `prop_cs_clock_${k}_${s}`))]) {
+        root.getObjectByName(n)?.traverse((o) => {
+          if (!o.isMesh) return;
+          for (const m of Array.isArray(o.material) ? o.material : [o.material]) { m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -8; }
+        });
       }
 
       // 클립 타이밍에 맞춘 웹 연출: 램프는 놓인 뒤 켜짐, 야경은 창문 벽이 다 선 뒤
@@ -558,7 +578,8 @@ export default function RoomTest() {
       st.env.ready.then(prewarm);
       // 구운 빛 (?bake=0 이면 끄고 실시간 조명으로 비교). 재질이 바뀌니 다 입힌 뒤 한 번 더 미리 데움
       if (new URLSearchParams(location.search).get("bake") !== "0")
-        applyLightmaps(root).then((n) => { st.baked = n; if (n) prewarm(); });
+        applyLightmaps(root).then((n) => { st.baked = n; if (n) prewarm(); st.setupInteract(); });
+      else st.setupInteract();
       setInfo({
         loadMs: Math.round(performance.now() - t0),
         size: roomBox.getSize(new THREE.Vector3()).toArray().map((v) => v.toFixed(2)).join(" × "),
@@ -574,12 +595,12 @@ export default function RoomTest() {
       return r / Math.sin(Math.min(vf, hf) / 2);
     };
     // 방 완성 구도 = 배경 기준 카메라. 화면이 16:9 보다 좁으면 방이 잘리지 않게 그만큼 물러남
+    const roomFov = () => 2 * Math.atan(Math.tan((st.rig.fov / 2) * D2R) / ROOM_ZOOM) / D2R;
     const roomKey = (p) => ({ p, t: st.rig.target, d: new THREE.Vector3().setFromSpherical(st.base.sph).normalize(),
-      r: st.base.sph.radius * Math.max(1, ASPECT / storyCam.aspect), f: st.rig.fov });
+      r: st.base.sph.radius * Math.max(1, ASPECT / storyCam.aspect), f: roomFov() });
     const heroDir = new THREE.Vector3(0, 0.3, 1).normalize();
     const darkDir = new THREE.Vector3(0.05, 0.42, 1).normalize();
     const landDir = new THREE.Vector3(0.15, 0.6, 1).normalize();
-    const midDir = new THREE.Vector3(0.35, 0.75, 1).normalize();
     const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
     const camKeys = () => [
       { p: 0, t: st.hover, d: heroDir, r: fit(0.2) },
@@ -588,8 +609,7 @@ export default function RoomTest() {
       { p: 0.27, t: st.seat0.clone().add(v3(0, 0.2, 0)), d: darkDir, r: fit(0.55) },
       // 착지 뒤에는 지금 판 자리를 따라감 (콘솔이 턴테이블을 들어 올리고, 방이 옆으로 옮겨 감)
       { p: STORY.land[0] + STORY.land[1], t: st.seatNow.clone().add(v3(0, 0.05, 0)), d: landDir, r: fit(0.42) },
-      // 착지 직후부터 빠지기 시작: 바닥이 펼쳐지고 벽이 서는 걸 한눈에
-      { p: 0.47, t: st.seatNow.clone().lerp(st.roomCenter, 0.35), d: midDir, r: fit(st.roomR * 0.6) },
+      // 착지 뒤에는 중간 경유 없이 방 완성 구도로 곧장 (중간 키가 있으면 위로 솟았다 멀어지는 느낌이 남)
       roomKey(STORY.camFinal),
       roomKey(STORY.roomHold),
       // New Vinyls: 선반의 가장 최신 커버 앞으로 다가감 → 화면에서 커진 커버가 그대로 New Vinyls 첫 칸으로
@@ -634,8 +654,81 @@ export default function RoomTest() {
       storyCam.position.setFromSpherical(_sph).add(_t);
       storyCam.lookAt(_t);
     };
-    const onPointer = (e) => st.ptr.set((e.clientX / innerWidth) * 2 - 1, 1 - (e.clientY / innerHeight) * 2);
+    // ── 방 안 상호작용 (방 완성 칸에서만): 턴테이블 = 재생 · 멈춤, 램프 = 끄고 켬. 올리면 커서 · 이름표 · 살짝 들림
+    const sound = createRoomSound();
+    st.sound = sound;
+    st.playing = true;                  // 판: 33⅓ 이 되면 돌고 있음 (누르면 멈춤)
+    st.armK = 1;
+    st.lampUser = {}; st.lampK = {};    // 램프 pivot → 켬(1) · 끔(0), 부드럽게 따라가는 값
+    st.targets = [];
+    st.hoverTarget = null;
+    const LAMP_NODES = { pivot_lamp_floor: ["lamp_floor", "lamp_floor_shade"], pivot_lamp_table: ["lamp_table"], pivot_lamp_window: ["lamp_window"], pivot_lamp_circle: ["lamp_circle"] };
+    st.setupInteract = () => {
+      const root = st.root;
+      st.targets = [{ key: "turntable", objs: [st.ttRise, st.disc?.root].filter(Boolean), liftK: 0 }];
+      for (const [pivot, names] of Object.entries(LAMP_NODES)) {
+        const objs = names.map((n) => root.getObjectByName(n)).filter(Boolean);
+        if (!objs.length) continue;
+        st.lampUser[pivot] = 1; st.lampK[pivot] = 1;
+        // 구운 재질은 램프끼리 같이 씀 → 램프마다 복제해서 끈 램프의 갓만 어둡게
+        const mats = [];
+        if (st.baked) for (const o of objs) o.traverse((m) => {
+          if (!m.isMesh || Array.isArray(m.material)) return;
+          const src = m.material, c = src.clone();
+          c.onBeforeCompile = src.onBeforeCompile;
+          c.customProgramCacheKey = src.customProgramCacheKey;
+          m.material = c; mats.push(c);
+        });
+        st.targets.push({ key: pivot, lamp: true, objs, mats, base: objs.map((o) => o.position.y), liftK: 0 });
+      }
+    };
+    const ray = new THREE.Raycaster(), _ndc = new THREE.Vector2();
+    const canInteract = () => st.ready && !st.inHero && st.camMode === "story" && !st.tween && st.targets.length > 0
+      && st.p >= STORY.camFinal && st.p <= STORY.roomHold + 0.005;
+    const pick = (e) => {
+      if (!canInteract() || e.target !== renderer.domElement) return null;
+      const r = renderer.domElement.getBoundingClientRect();
+      _ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2);
+      ray.setFromCamera(_ndc, storyCam);
+      let best = null, bestD = Infinity;
+      for (const t of st.targets) for (const o of t.objs) {
+        const h = ray.intersectObject(o, true)[0];
+        if (h && h.distance < bestD) { bestD = h.distance; best = t; }
+      }
+      return best;
+    };
+    const tipText = (t) => (t.key === "turntable" ? (st.playing ? "Stop ■" : "Play ▸") : st.lampUser[t.key] ? "Light off" : "Light on");
+    const showTip = (t, e) => {
+      const el = tipRef.current;
+      if (!el) return;
+      if (!t) { el.style.opacity = "0"; return; }
+      el.textContent = tipText(t);
+      el.style.opacity = "1";
+      if (e) el.style.transform = `translate(${e.clientX + 16}px, ${e.clientY + 16}px)`;
+    };
+    const setHover = (t, e) => {
+      st.hoverTarget = t;
+      renderer.domElement.style.cursor = t ? "pointer" : "";
+      showTip(t, e);
+    };
+    const onPointer = (e) => {
+      st.ptr.set((e.clientX / innerWidth) * 2 - 1, 1 - (e.clientY / innerHeight) * 2);
+      setHover(pick(e), e);
+    };
+    const onClick = (e) => {
+      const t = pick(e);
+      if (!t) return;
+      if (t.key === "turntable") {
+        st.playing = !st.playing;
+        if (st.playing) sound.needleDown(); else sound.needleUp();
+      } else {
+        st.lampUser[t.key] = st.lampUser[t.key] ? 0 : 1;
+        sound.click();
+      }
+      showTip(t, e);
+    };
     window.addEventListener("pointermove", onPointer);
+    window.addEventListener("click", onClick);
 
     // Home 엔진의 판(직교 카메라 화면 위 자세)을 이 장면의 P=0 카메라 앞 같은 화면 자리·크기·기울기로
     const takeHero = (pose) => {
@@ -675,7 +768,18 @@ export default function RoomTest() {
       // 방: Blender reveal 클립을 그대로 (진행도 → 클립 시간, 선형)
       // 턴테이블: 어둠 아래에서 올라옴 (클립 시작 전, 웹 연출)
       const rise = easeInOut(seg(p, STORY.ttRise));
-      st.ttRise.position.y = -(1 - rise) * 0.35;
+      // 방 안 상호작용: 방 완성 칸을 벗어나면 이름표를 숨기고, 이야기 앞쪽으로 돌아가면 처음 상태(판 재생 · 램프 켬)로
+      if (st.hoverTarget && !canInteract()) setHover(null);
+      if (p < STORY.camFinal - 0.05) { st.playing = true; for (const k in st.lampUser) st.lampUser[k] = 1; }
+      for (const t of st.targets) {
+        t.liftK += ((st.hoverTarget === t ? 1 : 0) - t.liftK) * (1 - Math.exp(-dt * 12));
+        if (t.lamp) t.objs.forEach((o, i) => { o.position.y = t.base[i] + 0.03 * t.liftK; });
+      }
+      for (const k in st.lampK) st.lampK[k] += (st.lampUser[k] - st.lampK[k]) * (1 - Math.exp(-dt * 9));
+      st.armK += ((st.playing ? 1 : 0) - st.armK) * (1 - Math.exp(-dt * 5));
+      const playingNow = p >= STORY.spinAt && st.playing;
+      st.sound.setPlaying(playingNow && p <= STORY.roomHold + 0.05 && !st.reduced);
+      st.ttRise.position.y = -(1 - rise) * 0.35 + 0.025 * (st.targets[0]?.liftK ?? 0);
       st.ttRise.visible = rise > 0;
       // 먼지 덮개: 판이 내려앉기 전에 열림(cover_open), 되돌아가며 지나면 닫힘(cover_close) — 지나는 순간 실제 시간으로 재생
       const lid = st.lid;
@@ -690,17 +794,17 @@ export default function RoomTest() {
       }
       // VU 바늘: 33⅓ 이 돌기 시작하면 재생, 되돌아가면 제자리 (모션 줄이기면 멈춤)
       if (st.vu) {
-        const on = p >= STORY.spinAt && !st.reduced;
+        const on = playingNow && !st.reduced;
         st.vu.enabled = on;
         if (on) { st.vu.paused = false; st.vuT = (st.vuT + dt) % st.vu.getClip().duration; st.vu.time = st.vuT; }
       }
       seekClip(seg(p, STORY.build) * st.clip.duration);   // mixer.update(0) 이 덮개·VU action 도 같이 적용
 
       // 플래터 33⅓ · 톤암
-      const spinning = p >= STORY.spinAt;
+      const spinning = playingNow;
       st.platterVel += ((spinning && !st.reduced ? RPM(100 / 3) : 0) - st.platterVel) * (1 - Math.exp(-dt * 1.2));
       if (st.platter) st.platter.rotation.y -= st.platterVel * dt;
-      if (st.arm) st.arm.rotation.y = st.armBase + ARM_SWING * easeInOut(seg(p, [STORY.spinAt, STORY.armDur]));
+      if (st.arm) st.arm.rotation.y = st.armBase + ARM_SWING * easeInOut(seg(p, [STORY.spinAt, STORY.armDur])) * st.armK;
       st.root.updateMatrixWorld(true);
 
       // 판: 떠서 돌다가(10 RPM) 멈추며 플래터에 앉음 → 이후 플래터와 같이 돎
@@ -739,9 +843,34 @@ export default function RoomTest() {
       // Bake v17: keep the room unlit through furniture placement (frame 108).
       const frame = seg(p, STORY.build) * st.clip.duration * 24;
       const frameK = ([a, b]) => easeInOut(THREE.MathUtils.clamp((frame - a) / (b - a), 0, 1));
-      const bakeLightProgress = frameK(LM_LIT);
+      // 램프가 놓이는 순간마다 한 단계씩 (구운 그림은 켜짐 · 꺼짐 두 장뿐이라 램프별로 따로 켜진 않고, 전체 밝기를 램프 몫만큼씩 올림)
+      //  클립에 램프 시간이 없으면 예전처럼 끝에서 한 번에
+      //  사용자가 끈 램프(lampK)는 그 몫만큼 다시 어두워짐
+      let bakeLightProgress = 0, shareSum = 0;
+      const lampOn = {};
+      for (const [pivot, share] of Object.entries(LAMP_SHARE)) {
+        const at = st.lampAt.get(pivot);
+        if (at == null) continue;
+        shareSum += share;
+        lampOn[pivot] = easeInOut(seg(p, [at - LAMP_ON_LEAD, LAMP_ON_DUR])) * (st.lampK[pivot] ?? 1);
+        bakeLightProgress += share * lampOn[pivot];
+      }
+      for (const t of st.targets) if (t.lamp) for (const m of t.mats) m.color.setScalar(THREE.MathUtils.lerp(0.32, 1, st.lampK[t.key]));
+      bakeLightProgress = shareSum > 0 ? bakeLightProgress / shareSum : easeInOut(seg(p, LIT_P));
       // 빛: 턴테이블 Hero → 어두운 방·가구 배치 → 실제 램프와 베이크 동시 점등
       key.intensity = 3.2 * rise * (1 - 0.8 * easeInOut(seg(p, [0.38, 0.12])));
+      // 구운 턴테이블은 조명을 안 받음 → 어둠 속에서 혼자 보일 때는 구운 그림을 밝게 (핀 조명 대신), 방이 서면 원래 밝기로
+      if (st.baked && !st.ttMats) {
+        const own = new Set(), other = new Set();
+        st.root.traverse((o) => {
+          if (!o.isMesh) return;
+          let a = o; while (a && a !== st.ttRise) a = a.parent;
+          for (const m of Array.isArray(o.material) ? o.material : [o.material]) (a ? own : other).add(m);
+        });
+        st.ttMats = [...own].filter((m) => m.isMeshBasicMaterial && m.name.endsWith("_bakedColor") && !other.has(m));
+      }
+      const spot = 1 + 1.6 * rise * (1 - easeInOut(seg(p, [0.39, 0.10])));
+      for (const m of st.ttMats ?? []) m.color.setScalar(spot);
       const rk = easeInOut(seg(p, STORY.room));
       const nk = easeInOut(seg(p, st.night));
       const ek = easeInOut(seg(p, ENV_IN));
@@ -755,7 +884,7 @@ export default function RoomTest() {
       moon.intensity = nk * THREE.MathUtils.lerp(0.7, DUSK.sunIntensity, ek) * THREE.MathUtils.lerp(0.4, 1.0, bakeLightProgress);
       for (const l of st.lights) {
         const pivot = LIGHT_PIVOT[l.name] ?? "pivot_" + l.name.replace(/^light_/, "");
-        const on = bakeLightProgress;
+        const on = lampOn[pivot] ?? bakeLightProgress;
         l.intensity = st.baseIntensity.get(l) * st.lightMul * on;
         for (const { m, k } of st.lampMats.get(pivot) ?? []) {
           if (m.userData.glow) m.color.copy(m.userData.off).lerp(m.userData.glow, on);
@@ -903,6 +1032,8 @@ export default function RoomTest() {
       layer.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("pointermove", onPointer);
+      window.removeEventListener("click", onClick);
+      sound.dispose();
       controls.dispose();
       draco.dispose();
       // 방·판·커버의 지오메트리·재질·텍스처 해제 (페이지를 오가도 GPU 메모리가 쌓이지 않게)
@@ -1045,6 +1176,16 @@ export default function RoomTest() {
   return (
     <div ref={wrapRef} data-header-see-through className="relative h-svh w-full overflow-hidden">
       <div ref={hostRef} className="absolute inset-0 touch-none" />
+
+      {/* 방 안 물체 이름표 (턴테이블 Play/Stop · 램프 Light on/off) — 위치는 효과에서 직접 */}
+      <div ref={tipRef} aria-hidden className="pointer-events-none fixed left-0 top-0 z-30 rounded-full bg-black/55 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white opacity-0 backdrop-blur-sm transition-opacity duration-150" />
+      {/* 효과음 켜기 · 끄기 (처음엔 꺼짐) */}
+      <button type="button" aria-pressed={soundOn}
+        onClick={() => { const on = !soundOn; setSoundOn(on); apiRef.current?.sound?.setEnabled(on); }}
+        className="absolute bottom-5 right-12 z-20 text-[11px] uppercase tracking-[0.22em] text-white mix-blend-difference transition-opacity duration-500"
+        style={{ opacity: heroOn ? 0 : 0.8, pointerEvents: heroOn ? "none" : "auto" }}>
+        Sound {soundOn ? "on" : "off"}
+      </button>
 
       {/* Hero: 실제 Home 스테이지 그대로 (판 효과·제목·커서 전부). 아래로 가면 3D 장면이 같은 자리에서 이어 받음 */}
       <div className={`page home paper-textured absolute! inset-0 ${reduced ? "" : "transition-opacity duration-500"}`} inert={!heroOn}

@@ -65,13 +65,13 @@ export function createPost(renderer) {
   const sc = new THREE.Scene(); sc.add(quad);
   const mk = (fs, uniforms) => new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: fs, uniforms, depthTest: false, depthWrite: false, toneMapped: false });
   const down = mk(DOWN, { tSrc: { value: null }, uTexel: { value: new THREE.Vector2() } });
-  const up = mk(UP, { tSrc: { value: null }, tAdd: { value: null }, uTexel: { value: new THREE.Vector2() }, uAddMode: { value: 0 }, uThresh: { value: new THREE.Vector2(0.86, 0.1) } });
+  const up = mk(UP, { tSrc: { value: null }, tAdd: { value: null }, uTexel: { value: new THREE.Vector2() }, uAddMode: { value: 0 }, uThresh: { value: new THREE.Vector2(0.62, 0.15) } });
   const comp = mk(COMPOSITE, {
     tBase: { value: null }, tSoft: { value: null }, tBlur: { value: null }, tBloom: { value: null },
-    uBloom: { value: 0.45 }, uTilt: { value: 1 }, uFocusY: { value: 0.52 }, uFocusHalf: { value: 0.3 }, uFocusRamp: { value: 0.2 },
-    uVignette: { value: 0.28 }, uAspect: { value: 1 },
+    uBloom: { value: 0.32 }, uTilt: { value: 1 }, uFocusY: { value: 0.52 }, uFocusHalf: { value: 0.3 }, uFocusRamp: { value: 0.2 },
+    uVignette: { value: 0.12 }, uAspect: { value: 1 },
   });
-  const params = { enabled: true, bloom: 0.45, threshold: 0.86, knee: 0.1, tilt: 1, focusY: 0.52, focusHalf: 0.3, focusRamp: 0.2, vignette: 0.28 };
+  const params = { enabled: true, bloom: 0.32, threshold: 0.62, knee: 0.15, tilt: 1, focusY: 0.52, focusHalf: 0.3, focusRamp: 0.2, vignette: 0.12 };
 
   let base = null, D = [], U = [], B = [], W = 0, H = 0;
   const rt = (w, h) => new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });

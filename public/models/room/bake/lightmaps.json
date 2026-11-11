@@ -1,5 +1,5 @@
 {
-  "version": "v18-20261110180705",
+  "version": "v20-20261111093400",
   "groups": {
     "shell": {
       "color": {
@@ -24,7 +24,7 @@
           "file": "seating_color_dim.jpg"
         }
       },
-      "size": 2048
+      "size": 4096
     },
     "furniture": {
       "color": {
@@ -35,7 +35,7 @@
           "file": "furniture_color_dim.jpg"
         }
       },
-      "size": 2048
+      "size": 4096
     },
     "audio": {
       "color": {
@@ -91,6 +91,18 @@
         }
       },
       "size": 2048
+    },
+    "lamps": {
+      "color": {
+        "on": {
+          "file": "lamps_color.jpg"
+        },
+        "off": {
+          "file": "lamps_color_dim.jpg"
+        }
+      },
+      "size": 2048,
+      "emissive": true
     }
   },
   "objects": {
@@ -125,6 +137,7 @@
     "sideboard_records": "furniture",
     "shelf_floating": "furniture",
     "curtain": "furniture",
+    "coffee_table": "furniture",
     "Turntable_Plinth": "audio",
     "amp": "audio",
     "Amp_Knob_Selector": "audio",
@@ -163,7 +176,13 @@
     "nb_right_planter_1": "nb_right",
     "nb_right_planter_2": "nb_right",
     "nb_right_plant_sansevieria": "nb_right",
-    "nb_right_plant_strelitzia": "nb_right"
+    "nb_right_plant_strelitzia": "nb_right",
+    "lamp_floor": "lamps",
+    "lamp_floor_shade": "lamps",
+    "lamp_table": "lamps",
+    "lamp_window": "lamps",
+    "lamp_circle": "lamps",
+    "prop_ct_candle": "lamps"
   },
   "furnishedObjects": [
     "Amp_Knob_Balance",

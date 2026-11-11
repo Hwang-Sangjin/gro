@@ -125,7 +125,8 @@ export async function applyLightmaps(root) {
       // 스스로 빛나는 재질(건물 창 · 이름판 등)은 실시간 그대로 (빛 계산 없는 재질로 바꾸면 발광이 사라짐 · 램프 켜짐 연출도)
       //  단 envCore.applyWallColors 가 면 방향 색을 내려고 붙인 발광(wallTinted)은 진짜 발광이 아님 → 구운 빛으로 바꾸고 원래 색(baseColor)을 씀
       const tinted = src.userData.wallTinted;
-      if (!tinted && src.emissive && src.emissive.getHex() !== 0 && (src.emissiveIntensity ?? 1) > 0) continue;
+      //  램프 · 캔들 그룹(emissive: true)은 발광까지 구운 그림(켜짐 on / 꺼짐 off)을 그대로 씀 → Blender 렌더와 같은 갓 · 불빛
+      if (!man.groups[g].emissive && !tinted && src.emissive && src.emissive.getHex() !== 0 && (src.emissiveIntensity ?? 1) > 0) continue;
       const key = src.uuid + g;
       let m = made.get(key);
       if (!m && colors[g]) {

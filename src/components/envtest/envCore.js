@@ -170,14 +170,17 @@ export function layerColors(L) {
 
 // 하늘: 화면 전체를 덮는 판. 깊이는 맨 뒤(1.0)라 방·레이어 뒤에만 보이고, 투명도로 서서히 나타낼 수 있음
 // 화면 높이 v(0 아래 ~ 1 위) 에 이미지 높이 off + v × scale 이 옴 (이미지 밖은 끝 색이 늘어남)
-export function createSkyQuad(url, off, scale, blur = 0) {
+// grade: { gain, sat } — 하늘 밝기 · 채도 배율 (방보다 하늘이 더 밝고 진해 눈이 하늘로 먼저 가지 않게). 없으면 그림 그대로
+export function createSkyQuad(url, off, scale, blur = 0, grade = null) {
   const mat = new THREE.ShaderMaterial({
-    uniforms: { map: { value: null }, uOff: { value: off }, uScale: { value: scale }, uOpacity: { value: 1 } },
+    uniforms: { map: { value: null }, uOff: { value: off }, uScale: { value: scale }, uOpacity: { value: 1 }, uGrade: { value: new THREE.Vector2(grade?.gain ?? 1, grade?.sat ?? 1) } },
     vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 1.0, 1.0); }",
-    fragmentShader: `uniform sampler2D map; uniform float uOff, uScale, uOpacity; varying vec2 vUv;
+    fragmentShader: `uniform sampler2D map; uniform float uOff, uScale, uOpacity; uniform vec2 uGrade; varying vec2 vUv;
       void main() {
         vec2 uv = vec2(vUv.x, clamp(uOff + vUv.y * uScale, 0.001, 0.999));
-        gl_FragColor = vec4(texture2D(map, uv).rgb, uOpacity);
+        vec3 c = texture2D(map, uv).rgb;
+        c = mix(vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), c, uGrade.y) * uGrade.x;
+        gl_FragColor = vec4(c, uOpacity);
         #include <colorspace_fragment>
       }`,
     transparent: true, depthWrite: false, depthFunc: THREE.LessEqualDepth, toneMapped: false,
@@ -245,7 +248,7 @@ export function createEnv(rig, base, cfg, root) {
       group.add(holder);
     }
   }
-  const sky = createSkyQuad(cfg.sky.image, cfg.sky.offsetY, cfg.sky.scaleY, cfg.dof?.strength ?? 0);
+  const sky = createSkyQuad(cfg.sky.image, cfg.sky.offsetY, cfg.sky.scaleY, cfg.dof?.strength ?? 0, cfg.sky.grade);
   sky.name = "env_sky";
   // 창문 안: 남산 이미지 (GLB UV 기준이라 flipY 끔). 밝기는 night(0~1) 로
   const windowMat = new THREE.MeshBasicMaterial({ color: 0x000000, toneMapped: false });
