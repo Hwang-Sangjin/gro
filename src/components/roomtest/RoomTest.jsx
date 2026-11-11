@@ -103,6 +103,9 @@ const FOV0 = 30;                  // 이야기 카메라 시야. 방 완성 칸�
 const ENV_IN = [0.46, 0.10];
 // 배경 레이어 등장: 인형극 무대 배경처럼 가까운 레이어부터 아래에서 위로 스르륵 (레이어마다 STAGGER 만큼 늦게, DUR 동안)
 //  떨어진 깊이 = 레이어까지 거리 × DROP (화면에서 대략 같은 높이만큼 내려가 있다 올라옴)
+// 실시간으로 빛나는 재질(구운 그림 대신 발광 그대로 쓰는 것) 중 화면에서 너무 튀는 것의 세기 배율
+//  아래 건물 창 두 칸이 화면에서 가장 밝아 시선을 뺏고, 이웃 옥상 랜턴은 하얗게 날아감 (2026-11-11)
+const EMIT_SCALE = { mat_building_glass_lit: 0.4, mat_building_glass_dim: 0.45, mat_nb_lantern_glow: 0.3, mat_nb_window_lit: 0.6 };
 const LAYER_RISE = { start: 0.46, stagger: 0.014, dur: 0.075, drop: 0.11 };      // 바깥 배경(하늘·도시·한강)이 서서히 나타나는 구간 (방 완성 구도로 다가갈 때)
 const HEMI_SKY = new THREE.Color("#9fb0d8"), HEMI_GROUND = new THREE.Color("#2a2230"), MOON = new THREE.Color("#8fa6d8");
 const DUSK = {
@@ -874,7 +877,9 @@ export default function RoomTest() {
         st.ttMats = [...own].filter((m) => m.isMeshBasicMaterial && m.name.endsWith("_bakedColor") && !other.has(m));
       }
       const spot = 1 + 1.6 * rise * (1 - easeInOut(seg(p, [0.39, 0.10])));
-      for (const m of st.ttMats ?? []) m.color.setScalar(spot);
+      // 꺼짐(dim) 그림이 푸른 저녁이라 그대로 밝히면 턴테이블이 파랗게 보임 → 밝히는 만큼 따뜻한 쪽으로 (방이 서면 원래 색)
+      const warm = (spot - 1) / 1.6;
+      for (const m of st.ttMats ?? []) m.color.setRGB(spot, spot * (1 - 0.12 * warm), spot * (1 - 0.32 * warm));
       const rk = easeInOut(seg(p, STORY.room));
       const nk = easeInOut(seg(p, st.night));
       const ek = easeInOut(seg(p, ENV_IN));
@@ -938,7 +943,7 @@ export default function RoomTest() {
         if (!o.isMesh) return;
         for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
           if (!m?.emissive || m.isMeshBasicMaterial || lampControlled.has(m)) continue;
-          if (!st.bakeEmitters.has(m)) st.bakeEmitters.set(m, m.emissiveIntensity ?? 1);
+          if (!st.bakeEmitters.has(m)) st.bakeEmitters.set(m, (m.emissiveIntensity ?? 1) * (EMIT_SCALE[m.name.replace(/\.\d+$/, "")] ?? 1));
           m.emissiveIntensity = st.bakeEmitters.get(m) * bakeLightProgress;
         }
       });
