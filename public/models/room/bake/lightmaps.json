@@ -5,7 +5,7 @@
       "color": {
         "on": {
           "file": "shell_color.jpg",
-          "ktx2All": "shell_color_etc1s.ktx2"
+          "ktx2": "shell_color_etc1s.ktx2"
         },
         "off": {
           "file": "shell_color_dim.jpg",
@@ -22,7 +22,7 @@
       "color": {
         "on": {
           "file": "seating_color.jpg",
-          "ktx2All": "seating_color_etc1s.ktx2"
+          "ktx2": "seating_color_etc1s.ktx2"
         },
         "off": {
           "file": "seating_color_dim.jpg",
@@ -35,7 +35,7 @@
       "color": {
         "on": {
           "file": "furniture_color.jpg",
-          "ktx2All": "furniture_color_etc1s.ktx2"
+          "ktx2": "furniture_color_etc1s.ktx2"
         },
         "off": {
           "file": "furniture_color_dim.jpg",

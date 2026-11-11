@@ -97,8 +97,7 @@ export async function applyLightmaps(root, renderer = null) {
   const man = await fetch(BAKE_URL + "lightmaps.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   if (!man) return 0;
   const loader = new THREE.TextureLoader();
-  //  가장 크게 보이는 켜짐 4K 세 장(shell · seating · furniture)은 화질 때문에 JPEG 그대로 (목록에 ktx2 없음, ktx2All 에만 ETC1S)
-  //  ?ktx2=0 이면 전부 JPEG, ?ktx2=all 이면 그 세 장까지 KTX2 (화질 비교용)
+  //  전부 KTX2 (2026-11-11 사용자 비교: 켜짐 4K 세 장도 JPEG 와 차이를 못 느낌). ?ktx2=0 이면 전부 JPEG (비교용)
   const ktxMode = new URLSearchParams(location.search).get("ktx2");
   const ktx = renderer && ktxMode !== "0" ? getKtx2Loader(renderer) : null;
   const load = (file, ktxFile) => (ktx && ktxFile ? ktx : loader).loadAsync(BAKE_URL + (ktx && ktxFile ? ktxFile : file) + (man.version ? "?v=" + man.version : "")).then((t) => {
@@ -114,7 +113,7 @@ export async function applyLightmaps(root, renderer = null) {
   const colors = {};
   if (useColor) await Promise.all(Object.entries(man.groups).filter(([, v]) => v.color?.on).map(async ([g, v]) => {
     const out = {};
-    await Promise.all(Object.entries(v.color).map(async ([name, e]) => { out[name] = { t: await load(e.file, ktxMode === "all" ? e.ktx2All ?? e.ktx2 : e.ktx2) }; }));
+    await Promise.all(Object.entries(v.color).map(async ([name, e]) => { out[name] = { t: await load(e.file, e.ktx2) }; }));
     colors[g] = out;
   }));
   const maps = {};
