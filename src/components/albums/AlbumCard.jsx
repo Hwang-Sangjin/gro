@@ -69,6 +69,8 @@ export default function AlbumCard({ album }) {
       className={`${styles.card} group relative [--sleeve-depth:1.3%] [transition:opacity_500ms_ease-in-out_100ms,scale_500ms_cubic-bezier(0.22,1,0.36,1)] hover:z-10 hover:scale-[1.04] focus-visible:z-10 focus-visible:scale-[1.04] motion-reduce:transition-none`} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
       <span ref={revealRef} className={styles.hitArea} data-revealed={revealed} onPointerMove={move} onPointerLeave={reset} onPointerCancel={reset}>
         <span ref={art} data-album-source className={styles.art}>
+          {/* 호버하면 슬리브 뒤에 숨어 있던 판이 옆으로 반쯤 빠져나옴. 가운데 라벨 = 앨범 대표색 */}
+          <span aria-hidden="true" className={styles.disc} style={{ "--disc-label": album.cover_color || "#bbcbda" }} />
           {/* 호버하면 슬리브에 두께가 생김: 위·오른쪽 면이 비스듬히 솟아 종이 재킷 상자처럼 보임 */}
           <span aria-hidden="true" className="pointer-events-none absolute bottom-full left-0 h-0 w-full origin-bottom-left -skew-x-45 bg-[var(--sleeve-top)] shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] transition-[height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:h-[var(--sleeve-depth)] group-focus-visible:h-[var(--sleeve-depth)] motion-reduce:transition-none" />
           <span aria-hidden="true" className="pointer-events-none absolute left-full top-0 h-full w-0 origin-top-left -skew-y-45 bg-[var(--sleeve-side)] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:w-[var(--sleeve-depth)] group-focus-visible:w-[var(--sleeve-depth)] motion-reduce:transition-none" />
