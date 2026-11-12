@@ -122,14 +122,14 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
         ) : term && inGenre.length ? (
           <p className={styles.empty} role="status">No records match your search.</p>
         ) : shown.genre && inShelf.length ? (
-          <div key={key} role="tabpanel" className="flex flex-col items-center px-6 py-20 text-center transition-[opacity,translate] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-3 starting:opacity-0">
+          <div key={key} role="tabpanel" className="flex flex-col items-center px-6 py-20 text-center transition-[opacity,translate] duration-(--dur-enter) ease-groove starting:translate-y-3 starting:opacity-0">
             <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>No {genreName} records yet</p>
             <button type="button" onClick={() => change({ genre: null })} className="mt-8 inline-flex min-h-12 items-center rounded-full border border-(--ink) px-7 text-[13px] font-medium uppercase tracking-[0.18em] transition-colors hover:bg-(--ink) hover:text-(--cream)">
               All genres
             </button>
           </div>
         ) : (
-          <div key={key} role="tabpanel" className="flex flex-col items-center px-6 py-20 text-center transition-[opacity,translate] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-3 starting:opacity-0">
+          <div key={key} role="tabpanel" className="flex flex-col items-center px-6 py-20 text-center transition-[opacity,translate] duration-(--dur-enter) ease-groove starting:translate-y-3 starting:opacity-0">
             {renderEmpty(shown.tab)}
           </div>
         )}

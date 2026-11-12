@@ -28,7 +28,7 @@ export default function Reveal({ as = "div", delay = 0, className = "", children
   return createElement(as, {
     ref, ...rest, "data-seen": seen,
     style: { transitionDelay: seen ? `${delay}ms` : "0ms", ...rest.style },
-    className: `transition-[opacity,translate] duration-[1000ms] ease-groove data-[seen=false]:translate-y-8 data-[seen=false]:opacity-0 motion-reduce:transition-none motion-reduce:data-[seen=false]:translate-y-0 ${className}`,
+    className: `transition-[opacity,translate] duration-(--dur-enter) ease-groove data-[seen=false]:translate-y-8 data-[seen=false]:opacity-0 motion-reduce:transition-none motion-reduce:data-[seen=false]:translate-y-0 ${className}`,
   }, children);
 }
 
@@ -39,7 +39,7 @@ export function RiseText({ as = "h2", lines, className = "", lineClassName = "",
   return createElement(as, { ref, className }, lines.map((line, i) => (
     <span key={i} className={`block overflow-y-clip pb-[.08em] ${lineClassName}`}>
       <span data-seen={seen} style={{ transitionDelay: seen ? `${delay + i * step}ms` : "0ms" }}
-        className="block transition-transform duration-[1100ms] ease-groove data-[seen=false]:translate-y-[110%] motion-reduce:transition-none motion-reduce:data-[seen=false]:translate-y-0">
+        className="block transition-transform duration-(--dur-enter-title) ease-groove data-[seen=false]:translate-y-[110%] motion-reduce:transition-none motion-reduce:data-[seen=false]:translate-y-0">
         {line}
       </span>
     </span>

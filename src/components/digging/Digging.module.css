@@ -410,8 +410,8 @@
 
 /* Title and genre controls enter independently when their section is visible. */
 .titleMask { display: block; overflow: hidden; padding-bottom: .08em; }
-.titleReveal .title { transform: translateY(115%); transition: transform .85s cubic-bezier(.22,1,.36,1); }
-.titleReveal .mark { opacity: 0; transform: translateY(20px); transition: opacity .65s .12s, transform .85s .12s; }
+.titleReveal .title { transform: translateY(115%); transition: transform var(--dur-enter-title) var(--ease-groove); }
+.titleReveal .mark { opacity: 0; transform: translateY(20px); transition: opacity .65s .12s, transform var(--dur-enter) .12s var(--ease-groove); }
 .titleReveal[data-revealed="true"] .title,
 .titleReveal[data-revealed="true"] .mark { transform: none; opacity: 1; }
 .filterReveal > a, .filterReveal > button {

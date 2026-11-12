@@ -63,9 +63,12 @@
      (homeEngine THEME.hero.label3d / THEME.nv.label3d 와 같은 값) */
   --intro-label: #bbcbda;
 
-  /* ── 모션 시간 ──
+  /* ── 모션 시간 (lib/motion.js DUR 과 같이 고친다) ──
+     enter       : 블록·카드·글 묶음이 아래에서 떠오르며 나타남
+     enter-title : 제목이 줄 마스크 아래에서 올라옴 (글자가 크고 이동 거리가 길어 조금 더 길게)
      퇴장은 등장의 약 40% + ease-groove-exit. 페이지 전환(crate)이 시작되기 전에 정리되도록 짧게 */
   --dur-enter: 850ms;
+  --dur-enter-title: 1100ms;
   --dur-exit: 320ms;
 
   --stage: #2a222a;

@@ -39,7 +39,7 @@ const META = ["Records", "People", "Culture", "And a slower tomorrow"];
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 // News에 들어올 때 아래에서 차례로 떠오름 (#news에 is-in이 붙으면)
-const NEWS_IN = "opacity-0 translate-y-5 transition-[opacity,translate] duration-[900ms] ease-[cubic-bezier(0.22,1,0.36,1)] [#news.is-in_&]:translate-y-0 [#news.is-in_&]:opacity-100";
+const NEWS_IN = "opacity-0 translate-y-5 transition-[opacity,translate] duration-(--dur-enter) ease-groove [#news.is-in_&]:translate-y-0 [#news.is-in_&]:opacity-100";
 const delay = (k) => ({ transitionDelay: `${120 + k * 70}ms` });
 
 // 앨범 상세에서 돌아오면 떠날 때의 섹션으로 (같은 세션 동안만)
@@ -233,7 +233,7 @@ export default function HomeStage({ onHeroLeave, onEngine } = {}) {
               </div>
               <div className="mt-2 flex flex-wrap items-end gap-x-7 gap-y-3 border-b border-[var(--hs-text)] pb-4">
                 <h2 id="news-title" className="min-w-0 overflow-x-visible overflow-y-clip pb-[0.04em]">
-                  <span className="ink-grain block translate-y-full text-[clamp(2.4rem,4vw,6rem)] font-black uppercase leading-[0.86] whitespace-nowrap tracking-[-0.015em] transition-[translate] duration-[1100ms] ease-[cubic-bezier(0.22,1,0.36,1)] [#news.is-in_&]:translate-y-0">News&nbsp;&amp;&nbsp;Stories</span>
+                  <span className="ink-grain block translate-y-full text-[clamp(2.4rem,4vw,6rem)] font-black uppercase leading-[0.86] whitespace-nowrap tracking-[-0.015em] transition-[translate] duration-(--dur-enter-title) ease-groove [#news.is-in_&]:translate-y-0">News&nbsp;&amp;&nbsp;Stories</span>
                 </h2>
                 <ul className={`${NEWS_IN} mb-1 hidden shrink-0 list-none border-l border-[var(--hs-line)] pl-4 text-[clamp(9px,0.62vw,12px)] font-medium uppercase leading-[1.7] tracking-[0.2em] text-[var(--hs-muted)] sm:block`} style={delay(1)}>
                   {META.map((line) => <li key={line}>{line}</li>)}
@@ -278,7 +278,7 @@ export default function HomeStage({ onHeroLeave, onEngine } = {}) {
             <p className="mt-2 text-[clamp(1.45rem,2.8vw,3.6rem)] font-medium leading-[1.28] tracking-[-0.008em] [word-break:keep-all]">
               {["Dust it off,", "drop the needle."].map((line, k) => (
                 <span key={line} className="block overflow-y-clip">
-                  <span className={`block translate-y-full transition-[translate] duration-[1100ms] ease-[cubic-bezier(0.22,1,0.36,1)] [#news.is-in_&]:translate-y-0 ${k ? "delay-[640ms]" : "delay-[520ms]"}`}>{line}</span>
+                  <span className={`block translate-y-full transition-[translate] duration-(--dur-enter-title) ease-groove [#news.is-in_&]:translate-y-0 ${k ? "delay-[640ms]" : "delay-[520ms]"}`}>{line}</span>
                 </span>
               ))}
             </p>

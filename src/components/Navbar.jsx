@@ -29,7 +29,7 @@ const RISE_EASE='ease-[cubic-bezier(.22,1,.36,1)]';
 function Rise({show,delay=0,className='',children}){
   return <span className={`block overflow-y-clip ${className}`}>
     <span data-show={show} style={{transitionDelay:show?`${delay}ms`:'0ms'}}
-      className={`block transition-transform duration-[1000ms] ${RISE_EASE} data-[show=false]:translate-y-[110%] motion-reduce:transition-none motion-reduce:data-[show=false]:translate-y-0`}>
+      className={`block transition-transform duration-(--dur-enter-title) ${RISE_EASE} data-[show=false]:translate-y-[110%] motion-reduce:transition-none motion-reduce:data-[show=false]:translate-y-0`}>
       {children}
     </span>
   </span>;

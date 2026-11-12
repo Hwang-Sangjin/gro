@@ -2,7 +2,7 @@
 // 두 곳을 항상 같이 고친다.
 //
 // 규칙
-//  - 등장: ease-groove, 기본 0.85s. 여러 개면 위→아래, 왼→오른쪽 순서로 stagger (무작위 금지)
+//  - 등장: ease-groove, 기본 0.85s (DUR.enter). 줄 마스크로 올라오는 제목만 1.1s (DUR.title). 여러 개면 위→아래, 왼→오른쪽 순서로 stagger (무작위 금지)
 //  - 퇴장: 등장의 약 40% 길이 + ease-groove-exit. stagger 는 없거나 아주 짧게
 //  - 페이지 안의 등장은 "페이지가 착지한 순간"(crate:land)부터 시작한다 → isPageSettled()
 
@@ -14,6 +14,7 @@ export const EASE = {
 // 초 단위 (GSAP 용)
 export const DUR = {
   enter: 0.85,
+  title: 1.1,
   exit: 0.32,
 };
 

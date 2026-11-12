@@ -79,8 +79,8 @@ export default function AlbumCard({ album }) {
       </span>
       {/* 제목·아티스트: 커버가 거의 펼쳐질 즈음 아래에서 스르륵 올라옴 (줄마다 잘라 주는 틀 안에서) */}
       <span className={styles.caption}>
-        <span className="block overflow-y-clip pb-[0.1em]"><strong className="block translate-y-[110%] transition-[translate] delay-[420ms] duration-700 ease-groove group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.title}</strong></span>
-        <span className="block overflow-y-clip"><span className="block translate-y-[110%] transition-[translate] delay-[510ms] duration-700 ease-groove group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.artist_names}</span></span>
+        <span className="block overflow-y-clip pb-[0.1em]"><strong className="block translate-y-[110%] transition-[translate] delay-[420ms] duration-(--dur-enter) ease-groove group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.title}</strong></span>
+        <span className="block overflow-y-clip"><span className="block translate-y-[110%] transition-[translate] delay-[510ms] duration-(--dur-enter) ease-groove group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.artist_names}</span></span>
       </span>
     </Link>
   );

@@ -25,7 +25,7 @@ export default function NotFoundView() {
   // 숫자 '4': 아래에서 스르륵 올라옴 (부모가 잘라 줌)
   const four = (delay, extra = "") => (
     <span aria-hidden="true" className={`block overflow-y-clip pb-[0.04em] ${extra}`}>
-      <span className={`block transition-transform duration-[1100ms] ${EASE} motion-reduce:transition-none ${show ? "translate-y-0" : "translate-y-[110%]"}`}
+      <span className={`block transition-transform duration-(--dur-enter-title) ${EASE} motion-reduce:transition-none ${show ? "translate-y-0" : "translate-y-[110%]"}`}
         style={{ transitionDelay: `${delay}ms` }}>4</span>
     </span>
   );
@@ -50,7 +50,7 @@ export default function NotFoundView() {
           {four(1050, "-ml-[0.08em]")}
         </div>
 
-        <div className={`row-start-3 self-start pt-[clamp(1rem,3vh,2.5rem)] flex flex-col items-center transition-[opacity,translate] duration-700 ${EASE} motion-reduce:transition-none ${show ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}
+        <div className={`row-start-3 self-start pt-[clamp(1rem,3vh,2.5rem)] flex flex-col items-center transition-[opacity,translate] duration-(--dur-enter) ${EASE} motion-reduce:transition-none ${show ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}
           style={{ transitionDelay: "1400ms" }}>
           <p className={`${SERIF} text-[clamp(1.6rem,3vw,2.6rem)] font-black leading-tight`}>This record isn’t in the crate.</p>
           <p className="mt-3 max-w-[40ch] text-[15px] leading-7 text-(--ink)/65">The page you’re looking for was moved, sold out, or never pressed.</p>
