@@ -5,7 +5,7 @@ import { LayoutRouterContext } from './FrozenRouter';
 import CratePage from './CratePage';
 import { useCrate } from './CrateProvider';
 import { useIntro } from '../intro/intro-context';
-import { cl, cleanPage, measurePage, prepareCrate, renderCrate } from './render';
+import { cl, eOut, cleanPage, measurePage, prepareCrate, renderCrate, liftPose, LIFT_T, LIFT_MS, PUSH_Z } from './render';
 import { NAV, rank, labelFor, isAlbumCoverTransition } from './routes';
 
 export default function CrateStage({children}) {
@@ -17,12 +17,24 @@ export default function CrateStage({children}) {
   const current=useRef({path:pathname,href:pathname,key:0}), lastPath=useRef(pathname);
   const T=useRef(null), raf=useRef(0), pending=useRef(null), awaiting=useRef(null), timeout=useRef(null);
   const latest=useRef({done,pathname,children,context});latest.current={done,pathname,children,context};
-  const drag=useRef(null), ignoreClick=useRef(false), cancelPath=useRef(null), functions=useRef({});
+  const drag=useRef(null), ignoreClick=useRef(false), cancelPath=useRef(null), functions=useRef({}), pre=useRef(null);
 
   function lock(value){setBusy(value);delete document.documentElement.dataset.crateLanded;document.documentElement.dataset.crateTransition=String(value);window.dispatchEvent(new Event(value?'crate:start':'crate:end'));}
   // 새 페이지가 "턱" 하고 서는 순간 — 페이지 안의 등장 애니메이션은 전환이 다 끝나길 기다리지 않고 여기서 시작 (usePageSettled)
   function land(){document.documentElement.dataset.crateLanded='true';window.dispatchEvent(new Event('crate:land'));}
-  function clearWaiting(){clearTimeout(timeout.current);awaiting.current=null;}
+  function clearWaiting(){clearTimeout(timeout.current);awaiting.current=null;dropPre();}
+  // 클릭 즉시 예고: 다음 페이지가 올 때까지 지금 페이지를 살짝 들거나(앞으로) 물림(뒤로). 전환이 시작되면 그 자세에서 이어 감
+  function lift(dir){
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    const key=current.current.key,el=nodes.current.get(key);if(!el)return;
+    const p={el,key,dir,u:0,frame:0},start=performance.now();
+    const step=now=>{p.u=cl((now-start)/LIFT_MS);
+      el.style.transform=dir==='fwd'?liftPose(LIFT_T*p.u):`translate3d(0,0,${PUSH_Z*eOut(p.u)}px)`;
+      if(p.u<1)p.frame=requestAnimationFrame(step);};
+    pre.current=p;p.frame=requestAnimationFrame(step);
+  }
+  function takePre(){const p=pre.current;pre.current=null;if(p)cancelAnimationFrame(p.frame);return p;}
+  function dropPre(){const p=takePre();if(p)p.el.style.transform='';}
   function draw(){if(T.current)renderCrate(T.current.t,T.current);}
   function cleanAll(){for(const node of nodes.current.values())cleanPage(measurePage(node));sleeves.current.forEach(el=>{if(el){el.style.opacity='0';el.style.transform='';}});}
   function focusPage(key,path){requestAnimationFrame(()=>{const node=nodes.current.get(key),head=node?.querySelector('h1,h2');if(head){head.setAttribute('tabindex','-1');head.focus({preventScroll:true});}setAnnouncement(`${labelFor(path)} page`);});}
@@ -57,6 +69,7 @@ export default function CrateStage({children}) {
     if(url.pathname===current.current.path){router.push(href,{scroll:false});return;}
     awaiting.current={href:url.pathname+url.search,manual,fromHref:location.pathname+location.search};
     lock(true);
+    if(!manual)lift(rank(url.pathname)>=rank(current.current.path)?'fwd':'back');
     router.push(href,{scroll:false});
     timeout.current=setTimeout(()=>{if(!T.current){clearWaiting();drag.current=null;lock(false);flush();}},15000);
   }
@@ -91,8 +104,11 @@ export default function CrateStage({children}) {
     const dir=rank(newEntry.path)>=rank(oldEntry.path)?'fwd':'back';
     const req=awaiting.current,manual=!!req?.manual;
     clearTimeout(timeout.current);
+    // 클릭하며 미리 든 자세가 있으면 거기서 이어 감 (renderCrate 가 매 프레임 transform 을 다시 씀)
+    const p=takePre(),lifted=!manual&&p&&p.key===oldEntry.key&&p.dir===dir?p:null;
     T.current={oldEntry,newEntry,fromHref:req?.fromHref||current.current.href,from:oldEntry.path,to:newEntry.path,dir,
-      t:manual&&drag.current?drag.current.t:(dir==='fwd'?0:1),
+      t:manual&&drag.current?drag.current.t:(dir==='fwd'?(lifted?LIFT_T*lifted.u:0):1),
+      push:lifted&&dir==='back'?PUSH_Z*eOut(lifted.u):0,
       front:measurePage(dir==='fwd'?oldEl:newEl),back:measurePage(dir==='fwd'?newEl:oldEl),
       sleeves:sleeves.current.filter(Boolean),reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,
       manual};
@@ -135,7 +151,7 @@ export default function CrateStage({children}) {
     const navigate=(...args)=>functions.current.go(...args);
     bridge.current.go=navigate;
     return()=>{
-      cancelAnimationFrame(raf.current);clearTimeout(timeout.current);
+      cancelAnimationFrame(raf.current);clearTimeout(timeout.current);cancelAnimationFrame(pre.current?.frame);
       delete document.documentElement.dataset.crateTransition;
       // This component owns only go; do not erase the album provider's bridge.
       if(bridge.current.go===navigate)delete bridge.current.go;
