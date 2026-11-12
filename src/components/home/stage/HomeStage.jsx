@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useIntro } from "@/components/intro/intro-context";
 import { useCrate } from "@/components/crate/CrateProvider";
@@ -42,6 +42,9 @@ const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const NEWS_IN = "opacity-0 translate-y-5 transition-[opacity,translate] duration-(--dur-enter) ease-groove [#news.is-in_&]:translate-y-0 [#news.is-in_&]:opacity-100";
 const delay = (k) => ({ transitionDelay: `${120 + k * 70}ms` });
 
+// 오른쪽 가장자리 섹션 목차 (지금 섹션 표시 + 누르면 이동)
+const SECTION_NAMES = ["Grooves", "New Vinyls", "Genres", "News"];
+
 // 앨범 상세에서 돌아오면 떠날 때의 섹션으로 (같은 세션 동안만)
 const memory = { restore: false, section: 0, dial: 0, album: null };
 
@@ -77,6 +80,25 @@ export default function HomeStage({ onHeroLeave, onEngine } = {}) {
   crateRef.current = crate;
   const doneRef = useRef(done);
   doneRef.current = done;
+  const [section, setSection] = useState(() => (memory.restore ? memory.section : 0));
+  // 목차로 멀리 이동: 엔진 전환은 이웃한 섹션끼리만 짜여 있어서 한 칸씩 차례로 넘김
+  // (전환 중에는 엔진이 입력을 무시하므로, 잠금이 풀릴 때마다 다음 칸으로. 01 → 04 는 장면 길이를 다 합쳐 약 8초)
+  const travel = useRef({ target: 0, timer: 0, until: 0 });
+  function goTo(n) {
+    const t = travel.current;
+    t.target = n;
+    t.until = performance.now() + 15000;
+    if (t.timer) return;
+    const step = () => {
+      const engine = engineRef.current;
+      const cur = engine?.section;
+      if (!engine || cur === t.target || performance.now() > t.until) { clearInterval(t.timer); t.timer = 0; return; }
+      engine.goSection(cur + Math.sign(t.target - cur));
+    };
+    t.timer = setInterval(step, 80);
+    step();
+  }
+  useEffect(() => () => clearInterval(travel.current.timer), []);
 
   // 엔진 생성 · 정리
   useEffect(() => {
@@ -108,7 +130,7 @@ export default function HomeStage({ onHeroLeave, onEngine } = {}) {
       introDone: doneRef.current,
       initialSection,
       initialDial,
-      onSectionChange: (n) => { memory.section = n; },
+      onSectionChange: (n) => { memory.section = n; setSection(n); },
       onOpenAlbum: openAlbum,
       onHeroLeave: leaveRef.current ? () => leaveRef.current?.() : undefined,
     }).then((engine) => {
@@ -292,6 +314,30 @@ export default function HomeStage({ onHeroLeave, onEngine } = {}) {
           <SiteFooter onSideA={() => engineRef.current?.jumpTo(0)} />
         </div>
       </div>
+
+      {/* 섹션 목차: 오른쪽 가장자리 01–04. 지금 섹션만 진하게 + 이름이 펼쳐짐, 마우스를 올려도 이름이 보임
+          News 에서는 오른쪽 칸의 판·문구("Beyond the grooves.")와 겹치지 않게 번호만 (지금 섹션은 색으로만 표시)
+          색은 --hs-* 를 따라 크림 ↔ 잉크 배경에 맞춰 바뀜. Hero 다음을 바깥이 이어 받는 경우(onHeroLeave)엔 숨김 */}
+      {!onHeroLeave && (
+        <nav aria-label="Home sections" className={`pointer-events-none absolute right-[var(--gutter)] top-1/2 z-30 -translate-y-1/2 transition-opacity duration-700 max-md:hidden ${done ? "opacity-100" : "opacity-0"}`}>
+          <ol className="flex flex-col items-end gap-[clamp(10px,1.6vh,18px)]">
+            {SECTION_NAMES.map((name, i) => {
+              const compact = section === 3;
+              const open = section === i && !compact;
+              return (
+                <li key={name}>
+                  <button type="button" onClick={() => goTo(i)} aria-current={section === i ? "step" : undefined}
+                    className={`group/sec pointer-events-auto flex items-center gap-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] tabular-nums transition-colors duration-500 hover:text-[var(--hs-text)] ${section === i ? "text-[var(--hs-text)]" : "text-[var(--hs-muted)]"}`}>
+                    <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-500 ease-groove motion-reduce:transition-none ${open ? "max-w-[10rem] opacity-100" : "max-w-0 opacity-0"} ${compact ? "" : "group-hover/sec:max-w-[10rem] group-hover/sec:opacity-100"}`}>{name}</span>
+                    <span aria-hidden="true" className={`h-px bg-current transition-[width] duration-500 ease-groove motion-reduce:transition-none ${open ? "w-8" : "w-3"}`} />
+                    <span>{String(i + 1).padStart(2, "0")}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+      )}
 
       {/* 앨범 상세로 갈 때 커버 이동 전환의 출발 상자 (화면의 3D 커버 위치) */}
       <div ref={sourceRef} data-album-source className="pointer-events-none fixed" aria-hidden="true" />
