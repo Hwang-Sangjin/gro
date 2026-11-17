@@ -80,13 +80,13 @@ export default function SiteFooter({ onSideA, palette }) {
     const queue = () => { if (close && !raf) raf = requestAnimationFrame(measure); };
     // 푸터가 화면에서 먼 동안에는 재지 않음: 스크롤할 때마다 자리를 재면(getBoundingClientRect) 그 프레임에 페이지 전체 배치를 한 번 더 계산함
     //  Home 은 페이지가 길어서 프레임마다 약 11ms 가 들었고, 판이 턴테이블로 내려앉는 내내 프레임이 빠졌음 (2026-11-17)
-    //  → 화면 3개 거리 안에 들어왔을 때만 스크롤을 따라 잼 (그때 3D 판도 만듦)
+    //  → 화면 1.5개 거리 안에 들어왔을 때만 스크롤을 따라 잼 (그때 3D 판도 만듦)
     let io = null;
     if ("IntersectionObserver" in window) {
       io = new IntersectionObserver(([e]) => {
         close = e.isIntersecting;
         if (close) { setNear(true); queue(); }
-      }, { root: scroller, rootMargin: "300% 0px 300% 0px" });
+      }, { root: scroller, rootMargin: "150% 0px 150% 0px" });
       io.observe(el);
     } else { close = true; setNear(true); }
     scroller.addEventListener("scroll", queue, { passive: true });

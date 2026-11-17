@@ -297,7 +297,7 @@ export default function DigGallery({ albums, onOpen, label = "New vinyls — dra
               <span data-album-source className={`${styles.nvCover} relative block aspect-square overflow-hidden shadow-[0_8px_16px_-12px_rgba(40,26,34,.55)] group-hover/item:shadow-[0_18px_28px_-16px_rgba(40,26,34,.6)] group-focus-visible/item:ring-2 group-focus-visible/item:ring-(--accent)`}
                 style={{ backgroundColor: a.color }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={a.image} alt="" loading="eager" decoding="async" draggable={false} className="pointer-events-none size-full select-none object-cover" />
+                <img src={a.image} alt="" loading="lazy" decoding="async" draggable={false} className="pointer-events-none size-full select-none object-cover" />
               </span>
             </span>
             <span className={`${styles.nvText} mt-1.5 block truncate text-[10px] uppercase leading-none tracking-[0.12em] opacity-55 transition-opacity duration-500 group-hover/item:opacity-100`}>{a.artist}</span>

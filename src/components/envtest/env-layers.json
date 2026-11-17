@@ -29,7 +29,7 @@
       ],
       "on": true,
       "_note": "2026-11-11 s 0.8→0.75 (타워 머리까지 창 안), 강 건너 아파트를 0.66 으로 내려 산이 보이게. 그래도 창 위로 나오는 안테나 끝은 room-test 가 잘라 냄(RoomTest namsanClip). 창 너머에만 보이게: 꼭대기를 창문 벽 윗선보다 낮게, 폭은 창문 벽 안쪽으로",
-      "img": "/models/room/env/namsan_01.png",
+      "img": "/models/room/env/namsan_01.webp",
       "fill": "#5c3f47",
       "single": true,
       "blurMul": 0,
@@ -43,7 +43,7 @@
       "s": 0.7,
       "look": "skyline",
       "seed": 3,
-      "img": "/models/room/env/skyline_far_01.png",
+      "img": "/models/room/env/skyline_far_01.webp",
       "fill": "#1e1c2f",
       "band": 0.16,
       "on": true,
@@ -61,7 +61,7 @@
       "lit": true,
       "on": true,
       "_note": "2026-11-11 s 0.72→0.66: 창 너머 남산 능선이 아파트에 가리지 않게.",
-      "img": "/models/room/env/apts_01.png",
+      "img": "/models/room/env/apts_01.webp",
       "fill": "#6f3d31",
       "band": 0.2,
       "confirmed": "2026-11-03"
@@ -75,7 +75,7 @@
       "s": 0.58,
       "look": "water",
       "on": true,
-      "img": "/models/room/env/river_01.png",
+      "img": "/models/room/env/river_01.webp",
       "fill": "#1a1f3c",
       "band": 0.3,
       "confirmed": "2026-11-03"
@@ -91,7 +91,7 @@
       "seed": 11,
       "band": 0.22,
       "on": true,
-      "img": "/models/room/env/bank_01.png",
+      "img": "/models/room/env/bank_01.webp",
       "fill": "#202526",
       "confirmed": "2026-11-03"
     },
@@ -105,7 +105,7 @@
       "look": "solid",
       "band": 0.24,
       "on": true,
-      "img": "/models/room/env/lawn_01.png",
+      "img": "/models/room/env/lawn_01.webp",
       "fill": "#332820",
       "confirmed": "2026-11-03"
     },
@@ -141,7 +141,7 @@
       "on": false,
       "_note": "방보다 카메라 쪽(D 음수). 화면 아래 양 모서리. 가장 가까워 흐림·시차가 가장 큼",
       "blurMul": 2,
-      "img": "/models/room/env/rooftop_fg_01.png",
+      "img": "/models/room/env/rooftop_fg_01.webp",
       "fill": "#764e57",
       "fadeX": 0.1,
       "roomTest": false
@@ -159,7 +159,7 @@
       "x": [
         -1.15
       ],
-      "img": "/models/room/env/fg_left_03.png",
+      "img": "/models/room/env/fg_left_03.webp",
       "single": true,
       "noFill": true,
       "blurMul": 0,
@@ -180,7 +180,7 @@
       "x": [
         0.64
       ],
-      "img": "/models/room/env/fg_right_01.png",
+      "img": "/models/room/env/fg_right_01.webp",
       "single": true,
       "noFill": true,
       "blurMul": 0,
