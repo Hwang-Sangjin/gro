@@ -21,6 +21,7 @@ export const DRAG = {
   threshold: 6,              // 이만큼(px) 움직이면 클릭이 아니라 끌기
   friction: 0.92,            // 관성: 프레임(60fps)마다 속도에 곱하는 값. 작을수록 빨리 멈춤
   maxSpeed: 60,              // 손을 뗄 때 속도 상한(px/프레임)
+  fling: 14,                 // 터치로 세로로 밀다 뗐을 때 페이지가 더 미끄러지는 거리 = 속도(px/프레임) × 이 값
   keyStep: 1,                // 화살표 한 번에 움직이는 칸 수
 };
 
@@ -135,7 +136,9 @@ export default function DigGallery({ albums, onOpen, label = "New vinyls — dra
   const onPointerDown = (e) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
     const s = st.current;
-    s.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now(), captured: false };
+    // 터치: 처음 움직인 방향으로 정함 — 세로면 페이지 스크롤(다음 섹션으로 내려갈 수 있게), 가로면 판을 옆으로 넘김
+    //  (예전: 터치를 전부 갤러리가 가져가서 휴대폰에서 아래로 스크롤하기 힘들었음)
+    s.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now(), captured: false, touch: e.pointerType === "touch", axis: null, pv: 0 };
     s.moved = false; s.vx = 0; s.vy = 0; s.target = null;
   };
   const onPointerMove = (e) => {
@@ -150,6 +153,21 @@ export default function DigGallery({ albums, onOpen, label = "New vinyls — dra
     }
     if (!s.moved) return;
     const now = performance.now(), dt = Math.max(1, now - d.t);
+    if (d.touch) {
+      d.axis ??= Math.abs(e.clientY - d.sy) > Math.abs(e.clientX - d.sx) ? "y" : "x";
+      if (d.axis === "y") {
+        const page = root.current.closest(".page");
+        if (page) page.dispatchEvent(new CustomEvent("page:scrollto", { detail: { top: page.scrollTop - dy } }));
+        d.pv = 0.6 * d.pv + 0.4 * (dy / dt) * 16.7;
+        d.x = e.clientX; d.y = e.clientY; d.t = now;
+        return;
+      }
+      s.x += dx;
+      s.vx = 0.6 * s.vx + 0.4 * (dx / dt) * 16.7; s.vy = 0;
+      d.x = e.clientX; d.y = e.clientY; d.t = now;
+      kick();
+      return;
+    }
     s.x += dx; s.y += dy;
     // 손을 뗄 때 쓸 속도 (px/프레임, 60fps 기준), 튀는 값은 섞어서 고르게
     s.vx = 0.6 * s.vx + 0.4 * (dx / dt) * 16.7;
@@ -167,6 +185,13 @@ export default function DigGallery({ albums, onOpen, label = "New vinyls — dra
       const stop = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
       window.addEventListener("click", stop, { capture: true, once: true });
       setTimeout(() => window.removeEventListener("click", stop, { capture: true }), 0);
+      if (d.axis === "y") {
+        // 세로로 민 손을 떼면 페이지가 조금 더 미끄러짐
+        const page = root.current.closest(".page");
+        const v = performance.now() - d.t > 80 ? 0 : Math.max(-DRAG.maxSpeed, Math.min(DRAG.maxSpeed, d.pv));
+        if (page && Math.abs(v) > 1) page.dispatchEvent(new CustomEvent("page:scrollto", { detail: { top: page.scrollTop - v * DRAG.fling, smooth: !s.reduced, duration: 0.9, easing: (t) => 1 - Math.pow(1 - t, 3) } }));
+        return;
+      }
       if (performance.now() - d.t > 80) { s.vx = 0; s.vy = 0; }   // 멈췄다 놓으면 관성 없음
       const sp = Math.hypot(s.vx, s.vy);
       if (sp > DRAG.maxSpeed) { s.vx *= DRAG.maxSpeed / sp; s.vy *= DRAG.maxSpeed / sp; }

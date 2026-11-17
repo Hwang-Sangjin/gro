@@ -6,6 +6,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 export const SHELF_TEST_URL = "/models/room/test/shelf_props_test.glb?v=2";   // 다시 내보내면 v 를 올려 브라우저 캐시를 피함
 const NAMES = ["prop_cs_clock", "prop_cs_np"];
+export const NOW_PLAYING = { glow: 0.72 };   // 지금 듣는 판 커버 밝기 (1 = 그림 그대로. 방이 어두운 주황빛이라 조금 낮춤)
 const HIDE = ["prop_cs_arch", ...[0, 1, 2, 3, 4, 5].map((i) => `prop_cs_book_up_${i}`)];
 
 // 끝나면 onReady() 를 부름. 돌려주는 함수로 취소
@@ -40,12 +41,15 @@ export function applyNowPlaying(root, albums, skip = 0) {
   if (!np || !albums.length) return null;
   const pool = albums.length > skip ? albums.slice(skip) : albums;
   const a = pool[Math.floor(Math.random() * pool.length)];
-  np.material = np.material.clone();
   new THREE.TextureLoader().setCrossOrigin("anonymous").load(a.image, (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false;     // glTF UV 기준
-    const m = np.material;
-    m.map = tex; m.emissiveMap = tex; m.emissive = new THREE.Color("#ffffff"); m.emissiveIntensity = 0.35;
-    m.color.set("#ffffff"); m.needsUpdate = true;
+    // 커버는 제 색 그대로 (빛을 받지 않는 재질): 바로 옆 램프 빛을 받으면 하얗게 날아가 그림이 안 보였음 (2026-11-17 휴대폰 확인)
+    const old = np.material;
+    np.material = new THREE.MeshBasicMaterial({ name: "mat_now_playing_cover", map: tex, color: new THREE.Color().setScalar(NOW_PLAYING.glow), side: old.side,
+      // 재킷 앞면에서 0.4mm 만 떠 있음 → 멀리서 재킷과 번갈아 보이지 않게 깊이를 카메라 쪽으로 당김
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8 });
+    if (old.userData.nowPlaying) { old.map?.dispose(); old.dispose(); }
+    np.material.userData.nowPlaying = true;
   });
   return a;
 }

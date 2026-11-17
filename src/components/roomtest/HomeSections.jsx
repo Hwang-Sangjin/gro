@@ -120,10 +120,10 @@ function NewVinyls({ albums }) {
               </Link>
             </Reveal>
           </div>
-          <Reveal delay={260} role="group" aria-label="Genre" className="pointer-events-auto relative mt-3 flex flex-wrap gap-x-1 gap-y-1 px-[calc(var(--gutter)-0.4rem)]">
+          <Reveal delay={260} role="group" aria-label="Genre" className="pointer-events-auto relative mt-3 flex gap-x-1 gap-y-1 overflow-x-auto px-[calc(var(--gutter)-0.4rem)] [scrollbar-width:none] md:flex-wrap md:overflow-visible [&::-webkit-scrollbar]:hidden" data-lenis-prevent-touch>
             {[{ slug: null, name: "All" }, ...GENRES].map((g) => (
               <button key={g.slug ?? "all"} type="button" aria-pressed={genre === g.slug} onClick={() => pick(g.slug)}
-                className="group/g px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.16em] opacity-50 transition-opacity duration-300 hover:opacity-100 aria-pressed:opacity-100">
+                className="group/g shrink-0 whitespace-nowrap px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.16em] opacity-50 transition-opacity duration-300 hover:opacity-100 aria-pressed:opacity-100">
                 <span aria-hidden="true">[ </span><span className="underline-offset-4 group-aria-pressed/g:underline">{g.name}</span><span aria-hidden="true"> ]</span>
               </button>
             ))}

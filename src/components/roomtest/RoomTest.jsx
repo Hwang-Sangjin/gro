@@ -203,22 +203,48 @@ function activeRange({ times, values }) {
 
 // 기운 커버 메시 앞면에 붙이는 판 (가장 얇은 축의 방 쪽 면)
 function makeCoverFace(mesh, roomCenter) {
-  const g = mesh.geometry; g.computeBoundingBox();
-  const b = g.boundingBox, s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
-  const axis = s.x <= s.y && s.x <= s.z ? "x" : s.y <= s.z ? "y" : "z";
-  const n = new THREE.Vector3(); n[axis] = 1;
-  const wn = n.clone().transformDirection(mesh.matrixWorld);
+  // 재킷 메시의 실제 앞면에 딱 맞춰 붙임: 가장 넓은 면(방 쪽을 보는 쪽)의 방향 · 가운데 · 크기를 삼각형에서 직접 구함
+  //  (예전: 메시의 축 맞춤 상자 기준 → 재킷이 벽에 기대어 기울어 있으면 그림만 꼿꼿이 서서 재킷과 각도가 어긋나 보였음)
+  const g = mesh.geometry, pos = g.attributes.position, idx = g.index;
+  const tri = idx ? idx.count / 3 : pos.count / 3, at = (i) => (idx ? idx.getX(i) : i);
+  const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), n = new THREE.Vector3();
+  const buckets = new Map();
+  for (let t = 0; t < tri; t++) {
+    A.fromBufferAttribute(pos, at(t * 3)); B.fromBufferAttribute(pos, at(t * 3 + 1)); C.fromBufferAttribute(pos, at(t * 3 + 2));
+    n.crossVectors(e1.subVectors(B, A), e2.subVectors(C, A));
+    const area = n.length() / 2;
+    if (area < 1e-10) continue;
+    n.normalize();
+    const key = `${Math.round(n.x * 20)},${Math.round(n.y * 20)},${Math.round(n.z * 20)}`;
+    let k = buckets.get(key);
+    if (!k) buckets.set(key, k = { area: 0, n: new THREE.Vector3(), pts: [] });
+    k.area += area; k.n.addScaledVector(n, area); k.pts.push(A.clone(), B.clone(), C.clone());
+  }
   const toRoom = roomCenter.clone().sub(mesh.getWorldPosition(new THREE.Vector3()));
-  const sign = wn.dot(toRoom) >= 0 ? 1 : -1;
-  const span = axis === "x" ? [s.z, s.y] : axis === "y" ? [s.x, s.z] : [s.x, s.y];
-  const side = Math.min(...span) * 0.96;
+  const faces = (k) => k.n.clone().normalize().transformDirection(mesh.matrixWorld).dot(toRoom) >= 0;
+  const sorted = [...buckets.values()].sort((a, b) => b.area - a.area);
+  const front = sorted.slice(0, 2).find(faces) ?? sorted[0];
+  const N = front.n.clone().normalize();
+  // 면 안의 '위': 면의 모서리 중 월드 위쪽에 가장 가까운 것 (재킷이 뒤로 기대어 있어도 그 기울기 그대로)
+  const up = new THREE.Vector3(0, 1, 0).transformDirection(mesh.matrixWorld.clone().invert());
+  const Y = new THREE.Vector3(); let bestUp = -1;
+  for (let i = 0; i < front.pts.length; i += 3) for (let j = 0; j < 3; j++) {
+    e1.subVectors(front.pts[i + (j + 1) % 3], front.pts[i + j]).normalize();
+    const d = Math.abs(e1.dot(up));
+    if (d > bestUp) { bestUp = d; Y.copy(e1).multiplyScalar(Math.sign(e1.dot(up)) || 1); }
+  }
+  Y.addScaledVector(N, -Y.dot(N)).normalize();
+  const X = new THREE.Vector3().crossVectors(Y, N);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, d = 0;
+  for (const v of front.pts) { const x = v.dot(X), y = v.dot(Y); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); d += v.dot(N); }
+  d /= front.pts.length;
+  const side = Math.min(x1 - x0, y1 - y0) * 0.96;
   const mat = new THREE.MeshStandardMaterial({ color: "#bbcbda", roughness: 0.7, emissive: "#ffffff", emissiveIntensity: 0 });
+  // 재킷 앞면에서 2mm 만 떠 있음 → 멀리서도 재킷과 번갈아 보이지 않게 깊이를 카메라 쪽으로 당김
+  mat.polygonOffset = true; mat.polygonOffsetFactor = -2; mat.polygonOffsetUnits = -8;
   const face = new THREE.Mesh(new THREE.PlaneGeometry(side, side), mat);
-  face.position.copy(c);
-  face.position[axis] = sign > 0 ? b.max[axis] + 0.002 : b.min[axis] - 0.002;
-  if (axis === "x") face.rotation.y = sign * Math.PI / 2;
-  else if (axis === "y") face.rotation.x = -sign * Math.PI / 2;
-  else if (sign < 0) face.rotation.y = Math.PI;
+  face.position.set(0, 0, 0).addScaledVector(X, (x0 + x1) / 2).addScaledVector(Y, (y0 + y1) / 2).addScaledVector(N, d + 0.002);
+  face.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(X, Y, N));
   mesh.add(face);
   return { face, mat };
 }
@@ -847,7 +873,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
           cursor: curRefs.ring.current ? { ring: curRefs.ring.current, dot: curRefs.dot.current, shape: curRefs.shape.current, label: curRefs.label.current, tick: curRefs.tick.current } : null,
           onIndex: (i) => st.onSleeveIndex?.(i), onOpen: (o) => st.onSleeveOpen?.(o), onRecord: (i) => st.onSleeveRecord?.(i),
           // 고른 앨범의 커버를 창가 선반 "지금 듣는 판" 재킷에
-          onPlay: (i) => { const a = st.sleeveFilled?.[i]; if (a && st.root) st.nowPlaying = applyNowPlaying(st.root, [a], 0) ?? st.nowPlaying; },
+          onPlay: (i) => { const a = st.sleeveFilled?.[i]; if (a && st.root) st.nowPlaying = applyNowPlaying(st.root, [a], 0) ?? st.nowPlaying; st.setWall?.(st.nowPlaying); },
         });
         st.onSleeveReady?.();
       }
@@ -959,6 +985,15 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
           c.polygonOffset = true; c.polygonOffsetFactor = -2; c.polygonOffsetUnits = -8; c.userData.frontFace = true;
           o.material = c;
         }
+        // 건물 창: 유리 · 불 켜진 창 · 창틀이 벽에서 3~10mm 만 떠 있음 → 멀리서 보는 구도(특히 휴대폰)에서 벽과 번갈아 보였음(z-fighting)
+        //  → 창을 카메라 쪽으로 당기고, 창틀은 조금 더 (재질은 창들끼리만 쓰므로 그대로 바꿈)
+        const pull = (names, f) => {
+          for (const name of names) for (const m of [root.getObjectByName(name)?.material].flat()) {
+            if (m) { m.polygonOffset = true; m.polygonOffsetFactor = -f; m.polygonOffsetUnits = -4 * f; }
+          }
+        };
+        pull(["nb_left_windows_1", "nb_left_windows_2", "nb_right_windows_1", "nb_right_windows_2", "building001_1", "building001_2", "building001_3"], 2);
+        pull(["nb_left_windows_3", "nb_left_windows_4", "nb_right_windows_3", "building001_4"], 3);
       };
       // 구운 빛 (?bake=0 이면 끄고 실시간 조명으로 비교). 재질이 바뀌니 다 입힌 뒤 한 번 더 미리 데움
       const lit = new URLSearchParams(location.search).get("bake") !== "0"
@@ -1757,17 +1792,29 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     if (!st || !info || !albums.length) return;
     const loader = new THREE.TextureLoader().setCrossOrigin("anonymous");
     // 재킷마다 받기 → GPU 에 올리기까지 끝나면(실패해도) 로딩 조건 하나를 풂
-    const loads = st.covers.map(({ mat }, i) => {
-      const a = albums[st.covers.length - 1 - i];
-      if (!a) return null;
-      mat.color.set(a.color);
-      return new Promise((done) => loader.load(a.image, (tex) => {
-        tex.colorSpace = THREE.SRGBColorSpace;
-        mat.map = tex; mat.emissiveMap = tex; mat.color.set("#ffffff"); mat.needsUpdate = true;
-        try { st.renderer.initTexture(tex); } catch { /* 첫 그리기에서 올라감 */ }
-        done();
-      }, undefined, () => done()));
-    }).filter(Boolean);
+    // 벽 선반: 최신 순으로, '지금 듣는 판'(창가 선반에 놓인 앨범)은 빼고 그다음 앨범으로 채움 — 같은 판이 두 군데 놓이지 않게
+    //  이미 그 자리에 놓인 앨범은 다시 받지 않음
+    const setWall = (playing) => {
+      const n = st.covers.length, wall = albums.slice(0, n);
+      const k = playing ? wall.findIndex((a) => a.slug === playing.slug) : -1;
+      if (k >= 0) wall[k] = albums.find((a, i) => i >= n && a.slug !== playing.slug) ?? wall[k];
+      return st.covers.map((c, i) => {
+        const a = wall[n - 1 - i], { mat } = c;
+        if (!a || c.album === a.slug) return null;
+        c.album = a.slug;
+        if (!mat.map) mat.color.set(a.color);
+        return new Promise((done) => loader.load(a.image, (tex) => {
+          if (c.album !== a.slug) { tex.dispose(); return done(); }
+          tex.colorSpace = THREE.SRGBColorSpace;
+          mat.map?.dispose();
+          mat.map = tex; mat.emissiveMap = tex; mat.color.set("#ffffff"); mat.needsUpdate = true;
+          try { st.renderer.initTexture(tex); } catch { /* 첫 그리기에서 올라감 */ }
+          done();
+        }, undefined, () => done()));
+      }).filter(Boolean);
+    };
+    st.setWall = setWall;
+    const loads = setWall(sleeveHero ? null : st.nowPlaying);
     Promise.all(loads).then(() => gateRef.current.covers.resolve());
     // sleeve Hero: 같은 앨범으로 재킷 줄을 만들고, 가운데에서 가까운 커버부터 받아 입힘 (앞 3장이 준비되면 Hero 준비 끝)
     const sleeveOff = { v: false };
