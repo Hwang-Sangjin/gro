@@ -1,9 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import SplitTitle from "@/components/digging/SplitTitle";
 import { createClient } from "@/utils/supabase/client";
 import { fetchDiggingPage } from "@/lib/albums";
 import { getGenreIds } from "@/lib/genreIds";
 import { GENRES } from "@/lib/genres";
+import { cached } from "@/lib/dataCache";
 import GenreBar from "@/components/albums/GenreBar";
 import RequestDialog from "@/components/requests/RequestDialog";
 import DiggingGrid from "./DiggingGrid";
@@ -13,10 +15,10 @@ import styles from "./Digging.module.css";
 import CrateView, { ViewToggle } from "@/components/albums/crate/CrateView";
 
 // 장르별 앨범 수 (공개된 앨범만). 실패하면 숫자 없이 보여 줌
-let countsPromise = null;
+//  저장해 둔 숫자를 바로 보여 주고 10분이 지났으면 뒤에서 새로 받아 둠 (dataCache.js)
 function getGenreCounts(supabase) {
-  if (!countsPromise) {
-    countsPromise = (async () => {
+  {
+    return cached("genre-counts", (async () => {
       const [rows, total, ids] = await Promise.all([
         supabase.from("album_genres").select("genre_id, albums!inner(status)").eq("albums.status", "published").limit(10000),
         supabase.from("albums").select("id", { count: "exact", head: true }).eq("status", "published"),
@@ -27,9 +29,8 @@ function getGenreCounts(supabase) {
       const out = { all: total.count ?? null };
       for (const r of rows.data ?? []) { const slug = slugById[r.genre_id]; if (slug) out[slug] = (out[slug] ?? 0) + 1; }
       return out;
-    })().catch(() => { countsPromise = null; return null; });
+    }), { fresh: 10 * 60_000, valid: (c) => c?.all != null }).catch(() => null);
   }
-  return countsPromise;
 }
 
 /* 장르를 바꿔도 페이지는 그대로: 그리드만 해당 장르의 판으로 바뀜.
@@ -92,7 +93,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
     <>
       <header className={styles.header}>
         <div ref={titleRef} className={`${styles.titleRow} ${styles.titleReveal}`} data-revealed={titleRevealed}>
-          <span className={styles.titleMask}><h1 className={styles.title}>DIGGING</h1></span>
+          <span className={styles.titleMask}><SplitTitle text="DIGGING" /></span>
           {/* Existing transparent brand asset; no new artwork dependency. */}
           <img className={`${styles.mark} w-[clamp(84px,11vw,200px)]! ml-[clamp(0.25rem,1vw,1rem)]!`} src="/images/grooves/title-crate.gif" alt="" />
         </div>

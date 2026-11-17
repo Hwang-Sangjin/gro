@@ -74,7 +74,12 @@ export default function DiggingGrid({ initial, genreId = null, query = "", onReq
   return (
     <>
       {/* 앨범에 마우스를 올리면 나머지 앨범은 흐려짐 (마우스를 떼면 원래대로) */}
-      <AlbumGrid albums={filtered} aria-busy={loading} />
+      <AlbumGrid albums={filtered} aria-busy={loading}>
+        {/* 다음 묶음이 남아 있는 동안 그리드 끝에 빈 재킷 자리 한 줄 → 받아 오는 사이에 화면이 비지 않음 */}
+        {hasMore && !error && !term && filtered.length > 0 && [0, 1, 2, 3].map((i) => (
+          <span key={`sk${i}`} aria-hidden="true" className={styles.skeleton} style={{ "--i": i }}><span /><span /></span>
+        ))}
+      </AlbumGrid>
       {filtered.length === 0 && (
         <div className={styles.empty} role="status">
           {error ? "Search didn’t finish. Please try again." : hasMore ? "Searching…" : <>
@@ -93,7 +98,7 @@ export default function DiggingGrid({ initial, genreId = null, query = "", onReq
         className={styles.status}
         role="status"
       >
-        {loading && "Loading…"}
+        {loading && <span className="sr-only">Loading…</span>}
         {error && (
           <button type="button" className="chip" onClick={loadMore}>
             Try again

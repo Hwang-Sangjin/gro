@@ -69,20 +69,29 @@ export default function SiteFooter({ onSideA, palette }) {
     const scroller = scrollerOf(el);
     if (!el || !scroller) return;
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) { el.style.setProperty("--fp", "1"); setNear(true); return; }
-    let raf = 0;
+    let raf = 0, close = false;
     const measure = () => {
       raf = 0;
       const box = el.getBoundingClientRect(), view = scroller.getBoundingClientRect();
       const top = box.top - view.top, vh = scroller.clientHeight;
       const p = Math.min(1, Math.max(0, (vh - top) / Math.max(1, box.height)));
       el.style.setProperty("--fp", p.toFixed(4));
-      if (top < vh * 3) setNear(true);
     };
-    const queue = () => { if (!raf) raf = requestAnimationFrame(measure); };
+    const queue = () => { if (close && !raf) raf = requestAnimationFrame(measure); };
+    // 푸터가 화면에서 먼 동안에는 재지 않음: 스크롤할 때마다 자리를 재면(getBoundingClientRect) 그 프레임에 페이지 전체 배치를 한 번 더 계산함
+    //  Home 은 페이지가 길어서 프레임마다 약 11ms 가 들었고, 판이 턴테이블로 내려앉는 내내 프레임이 빠졌음 (2026-11-17)
+    //  → 화면 3개 거리 안에 들어왔을 때만 스크롤을 따라 잼 (그때 3D 판도 만듦)
+    let io = null;
+    if ("IntersectionObserver" in window) {
+      io = new IntersectionObserver(([e]) => {
+        close = e.isIntersecting;
+        if (close) { setNear(true); queue(); }
+      }, { root: scroller, rootMargin: "300% 0px 300% 0px" });
+      io.observe(el);
+    } else { close = true; setNear(true); }
     scroller.addEventListener("scroll", queue, { passive: true });
     addEventListener("resize", queue);
-    measure();
-    return () => { scroller.removeEventListener("scroll", queue); removeEventListener("resize", queue); cancelAnimationFrame(raf); };
+    return () => { io?.disconnect(); scroller.removeEventListener("scroll", queue); removeEventListener("resize", queue); cancelAnimationFrame(raf); };
   }, []);
 
   const toTop = () => {

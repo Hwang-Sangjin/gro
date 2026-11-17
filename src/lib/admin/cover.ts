@@ -53,7 +53,8 @@ export async function processCover(
   ] as const) {
     const { error } = await supabase.storage
       .from(BUCKET)
-      .upload(p, body, { contentType: "image/webp", upsert: true });
+      // 파일명에 버전이 붙어 내용이 바뀌면 주소도 바뀜 → 브라우저가 1년 동안 다시 받지 않게 (기본값은 1시간)
+      .upload(p, body, { contentType: "image/webp", upsert: true, cacheControl: "31536000" });
     if (error) throw new Error(`Cover upload failed: ${error.message}`);
   }
 

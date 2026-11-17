@@ -2,6 +2,7 @@
 // 내 판: 소장(Owned) / 위시리스트(Wishlist) — Digging 과 같은 머리말·장르 바(GenreBar)·그리드(AlbumGrid)
 // 탭·장르·검색·그리드는 ShelfBrowser (공개 컬렉션 /collection/<아이디> 와 같이 씀), 오른쪽 위 "Share" 로 공개 설정
 import { useEffect, useState } from "react";
+import SplitTitle from "@/components/digging/SplitTitle";
 import Link from "next/link";
 
 import PageShell from "@/components/layout/PageShell";
@@ -40,7 +41,7 @@ export default function Collection() {
     <PageShell className={`${styles.page} paper-textured`}>
       <header className={styles.header}>
         <div ref={titleRef} className={`${styles.titleRow} ${styles.titleReveal}`} data-revealed={titleRevealed}>
-          <span className={styles.titleMask}><h1 className={`${styles.title} text-[clamp(2rem,6.4vw,7.4rem)]!`}>COLLECTION</h1></span>
+          <span className={styles.titleMask}><SplitTitle text="COLLECTION" className="text-[clamp(2rem,6.4vw,7.4rem)]!" /></span>
           <img className={`${styles.mark} w-[clamp(84px,11vw,200px)]! ml-[clamp(0.25rem,1vw,1rem)]!`} src="/images/grooves/title-vinyl.gif" alt="" />
         </div>
       </header>

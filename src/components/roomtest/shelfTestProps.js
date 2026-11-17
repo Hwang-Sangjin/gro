@@ -36,13 +36,24 @@ export function addShelfTestProps(root, shelfFinal, onReady) {
 }
 
 // 지금 듣는 판 재킷에 앨범 커버. skip = 벽 선반에 이미 놓인 앨범 수 (그 뒤에서 무작위, 없으면 전체에서)
-export function applyNowPlaying(root, albums, skip = 0) {
+// 받은 커버 그림을 미리 풀어 둠(ImageBitmap) → GPU 에 올릴 때 그림 풀기가 겹치지 않음 (webp 한 장에 8~14ms 걸려 프레임이 빠졌음, 2026-11-17)
+//  flipY: 원래 텍스처가 뒤집어 올리던 그림이면 true (ImageBitmap 은 만들 때 뒤집어야 함). 안 되는 브라우저는 그대로
+export function predecode(tex, flipY) {
+  if (typeof createImageBitmap !== "function") return Promise.resolve(tex);
+  return createImageBitmap(tex.image, { imageOrientation: flipY ? "flipY" : "none", premultiplyAlpha: "none" })
+    .then((bmp) => { tex.image = bmp; tex.flipY = false; tex.needsUpdate = true; return tex; })
+    .catch(() => tex);
+}
+
+// onReady(np): 커버 재질이 바뀐 직후 — 방이 지어지는 도중에 이 재킷이 처음 그려지며 끊기지 않게 미리 준비시키는 데 씀 (RoomTest)
+export function applyNowPlaying(root, albums, skip = 0, onReady) {
   const np = root.getObjectByName("prop_cs_np_cover");
   if (!np || !albums.length) return null;
   const pool = albums.length > skip ? albums.slice(skip) : albums;
   const a = pool[Math.floor(Math.random() * pool.length)];
-  new THREE.TextureLoader().setCrossOrigin("anonymous").load(a.image, (tex) => {
+  new THREE.TextureLoader().setCrossOrigin("anonymous").load(a.image, async (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false;     // glTF UV 기준
+    await predecode(tex, false);
     // 커버는 제 색 그대로 (빛을 받지 않는 재질): 바로 옆 램프 빛을 받으면 하얗게 날아가 그림이 안 보였음 (2026-11-17 휴대폰 확인)
     const old = np.material;
     np.material = new THREE.MeshBasicMaterial({ name: "mat_now_playing_cover", map: tex, color: new THREE.Color().setScalar(NOW_PLAYING.glow), side: old.side,
@@ -50,6 +61,7 @@ export function applyNowPlaying(root, albums, skip = 0) {
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8 });
     if (old.userData.nowPlaying) { old.map?.dispose(); old.dispose(); }
     np.material.userData.nowPlaying = true;
+    onReady?.(np);
   });
   return a;
 }

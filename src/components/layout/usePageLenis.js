@@ -70,12 +70,16 @@ export default function usePageLenis({
     wrapper.addEventListener("page:scrollto", scrollTo);
     if (document.documentElement.dataset.crateTransition === "true") stop();
 
-    // 스크롤 속도 → 부드럽게 → wrapper 의 --scroll-v (0…±12). 앨범 그리드가 크레이트 속 판처럼 젖혀지는 데 씀 (Digging.module.css)
+    // 스크롤 속도 → 부드럽게 → --scroll-v (0…±12). 앨범 그리드가 크레이트 속 판처럼 젖혀지는 데 씀 (Digging.module.css)
+    //  값은 그 효과를 쓰는 요소([data-scroll-tilt] = 앨범 그리드)에만 넣음. 전에는 페이지 스크롤 영역(wrapper)에 넣었는데,
+    //  커스텀 속성은 자식 전체로 내려가므로 값이 바뀔 때마다 페이지의 모든 요소 스타일을 다시 계산했음
+    //  → Home 처럼 긴 페이지는 스크롤하는 내내 프레임마다 약 15ms (판이 내려앉는 구간이 30fps 로 떨어진 원인, 2026-11-17)
     // 차분하게: 천천히 읽으며 내리는 속도(4 이하)는 무시, 휠 한 칸마다 튀는 값은 한 번 걸러서, 멈출 때 출렁이지 않게(임계 감쇠)
     // 움직임 줄이기면 0 고정
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const SPRING = { max: 12, dead: 4, stiff: 60, bounce: 0 };
     let sv = 0, svVel = 0, svIn = 0, svLast = performance.now(), svShown = 0;
+    let svEls = [], svTick = 0;   // 값을 받을 요소: 장르를 바꾸면 그리드가 새로 생기므로 가끔 다시 찾음
     const springScroll = (now) => {
       const dt = Math.min(0.05, (now - svLast) / 1000); svLast = now;
       if (reduced) return;
@@ -88,7 +92,11 @@ export default function usePageLenis({
       sv += svVel * dt;
       if (Math.abs(sv) < 0.002 && Math.abs(svVel) < 0.01 && target === 0) { sv = 0; svVel = 0; }
       const shown = Math.round(sv * 1000) / 1000;
-      if (shown !== svShown) { svShown = shown; wrapper.style.setProperty("--scroll-v", String(shown)); }
+      if (shown !== svShown) {
+        svShown = shown;
+        if (svTick++ % 20 === 0) svEls = [...wrapper.querySelectorAll("[data-scroll-tilt]")];
+        for (const el of svEls) el.style.setProperty("--scroll-v", String(shown));
+      }
     };
 
     let raf = 0;
@@ -109,7 +117,7 @@ export default function usePageLenis({
       wrapper.removeEventListener("page:scrollto", scrollTo);
       bar?.dispose();
       lenis.destroy();
-      wrapper.style.removeProperty("--scroll-v");
+      for (const el of svEls) el.style.removeProperty("--scroll-v");
     };
   }, [wrapperRef, contentRef, enabled, syncTouch, scrollbar, driveRef]);
 }

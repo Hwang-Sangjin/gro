@@ -26,7 +26,9 @@ export default function SpinningFavicon() {
       const size = 64, canvas = document.createElement("canvas");
       canvas.width = canvas.height = size;
       const ctx = canvas.getContext("2d");
-      const frames = Array.from({ length: FRAMES }, (_, i) => {
+      // 돌린 그림은 필요할 때 한 장씩 만듦 (24장을 한꺼번에 만들면 0.1초 넘게 화면이 멈췄음, 2026-11-17)
+      const frames = [];
+      const frameAt = (i) => frames[i] ??= (() => {
         ctx.clearRect(0, 0, size, size);
         ctx.save();
         ctx.translate(size / 2, size / 2);
@@ -34,7 +36,7 @@ export default function SpinningFavicon() {
         ctx.drawImage(image, -size / 2, -size / 2, size, size);
         ctx.restore();
         return canvas.toDataURL("image/png");
-      });
+      })();
       let i = 0;
       timer = setInterval(() => {
         if (!link?.isConnected) {                  // 페이지 이동 중 <head> 가 바뀌어도 다시 찾음
@@ -44,7 +46,7 @@ export default function SpinningFavicon() {
           link.removeAttribute("sizes");           // sizes="any" 그대로면 일부 브라우저가 바뀐 그림을 무시
           link.type = "image/png";
         }
-        link.href = frames[i = (i + 1) % FRAMES];
+        link.href = frameAt(i = (i + 1) % FRAMES);
       }, REV_MS / FRAMES);
     };
     // 인트로의 마지막 페이드가 끝나고, 브라우저가 한가할 때 그림을 그림

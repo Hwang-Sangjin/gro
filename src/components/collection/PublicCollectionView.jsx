@@ -1,6 +1,7 @@
 "use client";
 // 공개 컬렉션 화면 — 내 Collection 과 같은 머리말·탭·장르 바·그리드, 읽기 전용
 import Link from "next/link";
+import SplitTitle from "@/components/digging/SplitTitle";
 
 import PageShell from "@/components/layout/PageShell";
 import ShelfBrowser from "@/components/collection/ShelfBrowser";
@@ -17,7 +18,7 @@ export default function PublicCollectionView({ data }) {
     <PageShell className={`${styles.page} paper-textured`}>
       <header className={styles.header}>
         <div ref={titleRef} className={`${styles.titleRow} ${styles.titleReveal}`} data-revealed={titleRevealed}>
-          <span className={styles.titleMask}><h1 className={`${styles.title} text-[clamp(2rem,6.4vw,7.4rem)]!`}>COLLECTION</h1></span>
+          <span className={styles.titleMask}><SplitTitle text="COLLECTION" className="text-[clamp(2rem,6.4vw,7.4rem)]!" /></span>
           <img className={`${styles.mark} w-[clamp(84px,11vw,200px)]! ml-[clamp(0.25rem,1vw,1rem)]!`} src="/images/grooves/title-vinyl.gif" alt="" />
         </div>
       </header>

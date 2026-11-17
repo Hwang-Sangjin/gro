@@ -5,6 +5,7 @@
 //   - data-bg: 그 섹션 바탕 (cream · ink · none = 뚫려서 방이 비침)
 //   - 다음 색은 섹션보다 최대 45svh 먼저 올라옴 → 섹션마다 끝에 그만큼 빈 여백(GAP)을 둠 (앞 섹션의 글·그림 위로 번지지 않게)
 import { memo, useEffect, useRef, useState } from "react";
+import { cached } from "@/lib/dataCache";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl } from "@/lib/albums";
@@ -31,11 +32,12 @@ const LEAD = <div aria-hidden="true" style={{ height: `${(SLEEVE.lift + SLEEVE.s
 const NV_COUNT = 30;
 const NV_STAY = 2.2;    // New Vinyls 섹션 길이 (화면 높이 배수). 클수록 갤러리가 오래 화면에 머묾    // 갤러리에 펼칠 앨범 수 (최신순). 적으면 같은 판이 더 자주 반복됨
 const NV_DRIFT = 0.5;   // 갤러리가 붙어 있는 동안 스크롤 1px 에 판들이 위로 흘러가는 거리 (Route 66 처럼 스크롤하면 늘 화면이 움직임)
-const toCard = (a) => ({ slug: a.slug, title: a.title, artist: a.artist_names || "", image: coverUrl(a.cover_path || a.thumb_path), color: a.cover_color || "#bbcbda" });
-const cache = new Map();   // 장르 slug(전체 = "") → 앨범 목록 (한 번만 조회)
+// 갤러리 커버는 한 변이 160px 이하 → 작은 그림(thumb)으로 충분 (Digging 카드와 같음). 큰 원본 30장을 받지 않음
+const toCard = (a) => ({ slug: a.slug, title: a.title, artist: a.artist_names || "", image: coverUrl(a.thumb_path || a.cover_path), color: a.cover_color || "#bbcbda" });
+// 장르 slug(전체 = "") → 앨범 목록. 저장해 둔 것을 바로 쓰고 5분이 지났으면 뒤에서 새로 받아 둠 (dataCache.js — 새로 고쳐도 · 다음 방문에도 남음)
 function fetchShelf(slug) {
   const key = slug ?? "";
-  if (!cache.has(key)) cache.set(key, (async () => {
+  return cached("nv-shelf:" + key, (async () => {
     const supabase = createClient();
     if (!slug) {
       const { data } = await supabase.from("albums").select("slug, title, artist_names, cover_path, thumb_path, cover_color")
@@ -46,8 +48,7 @@ function fetchShelf(slug) {
     if (!genre?.id) return [];
     const { data } = await supabase.rpc("digging_page", { p_cursor_date: null, p_cursor_id: null, p_genre_id: genre.id, p_limit: NV_COUNT });
     return (data ?? []).map(toCard);
-  })().catch(() => []));
-  return cache.get(key);
+  }), { valid: (list) => list?.length > 0 }).catch(() => []);
 }
 
 function NewVinyls({ albums }) {

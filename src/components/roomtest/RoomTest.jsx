@@ -11,7 +11,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createClient } from "@/utils/supabase/client";
-import { fetchRecentVinyls } from "@/lib/recent-vinyls";
+import { getRecentVinyls } from "@/lib/recent-vinyls";
 import { coverUrl } from "@/lib/albums";
 import { MONOTON } from "@/lib/fonts";
 import { discFrag, discVert, inkDefaults } from "@/components/vinyl/inkShaders";
@@ -22,11 +22,12 @@ import HomeStage from "@/components/home/stage/HomeStage";
 import LAYER_CFG from "@/components/envtest/env-layers.json";
 import { D2R, ASPECT, computeRig, makeBase, createEnv } from "@/components/envtest/envCore";
 import { attachFlipClock } from "./flipClock";
-import { addShelfTestProps, applyNowPlaying } from "./shelfTestProps";
+import { addShelfTestProps, applyNowPlaying, predecode } from "./shelfTestProps";
 import { applyLightmaps, setLightmapState } from "./lightmaps";
 import { createPost } from "./post";
 import { createRoomSound } from "./roomSound";
 import { markHomeReady } from "@/lib/homeReady";
+import { isPageSettled } from "@/lib/motion";
 import HomeSections from "./HomeSections";
 import { createInkWipe, WIPE, WIPE_BAND, SLEEVE } from "./inkWipe";
 import usePageLenis from "@/components/layout/usePageLenis";
@@ -34,7 +35,7 @@ import { useIntro } from "@/components/intro/intro-context";
 import { createInkHero, INK_HERO, HERO_HOLD, HS } from "./inkHero";
 import { createSleeveHero, makeSleeveDisc, SLEEVE_HERO } from "./sleeveHero";
 import { applyTurntableLook } from "./turntableLook";
-import { makeEnvironment } from "@/components/sleevetest/sleeveScene";
+import { makeEnvironment } from "./sleeveParts";
 
 const MODEL_URL = "/models/room/grooves_room_blockout_reveal.glb";
 const VINYL_URL = "/models/vinyl.glb";
@@ -73,6 +74,8 @@ const STEP_FROM = 2;                            // 이 칸부터는 한 번에 �
 const STEP = { threshold: 24, touch: 40, cooldown: 0.45 };   // Home 엔진 SECTION 과 같은 값
 // 해상도: 4K 화면에서 픽셀 비율 2 면 한 장에 수백만 픽셀 × 조명 수십 개 → 1.5 로 묶고, 그래도 느리면 1 까지 자동으로 낮춤
 const DPR_MAX = 1.5, DPR_MIN = 1, DPR_SLOW_FPS = 45;
+// 구운 그림을 쓰는 동안 Blender 램프 조명을 끌지 (위 '라이트' 설명). ?bake=0(실시간 조명 비교) · ?lamps=1 이면 켬
+const LAMPS_OFF = typeof location !== "undefined" && (() => { const q = new URLSearchParams(location.search); return q.get("bake") !== "0" && q.get("lamps") !== "1"; })();
 // Hero 판의 빛줄기 (homeEngine STREAK.spread) · 직교 카메라처럼 보이게 둘 눈의 거리(판 반지름 배)
 const HERO_STREAK_SPREAD = 0.45, HERO_EYE_FAR = 300;
 // Hero 렌즈: 넘어오는 순간의 화각 배율(tan 비, 작을수록 직교에 가까움) · 원래 렌즈로 돌아오는 진행도 구간 [시작, 길이]
@@ -396,7 +399,22 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
   if (!sharedRef.current) sharedRef.current = deferred();
   const getShared = useRef(() => sharedRef.current.promise).current;
 
+  // 3D 를 만들기 시작해도 되는가: 다른 페이지에서 넘어오는 중(크레이트 전환)이면 착지할 때까지 미룸
+  //  렌더러 · 재킷 줄 · 방을 만드는 일이 전환 애니메이션과 겹치면 넘어오는 동안 화면이 끊김 (긴 작업 5번, 합 0.5초 — 2026-11-17 Digging → Home 에서 확인)
+  //  사이트의 다른 등장과 같은 규칙: 페이지 안의 일은 착지한 순간부터 (lib/motion.js)
+  const [boot, setBoot] = useState(() => typeof document === "undefined" || isPageSettled() || !document.documentElement.dataset.crateTransition);
   useEffect(() => {
+    if (boot) return;
+    const d = document.documentElement.dataset;
+    if (d.crateTransition !== "true" || d.crateLanded === "true") { setBoot(true); return; }
+    const go = () => setBoot(true);
+    window.addEventListener("crate:land", go); window.addEventListener("crate:end", go);
+    const t = setTimeout(go, 2500);
+    return () => { window.removeEventListener("crate:land", go); window.removeEventListener("crate:end", go); clearTimeout(t); };
+  }, [boot]);
+
+  useEffect(() => {
+    if (!boot) return;
     const host = hostRef.current;
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, DPR_MAX));
@@ -471,20 +489,51 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     const ctPage = wrapRef.current?.closest(".ct-page");
     const FG_ON_LIGHT = new THREE.Color("#4c404a"), FG_ON_DARK = new THREE.Color("#f4e7cd");
     const _hb = new THREE.Color(), _hf = new THREE.Color();
-    let headKey = "";
+    // 색 변수는 페이지(.ct-page)가 아니라 그 색을 쓰는 요소(헤더 · data-header-fg)에 직접 넣음
+    //  .ct-page 에 넣으면 값이 바뀔 때마다 페이지 전체(New Vinyls · News 의 모든 요소)의 스타일을 다시 계산함
+    //  → 바탕색이 바뀌는 착지 구간(p 0.10~0.17)에서 매 프레임 일어나 프레임이 빠졌음 (2026-11-17)
+    let headKey = "", headEls = [], headTick = 0, headFg = "", headBg = "";
+    const paintHead = () => { for (const el of headEls) { el.style.setProperty("--ct-header-fg", headFg); el.style.setProperty("--ct-drop-bg", headBg); } };
     const syncHeader = () => {
       if (!ctPage) return;
+      // 색을 받을 요소: 늦게 생기는 것도 있어 0.5초쯤마다 다시 찾음
+      if (headTick++ % 30 === 0) {
+        const els = [...ctPage.querySelectorAll(":scope > .ct-navbar, [data-header-fg]")];
+        if (els.length !== headEls.length || els.some((e, i) => e !== headEls[i])) { headEls = els; if (headFg) paintHead(); }
+      }
       _hb.copy(st.overBg ?? (st.section >= 1 ? st.themeCream : scene.background));
       const lum = 0.2126 * _hb.r + 0.7152 * _hb.g + 0.0722 * _hb.b;   // 선형 밝기: 크림 ≈ 0.8, 잉크 ≈ 0.06, 밤 ≈ 0.005
       _hf.copy(FG_ON_DARK).lerp(FG_ON_LIGHT, THREE.MathUtils.smoothstep(lum, 0.1, 0.35));
       const key = _hb.getHexString() + _hf.getHexString();
       if (key === headKey) return;
       headKey = key;
-      ctPage.style.setProperty("--ct-header-fg", `#${_hf.getHexString()}`);
-      ctPage.style.setProperty("--ct-drop-bg", `#${_hb.getHexString()}`);
+      headFg = `#${_hf.getHexString()}`; headBg = `#${_hb.getHexString()}`;
+      paintHead();
     };
+    st.clearHeader = () => { for (const el of headEls) { el.style.removeProperty("--ct-header-fg"); el.style.removeProperty("--ct-drop-bg"); } headEls = []; };
     st.post = post;
     window.__room = st; // 콘솔 디버깅용
+    st.holdRender = true;   // 방 · 재킷 줄의 셰이더가 준비되면 prewarm 이 false 로 (아래 frame 의 설명)
+    // 그리지 않는 동안 캔버스는 비어 있어 검게 보임 → 그동안은 숨겨서 뒤의 페이지 바탕(종이)이 보이게 하고, 그리기 시작하면 부드럽게 나타남
+    //  (다른 페이지에서 Home 으로 오면 검은 화면이 깔렸다가 갑자기 바뀌었음, 2026-11-17)
+    renderer.domElement.style.opacity = "0";
+    st.release = () => {
+      if (!st.holdRender) return;
+      st.holdRender = false;
+      const c = renderer.domElement;
+      // 첫 프레임이 실제로 그려진 뒤에 보이게 (두 프레임 뒤)
+      requestAnimationFrame(() => requestAnimationFrame(() => { c.style.transition = st.reduced ? "" : "opacity .5s ease-out"; c.style.opacity = "1"; }));
+      setTimeout(() => { c.style.opacity = "1"; }, 400);   // 탭이 뒤에 있어 프레임이 안 돌 때
+    };
+    // "지금 듣는 판" 커버: 재질 · 그림이 바뀌면 바로 셰이더를 (화면을 막지 않고) 컴파일하고 그림을 GPU 에 올려 둠
+    //  안 하면 방이 지어지다 이 재킷이 처음 보이는 프레임(p≈0.47)에 컴파일 + 올리기가 몰려 한 번 끊김 (58ms, 2026-11-17)
+    st.warmNowPlaying = (np) => {
+      if (st.disposed) return;
+      try {
+        if (np.material.map) renderer.initTexture(np.material.map);
+        renderer.compileAsync(np, storyCam, scene).catch(() => {});
+      } catch {}
+    };
 
     const resize = () => {
       const w = host.clientWidth, h = host.clientHeight;
@@ -844,6 +893,10 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
         if (o.isLight) {
           st.lights.push(o);
           st.baseIntensity.set(o, o.intensity);
+          // 방은 구운 그림이라 Blender 에서 온 램프 조명(점 9 · 스폿 1)은 빛을 받는 몇 재질(턴테이블 · 재킷 · 판 · 시계)에만 닿음
+          //  그런데 조명 하나마다 그 재질들의 셰이더가 길어져서, 셰이더 하나를 처음 쓸 때 0.35~0.75초씩 화면이 멈췄음 (합 약 9초 — 로딩 · 페이지 전환의 버벅임, 2026-11-17)
+          //  → 구운 그림을 쓸 때는 이 조명들을 처음부터 끔 (도중에 켜고 끄면 셰이더가 다시 만들어지므로 늘 꺼 둠). ?lamps=1 이면 예전처럼 켬 (비교용)
+          if (LAMPS_OFF) o.visible = false;
           const hp = new THREE.PointLightHelper(o, 0.08); hp.visible = false; scene.add(hp); st.helpers.push(hp);
         }
       });
@@ -873,7 +926,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
           cursor: curRefs.ring.current ? { ring: curRefs.ring.current, dot: curRefs.dot.current, shape: curRefs.shape.current, label: curRefs.label.current, tick: curRefs.tick.current } : null,
           onIndex: (i) => st.onSleeveIndex?.(i), onOpen: (o) => st.onSleeveOpen?.(o), onRecord: (i) => st.onSleeveRecord?.(i),
           // 고른 앨범의 커버를 창가 선반 "지금 듣는 판" 재킷에
-          onPlay: (i) => { const a = st.sleeveFilled?.[i]; if (a && st.root) st.nowPlaying = applyNowPlaying(st.root, [a], 0) ?? st.nowPlaying; st.setWall?.(st.nowPlaying); },
+          onPlay: (i) => { const a = st.sleeveFilled?.[i]; if (a && st.root) st.nowPlaying = applyNowPlaying(st.root, [a], 0, st.warmNowPlaying) ?? st.nowPlaying; st.setWall?.(st.nowPlaying); },
         });
         st.onSleeveReady?.();
       }
@@ -904,54 +957,102 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       const uploaded = new WeakSet();
       // 다음 프레임 (탭이 뒤에 있어 화면을 그리지 않으면 requestAnimationFrame 이 멈추므로 시간으로도 넘어감)
       const nextFrame = () => new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 50); });
+      // 장면 전체를 잠깐 보이게 하고 fn 을 부른 뒤 되돌림 (숨겨 둔 것 · 화면 밖의 것까지 전부. 화면에는 아무것도 안 바뀜)
+      //  빛은 켜고 끄지 않음: 빛 개수가 바뀌면 실제로는 안 쓰는 셰이더가 만들어짐
+      const allShown = (fn) => {
+        const shownNow = (o) => { for (let a = o; a; a = a.parent) if (!a.visible) return false; return true; };
+        const lightsOff = [], forced = [], unculled = [];
+        scene.traverse((o) => { if (o.isLight && !shownNow(o)) lightsOff.push(o); });
+        scene.traverse((o) => {
+          if (o.isLight) return;
+          if (!o.visible) { o.visible = true; forced.push(o); }
+          if (o.frustumCulled && (o.isMesh || o.isPoints || o.isLine)) { o.frustumCulled = false; unculled.push(o); }
+        });
+        const lightWas = lightsOff.map((o) => o.visible);
+        for (const o of lightsOff) o.visible = false;
+        let out;
+        try { out = fn(); } catch {}
+        lightsOff.forEach((o, i) => { o.visible = lightWas[i]; });
+        for (const o of forced) o.visible = false;
+        for (const o of unculled) o.frustumCulled = true;
+        return out;
+      };
+      // 다른 페이지에서 넘어오는 중(크레이트 전환)이면 착지할 때까지 기다림: 넘어오는 동안 무거운 일을 하면 전환이 끊김
+      const landed = () => new Promise((r) => {
+        const d = document.documentElement.dataset;
+        if (d.crateTransition !== "true" || d.crateLanded === "true") return r();
+        const done = () => { window.removeEventListener("crate:land", done); window.removeEventListener("crate:end", done); r(); };
+        window.addEventListener("crate:land", done); window.addEventListener("crate:end", done);
+        setTimeout(done, 2500);
+      });
       const prewarm = async () => {
+        if (st.disposed) return;
+        await landed();
         if (st.disposed) return;
         // 한 번 적용해 둠: 남산 레이어의 잘라 내기 평면(clippingPlanes)이 처음 apply 에서 붙음 → 그 전에 컴파일하면 방이 지어지는 중에 다시 컴파일했음
         apply(0, 0, 0);
-        const hidden = [st.env.group, st.env.sky, st.ttRise].filter((o) => o && !o.visible);
-        for (const o of hidden) o.visible = true;
-        // reveal 전이라 숨겨 둔 방 조각(seekClip 의 st.tiny)도 데우는 동안은 보이게 → 셰이더 · 그림 · 메시가 방이 지어지는 도중이 아니라 지금 올라감
-        const tinyShow = (on) => { for (const e of st.tiny ?? []) if (e.hid) for (const m of e.meshes) m.visible = on; };
-        tinyShow(true);
         const texs = new Set();
         scene.traverse((o) => {
           if (!o.isMesh) return;
-          for (const m of Array.isArray(o.material) ? o.material : [o.material])
-            for (const k of ["map", "emissiveMap", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "alphaMap"]) if (m?.[k] && !uploaded.has(m[k])) texs.add(m[k]);
+          for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+            for (const k of ["map", "emissiveMap", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "alphaMap", "lightMap"]) if (m?.[k] && !uploaded.has(m[k])) texs.add(m[k]);
+            for (const t of m?.userData?.bakeTex ?? []) if (t && !uploaded.has(t)) texs.add(t);   // 구운 그림의 다른 상태(꺼짐 · 빈 방): 셰이더 안에서만 씀
+          }
         });
-        const compiled = renderer.compileAsync(scene, storyCam).catch(() => {});   // 그릴 목록은 부르는 순간 모음 → 바로 되돌려도 됨
+        // 셰이더: 장면 전체를 맡기고 기다림 — 브라우저가 뒤에서 컴파일하므로 화면이 멈추지 않음 (숨겨 둔 것도 같은 빛 조건으로)
+        //  화면에 그릴 때와 같은 조건(렌더 타깃 없음 = sRGB 출력 + 톤매핑)으로 맡겨야 실제로 쓰는 셰이더가 만들어짐
+        const rt0 = renderer.getRenderTarget();
+        renderer.setRenderTarget(null);
+        const compiled = allShown(() => renderer.compileAsync(scene, storyCam))?.catch(() => {});   // 그릴 목록은 부르는 순간 모음 → 바로 되돌려도 됨
+        renderer.setRenderTarget(rt0);
+        // 다 되면(길어도 8초) 그리기 시작
+        const compiledOrLate = Promise.race([compiled, new Promise((r) => setTimeout(r, 8000))]);
+        compiledOrLate.then(() => st.release());
         post.prewarm();
         st.warmHero?.();   // Hero ↔ 방 겹침 셰이더 (Home 엔진이 아직이면 엔진이 준비될 때 onEngine 에서)
-        for (const o of hidden) o.visible = false;                 // (apply 가 매 프레임 진행도대로 다시 정함)
-        tinyShow(false);
+        // 그림: 첫 로딩 화면 뒤에서는 프레임마다 두 장, 화면이 이미 보이는 중(페이지 전환으로 들어옴)이면 두 프레임에 한 장 (4K 한 장에 20~40ms)
         let n = 0;
         for (const t of texs) {
           if (st.disposed) return;
           renderer.initTexture(t); uploaded.add(t);
-          if (++n % 2 === 0) await nextFrame();
+          if (document.querySelector(".preloader")) { if (++n % 2 === 0) await nextFrame(); }
+          else { await nextFrame(); await nextFrame(); }
         }
-        await Promise.race([compiled, new Promise((r) => setTimeout(r, 4000))]);   // 셰이더 컴파일은 4초까지만 기다림
-        // 장면 전체를 화면이 아닌 작은 그림(8px)에 한 번 그림: 숨겨 둔 것 · 화면 밖의 것까지 전부 보이게 해서
-        //  메시 · 그림 · 그림자 셰이더가 스크롤 도중(판이 나올 때 · 턴테이블이 올라올 때 · 방이 지어질 때)이 아니라 지금 GPU 에 올라가게 (화면에는 아무것도 안 바뀜)
-        //  빛은 켜고 끄지 않음: 빛 개수가 바뀌면 실제로는 안 쓰는 셰이더가 만들어짐
+        await compiledOrLate;
+        // 장면 전체를 미리 한 번씩 그림: 메시 · 그림 · 그림자 셰이더가 스크롤 도중(판이 나올 때 · 턴테이블이 올라올 때 · 방이 지어질 때)이 아니라 지금 GPU 에 올라가게
+        //  화면의 왼쪽 아래 1px 에만 그림 (scissor). 작은 렌더 타깃에 그리면 안 됨: 출력 조건이 달라 화면용과 다른 셰이더가 한 벌 더 만들어지고,
+        //   그 컴파일이 화면을 막았음 — 빛 받는 재질 하나에 0.15~0.75초, 합 6~9초 (로딩 · 페이지 전환 버벅임의 원인, 2026-11-17)
+        //  한 번에 다 그리지도 않음: 준비된 셰이더도 처음 쓰는 순간 몇 ms 가 들어서, 새 재질 몇 개씩 프레임마다 나눔
+        //   (첫 로딩 화면 뒤에서는 크게 = 빨리, 화면이 이미 보이는 중이면 작게 = 안 끊기게)
         if (!st.disposed) {
-          const shownNow = (o) => { for (let a = o; a; a = a.parent) if (!a.visible) return false; return true; };
-          const lightsOff = [], forced = [], unculled = [];
-          scene.traverse((o) => { if (o.isLight && !shownNow(o)) lightsOff.push(o); });
-          scene.traverse((o) => {
-            if (o.isLight) return;
-            if (!o.visible) { o.visible = true; forced.push(o); }
-            if (o.frustumCulled && (o.isMesh || o.isPoints || o.isLine)) { o.frustumCulled = false; unculled.push(o); }
-          });
-          const lightWas = lightsOff.map((o) => o.visible);
-          for (const o of lightsOff) o.visible = false;
-          const rt = new THREE.WebGLRenderTarget(8, 8), prev = renderer.getRenderTarget();
-          try { renderer.setRenderTarget(rt); renderer.render(scene, storyCam); } catch {}
-          renderer.setRenderTarget(prev);
-          rt.dispose();
-          lightsOff.forEach((o, i) => { o.visible = lightWas[i]; });
-          for (const o of forced) o.visible = false;
-          for (const o of unculled) o.frustumCulled = true;
+          const meshes = [];
+          scene.traverse((o) => { if (o.isMesh || o.isPoints || o.isLine) meshes.push(o); });
+          const seen = new Set();
+          let i = 0;
+          while (i < meshes.length && !st.disposed) {
+            const per = document.querySelector(".preloader") ? 8 : 1;
+            const batch = new Set();
+            let fresh = 0;
+            for (; i < meshes.length && batch.size < 60; i++) {
+              const ms = [meshes[i].material].flat().filter((m) => m && !seen.has(m));
+              if (fresh && fresh + ms.length > per) break;
+              for (const m of ms) seen.add(m);
+              fresh += ms.length;
+              batch.add(meshes[i]);
+            }
+            allShown(() => {
+              const off = meshes.filter((o) => !batch.has(o));
+              for (const o of off) o.visible = false;
+              const prev = renderer.getRenderTarget();
+              renderer.setRenderTarget(null);
+              renderer.setScissorTest(true); renderer.setScissor(0, 0, 1, 1);
+              try { renderer.render(scene, storyCam); } catch {}
+              renderer.setScissorTest(false);
+              renderer.setRenderTarget(prev);
+              for (const o of off) o.visible = true;   // (allShown 이 원래대로 되돌림)
+            });
+            await nextFrame();
+          }
         }
         // Hero 가 덮고 있는 동안(캔버스는 Hero 뒤라 안 보임) 시작 자세로 한 번 그림: 판·후처리 패스까지 실제로 한 바퀴
         if (st.inHero && !st.disposed) {
@@ -1000,14 +1101,14 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
         ? applyLightmaps(root, renderer).then((n) => { liveTurntable(); frontFaces(); st.baked = n; st.setupInteract(); }).catch(() => { liveTurntable(); frontFaces(); st.setupInteract(); })
         : Promise.resolve().then(() => { liveTurntable(); frontFaces(); st.setupInteract(); });
       // 방 · 바깥 배경 · 구운 빛이 다 붙은 뒤 한 번에 데우고 → 준비 끝
-      Promise.all([lit, st.env.ready.catch(() => {})]).then(prewarm).finally(() => gateRef.current.room.resolve());
+      Promise.all([lit, st.env.ready.catch(() => {})]).then(prewarm).finally(() => { st.release(); st.warmAt = performance.now(); gateRef.current.room.resolve(); });
       setInfo({
         loadMs: Math.round(performance.now() - t0),
         size: roomBox.getSize(new THREE.Vector3()).toArray().map((v) => v.toFixed(2)).join(" × "),
         clip: `${st.clip.name} · ${st.clip.duration.toFixed(2)}s`,
         cams: Object.keys(st.gltfCams),
       });
-    }).catch((e) => { setError(String(e?.message || e)); gateRef.current.room.resolve(); });
+    }).catch((e) => { setError(String(e?.message || e)); st.release(); gateRef.current.room.resolve(); });
 
     // ── 카메라: 진행도 구간별 키 (목표점 · 방향 · 거리)
     const fit = (r, fov = FOV0) => {
@@ -1357,7 +1458,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       // 꾸밈 없는 판(raw): 판만 비추는 빛. 크림 바탕의 Hero 에서 또렷하게, 바탕이 어두워지는 만큼 꺼짐 (그 뒤는 턴테이블 핀 조명 · 방 조명)
       if (heroLight) {
         const hk = 1 - dk;
-        heroLight.hemi.intensity = (sleeveHero ? 1.0 : 1.6) * hk;     // sleeve: /lab/sleeve-test 에서 맞춘 밝기 (커버가 떠 보여 조금 낮춤)
+        heroLight.hemi.intensity = (sleeveHero ? 1.0 : 1.6) * hk;     // sleeve: 실험 페이지에서 맞춘 밝기 (커버가 떠 보여 조금 낮춤)
         heroLight.sun.intensity = (sleeveHero ? 1.5 : 2.4) * hk;
         if (st.sleeve) {
           // 재킷 줄 기준 왼쪽 위 앞에서 비춤 (lab 과 같은 방향) → 재킷 가장자리 그림자가 오른쪽으로 나온 판 위에 떨어짐
@@ -1627,7 +1728,8 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       if (controls.enabled) controls.update();
       const cam = st.camMode === "story" ? storyCam : st.camMode === "orbit" ? orbitCam : st.gltfCams[st.camMode] ?? storyCam;
       // Hero 도 이 장면(p=0: 크림 바탕에 판 한 장)을 그리고, 그 위에 Hero 의 링·그림자·먼지(heroK). 섹션이 방을 다 덮은 동안은 쉼
-      if (st.inHero || !st.covered) {
+      // holdRender: 셰이더가 뒤에서 컴파일되는 동안은 그리지 않음 — 준비 안 된 셰이더로 그리면 그 자리에서 컴파일하느라 화면이 멈춤 (prewarm 이 풂)
+      if ((st.inHero || !st.covered) && !st.holdRender) {
         renderer.render(scene, cam); post.run();
         if (st.heroDrew) compositeHeroRT(st.heroK);
       }
@@ -1636,7 +1738,8 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
         const fps = frames / acc;
         if (st.debug) setStats({ fps: Math.round(fps), calls: renderer.info.render.calls, tris: renderer.info.render.triangles });   // 디버그 패널이 열려 있을 때만 (다시 렌더가 화면을 끊음)
         // 느린 구간이 두 번 이어지면 해상도를 한 단계 낮춤 (한 번 끊긴 건 무시, 다시 올리지는 않음 = 오르내림 반복 방지)
-        st.slow = st.ready && st.inHero === false && fps < DPR_SLOW_FPS ? (st.slow ?? 0) + 1 : 0;   // 인트로·Hero 동안의 느림은 3D 탓이 아님
+        //  로딩 · 미리 데우는 동안의 느림도 3D 탓이 아님: 그때 낮추면 페이지를 열 때마다 흐릿한 화면으로 시작함 → 데우기가 끝나고 3초 뒤부터 셈
+        st.slow = st.ready && st.inHero === false && st.warmAt && performance.now() - st.warmAt > 3000 && fps < DPR_SLOW_FPS ? (st.slow ?? 0) + 1 : 0;   // 인트로·Hero 동안의 느림은 3D 탓이 아님
         const pr = renderer.getPixelRatio();
         if (st.slow >= 2 && pr > DPR_MIN) { renderer.setPixelRatio(Math.max(DPR_MIN, pr - 0.25)); resize(); st.slow = 0; }
         acc = 0; frames = 0;
@@ -1771,15 +1874,14 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       renderer.dispose();
       renderer.domElement.remove();
       if (window.__room === st) delete window.__room;
-      ctPage?.style.removeProperty("--ct-header-fg");
-      ctPage?.style.removeProperty("--ct-drop-bg");
+      st.clearHeader?.();
     };
-  }, []);
+  }, [boot]);
 
   // 신보 7장 (선반에는 오래된 것부터 놓여서 마지막 커버 = 가장 최신)
   useEffect(() => {
     let cancelled = false;
-    fetchRecentVinyls(createClient()).then((rows) => {
+    getRecentVinyls(createClient()).then((rows) => {
       if (cancelled) return;
       setAlbums(rows.map((a) => ({ slug: a.slug, title: a.title, artist: a.artist_names || "", image: coverUrl(a.cover_path || a.thumb_path), color: a.cover_color || "#bbcbda" })));
       if (!rows.length) gateRef.current.covers.resolve();
@@ -1803,9 +1905,10 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
         if (!a || c.album === a.slug) return null;
         c.album = a.slug;
         if (!mat.map) mat.color.set(a.color);
-        return new Promise((done) => loader.load(a.image, (tex) => {
-          if (c.album !== a.slug) { tex.dispose(); return done(); }
+        return new Promise((done) => loader.load(a.image, async (tex) => {
           tex.colorSpace = THREE.SRGBColorSpace;
+          await predecode(tex, true);   // 그림 풀기를 미리 (올릴 때 프레임이 빠지지 않게)
+          if (c.album !== a.slug) { tex.dispose(); return done(); }
           mat.map?.dispose();
           mat.map = tex; mat.emissiveMap = tex; mat.color.set("#ffffff"); mat.needsUpdate = true;
           try { st.renderer.initTexture(tex); } catch { /* 첫 그리기에서 올라감 */ }
@@ -1838,12 +1941,12 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       else st.onSleeveReady = () => { st.sleeveFilled = albums; fillSleeves(); };
     }
     // 창가 선반 "지금 듣는 판" 재킷: 벽 선반에 없는 앨범 중 무작위 (페이지를 열 때마다 바뀜)
-    if (st.root) st.nowPlaying = applyNowPlaying(st.root, albums, st.covers.length);   // 다시 마운트(개발 중 새로 고침) 직후엔 방이 아직 없을 수 있음
+    if (st.root) st.nowPlaying = applyNowPlaying(st.root, albums, st.covers.length, st.warmNowPlaying);   // 다시 마운트(개발 중 새로 고침) 직후엔 방이 아직 없을 수 있음
   }, [albums, info, shelfReady]);
 
   // 섹션 전환 · 핸드오프 (3D 마지막 커버 자리 ↔ New Vinyls 첫 칸)
   useEffect(() => {
-    const st = apiRef.current; if (!st) return;
+    const st = apiRef.current; if (!st || !boot) return;
     const slotRect = () => {
       const r = slotRef.current?.getBoundingClientRect();
       return r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
@@ -1868,7 +1971,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       if (prev === 0 && next >= 1) { st.hideLastCover = true; fly(st.coverRect(), slotRect(), false); }
       else if (next === 0 && prev >= 1) fly(slotRect(), st.coverRect(), true);
     };
-  }, []);
+  },[boot]);
   useEffect(() => {
     const st = apiRef.current; if (!st) return;
     if (camName === "orbit" && st.camMode !== "orbit") {
@@ -1883,7 +1986,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
 
   // Hero(Home 엔진) ↔ 3D: 떠날 때 판 자세를 넘기고 레이어를 걷어 냄, 돌아오면 다시 덮음
   useEffect(() => {
-    const st = apiRef.current; if (!st) return;
+    const st = apiRef.current; if (!st || !boot) return;
     st.onHero = (on) => setHeroOn(on);
     // sleeve Hero: 가운데 앨범 · 열림 → 아래 글자. 열린 판을 누르면 착지 자리까지 스크롤을 대신 내려 줌 (판이 턴테이블로 내려가 앉고 방이 지어짐)
     st.onSleeveIndex = (i) => setSleeveAt(i);
@@ -1895,7 +1998,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     };
     st.onFree = (on) => setFree(on);
     st.onShelfReady = () => setShelfReady((n) => n + 1);
-  }, []);
+  }, [boot]);
   // 페이지 스크롤 → 방 화면이 액자처럼 작아짐 · 섹션 바탕색과 노이즈 경계(inkWipe 캔버스) · New Vinyls 커버 줄이 옆으로 지나감
   //                 · 헤더 글자색 · 섹션 색이 방을 다 덮으면 그리기 멈춤 · 끝의 창이 가까워지면 늦은 밤으로
   useEffect(() => {
@@ -2140,7 +2243,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       {/* ink Hero: "Grooves" 제목 (Home Hero 와 같은 글꼴 · 크기 · 자리) + 커스텀 커서 (마우스에서만). 움직임은 inkHero.js */}
       {/* sleeve Hero: 가운데 앨범의 아티스트 · 제목 + 넘기기 · 열기 버튼 (Hero 에 있는 동안만) */}
       {sleeveHero && (
-        <div className={`pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-6 px-[var(--gutter)] pb-[clamp(1.25rem,4vh,2.75rem)] text-[var(--ct-header-fg,#4c404a)] transition-[opacity,translate] duration-500 ease-out motion-reduce:transition-none ${heroOn && done && albums.length ? "opacity-100" : "translate-y-2 opacity-0"}`}
+        <div className={`pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-6 px-[var(--gutter)] pb-[clamp(1.25rem,4vh,2.75rem)] text-[var(--ct-header-fg,#4c404a)] transition-[opacity,translate] duration-500 ease-out motion-reduce:transition-none ${heroOn && done && albums.length ? "opacity-100" : "translate-y-2 opacity-0"}`} data-header-fg=""
           inert={!heroOn}>
           {[-1, 1].map((d) => (
             <button key={d} type="button" aria-label={d < 0 ? "Previous album" : "Next album"} onClick={() => apiRef.current?.sleeve?.step(d)}
@@ -2256,7 +2359,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     {/* 섹션 바탕: 방 스테이지 위 · 섹션 글과 그림 아래에 붙어 있는 캔버스 (흐름에서 자리를 차지하지 않게 한 화면만큼 끌어올림) */}
     <canvas ref={wipeRef} aria-hidden="true" className="pointer-events-none sticky top-0 z-[5] -mt-[100svh] block h-svh w-full" />
     {/* 섹션 목차 01–05: 화면 오른쪽에 붙어 있음. 색은 헤더 글자색(지금 바탕에 맞춰 바뀜)을 따름. New Vinyls · News 에서는 번호만 */}
-    <nav aria-label="Home sections" className={`pointer-events-none sticky top-0 z-20 -mt-[100svh] flex h-svh items-center justify-end pr-[var(--gutter)] text-[var(--ct-header-fg,#4c404a)] transition-opacity duration-700 max-md:hidden ${done ? "opacity-100" : "opacity-0"}`}>
+    <nav aria-label="Home sections" data-header-fg="" className={`pointer-events-none sticky top-0 z-20 -mt-[100svh] flex h-svh items-center justify-end pr-[var(--gutter)] text-[var(--ct-header-fg,#4c404a)] transition-opacity duration-700 max-md:hidden ${done ? "opacity-100" : "opacity-0"}`}>
       <ol className="flex flex-col items-end gap-[clamp(10px,1.6vh,18px)]">
         {INDEX.map((name, i) => {
           const cur = where > 0 ? where + 1 : heroOn ? 0 : 1;

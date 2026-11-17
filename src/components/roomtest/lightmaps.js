@@ -45,6 +45,7 @@ function variantDefs(sh, v) {
 
 // 색까지 구운 그림: map 대신 상태별 그림을 섞음 (빛 계산 없음, 톤매핑 끔)
 function colorShader(m, v) {
+  m.userData.bakeTex = Object.values(v).map((e) => e.t);   // 셰이더 안에서만 쓰는 상태별 그림 — 미리 올릴 때 찾을 수 있게 (RoomTest prewarm)
   if (!VARIANTS.some((n) => v[n])) return;
   m.onBeforeCompile = (sh) => {
     sh.fragmentShader = variantDefs(sh, v) + sh.fragmentShader.replace("#include <map_fragment>", `${LM_WEIGHTS}
@@ -63,6 +64,7 @@ function colorShader(m, v) {
   m.customProgramCacheKey = () => "lmc" + VARIANTS.map((n) => (v[n] ? 1 : 0)).join("");
 }
 function variantShader(m, v) {
+  m.userData.bakeTex = Object.values(v).map((e) => e.t);
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uLmK = { value: new THREE.Vector4(v.on.k, v.off?.k ?? 0, v.empty?.k ?? 0, v.empty_lit?.k ?? 0) };
     sh.fragmentShader = "uniform vec4 uLmK;\n" + variantDefs(sh, v) + sh.fragmentShader.replace(
@@ -93,8 +95,9 @@ const getKtx2Loader = (renderer) => {
 
 // renderer 를 넘기면 목록에 ktx2 가 있는 그림은 KTX2(GPU 압축)로: GPU 메모리 약 1/6, 다운로드도 비슷하거나 작음
 export async function applyLightmaps(root, renderer = null) {
-  // 다시 구워도 파일 이름이 같아 브라우저가 예전 그림을 씀 → 목록은 매번 새로, 그림은 굽은 때(version)를 붙여서
-  const man = await fetch(BAKE_URL + "lightmaps.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  // 다시 구워도 파일 이름이 같아 브라우저가 예전 그림을 씀 → 목록은 매번 바뀌었는지 확인(no-cache: 안 바뀌었으면 304 로 본문 없이), 그림은 굽은 때(version)를 붙여서
+  //  (그림은 ?v= 가 붙으므로 next.config.mjs 에서 1년 캐시 — 다시 구우면 version 이 바뀌어 새 주소가 됨)
+  const man = await fetch(BAKE_URL + "lightmaps.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   if (!man) return 0;
   const loader = new THREE.TextureLoader();
   //  전부 KTX2 (2026-11-11 사용자 비교: 켜짐 4K 세 장도 JPEG 와 차이를 못 느낌). ?ktx2=0 이면 전부 JPEG (비교용)

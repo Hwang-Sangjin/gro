@@ -1,5 +1,10 @@
 // Home uses upload order; Digging keeps its release-date cursor ordering.
+import { cached } from "./dataCache";
+
 export const RECENT_VINYL_LIMIT = 7;
+
+// Home 용: 저장해 둔 목록을 바로 쓰고, 5분이 지났으면 뒤에서 새로 받아 둠 (dataCache.js)
+export const getRecentVinyls = (supabase) => cached("recent-vinyls", () => fetchRecentVinyls(supabase), { valid: (rows) => rows?.length > 0 });
 
 export async function fetchRecentVinyls(supabase, signal) {
   let query = supabase

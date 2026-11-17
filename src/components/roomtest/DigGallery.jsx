@@ -6,6 +6,7 @@
 //  - 손을 떼면 짧은 관성. 일정 거리(DRAG.threshold) 이상 움직였으면 앨범이 열리지 않음
 //  - 키보드: Tab 으로 앨범 이동(포커스한 앨범이 화면 가운데로 옴), 화살표로 한 칸씩 이동, Enter 로 열기
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import styles from "@/components/digging/Digging.module.css";   // 등장(.nvCover · .nvText) · 판(.nvDisc) — Digging 카드와 한 벌
 
 // ── 조정 값 ─────────────────────────────────────────────────
 // 2026-11-15: 레퍼런스(197historiasilustradas.com)처럼 작은 커버를 넓은 간격으로 흩어 놓은 넓은 판. 글자는 커버 위(번호 · 제목)와 아래(아티스트)에 작게
@@ -25,6 +26,19 @@ export const DRAG = {
   keyStep: 1,                // 화살표 한 번에 움직이는 칸 수
 };
 
+// 마우스를 올린 커버: 조금 커지고 글자가 진해짐 · 나머지 커버는 약간만 옅어짐 (사용자: 너무 어둡고 흐리지 않게)
+export const HOVER = {
+  grow: 1.08,                // 올린 커버 크기 배수
+  dim: 0.68,                 // 나머지 커버 불투명도
+  desat: 0.85,               // 나머지 커버 채도
+  // 켜고 끄듯 바뀌지 않게 천천히: 옅어지는 시간 · 돌아오는 시간 · 돌아오기 전 기다림(ms)
+  //  (기다림: 커버에서 옆 커버로 옮겨 가는 사이에 전체가 밝아졌다 다시 옅어지며 깜박이지 않게)
+  fadeOut: 900, fadeIn: 1400, wait: 180,
+};
+
+// 등장: 섹션이 이만큼 보이면 커버가 가운데 틈에서 펼쳐짐. 왼쪽 → 오른쪽으로 across ms, 위 → 아래로 down ms 에 걸쳐 차례로
+export const REVEAL = { visible: 0.2, across: 450, down: 150 };
+
 const mod = (a, n) => ((a % n) + n) % n;
 
 function layout(w) {
@@ -41,6 +55,27 @@ export default function DigGallery({ albums, onOpen, label = "New vinyls — dra
   const items = useRef([]);
   const [grid, setGrid] = useState(null);   // { cols, rows, cover, cellW, cellH, W, H } — 화면 크기가 바뀔 때만 바뀜
   const [touched, setTouched] = useState(false);   // 한 번이라도 끌었으면 안내를 숨김
+  const [shown, setShown] = useState(false);       // 섹션이 보여서 커버가 펼쳐졌는가 (한 번만)
+  // 등장: 갤러리가 보이기 시작하면, 그때 화면에 놓인 자리 순서(왼쪽 위 → 오른쪽 아래)로 칸마다 기다리는 시간을 넣고 펼침
+  useEffect(() => {
+    const el = root.current;
+    if (!el || !grid || shown) return;
+    if (!("IntersectionObserver" in window)) { setShown(true); return; }
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      io.disconnect();
+      const box = el.getBoundingClientRect();
+      for (const a of items.current) {
+        if (!a) continue;
+        const r = a.getBoundingClientRect();
+        const kx = Math.min(1, Math.max(0, (r.left - box.left) / box.width)), ky = Math.min(1, Math.max(0, (r.top - box.top) / box.height));
+        a.style.setProperty("--rd", `${Math.round(kx * REVEAL.across + ky * REVEAL.down)}ms`);
+      }
+      setShown(true);
+    }, { root: el.closest(".page"), threshold: REVEAL.visible });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [grid, shown]);
   const st = useRef({ x: 0, y: 0, sy: 0, vx: 0, vy: 0, raf: 0, drag: null, moved: false, reduced: false, target: null });
 
   // 화면 크기 → 칸 수 (DOM 개수는 이때만 바뀜)
@@ -236,8 +271,9 @@ export default function DigGallery({ albums, onOpen, label = "New vinyls — dra
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
       data-crate-ignore
       data-lenis-prevent-touch
+      data-shown={shown}
       className="group/gal relative h-full w-full cursor-grab touch-none select-none overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-(--accent) focus-visible:ring-inset data-[dragging=true]:cursor-grabbing"
-      style={{ "--cover": grid ? `${grid.cover}px` : "200px" }}>
+      style={{ "--cover": grid ? `${grid.cover}px` : "200px", "--dim": HOVER.dim, "--fade-out": `${HOVER.fadeOut}ms`, "--fade-in": `${HOVER.fadeIn}ms`, "--fade-wait": `${HOVER.wait}ms`, "--desat": HOVER.desat, "--grow": HOVER.grow }}>
       {cells.map((a, i) => {
         // 같은 앨범은 처음 한 칸만 Tab 으로 옴 (반복된 칸은 화면용)
         const first = !firstSeen.has(a.slug); firstSeen.add(a.slug);
@@ -247,19 +283,24 @@ export default function DigGallery({ albums, onOpen, label = "New vinyls — dra
             data-album-slug={a.slug} data-album-color={a.color} data-album-image={a.image}
             onClick={(e) => onOpen?.(e, a, e.currentTarget.querySelector("[data-album-source]"))}
             draggable={false}
-            className="group/item absolute left-0 top-0 block w-(--cover) will-change-transform outline-none"
+            className={`${styles.nvItem} group/item absolute left-0 top-0 block w-(--cover) will-change-transform outline-none transition-[opacity,filter] duration-(--fade-in) delay-(--fade-wait) ease-out [@media(hover:hover)]:group-has-[a:hover]/gal:duration-(--fade-out) [@media(hover:hover)]:group-has-[a:hover]/gal:delay-0 [@media(hover:hover)]:group-has-[a:hover]/gal:not-hover:opacity-(--dim) [@media(hover:hover)]:group-has-[a:hover]/gal:not-hover:saturate-(--desat) group-data-[dragging=true]/gal:opacity-100! group-data-[dragging=true]/gal:saturate-100! motion-reduce:transition-none`}
             aria-label={`${a.title} — ${a.artist}`}>
-            {/* 커버 위: 번호 · 제목 (레퍼런스처럼 작은 대문자 한 줄) */}
-            <span className="mb-1.5 flex items-baseline gap-2 text-[10px] font-medium uppercase leading-none tracking-[0.12em]">
-              <span className="shrink-0 tabular-nums opacity-55">{String((albums.indexOf(a) + 1)).padStart(2, "0")}.</span>
+            {/* 커버 위: 번호 · 제목 (레퍼런스처럼 작은 대문자 한 줄). 커버가 커지며 올라오는 만큼 같이 올라감 (안 그러면 제목이 커버에 가려짐) */}
+            <span className={`${styles.nvText} mb-1.5 flex items-baseline gap-2 text-[10px] font-medium uppercase leading-none tracking-[0.12em] transition-[translate,opacity] duration-500 ease-groove group-hover/item:-translate-y-3 group-focus-visible/item:-translate-y-3 motion-reduce:transition-none motion-reduce:group-hover/item:translate-y-0`}>
+              <span className="shrink-0 tabular-nums opacity-55 transition-opacity duration-500 group-hover/item:opacity-100">{String((albums.indexOf(a) + 1)).padStart(2, "0")}.</span>
               <span className="truncate">{a.title}</span>
             </span>
-            <span data-album-source className="block aspect-square overflow-hidden shadow-[0_8px_16px_-12px_rgba(40,26,34,.55)] transition-[translate,box-shadow] duration-500 ease-groove group-hover/item:-translate-y-1.5 group-hover/item:shadow-[0_18px_28px_-16px_rgba(40,26,34,.6)] group-focus-visible/item:-translate-y-1.5 group-focus-visible/item:ring-2 group-focus-visible/item:ring-(--accent) motion-reduce:transition-none motion-reduce:group-hover/item:translate-y-0"
-              style={{ backgroundColor: a.color }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={a.image} alt="" loading="eager" decoding="async" draggable={false} className="pointer-events-none size-full select-none object-cover" />
+            {/* 커버 + 그 뒤의 판: 같이 커지고 올라감. 누르는 순간엔 살짝 눌림 (끄는 중에는 그대로) */}
+            <span className="relative block transition-[translate,scale] duration-500 ease-groove group-hover/item:-translate-y-1.5 group-hover/item:scale-(--grow) group-focus-visible/item:-translate-y-1.5 group-focus-visible/item:scale-(--grow) group-active/item:scale-[0.97] group-active/item:duration-200 group-data-[dragging=true]/gal:scale-100! motion-reduce:transition-none motion-reduce:group-hover/item:translate-y-0 motion-reduce:group-hover/item:scale-100">
+              {/* 마우스를 올리면 커버 뒤에서 오른쪽으로 빠져나오는 판 (Digging 카드와 같은 판). 가운데 라벨 = 앨범 대표색 */}
+              <span aria-hidden="true" className={styles.nvDisc} style={{ "--disc-label": a.color }} />
+              <span data-album-source className={`${styles.nvCover} relative block aspect-square overflow-hidden shadow-[0_8px_16px_-12px_rgba(40,26,34,.55)] group-hover/item:shadow-[0_18px_28px_-16px_rgba(40,26,34,.6)] group-focus-visible/item:ring-2 group-focus-visible/item:ring-(--accent)`}
+                style={{ backgroundColor: a.color }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={a.image} alt="" loading="eager" decoding="async" draggable={false} className="pointer-events-none size-full select-none object-cover" />
+              </span>
             </span>
-            <span className="mt-1.5 block truncate text-[10px] uppercase leading-none tracking-[0.12em] opacity-55">{a.artist}</span>
+            <span className={`${styles.nvText} mt-1.5 block truncate text-[10px] uppercase leading-none tracking-[0.12em] opacity-55 transition-opacity duration-500 group-hover/item:opacity-100`}>{a.artist}</span>
           </a>
         );
       })}

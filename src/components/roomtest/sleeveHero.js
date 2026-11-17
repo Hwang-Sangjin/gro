@@ -1,5 +1,5 @@
 // Home Hero (heroMode="sleeve"): 방 장면과 같은 캔버스에서 도는 LP 재킷 줄 (새 Hero 5단계)
-//  /lab/sleeve-test (sleevetest/sleeveScene.js) 에서 맞춘 재킷 · 판 · 줄 넘기기 · 등장 · 열기를 방 장면으로 옮긴 것. 조정 값(S)과 재질은 그 파일 것을 그대로 씀
+//  실험 페이지에서 맞춘 (부품 · 조정 값은 sleeveParts.js) 재킷 · 판 · 줄 넘기기 · 등장 · 열기를 방 장면으로 옮긴 것. 조정 값(S)과 재질은 그 파일 것을 그대로 씀
 //  이 모듈이 하는 일
 //   - 재킷 줄을 P=0 카메라 앞에 세움 (줄 틀 = 그때의 카메라 자리 · 방향 기준)
 //   - 판은 방 장면의 판(st.disc) 한 장: 재킷 안 → 열면 빠져나온 자리를 매 프레임 st.heroPos · st.heroQuat 로 넘김
@@ -7,7 +7,7 @@
 //   - 스크롤을 내리기 시작하면 저절로 열리고(판이 나옴), 더 내리면 재킷들은 물러나며 사라짐. 열린 판을 누르면 착지 자리까지 스크롤을 대신 내려 줌
 //  방 재질에 영향을 주지 않게: 장면 전체 환경(scene.environment) · 안개(scene.fog) 대신 재킷 · 판 재질에만 환경을 달고, 멀어지는 재킷은 투명도로 옅어짐
 import * as THREE from "three";
-import { S, makeEnvironment, makePaperMaps, makeJacket, makeRecord, drawFront, drawBack, drawLabel } from "@/components/sleevetest/sleeveScene";
+import { S, makeEnvironment, makePaperMaps, makeJacket, makeRecord, drawFront, drawBack, drawLabel } from "./sleeveParts";
 
 export const SLEEVE_HERO = {
   heroP: 0.006,              // 이 진행도 아래 = Hero (끌기 · 누르기는 여기서만). 넘으면 스크롤이 연 것으로 봄
