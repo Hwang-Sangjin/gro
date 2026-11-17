@@ -35,9 +35,9 @@ export const MENU = [
     { href: '/digging', label: 'Digging', desc: '모든 판을 한 장씩 넘겨 보기', preview: 'dig' },
     { href: '/collection', label: 'Collection', desc: '내가 가진 판과 갖고 싶은 판', preview: 'shelf' },
   ] },
-  { label: 'Lab', href: '/lab/brick', children: [
-    { href: '/lab/brick', label: 'Brick', desc: '앨범 커버를 브릭 모자이크로', preview: 'brick' },
+  { label: 'Lab', href: '/lab/map', children: [
     { href: '/lab/map', label: 'Map', desc: '레코드숍과 LP바를 지도에서', preview: 'map' },
+    { href: '/lab/brick', label: 'Brick', desc: '앨범 커버를 브릭 모자이크로', preview: 'brick' },
     { href: '/lab/spin', label: 'Spin', desc: '도는 판 위에서 움직이는 그림', preview: 'spin' },
   ] },
   { href: '/news', label: 'News' },

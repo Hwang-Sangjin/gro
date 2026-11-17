@@ -144,5 +144,8 @@ function AtoZ02() {
 const COVERS = { caesar: Caesar, "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, "sse-poster": SsePoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
 export default function StoryCover({ name, className = "" }) {
   const C = COVERS[name] ?? Record;
-  return <span className={`relative block overflow-hidden [container-type:inline-size] ${className}`}><C /></span>;
+  // 위치(position)는 부르는 쪽이 정하면 그대로 — 기본 relative 를 같이 두면 CSS 순서상 relative 가 이겨서
+  //  absolute 로 겹쳐 둔 커버들이 세로로 쌓였음 (Home News 의 마우스 따라오는 커버가 줄 번호만큼 아래로 밀려 보이던 문제)
+  const pos = /(^|\s)(absolute|fixed|sticky|static)(\s|$)/.test(className) ? "" : "relative";
+  return <span className={`${pos} block overflow-hidden [container-type:inline-size] ${className}`}><C /></span>;
 }

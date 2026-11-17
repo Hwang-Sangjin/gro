@@ -298,10 +298,16 @@ export async function createHomeEngine(opts) {
   canvas.className = 'absolute inset-0 block h-full w-full touch-pan-y';
   canvas.setAttribute('aria-label', 'A 3D vinyl record drawn in ink. Press and hold to spin it faster; drag to flip it');
   (q('hs-canvas') ?? host).prepend(canvas);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-  renderer.setClearColor(0x000000, 0);
-  renderer.autoClear = false;     // 루프에서 직접 지우고 여러 번 그림 (New Vinyls 릴)
+  // opts.sharedRenderer: 바깥(room-test 의 3D 거실)의 렌더러를 빌려 그 캔버스에 그림 → WebGL 컨텍스트 하나, 판이 캔버스를 건너가지 않음
+  //  이때 위 canvas 는 그리지 않는 투명한 입력 면(누르기·끌기·크기 재기)으로만 쓰고, 그리기는 바깥이 매 프레임 drawShared() 로 부름
+  //  (렌더러 크기·픽셀 비율·지우기 색은 바깥 것 그대로 — 바깥이 drawShared 앞뒤로 상태를 맞추고 되돌림)
+  const shared = opts.sharedRenderer ? await opts.sharedRenderer() : null;
+  const renderer = shared ?? new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true });
+  if (!shared) {
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    renderer.setClearColor(0x000000, 0);
+    renderer.autoClear = false;     // 루프에서 직접 지우고 여러 번 그림 (New Vinyls 릴)
+  }
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
   camera.zoom = ZOOM;
@@ -1522,7 +1528,7 @@ export async function createHomeEngine(opts) {
     fitTitle(q('nv-ttl')?.lastElementChild);
     placeStage();
     const w = canvas.clientWidth, h = canvas.clientHeight;
-    renderer.setSize(w, h, false);
+    if (!shared) renderer.setSize(w, h, false);   // 빌린 렌더러는 크기를 바깥이 정함 (같은 화면을 덮는 캔버스)
     dustMat.uniforms.uPixelRatio.value = renderer.getPixelRatio();
     camera.left = -w / 2; camera.right = w / 2; camera.top = h / 2; camera.bottom = -h / 2;
     camera.updateProjectionMatrix();
@@ -1734,8 +1740,15 @@ export async function createHomeEngine(opts) {
   const $waveCanvas = document.createElement('canvas');
   $waveCanvas.className = 'pointer-events-none absolute inset-0 h-full w-full';
   $waveCanvas.setAttribute('aria-hidden', 'true');
-  const waveRenderer = new THREE.WebGLRenderer({ canvas: $waveCanvas, alpha: true, premultipliedAlpha: true, antialias: false });
-  waveRenderer.setClearColor(0x000000, 0);
+  // 파동 렌더러는 장르 다이얼에서 처음 쓸 때 만듦 (Hero 만 쓰는 곳에서 WebGL 컨텍스트를 하나 더 열지 않게)
+  let waveRenderer = null, waveSize = null;
+  const ensureWave = () => {
+    if (waveRenderer) return waveRenderer;
+    waveRenderer = new THREE.WebGLRenderer({ canvas: $waveCanvas, alpha: true, premultipliedAlpha: true, antialias: false });
+    waveRenderer.setClearColor(0x000000, 0);
+    if (waveSize) sizeWaveCanvas(...waveSize);
+    return waveRenderer;
+  };
   const waveUniforms = {
     uRes: { value: new THREE.Vector2(1, 1) },      // CSS px
     uDpr: { value: 1 },
@@ -1821,8 +1834,8 @@ export async function createHomeEngine(opts) {
   waveScene.add(waveQuad);
   function sizeWaveCanvas(W, H) {
     const dpr = Math.min(devicePixelRatio || 1, 1.5);
-    waveRenderer.setPixelRatio(dpr);
-    waveRenderer.setSize(W, H, false);
+    waveSize = [W, H];
+    if (waveRenderer) { waveRenderer.setPixelRatio(dpr); waveRenderer.setSize(W, H, false); }
     waveUniforms.uRes.value.set(W, H);
     waveUniforms.uDpr.value = dpr;
   }
@@ -1881,6 +1894,8 @@ export async function createHomeEngine(opts) {
   function updateWaves(dt, show) {
     const W = host.clientWidth, H = host.clientHeight;
     updateBeat(dt);
+    if (!waveRenderer && !(show > 0) && !waves.length) return;   // 아직 한 번도 안 씀 → 만들지 않음
+    ensureWave();
     if (reduceMotion) { waveRenderer.clear(); return; }
     if (section === 2 && catP > 0.9) {
       waveClock += dt;
@@ -2483,10 +2498,10 @@ export async function createHomeEngine(opts) {
   let fxLevel = 0;
   const parallaxTarget = new THREE.Vector2();
   let paused = false;   // setPaused: 바깥이 화면을 가리는 동안(예: room-test 의 3D 거실) 그리지 않음
-  renderer.setAnimationLoop(() => {
+  const loop = () => {
     const dt = Math.min(clock.getDelta(), 0.05);
     // 인트로(프리로더)가 화면을 덮고 있는 동안은 그리지 않음 → 프리로더 애니메이션에 GPU를 양보
-    if (!introDone || paused) return;
+    if (!introDone || paused) return false;
 
     // 0) 스크롤 진행도: 0 = Hero, 1 = New Vinyls. 살짝 스무딩해서 휠 스크롤도 부드럽게
     //    스크롤 위치가 아니라 '섹션 전환 트윈'이 진행도를 시간에 따라 0 ↔︎ 1로 움직임
@@ -2670,12 +2685,34 @@ export async function createHomeEngine(opts) {
     if (reelOn) { nvReel.render('back'); renderer.clearDepth(); }
     renderer.render(scene, camera);
     if (reelOn) { renderer.clearDepth(); nvReel.render('front'); }
-  });
+    return true;
+  };
+  if (!shared) renderer.setAnimationLoop(loop);
 
   /* ================= 시작 상태 · 외부 API ================= */
   if (opts.albums) nvReel.setAlbums(opts.albums);
   ready = true;
   resize(); layoutDial();   // 불러오는 동안 창 크기가 바뀌었을 수 있음
+  // 미리 데우기: 인트로가 덮고 있는 동안은 그리지 않아서, 예전엔 인트로가 끝난 첫 프레임에 셰이더 컴파일·텍스처 업로드가 몰려
+  //  Hero 가 시작하자마자 멈칫했음 → 프리로더 뒤에서 미리 끝내 둠 (숨겨 둔 것도 잠깐 보이게 해서 같이)
+  {
+    const hidden = [];
+    scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+    // 동기 compile: compileAsync 는 곧바로 다시 숨긴 재질을 기다리다 오류가 남. 프리로더 뒤라 잠깐 걸려도 보이지 않음
+    //  톤 매핑은 실제로 그릴 때와 같게 (없음): 빌린 렌더러는 주인의 톤 매핑(Neutral)이 켜져 있어서, 그대로 컴파일하면
+    //  셰이더 키가 달라 Hero 첫 프레임에 4개를 다시 컴파일했음 (= 로딩 직후 판이 나올 때 멈칫) — 주인은 drawShared 동안 끔
+    const tm = renderer.toneMapping;
+    renderer.toneMapping = THREE.NoToneMapping;
+    try { renderer.compile(scene, camera); } catch { /* 첫 프레임에서 다시 컴파일됨 */ }
+    renderer.toneMapping = tm;
+    for (const o of hidden) o.visible = false;
+    scene.traverse((o) => {
+      if (!o.isMesh) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material])
+        for (const k of ["map", "alphaMap", "normalMap", "emissiveMap"]) if (m?.[k]) renderer.initTexture(m[k]);
+    });
+    // (파동 렌더러는 처음 쓸 때 만들므로 미리 데우지 않음)
+  }
 
   return {
     /** New Vinyls 앨범 목록 (Supabase에서 받은 뒤) */
@@ -2718,10 +2755,28 @@ export async function createHomeEngine(opts) {
     },
     get section() { return section; },
     get dialIndex() { return dialIndex; },
+    /** 빌린 렌더러로 target(렌더 타깃)에 그릴 셰이더를 미리 컴파일 (바깥이 Hero 를 타깃에 그려 겹칠 때 첫 프레임 멈칫 방지)
+     *  타깃에 그리면 출력 색 공간·톤 매핑이 화면과 달라 셰이더가 따로 필요함 */
+    compileFor(target) {
+      if (disposed || !shared) return;
+      const prev = renderer.getRenderTarget(), tm = renderer.toneMapping;
+      const hidden = [];
+      scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+      renderer.setRenderTarget(target);
+      renderer.toneMapping = THREE.NoToneMapping;
+      try { renderer.compile(scene, camera); } catch { /* 첫 프레임에서 다시 컴파일됨 */ }
+      renderer.toneMapping = tm;
+      renderer.setRenderTarget(prev);
+      for (const o of hidden) o.visible = false;
+    },
     /** 그리기 멈춤/다시 시작 (멈춘 동안의 시간은 건너뜀) */
     setPaused(p) { paused = !!p; },
+    /** 빌린 렌더러(opts.sharedRenderer)에 한 프레임 그림. 그렸으면 true (인트로 전·멈춤이면 false) */
+    drawShared() { return shared && !disposed ? loop() : false; },
     /** 판만 숨김/다시 보임 (바깥이 같은 자리의 판을 이어 받는 동안 판이 두 장 겹쳐 보이지 않게. 링·먼지는 그대로) */
     setDiscHidden(h) { flip.visible = !h; },
+    /** 판의 잉크만 끔 (깊이는 그대로 → 판 뒤의 링·그림자는 계속 가려짐). 바깥이 같은 자리에 판을 대신 그릴 때 */
+    setDiscMask(on) { inkMat.visible = !on; },
     /** 지금 화면에 보이는 판의 자세 (onHeroLeave 로 이어 받는 쪽이 같은 자리에서 시작하도록)
      *  x·y: 캔버스 가운데 기준 px(위가 +), radius: 판 반지름 px, quat: 카메라 기준 회전, rect: 캔버스 화면 사각형
      *  omega: 지금 회전 각속도(rad/s, 판 축 기준. 이어 받는 쪽이 같은 속도로 이어 돌게) */
@@ -2731,8 +2786,11 @@ export async function createHomeEngine(opts) {
       const m = new THREE.Matrix4().multiplyMatrices(camera.matrixWorldInverse, spin.matrixWorld);
       const pos = new THREE.Vector3(), quat = new THREE.Quaternion(), scl = new THREE.Vector3();
       m.decompose(pos, quat, scl);
+      // 회전(spin)을 뺀 기울기 틀: 이어 받는 쪽이 자기 회전각을 이어 가도록 (넘어갈 때 판 무늬가 튀지 않게)
+      const tiltQuat = new THREE.Quaternion();
+      new THREE.Matrix4().multiplyMatrices(camera.matrixWorldInverse, flip.matrixWorld).decompose(new THREE.Vector3(), tiltQuat, new THREE.Vector3());
       return {
-        x: pos.x * camera.zoom, y: pos.y * camera.zoom, radius: scl.x * camera.zoom, quat,
+        x: pos.x * camera.zoom, y: pos.y * camera.zoom, radius: scl.x * camera.zoom, quat, tiltQuat,
         rect: canvas.getBoundingClientRect(),
         ink: uniforms.uInk.value.clone(), label: uniforms.uLabel.value.clone(),
         omega,
@@ -2741,7 +2799,7 @@ export async function createHomeEngine(opts) {
     dispose() {
       if (disposed) return;
       disposed = true;
-      renderer.setAnimationLoop(null);
+      if (!shared) renderer.setAnimationLoop(null);
       cleanups.forEach((fn) => fn());
       nvReel.dispose();
       scene.traverse((o) => {
@@ -2750,8 +2808,8 @@ export async function createHomeEngine(opts) {
         mats.forEach((m) => { m.map?.dispose?.(); m.dispose?.(); });
       });
       waveQuad.geometry.dispose(); waveQuad.material.dispose();
-      waveRenderer.dispose(); waveRenderer.forceContextLoss();
-      renderer.dispose(); renderer.forceContextLoss();
+      if (waveRenderer) { waveRenderer.dispose(); waveRenderer.forceContextLoss(); }
+      if (!shared) { renderer.dispose(); renderer.forceContextLoss(); }   // 빌린 렌더러는 주인이 정리
       dracoLoader.dispose();
       $waveCanvas.remove();
       canvas.remove();

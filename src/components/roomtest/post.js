@@ -54,7 +54,11 @@ void main() {
   vec2 q = (vUv - 0.5) * vec2(uAspect, 1.0);
   c *= 1.0 - uVignette * smoothstep(0.35, 1.05, length(q));
   // 디더: 어두운 바탕의 비네트 · 흐림 그라데이션이 8bit 계단(링)으로 보이지 않게
-  c += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+  //  Interleaved Gradient Noise (sin 해시 대신): 예전 fract(sin(dot(픽셀좌표, …)) * 43758.5) 는 좌표가 커지면(≈17만 rad)
+  //  GPU(특히 Windows ANGLE)에서 sin 정밀도가 무너져 고른 미세 잡음이 아니라 눈에 보이는 무늬 노이즈가 됐음
+  //  → 바탕이 어두워지며 후처리가 켜지는 Hero → 다음 칸 전환에서 "노이즈 낀 화면"으로 보였음
+  float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  c += (ign - 0.5) / 255.0;
   gl_FragColor = vec4(c, 1.0);
 }`;
 
@@ -71,7 +75,8 @@ export function createPost(renderer) {
     uBloom: { value: 0.32 }, uTilt: { value: 1 }, uFocusY: { value: 0.52 }, uFocusHalf: { value: 0.3 }, uFocusRamp: { value: 0.2 },
     uVignette: { value: 0.12 }, uAspect: { value: 1 },
   });
-  const params = { enabled: true, bloom: 0.32, threshold: 0.62, knee: 0.15, tilt: 1, focusY: 0.52, focusHalf: 0.3, focusRamp: 0.2, vignette: 0.12 };
+  // mix: 전체 세기 (0 = 건너뜀 → 장면 그대로. Home 은 Hero 판이 크림 바탕에 있는 동안 0, 바탕이 어두워지는 만큼 1 로)
+  const params = { enabled: true, mix: 1, bloom: 0.32, threshold: 0.62, knee: 0.15, tilt: 1, focusY: 0.52, focusHalf: 0.3, focusRamp: 0.2, vignette: 0.12 };
 
   let base = null, D = [], U = [], B = [], W = 0, H = 0;
   const rt = (w, h) => new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
@@ -93,7 +98,7 @@ export function createPost(renderer) {
 
   // 장면을 화면에 그린 바로 뒤에 부름
   function run() {
-    if (!params.enabled || !base) return;
+    if (!params.enabled || !base || params.mix <= 0) return;
     renderer.copyFramebufferToTexture(base);
     const prevAuto = renderer.autoClear; renderer.autoClear = false;
     // 줄이기: base → D1 → … → D4
@@ -123,14 +128,23 @@ export function createPost(renderer) {
     // 합치기 → 화면
     const u = comp.uniforms;
     u.tBase.value = base; u.tSoft.value = D[0].texture; u.tBlur.value = U[0].texture; u.tBloom.value = B[0].texture;
-    u.uBloom.value = params.bloom; u.uTilt.value = params.tilt; u.uFocusY.value = params.focusY;
-    u.uFocusHalf.value = params.focusHalf; u.uFocusRamp.value = params.focusRamp; u.uVignette.value = params.vignette; u.uAspect.value = W / H;
+    const k = Math.min(1, params.mix);
+    u.uBloom.value = params.bloom * k; u.uTilt.value = params.tilt * k; u.uFocusY.value = params.focusY;
+    u.uFocusHalf.value = params.focusHalf; u.uFocusRamp.value = params.focusRamp; u.uVignette.value = params.vignette * k; u.uAspect.value = W / H;
     pass(comp, null);
     renderer.autoClear = prevAuto;
   }
   // 셰이더를 미리 컴파일 (처음 3D 로 넘어가는 프레임에서 멈칫하지 않게)
+  //  실제로 그릴 곳에 맞춰서: 줄이기·키우기는 렌더 타깃(선형 출력), 합치기는 화면(sRGB 출력) — 셰이더 키가 달라서
+  //  예전처럼 전부 화면 기준으로만 데우면 줄이기·키우기 2개를 바탕이 어두워지기 시작하는 프레임에 다시 컴파일했음
   function prewarm() {
-    for (const m of [down, up, comp]) { quad.material = m; renderer.compileAsync(sc, cam).catch(() => {}); }
+    const prev = renderer.getRenderTarget();
+    for (const [m, target] of [[down, D[0] ?? null], [up, D[0] ?? null], [comp, null]]) {
+      quad.material = m;
+      renderer.setRenderTarget(target);
+      renderer.compileAsync(sc, cam).catch(() => {});
+    }
+    renderer.setRenderTarget(prev);
   }
   function dispose() {
     base?.dispose(); [...D, ...U, ...B].forEach((t) => t.dispose());

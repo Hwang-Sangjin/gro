@@ -26,6 +26,15 @@ import { addShelfTestProps, applyNowPlaying } from "./shelfTestProps";
 import { applyLightmaps, setLightmapState } from "./lightmaps";
 import { createPost } from "./post";
 import { createRoomSound } from "./roomSound";
+import { markHomeReady } from "@/lib/homeReady";
+import HomeSections from "./HomeSections";
+import { createInkWipe, WIPE, WIPE_BAND, SLEEVE } from "./inkWipe";
+import usePageLenis from "@/components/layout/usePageLenis";
+import { useIntro } from "@/components/intro/intro-context";
+import { createInkHero, INK_HERO, HERO_HOLD, HS } from "./inkHero";
+import { createSleeveHero, makeSleeveDisc, SLEEVE_HERO } from "./sleeveHero";
+import { applyTurntableLook } from "./turntableLook";
+import { makeEnvironment } from "@/components/sleevetest/sleeveScene";
 
 const MODEL_URL = "/models/room/grooves_room_blockout_reveal.glb";
 const VINYL_URL = "/models/vinyl.glb";
@@ -40,13 +49,15 @@ const LIGHT_PIVOT = {
 const STORY = {
   heroEnd: 0.06,
   dark: [0.06, 0.12],             // 바탕이 검게, 판이 1/3 크기로 (카메라가 멀어짐)
-  ttRise: [0.15, 0.10],           // 가운데 아래 턴테이블이 어둠 속에서 올라옴
+  // 가운데 아래 턴테이블이 올라옴. 바탕이 어두워지는 동안 같이 (예전 [0.15, 0.10]: 화면이 다 검어진 뒤에야 나와서
+  //  "어두워짐 → 다른 장면" 으로 끊겨 보였음. 지금은 카메라가 물러나며 판 아래 턴테이블이 드러나는 한 장면)
+  ttRise: [0.09, 0.12],
   land: [0.24, 0.10],             // 판이 플래터 위로 내려앉음
   build: [0.34, 0.34],            // Blender reveal 클립 전체를 이 구간에 선형으로 = Blender 순서·타이밍 그대로
   lampDelay: 0.01, lampDur: 0.07,  // 램프는 놓인 뒤 천천히 켜짐
   nightDur: 0.12,                 // 창문 벽이 다 선 뒤 창밖 야경이 밝아지는 길이
   room: [0.34, 0.20],             // 방 주변광
-  lidAt: 0.20,                    // 턴테이블이 다 올라온 뒤·판이 내려앉기 전에 먼지 덮개가 열림
+  lidAt: 0.215,                  // 턴테이블이 다 올라온 뒤·판이 내려앉기 전에 먼지 덮개가 열림
   spinAt: 0.70, armDur: 0.05,
   camFinal: 0.54,                 // reveal v2(64프레임): 큰 가구가 놓일 무렵 완성 구도에 도착 → 소품이 튀어나오는 건 고정된 구도에서
   roomHold: 0.76,                 // 방 전체 구도는 여기까지 (= 3칸)
@@ -57,16 +68,22 @@ const STORY = {
 //  - 착지까지(0~2): 스크롤이 칸 사이 위치 s 를 직접 움직이고 화면은 부드럽게 따라감. 손을 떼면 가까운 칸으로 미끄러져 붙음
 //  - 3D 방부터(2~5): 휠·스와이프·키 한 번에 한 칸, 그 칸의 장면을 시간으로 재생 (방 생성은 Blender 시간 그대로, 재생 중엔 입력 무시)
 const STAGE_P = [0, 0.18, 0.34, 0.76, 0.86, 0.96];
-const STAGE_DUR = [1.6, 2.2, null, 1.2, 1.0];   // [i]↔[i+1] 한 칸을 지나는 시간(초). null = 방 생성: Blender 클립 길이 그대로
+const STAGE_DUR = [1.0, 1.4, null, 1.2, 1.0];   // [i]↔[i+1] 한 칸을 지나는 시간(초). null = 방 생성: Blender 클립 길이 그대로
 const STEP_FROM = 2;                            // 이 칸부터는 한 번에 한 칸
 const STEP = { threshold: 24, touch: 40, cooldown: 0.45 };   // Home 엔진 SECTION 과 같은 값
 // 해상도: 4K 화면에서 픽셀 비율 2 면 한 장에 수백만 픽셀 × 조명 수십 개 → 1.5 로 묶고, 그래도 느리면 1 까지 자동으로 낮춤
 const DPR_MAX = 1.5, DPR_MIN = 1, DPR_SLOW_FPS = 45;
-const HERO_HOLD = 0.4;
+// Hero 판의 빛줄기 (homeEngine STREAK.spread) · 직교 카메라처럼 보이게 둘 눈의 거리(판 반지름 배)
+const HERO_STREAK_SPREAD = 0.45, HERO_EYE_FAR = 300;
+// Hero 렌즈: 넘어오는 순간의 화각 배율(tan 비, 작을수록 직교에 가까움) · 원래 렌즈로 돌아오는 진행도 구간 [시작, 길이]
+const HERO_LENS = 0.2, HERO_LENS_P = [0, 0.12];
+// Hero 를 떠나게 한 휠 한 번에 판이 바로 움직이는 몫 (칸 단위, 착지까지 2칸)
+const HERO_LEAVE_NUDGE = 0.12;
+const HERO_FADE_MS = 400;   // Hero 층(제목·글자)이 옅어지는 시간
 // 구운 빛: 빈 방 → 가구 있는 방 으로 바뀌는 reveal 클립 프레임 (Lv1 큰 가구 시작 44 ~ Lv3 소품 끝 108, docs: 방 reveal 단계 구조)
 const LM_BUILD = [22, 58];   // reveal v2: 큰 가구 시작 22 ~ 소품 끝 무렵 58 (예전 클립은 44 ~ 108)   //   // Hero 를 이어 받은 판이 제자리에 머무는 시간(초). Hero 레이어가 걷히는 0.5초와 거의 같게
 const POST_TILT = [0.56, 0.10];   // 틸트시프트가 켜지는 진행도 구간 (방 완성 무렵)
-const BUILD_SLOW = 1.25;          // 방 짓는 재생 속도: 클립 길이의 이 배만큼 천천히 (클립 자체는 그대로)
+const BUILD_SLOW = 1;             // 방 짓는 재생 속도: 클립 길이 그대로 = Blender 타이밍 (1 보다 크면 그 배만큼 천천히)
 // 불 켜짐: 램프가 놓일 때마다 그 램프 몫만큼 차례로 밝아짐 (램프 pivot → 전체 밝기에서 차지하는 몫). 한 번 켜지는 길이 = LAMP_ON_DUR
 const LAMP_SHARE = { pivot_lamp_floor: 0.4, pivot_lamp_circle: 0.2, pivot_lamp_window: 0.15, pivot_lamp_table: 0.25 };
 const LAMP_ON_DUR = 0.035, LAMP_ON_LEAD = 0.03;   // LEAD: 램프가 다 자리 잡기 조금 전(튀어나와 출렁일 때)부터 켜지기 시작
@@ -78,9 +95,22 @@ const LAMP_GLOW = {
   mat_lamp_table_shade: [0.56, 0.42, 1.0],     // 테이블 램프 갓 → (174,56,38)
   mat_lamp_circle_shade: [0.965, 0.708, 0.558], // 콘솔 원형 램프 → (251,219,197)
 };
+// 늦은 밤의 방 (2026-11-16, B + D): 화면 가운데에서 고리가 열림 → 스크롤을 따라 카메라가 턴테이블로 다가감 → "drop the needle" 에서 바늘이 내려감
+//  NIGHT_PUSH: 창 섹션 윗변 높이 T [시작, 끝] 동안 방 전체 구도 → 턴테이블 가까이 · fill: 다가간 뒤 턴테이블 폭이 화면 짧은 변에서 차지하는 비율
+//  NIGHT_NEEDLE: "drop the needle" 문구가 화면 위에서 [내려감, 다시 들림] 비율 높이를 지날 때 (사이를 두어 경계에서 덜컹이지 않게)
+const NIGHT_PUSH = { at: [1.65, 2.45], fill: 0.5, size: 0.45, lift: 0.18 };
+const NIGHT_NEEDLE = [0.62, 0.74];
+// 늦은 밤의 방이 열리는 모양 (2026-11-16 사용자 결정): 세로로 긴 사진 한 장이 화면 아래에서 가운데로 올라오고(rise) → 스크롤을 따라 화면 가득 커짐(grow)
+//  사진일 때는 방 전체가 아니라 턴테이블 쪽만 확대(zoom 배)해 보여 주다가 (처음엔 창문 + 시계였는데 턴테이블이 더 자연스럽다는 사용자 결정), 커지는 만큼 확대가 풀리며 방 전체 구도가 됨
+//  (방 화면 자체를 줄이지 않고 카메라의 보는 범위만 좁힘 → 확대해도 흐려지지 않고, 다 커지면 원래 구도와 정확히 같음)
+//  at: 창 섹션 윗변 높이 T 가 이만큼일 때 시작 · w/h: 사진 크기 (화면 높이 대비, 폭은 화면 폭의 minW~maxW 안에서) · radius: 모서리(px)
+const NIGHT_FRAME = { at: 0.3, rise: 0.6, grow: 0.7, w: 0.46, h: 0.58, minW: 0.2, maxW: 0.6, radius: 18, zoom: 2.6, look: ["pivot_turntable"] };
+// News → 늦은 밤: News 의 바탕색이 밤색으로 천천히 바뀜 (T 구간). 색 = 방의 밤하늘 · 건물 그늘에 가까운 짙은 남보라 → 사진이 커질 때 가장자리가 바탕에 자연스럽게 묻힘
+const NIGHT_TINT = { at: [0.25, 1.05], color: "#17131f" };
+const NIGHT_OPEN = [NIGHT_FRAME.at, NIGHT_FRAME.rise + NIGHT_FRAME.grow];                  // 늦은 밤의 방: 창 섹션 윗변이 화면 높이의 [이만큼] 올라온 뒤 [이 길이] 동안 잉크가 걷힘
 const NV_BACK_WAIT = 1.0;                       // New Vinyls → 방: 커버가 선반으로 돌아가는 시간(핸드오프 1초)만큼 카메라가 기다림
 const SCROLL = {
-  speed: 0.8,       // 착지까지: 스크롤·붙는 속도 배율 (1 보다 작으면 더 천천히)
+  speed: 1,         // 착지까지: 스크롤·붙는 속도 배율 (1 보다 작으면 더 천천히)
   perStage: 420,    // 휠 이만큼(px)이면 한 칸 (speed 1 기준, 마우스 휠 약 4노치)
   maxStep: 0.35,    // 휠 이벤트 하나로 움직이는 최대 칸 (큰 휠 튐 방지)
   touch: 0.45,      // 터치: 화면 높이의 이만큼 끌면 한 칸
@@ -92,8 +122,35 @@ const sToP = (s) => { const i = Math.min(Math.floor(s), STAGE_P.length - 2); ret
 const pToS = (p) => { let i = 0; while (i < STAGE_P.length - 2 && p > STAGE_P[i + 1]) i++; return i + clamp01((p - STAGE_P[i]) / (STAGE_P[i + 1] - STAGE_P[i])); };
 // 진행 막대·디버그 패널에 쓰는 칸 이름 (칸 자리 = STAGE_P)
 const STAGES = ["Hero", "검은 바탕 · 판 1/3", "턴테이블 · 판 착지", "방 · 불 · 야경 · 33⅓", "New Vinyls", "News"].map((label, i) => [STAGE_P[i], label]);
+// 방 완성 칸 재생 중 이 진행도를 넘으면 페이지 스크롤을 풀고 문구를 올림 (소품이 다 놓이는 무렵 ≈ reveal 58/64 프레임 → 0.65)
+//  예전엔 재생이 끝난 0.76 + 0.45초 뒤 → 약 1.5초 늦었음. 더 일찍 = 값을 낮춤
+const FREE_P = 0.65;
+// flow="scroll" (Home): 칸을 넘기는 대신 페이지 스크롤에 이어진 한 장면 (/lab/room-test 의 흐름)
+//  - 앞부분(Hero → 바탕이 어두워짐 → 턴테이블 · 덮개 → 착지, P 0~0.34): 페이지 스크롤에 그대로 묶임 (굴린 만큼)
+//  - 방 짓기(P 0.34~0.76): 판이 앉고 스크롤이 그 너머면 Blender 시간 그대로 재생, 되돌리면 같은 속도로 역재생
+//    (방이 다 되감긴 뒤에야 판이 들림 = 거꾸로도 같은 순서)
+//  - 판은 앞쪽에서 먼저 수평으로 누움 (턴테이블에 들어가기 좋게)
+const FLOW = {
+  travel: 1.0,       // 판이 턴테이블에 앉기까지의 스크롤 길이 (화면 높이 배)
+  hold: 0.8,         // 앉은 뒤 방이 지어지는 걸 보는 길이 (그 뒤 섹션이 올라옴)
+  flat: [0.0, 0.12], // 판이 수평으로 눕는 진행도 구간 [시작, 길이]
+  follow: 8,         // 앞부분이 (방 역재생을 기다렸다가) 스크롤 자리를 따라붙는 빠르기
+};
+const NV_WHEEL = 2, NV_WHEEL_EASE = 0.3;   // 방 → New Vinyls 구간의 휠 배수 · 끝에서 1 로 돌아오는 구간(비율)
+const INDEX = ["Grooves", "The Room", "New Vinyls", "News", "After Hours"];   // 오른쪽 목차 01–05
 const RPM = (r) => (r * Math.PI * 2) / 60;
 const CREAM = new THREE.Color("#f3e7cd"), NIGHT = new THREE.Color("#0e0c11");
+// 나중에 채워지는 약속 (방 렌더러가 만들어지면 Hero 엔진에 넘김)
+// CSS 색 (color-mix · oklab 등 무엇이든) → THREE.Color: 1px 2D 캔버스에 칠해 읽음 (THREE.Color 는 rgb·hex 만 읽음)
+let colorCtx = null;
+const cssColor = (css) => {
+  if (!css || css === "transparent" || /rgba\(.*,\s*0\)$/.test(css)) return null;
+  colorCtx ??= Object.assign(document.createElement("canvas"), { width: 1, height: 1 }).getContext("2d", { willReadFrequently: true });
+  colorCtx.clearRect(0, 0, 1, 1); colorCtx.fillStyle = "#000"; colorCtx.fillStyle = css; colorCtx.fillRect(0, 0, 1, 1);
+  const [r, g, b] = colorCtx.getImageData(0, 0, 1, 1).data;
+  return new THREE.Color().setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace);
+};
+const deferred = () => { let resolve; const promise = new Promise((r) => { resolve = r; }); return { promise, resolve }; };
 const INK_ON_CREAM = new THREE.Color("#4c404a"), INK_ON_NIGHT = new THREE.Color("#efe3c8");
 const LABEL_ON_CREAM = new THREE.Color("#2d6a6a"), LABEL_ON_NIGHT = new THREE.Color("#7fc1bd");
 const DISC_R = 0.15;              // LP 반지름 (m)
@@ -201,7 +258,41 @@ function makeInkDisc(scene) {
   return { root, uniforms, inkMat, baseMat, ref: meshes[0] };
 }
 
-export default function RoomTest() {
+// 꾸밈 없는 판 (heroMode="raw"): vinyl.glb 의 재질 그대로 (빨간 라벨 · 검은 비닐). 셰이더 · Home 엔진 없음
+//  잉크 판과 같은 크기 · 같은 아랫면 기준이라 플래터에 똑같이 내려앉음
+function makeRawDisc(scene) {
+  const model = scene;
+  let ref = null;
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    ref ??= o; o.renderOrder = 1;
+    // 판 면(Material.002)은 색이 비어 있는 흰 재질 (잉크 셰이더가 그 위에 그려 왔음) → 실제 판처럼 검은 비닐, 살짝 윤이 남
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (m.color && m.color.r > 0.9 && m.color.g > 0.9 && m.color.b > 0.9) { m.color.set("#141216"); m.roughness = 0.32; }
+    }
+  });
+  const box = new THREE.Box3().setFromObject(model);
+  const holder = new THREE.Group();
+  holder.scale.setScalar(DISC_R);
+  holder.position.y = -box.min.y * DISC_R;   // 판 아랫면이 플래터에 닿게
+  holder.add(model);
+  const root = new THREE.Group();
+  root.add(holder);
+  return { root, uniforms: null, inkMat: null, baseMat: null, ref };
+}
+
+/** heroMode: "engine" = Home 엔진의 Hero (잉크 판 · 링 · 인트로) · "raw" = 방 장면의 꾸밈 없는 판 한 장
+ *  · "ink" = 방 장면 속 잉크 판 + 주변 효과 · 누르기 · 뒤집기 · 제목 · 커서 (inkHero.js, /lab/room-test 에서 맞춘 그림)
+ *  · "sleeve" = 실제 같은 LP 재킷 줄 → 열면 판이 나오고 → 그 판이 턴테이블로 (sleeveHero.js, /lab/sleeve-room) */
+export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
+  const rawHero = heroMode === "raw";
+  const inkHero = heroMode === "ink";
+  const sleeveHero = heroMode === "sleeve";
+  const ownHero = rawHero || inkHero || sleeveHero;   // Home 엔진 없이 이 캔버스가 Hero 를 그림
+  // sleeve Hero: 가운데 앨범 · 열림 (아래 글자 · 버튼)
+  const [sleeveAt, setSleeveAt] = useState(0);
+  const [sleeveOpen, setSleeveOpen] = useState(false);
+  const scrollFlow = flow === "scroll";
   const hostRef = useRef(null);
   const apiRef = useRef(null);
   const slotRef = useRef(null);
@@ -224,7 +315,60 @@ export default function RoomTest() {
   // 모션 줄이기: 칸 이동은 바로, 회전·떠 있는 흔들림·커버 날아가기 없음 (프로젝트 공통 규칙)
   const [reduced] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
   const wrapRef = useRef(null);
+  // 페이지 스크롤 (방 완성 뒤): .page 가 스크롤 영역, Lenis 로 부드럽게. 방이 완성되기 전에는 잠가 둠
+  const pageRef = useRef(null);
+  const contentRef = useRef(null);
+  const stageRef = useRef(null);
+  const wipeRef = useRef(null);   // 섹션 바탕색 · 전환 경계를 그리는 캔버스 (inkWipe)
+  const [free, setFree] = useState(false);
+  const [where, setWhere] = useState(0);   // 목차: 지금 보이는 뒤 섹션 (0 = 아직 방 스테이지, 1 New Vinyls · 2 News · 3 늦은 밤)
+  const [debug, setDebug] = useState(false);   // ?debug=1 이면 디버그 패널
+  const { done } = useIntro();
+  // ink Hero: 제목 · 커스텀 커서 DOM, 제목이 올라오기 시작하는 기준 시각(= 첫 로딩 화면이 걷힌 때)
+  const titleRef = useRef(null);
+  const curRefs = { ring: useRef(null), dot: useRef(null), shape: useRef(null), label: useRef(null), tick: useRef(null) };
+  const heroStartRef = useRef(null);
+  useEffect(() => { if (done && heroStartRef.current == null) heroStartRef.current = performance.now() / 1000; }, [done]);
+  // 방 완성 → New Vinyls 가 화면 위에 닿을 때까지만 휠 한 칸이 NV_WHEEL 배 (닿기 직전 마지막 NV_WHEEL_EASE 구간에서 1 로 부드럽게)
+  //  New Vinyls 는 한 화면(+슬리브 여백)을 올라와야 해서 휠을 많이 굴려야 했음. 그 뒤(갤러리 · News)는 휠 1:1
+  const wheelScale = useRef((y) => {
+    // sleeve Hero: 판이 턴테이블로 내려가는 구간(맨 위 ~ 착지 자리)은 휠을 느리게 → 판을 눌렀을 때처럼 천천히 내려감
+    //  (예전: 휠 몇 칸에 이 구간이 휙 지나가서, 판이 가운데로 와서 내려앉는 과정이 거의 안 보였음)
+    if (apiRef.current?.sleeve) {
+      const land = FLOW.travel * (pageRef.current?.clientHeight || 1);
+      if (y < land) return SLEEVE_HERO.wheel.land + (1 - SLEEVE_HERO.wheel.land) * THREE.MathUtils.smoothstep(y / land, 0.9, 1);
+    }
+    const end = apiRef.current?.nvTop;
+    if (!end || y >= end) return 1;
+    const k = 1 - THREE.MathUtils.smoothstep(y / end, 1 - NV_WHEEL_EASE, 1);
+    return 1 + (NV_WHEEL - 1) * k;
+  }).current;
+  usePageLenis({ wrapperRef: pageRef, contentRef, enabled: done, syncTouch: true, scrollbar: true, wheelScale });
+  // sleeve Hero: 재킷을 열기 전(Hero 맨 위)에는 페이지 스크롤을 잠금 → 휠은 앨범 넘기기 (sleeveHero.js). 재킷을 눌러 판이 나오면 풀림 → 스크롤하면 다음 섹션으로
+  const sleeveLock = sleeveHero && heroOn && !sleeveOpen;
+  useEffect(() => {
+    const page = pageRef.current; if (!page) return;
+    if (sleeveLock) page.dispatchEvent(new CustomEvent("page:scrollto", { detail: { top: 0 } }));     // 맨 위에 딱 붙임 (몇 px 내려가 있으면 '스크롤로 열림'이 됨)
+    page.dispatchEvent(new Event((free || scrollFlow) && !sleeveLock ? "page:unlock" : "page:lock"));
+  }, [free, done, scrollFlow, sleeveLock]);
   const homeRef = useRef(null);   // Home 엔진 (heroPose)
+  // 한 캔버스: Hero(Home 엔진)는 자기 WebGL 을 만들지 않고 이 방의 렌더러를 빌려 같은 캔버스에 그림
+  //  → Hero 판 → 방의 판이 같은 픽셀에서 바로 이어짐 (두 캔버스를 겹쳐 바꾸던 때의 끊김·이중 그리기 없음)
+  //  렌더러는 아래 effect 에서 만들어지므로 약속으로 넘김 (개발 모드에서 effect 가 다시 돌면 새 약속)
+  // 첫 로딩 화면이 기다리는 것: 3D 방(모델·빛 그림·배경·GPU·셰이더) + Hero 엔진(판·셰이더) + 선반 앨범 재킷(받아서 GPU 까지)
+  //  셋 다 끝나면 markHomeReady → 로딩이 걷힘 (아주 느린 망은 useAppReady 가 12초에서 끊음)
+  const gateRef = useRef(null);
+  if (!gateRef.current) gateRef.current = { room: deferred(), hero: deferred(), covers: deferred() };
+  if (ownHero) gateRef.current.hero.resolve();   // raw · ink Hero: Home 엔진이 없으니 기다릴 것 없음
+  useEffect(() => {
+    const g = gateRef.current;
+    // 각 조건이 끝난 시각을 performance 에 남김 (개발 도구 Performance 탭 · performance.getEntriesByName("home:room") 로 확인)
+    for (const k of ["room", "hero", "covers"]) g[k].promise.then(() => performance.mark(`home:${k}`));
+    Promise.all([g.room.promise, g.hero.promise, g.covers.promise]).then(markHomeReady);
+  }, []);
+  const sharedRef = useRef(null);
+  if (!sharedRef.current) sharedRef.current = deferred();
+  const getShared = useRef(() => sharedRef.current.promise).current;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -234,9 +378,25 @@ export default function RoomTest() {
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.localClippingEnabled = true;   // 남산 레이어를 창문 위 테두리에서 잘라 냄 (벽 위로 타워가 삐져나오지 않게)
     host.appendChild(renderer.domElement);
+    sharedRef.current.resolve(renderer);   // Hero 엔진이 기다리던 렌더러
     // 화면 후처리 (빛 번짐 · 틸트시프트 · 비네트). ?post=0 이면 끔
     const post = createPost(renderer);
     post.params.enabled = new URLSearchParams(location.search).get("post") !== "0";
+
+    // Hero 의 링·그림자·먼지를 그리는 겹침 타깃 · 화면 사각형 (renderHeroRT · compositeHeroRT)
+    const heroRT = new THREE.WebGLRenderTarget(1, 1, { samples: 4 });
+    heroRT.texture.colorSpace = THREE.SRGBColorSpace;
+    const overlayMat = new THREE.ShaderMaterial({
+      uniforms: { tMap: { value: heroRT.texture }, uK: { value: 1 } },
+      vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+      // 미리 곱한 알파를 풀고 → 화면 색 공간으로 → 다시 곱함 (Hero 를 화면에 바로 그릴 때와 같은 색으로 섞이게)
+      fragmentShader: "uniform sampler2D tMap; uniform float uK; varying vec2 vUv;\nvoid main(){ vec4 t = texture2D(tMap, vUv);\ngl_FragColor = vec4(t.a > 1e-4 ? t.rgb / t.a : vec3(0.0), t.a);\n#include <colorspace_fragment>\ngl_FragColor = vec4(gl_FragColor.rgb * gl_FragColor.a, gl_FragColor.a) * uK;\n}",
+      transparent: true, depthTest: false, depthWrite: false, toneMapped: false,
+      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    });
+    const overlayScene = new THREE.Scene();
+    overlayScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), overlayMat));
+    const overlayCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
     const scene = new THREE.Scene();
     // 사이트 테마의 크림 (다크 모드면 크림 ↔ 잉크가 바뀌어 있음) = Hero 바탕 · New Vinyls·News 종이색
@@ -249,6 +409,19 @@ export default function RoomTest() {
     const moon = new THREE.DirectionalLight(MOON, 0);          // 창 쪽에서 들어오는 밤빛 (방 완성 칸에선 노을빛)
     const key = new THREE.SpotLight("#ffe2b8", 0, 6, 0.55, 0.6, 1.2);  // 어둠 속 턴테이블만 비추는 빛
     scene.add(hemi, moon, moon.target, key, key.target);
+    // raw Hero 의 판 조명 (apply 에서 바탕이 어두워지는 만큼 꺼짐)
+    const heroLight = rawHero || sleeveHero ? { hemi: new THREE.HemisphereLight("#fff6e8", "#b9a88f", 0), sun: new THREE.DirectionalLight("#ffffff", 0) } : null;
+    if (heroLight) scene.add(heroLight.hemi, heroLight.sun, heroLight.sun.target);
+    if (sleeveHero) {
+      // 재킷이 판에 드리우는 부드러운 그림자 (Hero 의 재킷 줄 둘레만 덮는 작은 그림자 범위). 세기 0 일 때도 켜 둠: 껐다 켜면 셰이더를 다시 만들어 끊김
+      const sh = heroLight.sun.shadow;
+      heroLight.sun.castShadow = true;
+      sh.mapSize.set(1024, 1024); sh.radius = 7; sh.blurSamples = 12; sh.bias = -0.0005; sh.normalBias = 0.003;
+      Object.assign(sh.camera, { left: -0.8, right: 0.8, top: 0.6, bottom: -0.6, near: 0.2, far: 5 });
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    }
+    const _hlOff = new THREE.Vector3();
 
     // 먼 배경 레이어가 카메라에서 약 400m → far 1000
     const storyCam = new THREE.PerspectiveCamera(FOV0, 1, 0.05, 1000);
@@ -275,7 +448,7 @@ export default function RoomTest() {
     let headKey = "";
     const syncHeader = () => {
       if (!ctPage) return;
-      _hb.copy(st.section >= 1 ? st.themeCream : scene.background);
+      _hb.copy(st.overBg ?? (st.section >= 1 ? st.themeCream : scene.background));
       const lum = 0.2126 * _hb.r + 0.7152 * _hb.g + 0.0722 * _hb.b;   // 선형 밝기: 크림 ≈ 0.8, 잉크 ≈ 0.06, 밤 ≈ 0.005
       _hf.copy(FG_ON_DARK).lerp(FG_ON_LIGHT, THREE.MathUtils.smoothstep(lum, 0.1, 0.35));
       const key = _hb.getHexString() + _hf.getHexString();
@@ -292,6 +465,10 @@ export default function RoomTest() {
       renderer.setSize(w, h);
       const pr = renderer.getPixelRatio();
       post.setSize(w * pr, h * pr);
+      heroRT.setSize(Math.max(1, Math.round(w * pr)), Math.max(1, Math.round(h * pr)));
+      st.canvasRect = null;
+      if (st.hero) { st.hero.dirty = true; st.hero.fx?.setPixelRatio?.(pr); }
+      if (st.sleeve) st.sleeve.dirty = true;
       for (const c of [storyCam, orbitCam, ...Object.values(st.gltfCams)]) { c.aspect = w / h; c.updateProjectionMatrix(); }
     };
     const ro = new ResizeObserver(resize);
@@ -299,8 +476,14 @@ export default function RoomTest() {
 
     // ── 스크롤 위치 s(칸 단위): 입력이 sTarget 을 움직이고, s 는 그걸 부드럽게 따라감
     const now = () => performance.now() / 1000;
-    const LAST = STAGE_P.length - 1;
-    st.s = 0; st.sTarget = 0; st.goal = null; st.stage = 0; st.dir = 1; st.inputAt = 0; st.touching = false; st.inHero = true;
+    const LAST = 3;   // 방 완성까지가 스테이지. 그 뒤(New Vinyls · News · 늦은 밤의 방)는 페이지 스크롤 (HomeSections)
+    // 방이 완성되어 멈춰 있으면 페이지 스크롤을 풀어 줌(free). 맨 위에서 위로 굴리면 다시 스테이지가 받아 한 칸 되돌아감
+    st.free = false; st.scrollAt = 0; st.covered = false; st.overBg = null;
+    const pageTop = () => pageRef.current?.scrollTop ?? 0;
+    // 페이지 스크롤에 맡길 입력인가 (dir: +1 아래로 · -1 위로)
+    const toPage = (dir) => st.free && (dir > 0 || pageTop() > 1 || now() - st.scrollAt < 0.5);
+    st.s = 0; st.sTarget = 0; st.goal = null; st.stage = 0; st.dir = 1; st.inputAt = 0; st.touching = false; st.inHero = !scrollFlow;
+    st.scrollFlow = scrollFlow; st.tr = 0; st.ts = 0; st.pPre = 0; st.k = 0; st.atTop = true;
     st.tween = null; st.lockUntil = 0;
     const segDur = (i) => STAGE_DUR[i] ?? (st.clip.duration * BUILD_SLOW * (STAGE_P[i + 1] - STAGE_P[i])) / STORY.build[1];
     // 착지까지: 그 칸으로 미끄러져 붙음
@@ -338,24 +521,55 @@ export default function RoomTest() {
       st.inputAt = now();
     };
     // Hero → 1: Home 엔진의 판 자리에서 이어 받고 1 칸으로 미끄러짐 (onHeroLeave)
-    //  판은 한 장으로 보이게: Home 판은 바로 숨기고(부르는 쪽), 이 판은 Hero 레이어가 걷히는 동안 그 자리에 머문 뒤 움직임
+    //  같은 캔버스라 넘어가는 프레임부터 이 판만 그려짐 (Home 엔진은 더 그리지 않음). 판은 그 뒤 스크롤을 따라 움직임
     st.leaveHero = (pose) => {
       if (!st.ready || !st.inHero) return false;
       if (pose) takeHero(pose);
+      readHeroBg();
+      st.bobT0 = null;
       st.inHero = false;
+      st.heroFadeAt = performance.now();   // Hero 의 링·그림자·먼지를 방 위에서 옅어지게 (heroK)
       st.s = st.sTarget = 0;
       st.onHero?.(false);
-      goStage(1);
-      st.goalAt = now() + (st.reduced ? 0 : HERO_HOLD);
+      // 판은 스크롤을 따라감: 저절로 내려가지 않고, 굴린 만큼 작아지며 턴테이블 위(Turntable_DiscSeat)로 (착지 = STEP_FROM 칸)
+      //  Hero 를 떠나게 한 그 휠만큼은 바로 조금 움직여서, 내린 것에 판이 곧장 반응하게
+      st.auto = false; st.goal = null;
+      st.sTarget = st.reduced ? 0 : HERO_LEAVE_NUDGE;
+      st.dir = 1; st.inputAt = now();
       return true;
     };
 
     // ── 입력 (Hero 에서는 Home 엔진이 받음)
     let wheelAcc = 0, wheelAt = 0;
+    // raw Hero: Home 엔진이 없으니 여기서 Hero 를 떠남 (아래로 한 번 = 방 이야기 시작, 엔진과 같은 문턱)
+    const heroInput = (dir) => {
+      if (!st.ready || dir <= 0 || now() < st.lockUntil) return;
+      st.leaveHero(null);
+    };
+    // 한 장면 흐름: 방이 지어지는 동안은 착지 지점 아래로 못 내려감 (위로는 그대로 → 역재생). 다 지어지면(FREE_P) 풀림
+    //  예전 칸 방식은 방이 다 지어질 때까지 페이지 스크롤 자체를 잠갔음 → 같은 느낌
+    const landY = () => FLOW.travel * (pageRef.current?.clientHeight || innerHeight);
+    const holdDown = () => st.scrollFlow && st.ready && !st.free && st.k >= 1 - 1e-3 && pageTop() >= landY() - 2;
+    const blockDown = (e) => { if (e.cancelable) e.preventDefault(); e.stopPropagation(); };
     const onWheel = (e) => {
-      if (st.inHero || e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      e.preventDefault();
+      if (st.scrollFlow) {   // 휠은 페이지가 그대로 (장면은 스크롤 위치를 읽음)
+        if (e.deltaY > 0 && holdDown()) blockDown(e);
+        return;
+      }
+      if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1);
+      if (st.inHero) {
+        if (!ownHero) return;   // Hero 는 Home 엔진이 받음
+        e.preventDefault();
+        const t = now();
+        if (t - wheelAt > 0.25) wheelAcc = 0;
+        wheelAt = t; wheelAcc += px;
+        if (wheelAcc > STEP.threshold) { wheelAcc = 0; heroInput(1); }
+        return;
+      }
+      // 방 완성 뒤: 페이지(Lenis)가 그대로 스크롤 — 휠을 가로채거나 배수를 곱하지 않음 (Route 66 처럼 휠 1 : 스크롤 1, lerp 0.1)
+      if (toPage(Math.sign(px))) return;
+      e.preventDefault();
       if (!px) return;
       if (!inStep(Math.sign(px)) && !st.tween) { wheelAcc = 0; moveBy(Math.max(-SCROLL.maxStep, Math.min(SCROLL.maxStep, px / SCROLL.perStage))); return; }
       // 3D 방: 한 번에 한 칸 (재생·쿨다운 중엔 무시)
@@ -372,24 +586,49 @@ export default function RoomTest() {
       if (Math.abs(wheelAcc) > STEP.threshold) { st.auto = false; stepTo(Math.round(st.sTarget) + Math.sign(wheelAcc)); wheelAcc = 0; }
     };
     let touchY = null, touchY0 = 0, touchStep = false;
-    const onTouchStart = (e) => { if (st.inHero) return; touchY = touchY0 = e.touches[0].clientY; touchStep = false; st.touching = true; };
+    const onTouchStart = (e) => {
+      if (st.scrollFlow) { flowTouchY = e.touches[0].clientY; return; }
+      if (st.inHero) { if (ownHero) { touchY0 = e.touches[0].clientY; touchY = null; st.heroTouch = true; } return; }
+      touchY = touchY0 = e.touches[0].clientY; touchStep = false; st.touching = true;
+    };
+    let flowTouchY = null;
     const onTouchMove = (e) => {
+      if (st.scrollFlow) {   // 손가락을 위로 쓸면(= 아래로 스크롤) 방이 지어지는 동안 막음
+        const y = e.touches[0].clientY;
+        if (flowTouchY != null && y < flowTouchY && holdDown()) blockDown(e);
+        flowTouchY = y;
+        return;
+      }
       if (touchY == null) return;
-      if (e.cancelable) e.preventDefault();
       const y = e.touches[0].clientY;
+      if (toPage(Math.sign(touchY - y) || 1)) { touchY = touchY0 = y; return; }   // 페이지가 스크롤 (캔버스는 touch-action: pan-y)
+      if (e.cancelable) e.preventDefault();
       if (touchStep || inStep(Math.sign(touchY - y)) || st.tween) touchStep = true;
       else moveBy((touchY - y) / (innerHeight * SCROLL.touch));
       touchY = y;
     };
-    const onTouchEnd = () => {
+    const onTouchEnd = (e) => {
+      if (st.scrollFlow) return;
+      if (st.heroTouch) {   // raw Hero: 위로 쓸어 올리면 떠남
+        st.heroTouch = false;
+        const y = e.changedTouches?.[0]?.clientY ?? touchY0;
+        if (touchY0 - y > STEP.touch) heroInput(1);
+        return;
+      }
       const dy = touchY0 - (touchY ?? touchY0);
       if (touchStep && Math.abs(dy) > STEP.touch && !busy()) { st.auto = false; stepTo(Math.round(st.sTarget) + Math.sign(dy)); }
       touchY = null; touchStep = false; st.touching = false; st.inputAt = now();
     };
     const onKey = (e) => {
-      if (st.inHero || e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      if (st.scrollFlow) {
+        if ({ ArrowDown: 1, PageDown: 1, " ": 1, End: 1 }[e.key] && holdDown()) e.preventDefault();
+        return;
+      }
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
       const dir = { ArrowDown: 1, PageDown: 1, " ": 1, ArrowUp: -1, PageUp: -1 }[e.key];
       if (!dir) return;
+      if (st.inHero) { if (ownHero) { e.preventDefault(); heroInput(dir); } return; }
+      if (toPage(dir)) return;
       e.preventDefault();
       if (st.tween || (inStep(dir) && busy())) return;
       st.auto = false; advance(dir);
@@ -403,10 +642,29 @@ export default function RoomTest() {
     window.addEventListener("keydown", onKey);
 
     // reveal 클립을 시간 t 의 자세로 (LoopOnce 가 끝에서 action 을 멈춰 두므로 매번 깨움)
+    const warmed = new WeakSet();
     const seekClip = (t) => {
       st.action.paused = false; st.action.enabled = true;
       st.action.time = Math.min(Math.max(t, 0), st.clip.duration);
       st.mixer.update(0);
+      // reveal 전의 조각은 0.001 배로 눌려 있을 뿐 그려지긴 함 → 어두운 바탕에서 바닥이 턴테이블 아래 가는 막대기로 보였음. 그만큼 작을 땐 숨김
+      //  빛은 건드리지 않고 메시만 숨김: 빛이 든 조각(램프)을 통째로 숨기면 장면의 빛 개수가 바뀌어, 조각이 나타날 때마다 재질 셰이더를 전부 다시 만들어 버벅였음
+      //  숨겨 둔 동안 그 조각의 그림(구운 4K 그림 등)은 미리 올려 둠 — 안 그러면 방이 지어지는 도중에 처음 올라가 끊김
+      for (const e of st.tiny ?? []) {
+        const o = e.node, tiny = Math.min(o.scale.x, o.scale.y, o.scale.z) < 0.004;
+        if (tiny && !e.warm) {
+          e.warm = true;
+          for (const m of e.meshes) for (const mat of [m.material].flat()) for (const k of ["map", "lightMap", "emissiveMap", "normalMap", "roughnessMap", "aoMap"]) {
+            const tex = mat?.[k];
+            if (!tex) continue;
+            if (!tex.image) { e.warm = false; continue; }
+            if (!warmed.has(tex)) { warmed.add(tex); renderer.initTexture(tex); }
+          }
+        }
+        if (tiny === e.hid) continue;
+        e.hid = tiny;
+        for (const m of e.meshes) m.visible = !tiny;
+      }
       st.root.updateMatrixWorld(true);
     };
     const clipP = (t) => STORY.build[0] + (t / st.clip.duration) * STORY.build[1];   // 클립 시간 → 진행도
@@ -431,10 +689,23 @@ export default function RoomTest() {
         return a;
       };
       st.action = once(st.clip);
+      // reveal 클립이 크기를 움직이는 조각들 (seekClip 에서 아주 작을 때 숨김)
+      st.tiny = st.clip.tracks.filter((t) => t.name.endsWith(".scale")).map((t) => THREE.PropertyBinding.findNode(root, THREE.PropertyBinding.parseTrackName(t.name).nodeName)).filter(Boolean)
+        .map((node) => { const meshes = []; node.traverse((m) => { if (m.isMesh && m.visible) meshes.push(m); }); return { node, meshes, hid: false }; });
       // 먼지 덮개: Blender 의 cover_open / cover_close 를 그대로, 실제 시간으로 (한 번에 하나만 켬)
       const lidOpen = clipNamed("cover_open"), lidClose = clipNamed("cover_close");
       if (lidOpen && lidClose) {
         st.lid = { open: once(lidOpen), close: once(lidClose), isOpen: false, t: lidClose.duration };
+        // sleeve Hero: 덮개가 처음 닫힌 자세에 닿는 순간에서 끝 (그 뒤 스프링처럼 다시 튀어 오르는 부분은 안 씀 — 사용자 요청)
+        const tk = lidClose.tracks.find((t) => t.name.endsWith(".quaternion"));
+        st.lid.closeEnd = lidClose.duration;
+        if (tk) {
+          const n = tk.times.length, v = tk.values, e = (n - 1) * 4;
+          for (let i = 0; i < n; i++) {
+            const d = Math.abs(v[i * 4] * v[e] + v[i * 4 + 1] * v[e + 1] + v[i * 4 + 2] * v[e + 2] + v[i * 4 + 3] * v[e + 3]);
+            if (d > 0.9999) { st.lid.closeEnd = tk.times[i]; break; }
+          }
+        }
         st.lid.open.enabled = false;
         st.lid.close.time = lidClose.duration;   // 처음엔 닫힌 자세
       }
@@ -554,6 +825,12 @@ export default function RoomTest() {
       // 처음 상태: 턴테이블이 화면 가운데 (pivot_root 가 방을 옮겨 둔 자리)
       seekClip(0);
       st.seat0 = st.seat.getWorldPosition(new THREE.Vector3());
+      {
+        // 플래터(매트 포함)의 윗면이 판 자리보다 얼마나 높은지 → 얇은 판을 그만큼 올려 놓음 (+0.4mm 띄움)
+        const top = new THREE.Box3();
+        st.platter?.traverse((o) => { if (o.isMesh && /rubber/.test(o.material?.name ?? "")) top.expandByObject(o); });     // 고무 매트만 (가운데 축 핀은 빼고)
+        st.seatLift = top.isEmpty() ? 0 : Math.max(0, top.max.y - st.seat0.y) + 0.0004;
+      }
       st.seatNow = st.seat0.clone();
       st.hover = st.seat0.clone().add(new THREE.Vector3(0, 0.42, 0));
       key.position.copy(st.seat0).add(new THREE.Vector3(0.35, 1.3, 0.9));
@@ -561,39 +838,141 @@ export default function RoomTest() {
       moon.position.copy(st.roomCenter).add(new THREE.Vector3(-6, 4, 1));
       moon.target.position.copy(st.roomCenter);
 
-      st.disc = makeInkDisc(vinyl.scene);
+      st.disc = sleeveHero ? makeSleeveDisc(renderer) : rawHero ? makeRawDisc(vinyl.scene) : makeInkDisc(vinyl.scene);
+      if (sleeveHero) {
+        st.sleeve = createSleeveHero({
+          st, renderer, scene, camera: storyCam, disc: st.disc, stage: stageRef.current, reduced: st.reduced,
+          camAtHero: () => placeStoryCam(0),
+          title: titleRef.current,
+          cursor: curRefs.ring.current ? { ring: curRefs.ring.current, dot: curRefs.dot.current, shape: curRefs.shape.current, label: curRefs.label.current, tick: curRefs.tick.current } : null,
+          onIndex: (i) => st.onSleeveIndex?.(i), onOpen: (o) => st.onSleeveOpen?.(o), onRecord: (i) => st.onSleeveRecord?.(i),
+          // 고른 앨범의 커버를 창가 선반 "지금 듣는 판" 재킷에
+          onPlay: (i) => { const a = st.sleeveFilled?.[i]; if (a && st.root) st.nowPlaying = applyNowPlaying(st.root, [a], 0) ?? st.nowPlaying; },
+        });
+        st.onSleeveReady?.();
+      }
+      // raw Hero: 판이 크림 바탕 한가운데 크게, 살짝 기울어 앞을 봄 (Home Hero 구도처럼: 기울기 40° · 화면에서 33° 돌아감)
+      if (rawHero) {
+        const camDir = new THREE.Vector3(0, 0.3, 1).normalize();   // P=0 카메라 쪽 (camKeys 의 heroDir)
+        const face = new THREE.Quaternion().setFromUnitVectors(UP, new THREE.Vector3().copy(UP).lerp(camDir, 0.62).normalize());
+        st.heroQuat = new THREE.Quaternion().setFromAxisAngle(camDir, THREE.MathUtils.degToRad(-33)).multiply(face);
+        st.heroPos = st.hover.clone();
+      }
       scene.add(st.disc.root);
+      if (inkHero) {
+        const c = curRefs;
+        st.hero = createInkHero({
+          st, renderer, camera: storyCam, disc: st.disc, radius: DISC_R, reduced: st.reduced, stage: stageRef.current, title: titleRef.current,
+          cursor: c.ring.current ? { ring: c.ring.current, dot: c.dot.current, shape: c.shape.current, label: c.label.current, tick: c.tick.current } : null,
+          startAt: () => heroStartRef.current,
+        });
+        scene.add(st.hero.fxFrame);
+      }
 
       st.ready = true;
       resize();
       // 미리 데우기: 처음 보이는 순간의 셰이더 컴파일·텍스처 업로드가 스크롤 중 끊김이 되지 않게 Hero 동안 끝내 둠
       //  (숨겨 둔 것도 잠깐 보이게 해서 같이 컴파일. 배경 이미지는 늦게 붙어 재질이 바뀌니 다 붙은 뒤 한 번 더)
-      const prewarm = () => {
+      //  - 큰 그림(구운 빛 4K 등)을 GPU 에 올리는 일은 한 프레임에 몰면 길게 멈춤 → 프레임마다 두 장씩 나눠 올림
+      //  - 끝나는 Promise: 다 데운 뒤 첫 로딩 화면이 걷히게 (markHomeReady)
+      const uploaded = new WeakSet();
+      // 다음 프레임 (탭이 뒤에 있어 화면을 그리지 않으면 requestAnimationFrame 이 멈추므로 시간으로도 넘어감)
+      const nextFrame = () => new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 50); });
+      const prewarm = async () => {
         if (st.disposed) return;
+        // 한 번 적용해 둠: 남산 레이어의 잘라 내기 평면(clippingPlanes)이 처음 apply 에서 붙음 → 그 전에 컴파일하면 방이 지어지는 중에 다시 컴파일했음
+        apply(0, 0, 0);
         const hidden = [st.env.group, st.env.sky, st.ttRise].filter((o) => o && !o.visible);
         for (const o of hidden) o.visible = true;
+        // reveal 전이라 숨겨 둔 방 조각(seekClip 의 st.tiny)도 데우는 동안은 보이게 → 셰이더 · 그림 · 메시가 방이 지어지는 도중이 아니라 지금 올라감
+        const tinyShow = (on) => { for (const e of st.tiny ?? []) if (e.hid) for (const m of e.meshes) m.visible = on; };
+        tinyShow(true);
+        const texs = new Set();
         scene.traverse((o) => {
           if (!o.isMesh) return;
           for (const m of Array.isArray(o.material) ? o.material : [o.material])
-            for (const k of ["map", "emissiveMap", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "alphaMap"]) if (m?.[k]) renderer.initTexture(m[k]);
+            for (const k of ["map", "emissiveMap", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "alphaMap"]) if (m?.[k] && !uploaded.has(m[k])) texs.add(m[k]);
         });
-        renderer.compileAsync(scene, storyCam).catch(() => {});   // 그릴 목록은 부르는 순간 모음 → 바로 되돌려도 됨
+        const compiled = renderer.compileAsync(scene, storyCam).catch(() => {});   // 그릴 목록은 부르는 순간 모음 → 바로 되돌려도 됨
         post.prewarm();
+        st.warmHero?.();   // Hero ↔ 방 겹침 셰이더 (Home 엔진이 아직이면 엔진이 준비될 때 onEngine 에서)
         for (const o of hidden) o.visible = false;                 // (apply 가 매 프레임 진행도대로 다시 정함)
+        tinyShow(false);
+        let n = 0;
+        for (const t of texs) {
+          if (st.disposed) return;
+          renderer.initTexture(t); uploaded.add(t);
+          if (++n % 2 === 0) await nextFrame();
+        }
+        await Promise.race([compiled, new Promise((r) => setTimeout(r, 4000))]);   // 셰이더 컴파일은 4초까지만 기다림
+        // 장면 전체를 화면이 아닌 작은 그림(8px)에 한 번 그림: 숨겨 둔 것 · 화면 밖의 것까지 전부 보이게 해서
+        //  메시 · 그림 · 그림자 셰이더가 스크롤 도중(판이 나올 때 · 턴테이블이 올라올 때 · 방이 지어질 때)이 아니라 지금 GPU 에 올라가게 (화면에는 아무것도 안 바뀜)
+        //  빛은 켜고 끄지 않음: 빛 개수가 바뀌면 실제로는 안 쓰는 셰이더가 만들어짐
+        if (!st.disposed) {
+          const shownNow = (o) => { for (let a = o; a; a = a.parent) if (!a.visible) return false; return true; };
+          const lightsOff = [], forced = [], unculled = [];
+          scene.traverse((o) => { if (o.isLight && !shownNow(o)) lightsOff.push(o); });
+          scene.traverse((o) => {
+            if (o.isLight) return;
+            if (!o.visible) { o.visible = true; forced.push(o); }
+            if (o.frustumCulled && (o.isMesh || o.isPoints || o.isLine)) { o.frustumCulled = false; unculled.push(o); }
+          });
+          const lightWas = lightsOff.map((o) => o.visible);
+          for (const o of lightsOff) o.visible = false;
+          const rt = new THREE.WebGLRenderTarget(8, 8), prev = renderer.getRenderTarget();
+          try { renderer.setRenderTarget(rt); renderer.render(scene, storyCam); } catch {}
+          renderer.setRenderTarget(prev);
+          rt.dispose();
+          lightsOff.forEach((o, i) => { o.visible = lightWas[i]; });
+          for (const o of forced) o.visible = false;
+          for (const o of unculled) o.frustumCulled = true;
+        }
+        // Hero 가 덮고 있는 동안(캔버스는 Hero 뒤라 안 보임) 시작 자세로 한 번 그림: 판·후처리 패스까지 실제로 한 바퀴
+        if (st.inHero && !st.disposed) {
+          const shown = st.disc?.root ? st.disc.root.visible : null;
+          if (st.disc?.root) st.disc.root.visible = true;
+          apply(0, 0, 0); placeStoryCam(0); storyCam.updateMatrixWorld();
+          // 잘라 내기 평면이 붙은 재질(남산)은 compile 로는 맞는 셰이더가 안 나옴 → 화면 밖이어도 실제로 한 번 그림
+          const env = st.env.group, envShown = env.visible, culled = [];
+          env.visible = true;
+          env.traverse((o) => { if (o.isMesh && o.frustumCulled) { o.frustumCulled = false; culled.push(o); } });
+          renderer.render(scene, storyCam); post.run();
+          env.visible = envShown;
+          for (const o of culled) o.frustumCulled = true;
+          if (shown != null) st.disc.root.visible = shown;
+        }
       };
-      prewarm();
-      st.env.ready.then(prewarm);
+      // 턴테이블만은 구운 그림 대신 실시간 재질 + 움직이는 빛 (turntableLook.js). 구운 그림을 입힌 뒤에 바꿈. ?ttlive=0 이면 예전 그대로 (비교용)
+      const liveTurntable = () => {
+        if (st.disposed || st.ttLook || new URLSearchParams(location.search).get("ttlive") === "0") return;
+        st.ttEnv = st.sleeve?.envMap ?? makeEnvironment(renderer);
+        st.ttLook = applyTurntableLook({ root: st.ttRise, envMap: st.ttEnv, key, renderer, casters: [st.disc.root] });
+      };
+      // 같은 면에 겹쳐 있는 판재: 이웃 옥상 벤치의 널(등받이 · 앉는 판)이 기둥과 같은 깊이라 조각조각 번갈아 보였음(z-fighting)
+      //  → 널을 카메라 쪽으로 살짝 당겨 늘 기둥 앞에 보이게. 재질은 다른 물체와 같이 쓰므로 복제해서 이 메시에만 (구운 재질의 셰이더 훅도 같이 넘김)
+      const frontFaces = () => {
+        for (const name of ["nb_left_bench_1"]) {
+          const o = root.getObjectByName(name);
+          if (!o?.isMesh || Array.isArray(o.material) || o.material.userData.frontFace) continue;
+          const src = o.material, c = src.clone();
+          c.onBeforeCompile = src.onBeforeCompile; c.customProgramCacheKey = src.customProgramCacheKey;
+          c.polygonOffset = true; c.polygonOffsetFactor = -2; c.polygonOffsetUnits = -8; c.userData.frontFace = true;
+          o.material = c;
+        }
+      };
       // 구운 빛 (?bake=0 이면 끄고 실시간 조명으로 비교). 재질이 바뀌니 다 입힌 뒤 한 번 더 미리 데움
-      if (new URLSearchParams(location.search).get("bake") !== "0")
-        applyLightmaps(root, renderer).then((n) => { st.baked = n; if (n) prewarm(); st.setupInteract(); });
-      else st.setupInteract();
+      const lit = new URLSearchParams(location.search).get("bake") !== "0"
+        ? applyLightmaps(root, renderer).then((n) => { liveTurntable(); frontFaces(); st.baked = n; st.setupInteract(); }).catch(() => { liveTurntable(); frontFaces(); st.setupInteract(); })
+        : Promise.resolve().then(() => { liveTurntable(); frontFaces(); st.setupInteract(); });
+      // 방 · 바깥 배경 · 구운 빛이 다 붙은 뒤 한 번에 데우고 → 준비 끝
+      Promise.all([lit, st.env.ready.catch(() => {})]).then(prewarm).finally(() => gateRef.current.room.resolve());
       setInfo({
         loadMs: Math.round(performance.now() - t0),
         size: roomBox.getSize(new THREE.Vector3()).toArray().map((v) => v.toFixed(2)).join(" × "),
         clip: `${st.clip.name} · ${st.clip.duration.toFixed(2)}s`,
         cams: Object.keys(st.gltfCams),
       });
-    }).catch((e) => setError(String(e?.message || e)));
+    }).catch((e) => { setError(String(e?.message || e)); gateRef.current.room.resolve(); });
 
     // ── 카메라: 진행도 구간별 키 (목표점 · 방향 · 거리)
     const fit = (r, fov = FOV0) => {
@@ -646,7 +1025,16 @@ export default function RoomTest() {
       _d.set(out[3], out[4], out[5]).normalize();
       storyCam.position.copy(_t).addScaledVector(_d, Math.exp(out[6]));
       storyCam.lookAt(_t);
-      if (Math.abs(storyCam.fov - out[7]) > 1e-4) { storyCam.fov = out[7]; storyCam.updateProjectionMatrix(); }
+      // Hero 렌즈: Hero(직교 카메라)에서 막 넘어온 동안은 화각을 좁히고 그만큼 뒤로 물러남(dolly zoom)
+      //  → 판 크기·자리는 그대로, 원근 왜곡만 줄어 Hero 판과 같은 납작한 모양. 이야기가 나아가며(HERO_LENS_P) 원래 렌즈로
+      let fov = out[7];
+      const lens = st.lensRef ? 1 - easeInOut(seg(p, HERO_LENS_P)) : 0;
+      if (lens > 0) {
+        const tanF = Math.tan((fov / 2) * D2R), tanN = tanF * THREE.MathUtils.lerp(1, HERO_LENS, lens);
+        storyCam.position.addScaledVector(_d, st.lensRef * (tanF / tanN - 1));   // 판 거리(lensRef)에 있는 것은 같은 크기
+        fov = (2 * Math.atan(tanN)) / D2R;
+      }
+      if (Math.abs(storyCam.fov - fov) > 1e-4) { storyCam.fov = fov; storyCam.updateProjectionMatrix(); }
     };
     // 방 완성 칸: 마우스를 따라 방 가운데를 조금 돎 (env-test 와 같은 궤도 시차, 세기는 env-layers.json) → 배경 레이어가 깊이대로 밀림
     const _sph = new THREE.Spherical(), _off = new THREE.Vector3();
@@ -661,6 +1049,49 @@ export default function RoomTest() {
       storyCam.position.setFromSpherical(_sph).add(_t);
       storyCam.lookAt(_t);
     };
+    // 늦은 밤: 스크롤을 따라 방 전체 구도 → 턴테이블 가까이 (보는 방향은 거의 그대로, 살짝 내려다보게). 되돌리면 물러남
+    const _pc = new THREE.Vector3(), _pd = new THREE.Vector3(), _pq = new THREE.Quaternion(), _pm = new THREE.Matrix4();
+    const pushToTurntable = () => {
+      const e = st.reduced ? 0 : easeInOut(st.nightPush ?? 0);
+      if (e <= 0 || !st.seatNow) return;
+      storyCam.getWorldDirection(_pd);
+      _pd.y -= NIGHT_PUSH.lift; _pd.normalize();
+      const tanH = Math.tan((storyCam.fov / 2) * D2R);
+      const d = NIGHT_PUSH.size / (NIGHT_PUSH.fill * 2 * tanH * Math.min(1, storyCam.aspect));
+      _pc.copy(st.seatNow).addScaledVector(_pd, -d);
+      storyCam.position.lerp(_pc, e);
+      _pm.lookAt(storyCam.position, st.seatNow, storyCam.up);
+      _pq.setFromRotationMatrix(_pm);
+      storyCam.quaternion.slerp(_pq, e);
+    };
+    // 늦은 밤 사진: 사진일 때는 턴테이블 쪽만 확대해 보여 주고, 사진이 커지는 만큼(nightGrow 0 → 1) 확대가 풀려 방 전체 구도로
+    //  카메라는 그대로 두고 보는 범위만 좁힘(setViewOffset) → 원근이 바뀌지 않아 다 커지면 원래 구도와 정확히 같음
+    const _nb = new THREE.Box3(), _nv = new THREE.Vector3();
+    const applyNightView = () => {
+      const on = storyCam.view?.enabled;
+      const g = st.nightGrow;
+      if (g == null || g >= 1 || !st.root) { if (on) storyCam.clearViewOffset(); return; }
+      if (on) storyCam.clearViewOffset();   // 보는 범위를 풀고 (아래에서 물체의 원래 화면 자리를 잼)
+      const F = NIGHT_FRAME, key = `${storyCam.aspect.toFixed(3)}|${st.nightFw.toFixed(3)}`;
+      if (st.nightTarget?.key !== key) {
+        // 볼 곳: look 물체들을 감싸는 범위의 화면 가운데
+        let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
+        for (const name of F.look) {
+          const o = st.root.getObjectByName(name); if (!o) continue;
+          _nb.setFromObject(o);
+          for (const x of [_nb.min.x, _nb.max.x]) for (const y of [_nb.min.y, _nb.max.y]) for (const z of [_nb.min.z, _nb.max.z]) {
+            _nv.set(x, y, z).project(storyCam);
+            x0 = Math.min(x0, _nv.x); x1 = Math.max(x1, _nv.x); y0 = Math.min(y0, _nv.y); y1 = Math.max(y1, _nv.y);
+          }
+        }
+        st.nightTarget = x0 > x1 ? { key, x: 0, y: 0 } : { key, x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+      }
+      const Z = Math.pow(F.zoom, 1 - g);
+      const cx = THREE.MathUtils.lerp(0.5 + st.nightTarget.x / 2, 0.5, g), cy = THREE.MathUtils.lerp(0.5 - st.nightTarget.y / 2, 0.5, g);
+      // (setViewOffset 은 전체 폭 ÷ 높이를 카메라 화면비로 덮어씀 → 전체 크기를 화면비 × 1 로 넘김)
+      const A = host.clientWidth / Math.max(1, host.clientHeight);
+      storyCam.setViewOffset(A, 1, (cx - 0.5 / Z) * A, cy - 0.5 / Z, A / Z, 1 / Z);
+    };
     // ── 방 안 상호작용 (방 완성 칸에서만): 턴테이블 = 재생 · 멈춤, 램프 = 끄고 켬. 올리면 커서 · 이름표 · 살짝 들림
     const sound = createRoomSound();
     st.sound = sound;
@@ -669,6 +1100,13 @@ export default function RoomTest() {
     st.lampUser = {}; st.lampK = {};    // 램프 pivot → 켬(1) · 끔(0), 부드럽게 따라가는 값
     st.targets = [];
     st.hoverTarget = null;
+    // 늦은 밤(페이지 끝에서 방이 다시 나올 때) 표시. 방 안 물체를 다시 눌러 볼 수 있게 하는 데만 씀
+    st.lateNight = false;
+    st.setNight = (on) => {
+      if (on === st.lateNight) return;
+      st.lateNight = on;
+      // 2026-11-15 사용자 결정: 끝에서 다시 나오는 방도 불을 다 켠 채로 (예전: 탁상 램프 하나만 남김)
+    };
     const LAMP_NODES = { pivot_lamp_floor: ["lamp_floor", "lamp_floor_shade"], pivot_lamp_table: ["lamp_table"], pivot_lamp_window: ["lamp_window"], pivot_lamp_circle: ["lamp_circle"] };
     st.setupInteract = () => {
       const root = st.root;
@@ -691,7 +1129,7 @@ export default function RoomTest() {
     };
     const ray = new THREE.Raycaster(), _ndc = new THREE.Vector2();
     const canInteract = () => st.ready && !st.inHero && st.camMode === "story" && !st.tween && st.targets.length > 0
-      && st.p >= STORY.camFinal && st.p <= STORY.roomHold + 0.005;
+      && st.p >= STORY.camFinal && st.p <= STORY.roomHold + 0.005 && (st.lateNight || pageTop() < innerHeight * 0.25);
     const pick = (e) => {
       if (!canInteract() || e.target !== renderer.domElement) return null;
       const r = renderer.domElement.getBoundingClientRect();
@@ -738,10 +1176,13 @@ export default function RoomTest() {
     window.addEventListener("click", onClick);
 
     // Home 엔진의 판(직교 카메라 화면 위 자세)을 이 장면의 P=0 카메라 앞 같은 화면 자리·크기·기울기로
+    //  Hero 동안은 매 프레임 (Home 엔진이 판 자세 · 인트로 · 누르기 반응을 정하고, 그리는 건 이 판 한 장)
+    //  회전각은 이 판이 스스로 이어 감(ownSpin): 기울기 틀(tiltQuat)만 받고 속도(omega)를 따라 돎 → 넘어가거나 돌아올 때 무늬가 튀지 않음
     const takeHero = (pose) => {
+      st.lensRef = null;   // 자리는 원래 렌즈 기준으로 잡고, 렌즈 기준 거리(lensRef)는 아래에서
       placeStoryCam(0);
       storyCam.updateMatrixWorld();
-      const r = renderer.domElement.getBoundingClientRect();
+      const r = st.canvasRect ??= renderer.domElement.getBoundingClientRect();   // 크기가 바뀌면 resize 가 지움
       if (!r.height || !pose.radius) return;   // 캔버스가 아직 크기가 없으면 기본 Hero 자세로 (0/0 → 판 위치 NaN 방지)
       const tanH = Math.tan(THREE.MathUtils.degToRad(storyCam.fov / 2));
       const D = DISC_R * (r.height / 2) / (tanH * pose.radius);   // 반지름 px 이 같아지는 거리
@@ -753,23 +1194,30 @@ export default function RoomTest() {
         .addScaledVector(new THREE.Vector3(0, 0, -1).applyQuaternion(q), D)
         .addScaledVector(new THREE.Vector3(1, 0, 0).applyQuaternion(q), dx * unit)
         .addScaledVector(new THREE.Vector3(0, 1, 0).applyQuaternion(q), -dy * unit);
-      st.heroQuat = q.clone().multiply(pose.quat);
+      st.heroQuat = q.clone().multiply(pose.tiltQuat ?? pose.quat);
+      st.lensRef = D;
       // 판 루트는 아랫면 기준, Home 은 가운데 기준 → 판 축 방향으로 그만큼 내림
       st.heroPos.addScaledVector(new THREE.Vector3(0, 1, 0).applyQuaternion(st.heroQuat), inkDefaults.botY * 1.8 * DISC_R);
-      // 바탕: Home 과 같은 테마 값 (다크 모드면 크림 ↔ 잉크가 바뀌어 있음)
+      (st.heroInk ??= new THREE.Color()).setRGB(pose.ink.x, pose.ink.y, pose.ink.z);
+      (st.heroLabel ??= new THREE.Color()).setRGB(pose.label.x, pose.label.y, pose.label.z);
+      st.heroOmega = pose.omega ?? -RPM(10);   // Hero 동안 이 속도로 돎 (Home 은 +omega, 이 판은 -ownVel 방향)
+      if (!pose.tiltQuat) st.ownSpin = 0;      // (예전 엔진: 회전각이 quat 에 들어 있음)
+    };
+    // 바탕: Home 과 같은 테마 값 (다크 모드면 크림 ↔ 잉크가 바뀌어 있음). 테마가 바뀔 때만 다시 읽으면 되지만 가벼워서 Hero 로 들어올 때마다
+    const readHeroBg = () => {
       const bg = getComputedStyle(document.documentElement).getPropertyValue("--cream").trim();
       st.heroBg = bg ? new THREE.Color(bg) : CREAM.clone();
       st.themeCream = st.heroBg.clone();
-      st.heroInk = new THREE.Color(pose.ink.x, pose.ink.y, pose.ink.z);
-      st.heroLabel = new THREE.Color(pose.label.x, pose.label.y, pose.label.z);
-      st.ownSpin = 0;   // Home 의 회전각은 heroQuat 에 들어 있음
-      st.ownVel = pose.omega != null ? -pose.omega : RPM(10);   // Home 은 +omega 로, 이 판은 -ownVel 로 돎 → 같은 속도로 이어서
     };
+    st.takeHero = takeHero;
 
     // ── 진행도 → 장면
     const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _yaw = new THREE.Quaternion(), _p = new THREE.Vector3();
+    const _qComp = new THREE.Quaternion(), _qInvC = new THREE.Quaternion(), _fwd = new THREE.Vector3(), _hv = new THREE.Vector3(), _hflat = new THREE.Vector3(), _hm = new THREE.Vector3(), _hl = new THREE.Vector3(), _eye = new THREE.Vector3();
     const _inv = new THREE.Matrix4(), _view = new THREE.Vector3(), _flat = new THREE.Vector3(), _major = new THREE.Vector3(), _half = new THREE.Vector3(), _light = new THREE.Vector3();
     const tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 1.0);
+    const _zero2 = new THREE.Vector2();
+    const _dc = new THREE.Vector3(), _dc2 = new THREE.Vector3(), DISC_C = -inkDefaults.botY * 1.8 * DISC_R;
     const UP = new THREE.Vector3(0, 1, 0);
     const apply = (p, dt, time) => {
       // 방: Blender reveal 클립을 그대로 (진행도 → 클립 시간, 선형)
@@ -783,21 +1231,30 @@ export default function RoomTest() {
         if (t.lamp) t.objs.forEach((o, i) => { o.position.y = t.base[i] + 0.03 * t.liftK; });
       }
       for (const k in st.lampK) st.lampK[k] += (st.lampUser[k] - st.lampK[k]) * (1 - Math.exp(-dt * 9));
-      st.armK += ((st.playing ? 1 : 0) - st.armK) * (1 - Math.exp(-dt * 5));
-      const playingNow = p >= STORY.spinAt && st.playing;
-      st.sound.setPlaying(playingNow && p <= STORY.roomHold + 0.05 && !st.reduced);
+      // 늦은 밤: 바늘은 들려 있다가 "drop the needle" 에서 내려감 (판은 계속 돎). 소리를 켰으면 바늘 소리
+      const needleWant = !st.lateNight || st.nightDrop;
+      if (st.lateNight && needleWant !== st.needleWas && st.playing && !st.covered) { if (needleWant) st.sound.needleDown(); else st.sound.needleUp(); }
+      st.needleWas = needleWant;
+      st.armK += ((st.playing && needleWant ? 1 : 0) - st.armK) * (1 - Math.exp(-dt * (st.reduced ? 60 : 5)));
+      // sleeve Hero: 판이 앉으면 거의 바로 바늘이 올라가고 판이 돌기 시작 (사용자 요청). 그 밖: 방이 거의 다 지어진 뒤(0.70)
+      // sleeve Hero: 판이 앉은 뒤 시간(st.ts)으로 톤암이 천천히 올라가고, 다 올라갈 무렵부터 판이 돎. 그 밖: 방이 거의 다 지어진 뒤(0.70)
+      const needleK = st.sleeve ? easeInOut(clamp01(st.ts / SLEEVE_HERO.needle)) : easeInOut(seg(p, [STORY.spinAt, STORY.armDur]));
+      const playingNow = (st.sleeve ? st.ts >= SLEEVE_HERO.needle * 0.8 : p >= STORY.spinAt) && st.playing;
+      st.sound.setPlaying(playingNow && needleWant && p <= STORY.roomHold + 0.05 && !st.reduced && !st.covered);
       st.ttRise.position.y = -(1 - rise) * 0.35 + 0.025 * (st.targets[0]?.liftK ?? 0);
       st.ttRise.visible = rise > 0;
       // 먼지 덮개: 판이 내려앉기 전에 열림(cover_open), 되돌아가며 지나면 닫힘(cover_close) — 지나는 순간 실제 시간으로 재생
       const lid = st.lid;
       if (lid) {
-        const wantOpen = p >= STORY.lidAt;
+        // sleeve Hero: 덮개는 턴테이블이 올라올 때 이미 열려 있고, 판이 앉은 뒤에 닫힘 (사용자 요청). 그 밖: 판이 오기 직전에 열림
+        const wantOpen = st.sleeve ? st.ts < SLEEVE_HERO.needle + SLEEVE_HERO.lidGap : p >= STORY.lidAt;
         if (wantOpen !== lid.isOpen) { lid.isOpen = wantOpen; lid.t = 0; }
         const cur = lid.isOpen ? lid.open : lid.close, other = lid.isOpen ? lid.close : lid.open;
         lid.t = st.reduced ? cur.getClip().duration : lid.t + dt;
         other.enabled = false;
         cur.enabled = true; cur.paused = false;
         cur.time = Math.min(lid.t, cur.getClip().duration);
+        if (st.sleeve && !lid.isOpen && lid.t >= lid.closeEnd) cur.time = cur.getClip().duration;
       }
       // VU 바늘: 33⅓ 이 돌기 시작하면 재생, 되돌아가면 제자리 (모션 줄이기면 멈춤)
       if (st.vu) {
@@ -811,28 +1268,77 @@ export default function RoomTest() {
       const spinning = playingNow;
       st.platterVel += ((spinning && !st.reduced ? RPM(100 / 3) : 0) - st.platterVel) * (1 - Math.exp(-dt * 1.2));
       if (st.platter) st.platter.rotation.y -= st.platterVel * dt;
-      if (st.arm) st.arm.rotation.y = st.armBase + ARM_SWING * easeInOut(seg(p, [STORY.spinAt, STORY.armDur])) * st.armK;
+      if (st.arm) st.arm.rotation.y = st.armBase + ARM_SWING * needleK * st.armK;
       st.root.updateMatrixWorld(true);
 
       // 판: 떠서 돌다가(10 RPM) 멈추며 플래터에 앉음 → 이후 플래터와 같이 돎
-      const lk = easeInOut(seg(p, STORY.land));
-      st.ownVel += ((st.reduced ? 0 : RPM(10) * (1 - lk)) - st.ownVel) * (1 - Math.exp(-dt * 1.5));   // Hero 에서 빨리 돌던 판도 1초 남짓에 걸쳐 10 RPM 으로
+      // sleeve Hero: 가운데로 오는 구간(center)과 내려앉는 구간(land)을 겹쳐 둠 → 턴테이블 위에서 멈추지 않고 한 흐름으로 휘어 내려앉음
+      const lk = easeInOut(seg(p, st.sleeve ? SLEEVE_HERO.land : STORY.land));
+      // sleeve Hero: 재킷 줄을 움직이고, 판이 있을 자리(재킷 안 · 빠져나온 자리)를 heroPos · heroQuat 로 받음
+      st.sleeve?.update(dt, p);
+      // ink Hero: 누르는 동안 45 RPM 까지 가속 (떼면 아래 줄이 관성으로 10 RPM 으로 되돌림)
+      if (st.hero?.holding && p < INK_HERO.heroP) st.ownVel = Math.min(st.ownVel + HERO_HOLD.accel * dt, RPM(HERO_HOLD.maxRpm));
+      else st.ownVel += ((st.reduced ? 0 : RPM(10) * (1 - lk) * (st.sleeve ? easeInOut(seg(p, [SLEEVE_HERO.spinUp[0], SLEEVE_HERO.spinUp[1] - SLEEVE_HERO.spinUp[0]])) : 1)) - st.ownVel) * (1 - Math.exp(-dt * (st.sleeve && p < SLEEVE_HERO.spinUp[0] ? 6 : 1.5)));   // Hero 에서 빨리 돌던 판도 1초 남짓에 걸쳐 10 RPM 으로
       st.ownSpin -= st.ownVel * dt;
       st.seat.getWorldPosition(_p);
       st.seat.getWorldQuaternion(_q2);
       st.seatNow.copy(_p);
+      // 실제 두께(1.9mm)의 판은 판 자리(Turntable_DiscSeat)에 그대로 놓으면 고무 매트 속에 묻힘 (자리는 두꺼운 예전 판 기준) → 매트 윗면까지 올림
+      if (st.sleeve && st.seatLift) _p.addScaledVector(_hlOff.set(0, 1, 0).applyQuaternion(_q2), st.seatLift);
       const { root: dr, uniforms, baseMat, ref } = st.disc;
-      dr.position.lerpVectors(st.heroPos ?? st.hover, _p, lk);
-      if (lk < 1 && !st.reduced) dr.position.y += Math.sin(time * 1.1) * 0.008 * (1 - lk);
+      if (st.sleeve && st.heroPos) {
+        // 재킷 옆(화면 오른쪽) → 먼저 화면 가운데 = 턴테이블 바로 위(st.hover) → 거기서 아래로 내려앉음
+        _dc2.copy(st.heroPos).lerp(st.hover, easeInOut(seg(p, SLEEVE_HERO.center)));
+        dr.position.lerpVectors(_dc2, _p, lk);
+      } else dr.position.lerpVectors(st.heroPos ?? st.hover, _p, lk);
+      if (st.sleeve) {
+        // 재킷 안에 다 들어가 있는 동안은 그리지 않음 · 재킷 크기에 맞춘 판 크기는 내려가며 실제 크기로
+        dr.visible = !st.heroDiscHidden;
+        const near = p > 0.2;     // 턴테이블 근처에서만 깊이를 당김 (Hero 에서는 재킷을 뚫고 보이므로 끔)
+        if (near !== st.discNear) { st.discNear = near; st.disc.setNearMat?.(near); }
+        dr.scale.setScalar(1 + ((st.heroScale ?? 1) - 1) * (1 - easeInOut(seg(p, [0.05, 0.14]))));
+      }
+      // 둥실 떠 있음: Hero 에서 넘어온 순간을 0 으로 (sin 이 0 에서 시작 → 넘어오는 프레임에 판이 튀지 않음)
+      st.bobT0 ??= time;
+      //  Hero(p=0)에서는 0 → 이야기가 시작되며 서서히 (Hero 자세는 Home 엔진이 정하므로, 돌아올 때도 p→0 으로 줄어 튀지 않음)
+      const bob = (1 - lk) * easeInOut(seg(p, [0, 0.04]));
+      if (bob > 0 && !st.reduced) dr.position.y += Math.sin((time - st.bobT0) * 1.1) * 0.008 * bob;
       _yaw.setFromAxisAngle(UP, st.ownSpin);
-      dr.quaternion.copy(_q.copy(st.heroQuat ?? tilt).slerp(_q2, lk)).multiply(_yaw);
+      const lq = st.scrollFlow ? Math.max(lk, easeInOut(seg(p, st.sleeve ? SLEEVE_HERO.flat : FLOW.flat))) : lk;   // 한 장면 흐름: 앞쪽에서 먼저 수평으로
+      _q.copy(st.heroQuat ?? tilt).slerp(_q2, lq);   // 기울기 틀 (회전 · 뒤집기 뺀 것)
+      // 판 가운데 (판 루트는 아랫면 기준). ink Hero 의 뒤집기는 가운데를 축으로
+      _dc.set(0, DISC_C, 0).applyQuaternion(_q).add(dr.position);
+      dr.quaternion.copy(_q);
+      if (st.hero) { dr.quaternion.multiply(st.hero.flipQ); dr.position.copy(_dc).sub(_dc2.set(0, DISC_C, 0).applyQuaternion(dr.quaternion)); }
+      dr.quaternion.multiply(_yaw);
       dr.updateMatrixWorld(true);
 
       // 바탕이 검게 → 잉크 선은 크림색으로
       const dk = easeInOut(seg(p, STORY.dark));
       scene.background.copy(st.heroBg ?? CREAM).lerp(NIGHT, dk);
-      uniforms.uInk.value.set(...new THREE.Color().copy(st.heroInk ?? INK_ON_CREAM).lerp(INK_ON_NIGHT, dk).toArray());
-      uniforms.uLabel.value.set(...new THREE.Color().copy(st.heroLabel ?? LABEL_ON_CREAM).lerp(LABEL_ON_NIGHT, dk).toArray());
+      st.sleeve?.backdrop(scene.background, 1 - dk);     // 종이 결은 장면 맨 뒤에 (재킷 · 판 위에 덮이지 않게)
+      // 후처리(번짐·틸트·비네트)는 바탕이 어두워지는 만큼만: 크림 바탕의 Hero 판 구간은 Home 과 같은 그림 그대로
+      post.params.mix = dk;
+      // 꾸밈 없는 판(raw): 판만 비추는 빛. 크림 바탕의 Hero 에서 또렷하게, 바탕이 어두워지는 만큼 꺼짐 (그 뒤는 턴테이블 핀 조명 · 방 조명)
+      if (heroLight) {
+        const hk = 1 - dk;
+        heroLight.hemi.intensity = (sleeveHero ? 1.0 : 1.6) * hk;     // sleeve: /lab/sleeve-test 에서 맞춘 밝기 (커버가 떠 보여 조금 낮춤)
+        heroLight.sun.intensity = (sleeveHero ? 1.5 : 2.4) * hk;
+        if (st.sleeve) {
+          // 재킷 줄 기준 왼쪽 위 앞에서 비춤 (lab 과 같은 방향) → 재킷 가장자리 그림자가 오른쪽으로 나온 판 위에 떨어짐
+          const f = st.sleeve.frame;
+          heroLight.sun.position.copy(f.position).add(_hlOff.set(-0.45, 0.8, 1.6).applyQuaternion(f.quaternion));
+          heroLight.sun.target.position.copy(f.position);
+        } else {
+          heroLight.sun.position.copy(storyCam.position).add(_hlOff.set(0.6, 1.2, 0.4));
+          heroLight.sun.target.position.copy(dr.position);
+        }
+      }
+      if (uniforms) {   // 잉크 판만 (raw 판은 vinyl.glb 재질 그대로)
+      // 잉크 셰이더는 sRGB 값을 그대로 받음 (Home 엔진 hexToVec3 와 같게) → THREE.Color(선형)를 sRGB 로 바꿔 넘김
+      //  (예전: 선형 값을 그대로 넘겨 배포된 Home 보다 판이 어둡고 진했음)
+      uniforms.uInk.value.set(...new THREE.Color().copy(st.heroInk ?? INK_ON_CREAM).lerp(st.nightInk ?? INK_ON_NIGHT, dk).convertLinearToSRGB().toArray());
+      uniforms.uLabel.value.set(...new THREE.Color().copy(st.heroLabel ?? LABEL_ON_CREAM).lerp(st.nightLabel ?? LABEL_ON_NIGHT, dk).convertLinearToSRGB().toArray());
       baseMat.opacity = easeInOut(seg(p, [STORY.land[0] + 0.03, 0.08]));
       // 잉크 빛줄기: 카메라 쪽으로 비끼는 빛 (앨범 상세와 같은 계산을 판 로컬에서)
       const cam = st.camMode === "story" ? storyCam : st.camMode === "orbit" ? orbitCam : st.gltfCams[st.camMode] ?? storyCam;
@@ -844,8 +1350,26 @@ export default function RoomTest() {
       _half.copy(_major).multiplyScalar(0.45); _half.y = 1; _half.normalize();
       _light.copy(_half).multiplyScalar(2 * _half.dot(_view)).sub(_view).normalize();
       if (_light.y < 0.3) { _light.y = 0.3; _light.normalize(); }
+      // Hero 에서 막 넘어온 동안은 Home 엔진(updateLight)과 똑같이: 회전 전 판 틀에서 화면 방향(직교 카메라처럼)으로 시선·빛을 정해
+      //  판 로컬로 옮김 + 눈은 아주 멀리 → Hero 판과 같은 빛줄기. 판이 턴테이블로 내려앉는 만큼(lk) 위의 방 계산으로
+      if (lk < 1) {
+        _qComp.copy(_q);   // 판 회전(spin) · 뒤집기를 뺀 기울기 틀 = Home 의 comp
+        _qInvC.copy(_qComp).invert();
+        cam.getWorldDirection(_fwd);
+        _hv.copy(_fwd).negate().applyQuaternion(_qInvC);
+        _hflat.set(_hv.x, 0, _hv.z); if (_hflat.lengthSq() < 1e-6) _hflat.set(0, 0, 1); _hflat.normalize();
+        _hm.set(-_hflat.z, 0, _hflat.x).multiplyScalar(HERO_STREAK_SPREAD); _hm.y = 1; _hm.normalize();
+        _hl.copy(_hm).multiplyScalar(2 * _hm.dot(_hv)).sub(_hv).normalize();
+        if (_hl.y < 0.3) { _hl.y = 0.3; _hl.normalize(); }
+        _hl.applyQuaternion(_qComp).transformDirection(_inv);                            // 세계 → 판 로컬 (판 모델의 세로 1.8배까지)
+        _light.lerp(_hl, 1 - lk).normalize();
+        _eye.copy(dr.position).addScaledVector(_fwd, -DISC_R * HERO_EYE_FAR).applyMatrix4(_inv);
+        camL.lerp(_eye, 1 - lk);
+      }
       uniforms.uCamLocal.value.copy(camL);
       uniforms.uLightLocal.value.copy(_light);
+      }
+      st.hero?.update(dt, { p, compQuat: _q, centerPos: _dc, omega: -st.ownVel, angle: st.ownSpin });
 
       // Bake v17: keep the room unlit through furniture placement (frame 108).
       const frame = seg(p, STORY.build) * st.clip.duration * 24;
@@ -865,7 +1389,7 @@ export default function RoomTest() {
       for (const t of st.targets) if (t.lamp) for (const m of t.mats) m.color.setScalar(THREE.MathUtils.lerp(0.32, 1, st.lampK[t.key]));
       bakeLightProgress = shareSum > 0 ? bakeLightProgress / shareSum : easeInOut(seg(p, LIT_P));
       // 빛: 턴테이블 Hero → 어두운 방·가구 배치 → 실제 램프와 베이크 동시 점등
-      key.intensity = 3.2 * rise * (1 - 0.8 * easeInOut(seg(p, [0.38, 0.12])));
+      key.intensity = (st.ttLook ? 4.2 : 3.2) * rise * (1 - (st.ttLook ? 0.9 : 0.8) * easeInOut(seg(p, [0.38, 0.12])));     // 실시간 재질 턴테이블은 조명을 직접 받으므로 더 세게 (구운 그림일 때는 그림을 밝혔음)
       // 구운 턴테이블은 조명을 안 받음 → 어둠 속에서 혼자 보일 때는 구운 그림을 밝게 (핀 조명 대신), 방이 서면 원래 밝기로
       if (st.baked && !st.ttMats) {
         const own = new Set(), other = new Set();
@@ -881,6 +1405,8 @@ export default function RoomTest() {
       const warm = (spot - 1) / 1.6;
       for (const m of st.ttMats ?? []) m.color.setRGB(spot, spot * (1 - 0.12 * warm), spot * (1 - 0.32 * warm));
       const rk = easeInOut(seg(p, STORY.room));
+      // 턴테이블: 조명이 판 자리를 따라가고, 마우스를 따라 반사 · 조명이 조금 움직임. 방이 지어지면 반사를 낮춤
+      st.ttLook?.update(st.seatNow, rk, st.reduced ? _zero2 : st.ptrS);
       const nk = easeInOut(seg(p, st.night));
       const ek = easeInOut(seg(p, ENV_IN));
       st.env.night(nk);                                   // 창문 안 남산: 창문 벽이 다 선 뒤 밝아짐
@@ -983,7 +1509,8 @@ export default function RoomTest() {
     // 한 프레임 (콘솔에서 st.frame(0.016, t) 로 직접 그려 볼 수 있음 — 탭이 백그라운드일 때 확인용)
     const frame = (dt, time) => {
       if (st.ready) {
-        if (!st.inHero && st.tween) {
+        if (st.scrollFlow) flowStep(dt);
+        else if (!st.inHero && st.tween) {
           // 3D 방: 한 칸을 시간으로 재생 (화면이 바로 따라감)
           const tw = st.tween;
           const k = clamp01((now() - tw.start) / tw.dur);
@@ -992,13 +1519,15 @@ export default function RoomTest() {
           st.stage = Math.round(st.s);
           if (k >= 1) {
             st.tween = null;
-            st.lockUntil = now() + STEP.cooldown;   // 관성 스크롤 흡수
+            // 관성 스크롤 흡수. 방 완성 칸은 이미 페이지 스크롤이 풀려 있으니(FREE_P) 잠그지 않음 — 잠그면 풀렸던 스크롤이 0.45초 다시 잠김
+            st.lockUntil = tw.to === LAST && tw.to > tw.from ? 0 : now() + STEP.cooldown;
             if (st.auto && st.sTarget < LAST) advance(1); else st.auto = false;
           }
         } else if (!st.inHero) {
           // 입력이 멈추면 가까운 칸 (진행 방향으로 bias 넘게 갔으면 다음 칸)
           const t = now();
-          if (st.goal == null && !st.touching && t - st.inputAt > SCROLL.idle) {
+          //  (착지까지 0~STEP_FROM 은 붙지 않음: 판이 스크롤한 그 자리에 머묾 — 스크롤을 따라 작아지며 내려앉는 구간)
+          if (st.goal == null && !st.touching && t - st.inputAt > SCROLL.idle && st.sTarget >= STEP_FROM) {
             const base = Math.floor(st.sTarget), f = st.sTarget - base;
             if (f > 1e-4) st.goal = st.dir > 0 ? (f > SCROLL.bias ? base + 1 : base) : (f < 1 - SCROLL.bias ? base : base + 1);
           }
@@ -1020,13 +1549,33 @@ export default function RoomTest() {
           // 0 칸에 멈추면 Hero(Home 엔진)에 다시 넘김
           if (st.s === 0 && st.sTarget === 0 && st.goal == null && !st.touching && t - st.inputAt > SCROLL.idle) {
             st.inHero = true;
+            st.lockUntil = now() + STEP.cooldown;   // 되돌아온 관성 스크롤로 바로 다시 떠나지 않게 (raw Hero 입력)
+            st.heroFadeAt = performance.now();   // 방의 판 위로 Hero 의 링·그림자·먼지가 서서히 나타난 뒤 Hero 화면으로 (되돌아갈 때도 끊기지 않게)
             st.onHero?.(true);
           }
         }
+        // 페이지 스크롤이 풀리는 때 (= "Put a record on." 문구가 올라오는 때): 방 칸 재생이 끝까지 가기 전, 소품이 다 놓인 FREE_P 에서
+        //  그 뒤 램프가 마저 켜지는 꼬리는 스크롤하면서 봐도 됨 (재생은 그대로 이어짐)
+        const tw = st.tween;
+        const free = st.scrollFlow ? st.p >= FREE_P : !st.inHero && (tw
+          ? tw.to === LAST && tw.to > tw.from && st.p >= FREE_P
+          : st.goal == null && st.sTarget === LAST && now() >= st.lockUntil);
+        if (free !== st.free) { st.free = free; st.onFree?.(free); }
         st.clock?.update(dt);
+        // Hero ↔ 방: Home 엔진을 먼저 한 프레임 진행 (판의 잉크는 끄고 링·그림자·먼지만 겹침 타깃에) → Hero 동안은 그 판 자세를 이 판이 그대로 따름
+        //  판은 처음부터 끝까지 이 장면의 한 장 → 넘어가는 순간 바뀌는 것이 없음. 링·그림자·먼지만 HERO_FADE_MS 동안 옅어지거나 짙어짐
+        const fade = st.heroFadeAt == null || st.reduced ? 1 : clamp01((performance.now() - st.heroFadeAt) / HERO_FADE_MS);
+        st.heroK = st.inHero ? easeInOut(fade) : 1 - easeInOut(fade);
+        st.heroDrew = st.heroK > 0.001 && renderHeroRT();
+        if (st.hero?.dirty) st.hero.place();   // ink Hero 처음 자세 (화면 크기가 바뀌면 다시)
+        const home = homeRef.current;
+        if (st.inHero && home?.heroPose) { takeHero(home.heroPose()); st.ownVel = -st.heroOmega; }
         apply(st.p, dt, time);   // 판 빛줄기는 직전 프레임 카메라 기준 (한 프레임 차이라 보이지 않음)
         placeStoryCam(st.p);
         orbitByPointer(st.p, dt);
+        pushToTurntable();
+        storyCam.updateMatrixWorld();
+        applyNightView();
         storyCam.updateMatrixWorld();
         // 섹션: 열림/닫힘 문턱 사이에서는 지금 섹션 유지
         const s = st.section;
@@ -1042,12 +1591,15 @@ export default function RoomTest() {
       controls.enabled = st.camMode === "orbit";
       if (controls.enabled) controls.update();
       const cam = st.camMode === "story" ? storyCam : st.camMode === "orbit" ? orbitCam : st.gltfCams[st.camMode] ?? storyCam;
-      // Hero 동안은 Home 엔진 레이어가 이 캔버스를 다 덮음 → 그리지 않음 (GPU 를 Home 판에 양보)
-      if (!st.inHero || !st.ready) { renderer.render(scene, cam); post.run(); }
+      // Hero 도 이 장면(p=0: 크림 바탕에 판 한 장)을 그리고, 그 위에 Hero 의 링·그림자·먼지(heroK). 섹션이 방을 다 덮은 동안은 쉼
+      if (st.inHero || !st.covered) {
+        renderer.render(scene, cam); post.run();
+        if (st.heroDrew) compositeHeroRT(st.heroK);
+      }
       acc += dt; frames++;
       if (acc > 0.5) {
         const fps = frames / acc;
-        setStats({ fps: Math.round(fps), calls: renderer.info.render.calls, tris: renderer.info.render.triangles });
+        if (st.debug) setStats({ fps: Math.round(fps), calls: renderer.info.render.calls, tris: renderer.info.render.triangles });   // 디버그 패널이 열려 있을 때만 (다시 렌더가 화면을 끊음)
         // 느린 구간이 두 번 이어지면 해상도를 한 단계 낮춤 (한 번 끊긴 건 무시, 다시 올리지는 않음 = 오르내림 반복 방지)
         st.slow = st.ready && st.inHero === false && fps < DPR_SLOW_FPS ? (st.slow ?? 0) + 1 : 0;   // 인트로·Hero 동안의 느림은 3D 탓이 아님
         const pr = renderer.getPixelRatio();
@@ -1055,17 +1607,107 @@ export default function RoomTest() {
         acc = 0; frames = 0;
       }
       syncHeader();
-      if (time - hudAt > 0.08) {
+      if (st.debug && time - hudAt > 0.08) {
         hudAt = time;
         const stage = [...STAGES].reverse().find(([a]) => st.p >= a)?.[1];
         setHud((h) => (Math.abs(h.p - st.p) < 0.001 && h.stage === stage ? h : { p: st.p, stage }));
       }
     };
+    // Hero 의 링·그림자·먼지: Home 엔진 한 프레임 (판 잉크는 끔, 깊이는 남아 판 뒤는 가려짐)을 투명한 타깃에 → 방 화면 위에 k 만큼 (미리 곱한 알파)
+    //  타깃은 sRGB 라 Home 재질 색이 화면에 바로 그릴 때와 같음. 셰이더는 로딩 중 미리 컴파일(warmHero). 그렸으면 true
+    const _cc = new THREE.Color();
+    const renderHeroRT = () => {
+      const home = homeRef.current;
+      if (!home?.drawShared) return false;
+      home.setDiscMask?.(true);
+      renderer.getClearColor(_cc);
+      const ca = renderer.getClearAlpha(), ac = renderer.autoClear, tm = renderer.toneMapping;
+      renderer.setRenderTarget(heroRT);
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear();
+      renderer.autoClear = false; renderer.toneMapping = THREE.NoToneMapping;
+      const drew = home.drawShared();
+      renderer.setRenderTarget(null);
+      renderer.toneMapping = tm; renderer.autoClear = ac;
+      renderer.setClearColor(_cc, ca);
+      return drew;
+    };
+    const compositeHeroRT = (k) => {
+      const ac = renderer.autoClear;
+      renderer.autoClear = false;
+      overlayMat.uniforms.uK.value = k;
+      renderer.render(overlayScene, overlayCam);
+      renderer.autoClear = ac;
+    };
+    st.warmHero = () => {
+      const home = homeRef.current;
+      if (st.heroWarm || !home?.compileFor) return;
+      st.heroWarm = true;
+      home.compileFor(heroRT);
+      const prev = renderer.getRenderTarget();
+      renderer.compile(overlayScene, overlayCam);
+      renderer.setRenderTarget(prev);
+    };
+    // 한 장면 흐름 (flow="scroll"): 페이지 스크롤 → 진행도 P
+    function flowStep(dt) {
+      const page = pageRef.current, vh = page?.clientHeight || 1;
+      const k = clamp01((page?.scrollTop ?? 0) / (FLOW.travel * vh));
+      st.k = k;
+      const b0 = STAGE_P[STEP_FROM], b1 = STAGE_P[LAST], T = segDur(STEP_FROM);   // 방 짓기 = Blender 클립 시간 그대로
+      // 방: 판이 앉아 있고 스크롤이 끝까지면 앞으로, 아니면 거꾸로 (같은 속도)
+      // sleeve Hero: 판이 거의 다 앉았으면(landNear 안) 앉은 것으로 봄 → 톤암이 바로 움직이기 시작
+      //  (천천히 따라붙는 마지막 꼬리까지 기다리면 판이 멈춘 것처럼 보이는 채로 1~2초가 더 지나갔음. 판은 그동안 마저 내려앉음)
+      // sleeve Hero: 판이 내려앉기 시작하면(진행도 landAuto) 스크롤을 착지 자리까지 대신 내려 줌 → 한 번에 끊기지 않고 앉음
+      //  (판은 스크롤 자리를 따라가므로, 휠 칸 사이마다 공중에서 멈췄다 다시 내려갔음). 그동안 휠 입력은 받지 않음. 위로 올리는 건 그대로 스크롤대로
+      if (st.sleeve && !st.reduced && !st.free && page) {
+        const a0 = SLEEVE_HERO.landAuto / b0, down = k > (st.kWas ?? k) + 1e-5;
+        if (k < a0 || k >= 1) st.autoLand = false;
+        else if (down && !st.autoLand && st.tr === 0 && st.ts === 0) {
+          st.autoLand = true;
+          const left = (1 - k) / (1 - a0);
+          page.dispatchEvent(new CustomEvent("page:scrollto", { detail: { top: FLOW.travel * vh + 4, smooth: true, lock: true, duration: Math.max(0.7, SLEEVE_HERO.landAutoSec * left), easing: (t) => 1 - Math.pow(1 - t, 1.7) } }));
+        }
+        st.kWas = k;
+      }
+      const landed = st.pPre >= b0 - (st.sleeve ? SLEEVE_HERO.landNear : 1e-4);
+      const fwd = k >= 1 && landed;
+      if (st.sleeve) {
+        // sleeve Hero: 판이 앉으면 먼저 '앉은 뒤 시간'(ts: 톤암 → 덮개)이 흐르고, 그게 끝난 뒤에 방이 buildSpeed 배속으로 지어짐. 되돌리면 거꾸로
+        const H = SLEEVE_HERO, lidDur = st.lid ? st.lid.closeEnd : 0;
+        const S = H.needle + H.lidGap + lidDur;
+        st.settleDur = S;
+        if (st.reduced) { st.ts = fwd ? S : 0; st.tr = fwd ? T : 0; }
+        else if (fwd) { if (st.ts < S) st.ts = Math.min(S, st.ts + dt); else st.tr = Math.min(T, st.tr + dt * H.buildSpeed); }
+        else if (st.tr > 0) st.tr = Math.max(0, st.tr - dt * H.buildSpeed);
+        else st.ts = Math.max(0, st.ts - dt);
+      } else st.tr = st.reduced ? (fwd ? T : 0) : Math.min(T, Math.max(0, st.tr + (fwd ? dt : -dt)));
+      // 앞부분: 방이 다 되감긴 뒤(그리고 톤암 · 덮개가 다 돌아간 뒤)에만 스크롤 자리를 따라감 (그동안은 앉은 자세)
+      const preT = st.tr > 0 || st.ts > 0 ? b0 : k * b0;
+      // sleeve Hero: 착지 구간에서는 천천히 따라붙음 → 휠을 빨리 굴려도 판은 아주 천천히 내려앉음
+      const follow = st.sleeve && Math.max(preT, st.pPre) > SLEEVE_HERO.landFrom ? SLEEVE_HERO.landFollow : FLOW.follow;
+      st.pPre = st.reduced ? preT : st.pPre + (preT - st.pPre) * (1 - Math.exp(-dt * follow));
+      if (Math.abs(preT - st.pPre) < 1e-4) st.pPre = preT;
+      st.p = st.tr > 0 ? b0 + (b1 - b0) * (st.tr / T) : st.pPre;
+      st.s = st.sTarget = pToS(st.p);
+      st.stage = Math.round(st.s);
+      // 방이 지어지는 동안 착지 지점보다 아래로 가 있으면(휠을 빠르게 굴려 넘친 관성) 착지 지점으로 부드럽게 되돌림
+      const building = !st.free && (st.tr > 0 || st.ts > 0 || k >= 1);
+      const over = building && page && page.scrollTop > FLOW.travel * vh + 2;
+      if (over && !st.pulling) { st.pulling = true; page.dispatchEvent(new CustomEvent("page:scrollto", { detail: { top: FLOW.travel * vh, smooth: !st.reduced, duration: 0.6 } })); }
+      else if (!over) st.pulling = false;
+      // 맨 위(Hero)인지: 종이 결 · 목차 01
+      const atTop = k < 0.04 && st.tr === 0 && st.ts === 0;
+      if (atTop !== st.atTop) { st.atTop = atTop; st.onHero?.(atTop); }
+    }
     st.frame = frame;
     tick();
 
     return () => {
       st.disposed = true;
+      st.hero?.dispose();
+      st.ttLook?.dispose();
+      if (st.ttEnv && st.ttEnv !== st.sleeve?.envMap) st.ttEnv.dispose();
+      st.sleeve?.dispose();
       st.dropShelfTest?.();
       cancelAnimationFrame(st.raf);
       ro.disconnect();
@@ -1089,6 +1731,8 @@ export default function RoomTest() {
         }
       });
       post.dispose();
+      heroRT.dispose(); overlayMat.dispose();
+      sharedRef.current = deferred();   // 다음 마운트의 Hero 엔진은 새 렌더러를 기다림
       renderer.dispose();
       renderer.domElement.remove();
       if (window.__room === st) delete window.__room;
@@ -1103,7 +1747,8 @@ export default function RoomTest() {
     fetchRecentVinyls(createClient()).then((rows) => {
       if (cancelled) return;
       setAlbums(rows.map((a) => ({ slug: a.slug, title: a.title, artist: a.artist_names || "", image: coverUrl(a.cover_path || a.thumb_path), color: a.cover_color || "#bbcbda" })));
-    }).catch((e) => console.error("New vinyls could not load", e));
+      if (!rows.length) gateRef.current.covers.resolve();
+    }).catch((e) => { console.error("New vinyls could not load", e); gateRef.current.covers.resolve(); });
     return () => { cancelled = true; };
   }, []);
 
@@ -1111,15 +1756,40 @@ export default function RoomTest() {
     const st = apiRef.current;
     if (!st || !info || !albums.length) return;
     const loader = new THREE.TextureLoader().setCrossOrigin("anonymous");
-    st.covers.forEach(({ mat }, i) => {
+    // 재킷마다 받기 → GPU 에 올리기까지 끝나면(실패해도) 로딩 조건 하나를 풂
+    const loads = st.covers.map(({ mat }, i) => {
       const a = albums[st.covers.length - 1 - i];
-      if (!a) return;
+      if (!a) return null;
       mat.color.set(a.color);
-      loader.load(a.image, (tex) => {
+      return new Promise((done) => loader.load(a.image, (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         mat.map = tex; mat.emissiveMap = tex; mat.color.set("#ffffff"); mat.needsUpdate = true;
-      });
-    });
+        try { st.renderer.initTexture(tex); } catch { /* 첫 그리기에서 올라감 */ }
+        done();
+      }, undefined, () => done()));
+    }).filter(Boolean);
+    Promise.all(loads).then(() => gateRef.current.covers.resolve());
+    // sleeve Hero: 같은 앨범으로 재킷 줄을 만들고, 가운데에서 가까운 커버부터 받아 입힘 (앞 3장이 준비되면 Hero 준비 끝)
+    const sleeveOff = { v: false };
+    const fillSleeves = () => {
+      const sl = st.sleeve; if (!sl || !albums.length || sleeveOff.v) return;
+      sl.setAlbums(albums);
+      let n = 0;
+      const order = albums.map((_, i) => i).sort((a, b) => Math.abs(a - sl.s.target) - Math.abs(b - sl.s.target));
+      (async () => {
+        for (const i of order) {
+          const img = await new Promise((done) => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => done(im); im.onerror = () => done(null); im.src = albums[i].image; });
+          if (sleeveOff.v || st.sleeve !== sl) return;
+          sl.setCover(i, img);
+          n++;
+        }
+      })();
+    };
+    // (이 effect 는 선반 소품이 얹힐 때도 다시 돎 → 같은 앨범 목록이면 줄을 다시 만들지 않음)
+    if (sleeveHero && st.sleeveFilled !== albums) {
+      if (st.sleeve) { st.sleeveFilled = albums; fillSleeves(); }
+      else st.onSleeveReady = () => { st.sleeveFilled = albums; fillSleeves(); };
+    }
     // 창가 선반 "지금 듣는 판" 재킷: 벽 선반에 없는 앨범 중 무작위 (페이지를 열 때마다 바뀜)
     if (st.root) st.nowPlaying = applyNowPlaying(st.root, albums, st.covers.length);   // 다시 마운트(개발 중 새로 고침) 직후엔 방이 아직 없을 수 있음
   }, [albums, info, shelfReady]);
@@ -1168,18 +1838,186 @@ export default function RoomTest() {
   useEffect(() => {
     const st = apiRef.current; if (!st) return;
     st.onHero = (on) => setHeroOn(on);
+    // sleeve Hero: 가운데 앨범 · 열림 → 아래 글자. 열린 판을 누르면 착지 자리까지 스크롤을 대신 내려 줌 (판이 턴테이블로 내려가 앉고 방이 지어짐)
+    st.onSleeveIndex = (i) => setSleeveAt(i);
+    st.onSleeveOpen = (o) => setSleeveOpen(o);
+    st.onSleeveRecord = () => {
+      const page = pageRef.current; if (!page) return;
+      st.autoLand = true;     // (flowStep 의 '끝까지 내려앉기'가 중간에 다시 시작하지 않게)
+      page.dispatchEvent(new CustomEvent("page:scrollto", { detail: { top: FLOW.travel * page.clientHeight + 4, smooth: !st.reduced, duration: SLEEVE_HERO.landMs / 1000, easing: (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2) } }));
+    };
+    st.onFree = (on) => setFree(on);
     st.onShelfReady = () => setShelfReady((n) => n + 1);
   }, []);
+  // 페이지 스크롤 → 방 화면이 액자처럼 작아짐 · 섹션 바탕색과 노이즈 경계(inkWipe 캔버스) · New Vinyls 커버 줄이 옆으로 지나감
+  //                 · 헤더 글자색 · 섹션 색이 방을 다 덮으면 그리기 멈춤 · 끝의 창이 가까워지면 늦은 밤으로
+  useEffect(() => {
+    const page = pageRef.current, stage = stageRef.current, st = apiRef.current, canvas = wipeRef.current;
+    if (!page || !stage || !st || !canvas) return;
+    const wipe = createInkWipe(canvas);
+    // 섹션 바탕색 = 사이트 테마 값 (다크 모드면 크림 ↔ 잉크가 바뀜). none = 뚫림 (방이 비침)
+    const _c = new THREE.Color();
+    const palette = { none: { rgba: [0, 0, 0, 0], color: null } };
+    const readTheme = () => {
+      const css = getComputedStyle(document.documentElement);
+      for (const name of ["cream", "ink"]) {
+        _c.set(css.getPropertyValue(`--${name}`).trim() || (name === "cream" ? "#f4e7cd" : "#4c404a"));
+        const hex = _c.getHex(THREE.SRGBColorSpace);
+        palette[name] = { rgba: [(hex >> 16 & 255) / 255, (hex >> 8 & 255) / 255, (hex & 255) / 255, 1], color: _c.clone() };
+      }
+    };
+    readTheme();
+    _c.set(NIGHT_TINT.color);
+    const nightHex = _c.getHex(THREE.SRGBColorSpace);
+    const nightPal = { rgba: [(nightHex >> 16 & 255) / 255, (nightHex >> 8 & 255) / 255, (nightHex & 255) / 255, 1], color: _c.clone() };
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      const y = page.scrollTop, vh = page.clientHeight, asp = page.clientWidth / vh;
+      // 경계: 섹션마다 하나 (단위: 화면 높이 = 1, 왼쪽 아래가 0,0). T = 섹션 윗변 높이
+      //  보통 섹션: 화면 아래 멀리 중심을 둔 큰 원 = 큰 판의 홈이 아래에서 밀려 올라옴 (섹션마다 중심이 좌우로 번갈아 치우침)
+      //   · 꽉 찬 반지름 R 은 섹션 윗변 아래를 다 덮는 크기 → 섹션 안은 늘 제 색
+      //   · 다음 색은 섹션보다 최대 sag + band(≤ lead) 만큼 먼저 올라옴 (그 자리는 앞 섹션 끝의 빈 여백)
+      //  늦은 밤 창: 턴테이블 자리를 중심으로 잉크가 고리 모양으로 걷힘 (섹션 앞부분은 비어 있어서 글과 겹치지 않음)
+      const list = [];
+      let over = null, covered = false, nearNight = false, n = 0, at = 0, k2 = 0, nightT = -1, night = null;
+      const pageY = page.getBoundingClientRect().top;
+      // News 바탕 → 밤색: 늦은 밤 창 섹션이 올라오는 만큼 (그 앞 섹션의 색만 바뀜)
+      const nightSec = page.querySelector("[data-hs-night]");
+      const nT = nightSec ? 1 - (nightSec.getBoundingClientRect().top - pageY) / vh : -1;
+      const tint = st.reduced ? (nT > NIGHT_TINT.at[1] ? 1 : 0) : THREE.MathUtils.smoothstep(nT, NIGHT_TINT.at[0], NIGHT_TINT.at[1]);
+      for (const sec of page.querySelectorAll("[data-hs-section]")) {
+        const top = sec.getBoundingClientRect().top - pageY;
+        if (!list.length) st.nvTop = y + top;   // New Vinyls 가 화면 위에 닿는 scrollTop (휠 배수 구간의 끝)
+        const T = 1 - top / vh;
+        let c = palette[sec.dataset.bg] ?? palette.none;
+        if (tint > 0 && nightSec && sec.nextElementSibling === nightSec && c.color) {
+          c = { rgba: c.rgba.map((x, k) => (k < 3 ? x + (nightPal.rgba[k] - x) * tint : x)), color: c.color.clone().lerp(nightPal.color, tint) };
+        }
+        let shape = null;
+        if (sec.hasAttribute("data-hs-night")) {
+          nightT = T;
+          // 사진: 잉크 바탕에 세로로 긴 둥근 창을 내고(그 안으로 방이 비침) 화면 아래에서 가운데로 → 화면 가득 커짐
+          //  방 화면(host)은 줄이지 않고 창과 같이 아래로 내려 둠 (사진 속 그림이 사진과 함께 올라오게). 창 안에 무엇이 보일지는 카메라가 정함 (applyNightView)
+          const F = NIGHT_FRAME;
+          const u = Math.min(1, Math.max(0, (T - F.at) / F.rise)), v = Math.min(1, Math.max(0, (T - F.at - F.rise) / F.grow));
+          if (st.reduced) { if (T >= F.at + F.rise) shape = { kind: 3, cx: asp * 0.5, cy: 0.5, hw: asp, hh: 1, r: 0 }; }
+          else if (T > F.at) {
+            const gv = v * v * (3 - 2 * v);
+            const hw0 = Math.min(F.maxW * asp, Math.max(F.minW * asp, F.w)) / 2, hh0 = F.h / 2;
+            const down = (1 - u) * (1 - u) * (0.5 + hh0 + 0.04);   // 화면 아래 밖 → 0 (올라오며 느려짐)
+            night = { ty: down * vh, grow: gv, fw: (hw0 * 2) / asp };
+            const extra = Math.max(0, gv - 0.9) * 0.4;   // 거의 다 커졌을 때: 창이 화면보다 조금 커져 가장자리 그늘이 화면 밖으로
+            shape = { kind: 3, cx: asp * 0.5, cy: 0.5 - down, hw: hw0 + (asp / 2 - hw0) * gv + extra, hh: hh0 + (0.5 - hh0) * gv + extra, r: (F.radius * (1 - gv)) / vh };
+          }
+          if (T > NIGHT_OPEN[0] - 0.5) nearNight = true;
+        } else {
+          // 슬리브: 다음 섹션이 종이 재킷처럼 아래에서 밀려 올라옴 (처음엔 좁고 기울어 있다가 올라오며 펴짐, 섹션마다 기울기 방향을 번갈아)
+          const side = n++ % 2 ? -1 : 1;
+          const top = T + SLEEVE.lift;
+          if (top > -0.12) {
+            const k = THREE.MathUtils.smoothstep(top, 0, SLEEVE.settle);
+            shape = { kind: 2, top, inset: SLEEVE.inset * (1 - k), angle: side * SLEEVE.tilt * (1 - k), dim: SLEEVE.dim * THREE.MathUtils.clamp(top, 0, 1) };
+          }
+        }
+        list.push(shape && { ...shape, rgba: c.rgba });
+        if (T >= 0.94) over = c.color;                              // 헤더 자리까지 덮은 마지막 색
+        k2++;
+        if (T >= 0.5 && sec.dataset.bg !== undefined && k2 <= 3) at = k2;   // 화면 가운데를 넘은 마지막 섹션 (Footer 는 늦은 밤에 포함)
+        if (T >= 1) covered = c.rgba[3] === 1;                       // 화면을 다 지나간 경계: 그 색이 불투명하면 방이 안 보임
+        else if (shape && c.rgba[3] < 1) covered = false;            // 뚫린 색이 열리는 중 = 방이 다시 보임
+      }
+      wipe?.set(list);
+      setWhere((w) => (w === at ? w : at));
+      // 방 화면: 첫 화면 높이를 내려가는 동안 조금 작아지고 모서리가 둥글어짐 (끝에서 다시 나올 땐 꽉 찬 화면)
+      const y0 = st.scrollFlow ? (FLOW.travel + FLOW.hold) * vh : 0;   // 한 장면 흐름: 판·방 구간이 끝난 뒤부터
+      const k = st.reduced || nearNight ? 0 : Math.min(1, Math.max(0, y - y0) / (vh * 0.9));
+      stage.style.setProperty("--frame", k.toFixed(4));
+      // 늦은 밤 사진: 방 화면을 창과 같이 내려 둔 거리 (평소엔 0)
+      stage.style.setProperty("--nty", night ? `${night.ty.toFixed(1)}px` : "0px");
+      st.nightGrow = night ? night.grow : null;   // 사진이 커진 정도 (null = 사진 아님 → 카메라 그대로)
+      st.nightFw = night ? night.fw : 0;          // 사진 폭 (화면 폭 대비)
+      // 붙어 있는 구역의 커버 줄: 구역을 지나는 동안 왼쪽으로
+      for (const pin of page.querySelectorAll("[data-hs-pin]")) {
+        const rail = pin.querySelector("[data-hs-rail]"); if (!rail) continue;
+        const r = pin.getBoundingClientRect();
+        const q = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - vh)));
+        const more = Math.max(0, rail.scrollWidth - page.clientWidth);
+        rail.style.transform = `translate3d(${(-q * more).toFixed(1)}px,0,0)`;
+      }
+      st.overBg = over;
+      st.covered = covered;
+      st.setNight?.(nearNight);
+      // 늦은 밤: 카메라가 턴테이블로 다가가는 정도 · "drop the needle" 이 화면 가운데쯤 오면 바늘이 내려감
+      st.nightPush = nearNight ? THREE.MathUtils.smoothstep(nightT, NIGHT_PUSH.at[0], NIGHT_PUSH.at[1]) : 0;
+      const mark = page.querySelector("[data-hs-needle]");
+      if (mark && nearNight) {
+        const ty = (mark.getBoundingClientRect().top - pageY) / vh;
+        if (ty < NIGHT_NEEDLE[0]) st.nightDrop = true; else if (ty > NIGHT_NEEDLE[1]) st.nightDrop = false;
+      } else st.nightDrop = false;
+    };
+    const queue = () => { if (!raf) raf = requestAnimationFrame(measure); };
+    // Lenis 가 스크롤을 옮긴 바로 그 순간에 계산 → 섹션 글자(DOM)와 바탕(WebGL)이 같은 프레임에 움직임 (Route 66 처럼)
+    //  브라우저 scroll 이벤트는 그 뒤에 와서, Lenis 가 움직인 스크롤이면 시간만 기록 (Lenis 가 없을 때·직접 옮길 때는 다음 프레임에 계산)
+    let lenisAt = -1;
+    const onLenis = () => { lenisAt = performance.now(); st.scrollAt = lenisAt / 1000; if (raf) { cancelAnimationFrame(raf); raf = 0; } measure(); };
+    const onScroll = () => { st.scrollAt = performance.now() / 1000; if (performance.now() - lenisAt > 40) queue(); };
+    page.addEventListener("page:lenis-scroll", onLenis);
+    page.addEventListener("scroll", onScroll, { passive: true });
+    const ro = new ResizeObserver(() => { wipe?.resize(); queue(); });
+    ro.observe(page);
+    const mo = new MutationObserver(() => { readTheme(); queue(); });
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    wipe?.resize();
+    measure();
+    return () => { page.removeEventListener("page:lenis-scroll", onLenis); page.removeEventListener("scroll", onScroll); ro.disconnect(); mo.disconnect(); cancelAnimationFrame(raf); wipe?.dispose(); };
+  }, [info, albums]);
+  // Footer 의 "맨 위로": 페이지를 맨 위로 올리고 이야기를 Hero 로
+  // 맨 위로 (HomeSections 에는 늘 같은 함수를 넘겨서, 이 컴포넌트가 다시 그려져도 섹션들은 그대로 둠)
+  // sleeve Hero: 첫 로딩 화면이 걷히고 방 · 앨범이 준비되면 재킷들이 나타남
+  useEffect(() => { if (sleeveHero && done && info && albums.length) apiRef.current?.sleeve?.reveal(); }, [sleeveHero, done, info, albums]);
+  const toTopRef = useRef(null);
+  const onTop = useRef(() => toTopRef.current?.()).current;
+  const toTop = () => {
+    if (scrollFlow) { pageRef.current?.dispatchEvent(new CustomEvent("page:scrollto", { detail: { top: 0, smooth: !reduced } })); return; }
+    pageRef.current?.dispatchEvent(new CustomEvent("page:scrollto", { detail: { top: 0 } }));
+    if (pageRef.current) pageRef.current.scrollTop = 0;
+    setP(0);
+  };
+  toTopRef.current = toTop;
+  // 목차 01–05: 0 Grooves(Hero) · 1 The Room · 2 New Vinyls · 3 News · 4 After Hours
+  const goIndex = (i) => {
+    const page = pageRef.current, st = apiRef.current;
+    if (!page || !st) return;
+    const scroll = (top) => page.dispatchEvent(new CustomEvent("page:scrollto", { detail: { top, smooth: !reduced } }));
+    if (i === 0) { toTop(); return; }
+    if (scrollFlow && i === 1) { scroll(FLOW.travel * page.clientHeight); return; }   // 판이 앉는 자리 → 방이 지어짐
+    if (i === 1) {
+      scroll(0);
+      if (st.inHero) leaveHero();   // Hero 에서는 방이 지어지는 장면을 그대로 재생
+      return;
+    }
+    if (!st.free && !scrollFlow) setP(STAGE_P[3]);   // 방이 아직 완성 전이면 완성된 방에서 출발 (한 장면 흐름은 지나가며 지어짐)
+    const sec = page.querySelectorAll("[data-hs-section]")[i - 2];
+    if (!sec) return;
+    const r = sec.getBoundingClientRect(), vh = page.clientHeight;
+    // 늦은 밤: 문구가 화면 가운데쯤 오는 자리 (섹션 앞부분은 비어 있음)
+    scroll(page.scrollTop + r.top + (sec.hasAttribute("data-hs-night") ? r.height - vh * 1.35 : 0));
+  };
   const leaveHero = () => {
     const home = homeRef.current;
-    if (apiRef.current?.leaveHero(home?.heroPose?.())) home?.setDiscHidden?.(true);   // 이어 받았으면 Home 판은 바로 숨김 (두 장 겹쳐 보이지 않게)
+    // Hero 판은 숨기지 않음: 방의 판이 같은 자리·같은 회전으로 아래에 깔리고, Hero 레이어(판 포함)가 옅어지며 겹쳐 넘어감
+    //  (두 판은 서로 다른 WebGL 캔버스라 한 판을 그대로 옮겨 쓸 수는 없음 → 겹쳐서 이어지게)
+    apiRef.current?.leaveHero(home?.heroPose?.());   // Home 판의 지금 자세를 넘겨 방의 판이 같은 자리에서 이어 받음
   };
   // Hero 가 가려진 동안 Home 엔진은 그리지 않음 (레이어가 다 사라진 뒤 멈추고, 돌아올 땐 바로 다시)
   useEffect(() => {
     const engine = homeRef.current;
     if (!engine?.setPaused) return;
     if (heroOn) { engine.setPaused(false); engine.setDiscHidden?.(false); return; }
-    const t = setTimeout(() => engine.setPaused(true), reduced ? 0 : 550);
+    // 판을 숨긴 프레임이 한두 번 그려지면 바로 멈춤 (예전 550ms: 그동안 Hero 엔진과 방이 같이 그려져 GPU 를 나눠 씀).
+    // Hero 글자 레이어는 멈춘 마지막 화면 그대로 0.5초 동안 옅어짐
+    const t = setTimeout(() => engine.setPaused(true), reduced ? 0 : HERO_FADE_MS + 60);   // Hero 층이 다 옅어진 뒤 엔진 멈춤 (그리기는 이미 방이 맡음)
     return () => clearTimeout(t);
   }, [heroOn, reduced]);
 
@@ -1203,6 +2041,8 @@ export default function RoomTest() {
   useEffect(() => {
     const q = new URLSearchParams(location.search);
     if (q.get("panel") === "0") setPanel(false);
+    setDebug(q.get("debug") === "1");
+    if (apiRef.current) apiRef.current.debug = q.get("debug") === "1";
     const p = Number(q.get("p"));
     if (info && p > 0) setP(p);
   }, [info]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -1214,11 +2054,15 @@ export default function RoomTest() {
     else if (!st.tween) st.advance(1);
   };
 
-  const lead = albums[0];
-  const ease = "cubic-bezier(.22,1,.36,1)";
   return (
-    <div ref={wrapRef} data-header-see-through className="relative h-svh w-full overflow-hidden">
-      <div ref={hostRef} className="absolute inset-0 touch-none" />
+    // .page = 스크롤 영역. 방 스테이지는 맨 위에 붙어 있고(sticky), 뒤 섹션들이 그 위로 올라옴. 끝의 투명한 창에서 방이 다시 비침
+    <div ref={pageRef} className="page home" data-lenis-prevent style={{ overflowY: (free || scrollFlow) && !sleeveLock ? "auto" : "hidden" }}>
+    <div ref={contentRef} className="page-content">
+    <div ref={wrapRef} data-header-see-through className="relative w-full bg-[#15111a]">
+    <div ref={stageRef} className="sticky top-0 z-0 h-svh w-full overflow-hidden [--frame:0]">
+      {/* 페이지를 내리면 방 화면이 액자처럼 조금 작아짐 (--frame 0 → 1, 스크롤 처리에서 넣음) */}
+      <div ref={hostRef} className="absolute inset-0 origin-[50%_42%] overflow-hidden will-change-transform"
+        style={{ touchAction: free || scrollFlow ? "pan-y" : "none", scale: "calc(1 - var(--frame) * 0.12)", translate: "0 var(--nty, 0px)", borderRadius: "calc(var(--frame) * 28px)" }} />
 
       {/* 방 안 물체 이름표 (턴테이블 Play/Stop · 램프 Light on/off) — 위치는 효과에서 직접 */}
       <div ref={tipRef} aria-hidden className="pointer-events-none fixed left-0 top-0 z-30 rounded-full bg-black/55 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white opacity-0 backdrop-blur-sm transition-opacity duration-150" />
@@ -1230,75 +2074,97 @@ export default function RoomTest() {
         Sound {soundOn ? "on" : "off"}
       </button>
 
-      {/* Hero: 실제 Home 스테이지 그대로 (판 효과·제목·커서 전부). 아래로 가면 3D 장면이 같은 자리에서 이어 받음 */}
-      <div className={`page home paper-textured absolute! inset-0 ${reduced ? "" : "transition-opacity duration-500"}`} inert={!heroOn}
-        style={{ overflow: "hidden", opacity: heroOn ? 1 : 0, pointerEvents: heroOn ? "auto" : "none" }}>
-        <div className="page-content">
-          <HomeStage onHeroLeave={leaveHero} onEngine={(e) => { homeRef.current = e; if (apiRef.current) apiRef.current.home = e; }} />
-        </div>
+      {/* 종이 결 (Hero 동안만): 캔버스 위에 soft-light 로 섞임. Hero 층 밖에 두고 자기 투명도로 옅어짐
+          (예전엔 Hero 층 안에 있어서, 층이 옅어지는 0.4초 동안 층이 따로 그려지며 섞일 바탕을 잃고 회색 결 막이 화면을 한 번 덮었음) */}
+      <div aria-hidden="true" className={`pointer-events-none absolute inset-0 mix-blend-soft-light ${reduced ? "" : "transition-opacity"}`}
+        style={{ opacity: heroOn && !sleeveHero ? "var(--paper-texture-opacity)" : 0, transitionDuration: `${HERO_FADE_MS}ms`, backgroundImage: "var(--paper-texture-image)", backgroundSize: "var(--paper-texture-size) var(--paper-texture-size)" }} />
+      {/* Hero: 실제 Home 스테이지 (제목·커서·누르기 입력 · 판 자세). 판은 방 장면의 한 장이 그 자세로, 링·그림자·먼지는 Home 엔진이 방 캔버스 위에 (renderHeroRT) → 이 층은 바탕이 투명
+          종이 결은 캔버스 위에 soft-light 로 덮음 (예전 .paper-textured 와 같은 그림·세기) */}
+      <div className={`page home absolute! inset-0 bg-transparent! ${reduced ? "" : "transition-opacity"}`} inert={!heroOn}
+        style={{ overflow: "hidden", opacity: heroOn ? 1 : 0, pointerEvents: heroOn ? "auto" : "none", transitionDuration: `${HERO_FADE_MS}ms` }}>
+        {/* raw Hero(/lab/room-test): Home 엔진 없이 방 장면의 판 한 장만 → 이 층에는 종이 결만 */}
+        {!ownHero && (
+          <div className="page-content">
+            <HomeStage onHeroLeave={leaveHero} sharedRenderer={getShared} onEngine={(e) => { homeRef.current = e; if (apiRef.current) { apiRef.current.home = e; if (apiRef.current.ready) apiRef.current.warmHero?.(); } gateRef.current.hero.resolve(); }} />
+          </div>
+        )}
       </div>
 
-      {/* 진행 막대 */}
-      <div className="pointer-events-none absolute right-5 top-1/2 h-[46svh] w-px -translate-y-1/2 bg-[#bbcbda]/60">
-        <div className="absolute left-0 top-0 w-px bg-[var(--accent)]" style={{ height: `${hud.p * 100}%` }} />
-        {STAGES.map(([a, label]) => (
-          <div key={a} className="absolute right-2 -translate-y-1/2 whitespace-nowrap text-[10px] text-[#8c8590]" style={{ top: `${a * 100}%`, opacity: hud.stage === label ? 1 : 0.45 }}>{label}</div>
-        ))}
-      </div>
-
-      {/* New Vinyls (핸드오프 목적지) */}
-      <section className="absolute inset-0 flex flex-col justify-center bg-(--cream) px-[8vw] text-(--ink)"
-        style={{ opacity: section >= 1 ? 1 : 0, transform: section === 2 ? "translateY(-100%)" : "none", pointerEvents: section === 1 ? "auto" : "none", transition: reduced ? "none" : `opacity .7s ${ease}, transform .9s ${ease}` }}>
-        <h2 className={`${MONOTON} text-[clamp(2.5rem,7vw,6rem)]`}>New Vinyls</h2>
-        <p className="mt-2 opacity-70">상자에 새로 들어온 판 일곱 장</p>
-        <div className="mt-8 flex gap-4 overflow-x-auto pb-2">
-          {albums.map((a, i) => (
-            // 누르면 사이트의 커버 이동 전환으로 앨범 상세 (Digging·Collection 과 같은 방식)
-            <a key={a.slug} href={`/album/${encodeURIComponent(a.slug)}`} onClick={(e) => openAlbum(e, a)}
-              aria-label={`${a.title} — ${a.artist}`} className="group block w-[min(26vw,220px)] shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                ref={i === 0 ? slotRef : undefined}
-                src={a.image} alt="" className="h-[min(26vw,220px)] w-full object-cover shadow-[0_8px_24px_rgba(76,64,74,.18)] transition-[opacity,scale] duration-500 group-hover:scale-[1.03]"
-                style={{ opacity: i === 0 ? (flyer?.landed ? 1 : 0) : section >= 1 ? 1 : 0, transitionDelay: i === 0 || reduced ? "0ms" : `${300 + i * 70}ms` }}
-              />
-              <span className="mt-2 block text-xs">
-                <span className="block truncate">{a.title}</span>
-                <span className="block truncate opacity-60">{a.artist}</span>
-              </span>
-            </a>
+      {/* ink Hero: "Grooves" 제목 (Home Hero 와 같은 글꼴 · 크기 · 자리) + 커스텀 커서 (마우스에서만). 움직임은 inkHero.js */}
+      {/* sleeve Hero: 가운데 앨범의 아티스트 · 제목 + 넘기기 · 열기 버튼 (Hero 에 있는 동안만) */}
+      {sleeveHero && (
+        <div className={`pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-6 px-[var(--gutter)] pb-[clamp(1.25rem,4vh,2.75rem)] text-[var(--ct-header-fg,#4c404a)] transition-[opacity,translate] duration-500 ease-out motion-reduce:transition-none ${heroOn && done && albums.length ? "opacity-100" : "translate-y-2 opacity-0"}`}
+          inert={!heroOn}>
+          {[-1, 1].map((d) => (
+            <button key={d} type="button" aria-label={d < 0 ? "Previous album" : "Next album"} onClick={() => apiRef.current?.sleeve?.step(d)}
+              disabled={d < 0 ? sleeveAt <= 0 : sleeveAt >= albums.length - 1}
+              className={`${d > 0 ? "order-3" : ""} ${sleeveOpen ? "invisible" : ""} pointer-events-auto rounded-full border border-current/30 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] transition-opacity hover:opacity-70 disabled:pointer-events-none disabled:opacity-25`}>
+              {d < 0 ? "←" : "→"}
+            </button>
           ))}
+          <div className="order-2 min-w-0 text-center" aria-live="polite">
+            <p className="truncate text-[11px] font-medium uppercase tracking-[0.3em] opacity-70">{albums[sleeveAt]?.artist || " "}</p>
+            <p className="mt-1 truncate font-['Grooves_Display','Hahmlet',Georgia,serif] text-[clamp(1.4rem,2.6vw,2.4rem)] leading-tight">{albums[sleeveAt]?.title || " "}</p>
+            <button type="button" onClick={() => apiRef.current?.sleeve?.setOpen(!sleeveOpen)}
+              className="pointer-events-auto mt-3 rounded-full border border-current/30 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] transition-opacity hover:opacity-70">
+              {sleeveOpen ? "Close" : "Open"}
+            </button>
+            <p className="mt-2 text-[11px] tracking-[0.06em] opacity-60">{sleeveOpen ? "Click the record or scroll to play it" : "Scroll or drag to browse · click a sleeve to open"}</p>
+          </div>
         </div>
-      </section>
-
-      {/* News */}
-      <section className="absolute inset-0 flex flex-col justify-center bg-(--cream) px-[8vw] text-(--ink)"
-        style={{ transform: section === 2 ? "none" : "translateY(100%)", pointerEvents: section === 2 ? "auto" : "none", transition: reduced ? "none" : `transform .9s ${ease}` }}>
-        <h2 className={`${MONOTON} text-[clamp(2.5rem,7vw,6rem)]`}>News</h2>
-        <p className="mt-2 opacity-70">판 밖의 이야기</p>
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
-          {POSTS.map((post, i) => (
-            <Link key={post.slug} href={`/news/${post.slug}`} className="group block transition-[opacity,translate] duration-700"
-              style={{ opacity: section === 2 ? 1 : 0, translate: section === 2 ? "0 0" : "0 24px", transitionDelay: reduced ? "0ms" : `${250 + i * 90}ms` }}>
-              <StoryCover name={post.cover} className="aspect-square max-h-[38svh] rounded-sm" />
-              <p className="mt-3 text-xs uppercase tracking-[0.16em] opacity-60">{post.category}</p>
-              <h3 className="mt-1 text-lg leading-snug [word-break:keep-all]">{post.title}</h3>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {flyer?.rect && lead && !flyer.landed && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={lead.image} alt=""
-          className="pointer-events-none fixed z-10 object-cover shadow-[0_8px_24px_rgba(76,64,74,.18)]"
-          style={{ ...flyer.rect, transition: flyer.animate ? `left .9s ${ease}, top .9s ${ease}, width .9s ${ease}, height .9s ${ease}` : "none" }}
-        />
+      )}
+      {(inkHero || sleeveHero) && (
+        <>
+          {/* sleeve Hero 는 재킷 줄이 화면 가운데를 차지하므로 제목을 그 위(헤더와 재킷 사이)에 조금 작게 */}
+          <h1 ref={titleRef} aria-label="Grooves"
+            className={`pointer-events-none absolute inset-x-0 z-10 select-none overflow-y-clip py-[0.06em] text-center ${MONOTON} leading-none ${sleeveHero ? "top-[15svh] text-[min(8.5vw,12svh)]" : "top-1/2 text-[11vw]"}`}
+            style={{ color: HS.text, translate: "0 -50%" }}>
+            {"Grooves".split("").map((ch, i) => <span key={i} aria-hidden="true" className="inline-block origin-bottom translate-y-[110%]">{ch}</span>)}
+          </h1>
+          <div ref={curRefs.ring} className="pointer-events-none fixed left-0 top-0 z-50 opacity-0 transition-opacity duration-300" aria-hidden="true">
+            <div className="-translate-x-1/2 -translate-y-1/2">
+              <div ref={curRefs.shape} style={{ transform: "scale(0.32)", borderColor: HS.ink3d }} className="relative h-[88px] w-[88px] rounded-full border transition-[transform,background-color,border-color,backdrop-filter] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]">
+                <svg ref={curRefs.tick} className="absolute inset-0 h-full w-full opacity-0 transition-opacity duration-300" viewBox="0 0 88 88" fill="none">
+                  <circle cx="44" cy="44" r="40" stroke={HS.ink3d} strokeWidth="0.8" strokeDasharray="1.5 5" />
+                  <line x1="44" y1="2" x2="44" y2="11" stroke={HS.ink3d} strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
+              </div>
+              <span ref={curRefs.label} style={{ color: HS.text }} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-pre text-center text-[11px] font-medium uppercase leading-[1.35] tracking-[0.14em] tabular-nums opacity-0 transition-opacity duration-300" />
+            </div>
+          </div>
+          <div ref={curRefs.dot} className="pointer-events-none fixed left-0 top-0 z-50 opacity-0 transition-opacity duration-200" aria-hidden="true">
+            <div className="h-[6px] w-[6px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: HS.text, boxShadow: `0 0 0 1px ${HS.paper}` }} />
+          </div>
+        </>
       )}
 
-      {/* 디버그 패널 */}
-      <div className="absolute left-4 top-20 z-20 w-72 rounded-lg bg-black/70 p-3 font-mono text-[11px] leading-relaxed text-white">
+      {/* 방 완성 화면: 문구 · Start digging · 스크롤 안내. 방이 완성돼 페이지 스크롤이 풀리면 올라오고, 내리기 시작하면 사라짐
+          (끝에서 방이 다시 나올 때는 그 섹션의 문구가 따로 있으므로 숨김: where > 0) */}
+      <div data-on={free && where === 0} className="group/done pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-8 px-[var(--gutter)] pb-[clamp(1.5rem,5vh,3.5rem)] text-[#f4e7cd]"
+        style={{ opacity: "calc(1 - var(--frame) * 4)" }}>
+        <div>
+          <p className="overflow-y-clip text-[11px] font-medium uppercase tracking-[0.3em]">
+            <span className="block translate-y-[110%] opacity-70 transition-[translate] duration-(--dur-enter) ease-groove group-data-[on=true]/done:translate-y-0 motion-reduce:transition-none">Now spinning · 33⅓ RPM</span>
+          </p>
+          <p className="mt-3 font-['Grooves_Display','Hahmlet',Georgia,serif] text-[clamp(1.9rem,4.2vw,4.6rem)] font-medium leading-[1.05] tracking-[-0.01em]">
+            {["Put a record on.", "Stay a while."].map((line, k) => (
+              <span key={line} className="block overflow-y-clip pb-[0.06em]">
+                <span className="block translate-y-[110%] transition-[translate] duration-(--dur-enter-title) ease-groove group-data-[on=true]/done:translate-y-0 motion-reduce:transition-none" style={{ transitionDelay: free ? `${120 + k * 110}ms` : "0ms" }}>{line}</span>
+              </span>
+            ))}
+          </p>
+          <Link href="/digging" tabIndex={free && where === 0 ? 0 : -1}
+            className="group/dig mt-[clamp(1rem,2.5vh,2rem)] inline-flex translate-y-3 items-center gap-2 rounded-full bg-[#f4e7cd] px-[clamp(1.5rem,1.8vw,2.5rem)] py-[clamp(0.75rem,1vw,1.25rem)] text-[clamp(11px,0.8vw,14px)] font-semibold uppercase tracking-[0.2em] text-[#4c404a] opacity-0 transition-[opacity,translate,background-color,scale] delay-[420ms] duration-(--dur-enter) ease-groove hover:bg-[#7fc1bd] active:scale-95 group-data-[on=true]/done:pointer-events-auto group-data-[on=true]/done:translate-y-0 group-data-[on=true]/done:opacity-100 motion-reduce:transition-none">
+            Start digging <span className="transition-transform duration-300 group-hover/dig:-translate-y-0.5 group-hover/dig:translate-x-0.5">↗︎</span>
+          </Link>
+        </div>
+        <p className="mb-1 flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.3em] opacity-0 transition-opacity delay-[700ms] duration-700 group-data-[on=true]/done:opacity-70 max-md:hidden">
+          Scroll <span aria-hidden="true" className="relative block h-10 w-px overflow-hidden bg-current/30"><span className="absolute inset-0 animate-[scroll-cue_2.2s_ease-in-out_infinite] bg-current motion-reduce:animate-none" /></span>
+        </p>
+      </div>
+
+      {/* 디버그 패널 (?debug=1) */}
+      <div hidden={!debug} className="absolute left-4 top-20 z-20 w-72 rounded-lg bg-black/70 p-3 font-mono text-[11px] leading-relaxed text-white">
         <button className="text-xs font-bold" onClick={() => setPanel((v) => !v)}>Room Test {panel ? "▾" : "▸"}</button>
         {panel && (
           <div className="mt-2 max-h-[calc(100svh-10rem)] overflow-auto">
@@ -1337,6 +2203,34 @@ export default function RoomTest() {
           </div>
         )}
       </div>
+    </div>
+    {/* 한 장면 흐름: 판이 앉기까지 + 방이 지어지는 걸 보는 스크롤 길이 (그동안 방 스테이지가 화면에 붙어 있음) */}
+    {scrollFlow && <div aria-hidden="true" style={{ height: `${(FLOW.travel + FLOW.hold) * 100}svh` }} />}
+    {/* 섹션 바탕: 방 스테이지 위 · 섹션 글과 그림 아래에 붙어 있는 캔버스 (흐름에서 자리를 차지하지 않게 한 화면만큼 끌어올림) */}
+    <canvas ref={wipeRef} aria-hidden="true" className="pointer-events-none sticky top-0 z-[5] -mt-[100svh] block h-svh w-full" />
+    {/* 섹션 목차 01–05: 화면 오른쪽에 붙어 있음. 색은 헤더 글자색(지금 바탕에 맞춰 바뀜)을 따름. New Vinyls · News 에서는 번호만 */}
+    <nav aria-label="Home sections" className={`pointer-events-none sticky top-0 z-20 -mt-[100svh] flex h-svh items-center justify-end pr-[var(--gutter)] text-[var(--ct-header-fg,#4c404a)] transition-opacity duration-700 max-md:hidden ${done ? "opacity-100" : "opacity-0"}`}>
+      <ol className="flex flex-col items-end gap-[clamp(10px,1.6vh,18px)]">
+        {INDEX.map((name, i) => {
+          const cur = where > 0 ? where + 1 : heroOn ? 0 : 1;
+          const compact = cur === 2 || cur === 3;   // New Vinyls(갤러리가 화면 끝까지)·News 에서는 커버·카드와 겹치지 않게 번호만
+          const open = cur === i && !compact;
+          return (
+            <li key={name}>
+              <button type="button" onClick={() => goIndex(i)} aria-current={cur === i ? "step" : undefined}
+                className={`group/sec pointer-events-auto flex items-center gap-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] tabular-nums transition-opacity duration-500 hover:opacity-100 ${cur === i ? "opacity-100" : "opacity-45"}`}>
+                <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-500 ease-groove motion-reduce:transition-none ${open ? "max-w-[10rem] opacity-100" : "max-w-0 opacity-0"} ${compact ? "" : "group-hover/sec:max-w-[10rem] group-hover/sec:opacity-100"}`}>{name}</span>
+                <span aria-hidden="true" className={`h-px bg-current transition-[width] duration-500 ease-groove motion-reduce:transition-none ${open ? "w-8" : "w-3"}`} />
+                <span>{String(i + 1).padStart(2, "0")}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+    <HomeSections albums={albums} posts={POSTS} onTop={onTop} />
+    </div>
+    </div>
     </div>
   );
 }

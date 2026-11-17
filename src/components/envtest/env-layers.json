@@ -30,7 +30,7 @@
       "on": true,
       "_note": "2026-11-11 s 0.8→0.75 (타워 머리까지 창 안), 강 건너 아파트를 0.66 으로 내려 산이 보이게. 그래도 창 위로 나오는 안테나 끝은 room-test 가 잘라 냄(RoomTest namsanClip). 창 너머에만 보이게: 꼭대기를 창문 벽 윗선보다 낮게, 폭은 창문 벽 안쪽으로",
       "img": "/models/room/env/namsan_01.png",
-      "fill": "#191b38",
+      "fill": "#5c3f47",
       "single": true,
       "blurMul": 0,
       "alphaTest": 0.6
@@ -40,11 +40,11 @@
       "color": "#5b4a78",
       "D": 350,
       "place": "screen",
-      "s": 0.8,
+      "s": 0.7,
       "look": "skyline",
       "seed": 3,
       "img": "/models/room/env/skyline_far_01.png",
-      "fill": "#0f122d",
+      "fill": "#1e1c2f",
       "band": 0.16,
       "on": true,
       "confirmed": "2026-11-03"
@@ -62,7 +62,7 @@
       "on": true,
       "_note": "2026-11-11 s 0.72→0.66: 창 너머 남산 능선이 아파트에 가리지 않게.",
       "img": "/models/room/env/apts_01.png",
-      "fill": "#0f1127",
+      "fill": "#6f3d31",
       "band": 0.2,
       "confirmed": "2026-11-03"
     },
@@ -76,7 +76,7 @@
       "look": "water",
       "on": true,
       "img": "/models/room/env/river_01.png",
-      "fill": "#191c3c",
+      "fill": "#1a1f3c",
       "band": 0.3,
       "confirmed": "2026-11-03"
     },
@@ -92,7 +92,7 @@
       "band": 0.22,
       "on": true,
       "img": "/models/room/env/bank_01.png",
-      "fill": "#0e1d27",
+      "fill": "#202526",
       "confirmed": "2026-11-03"
     },
     {
@@ -106,7 +106,7 @@
       "band": 0.24,
       "on": true,
       "img": "/models/room/env/lawn_01.png",
-      "fill": "#0e181f",
+      "fill": "#332820",
       "confirmed": "2026-11-03"
     },
     {
@@ -294,10 +294,7 @@
   },
   "sky": {
     "image": "/models/room/env/sky_01.webp",
-    "size": [
-      2000,
-      1125
-    ],
+    "size": [1672, 941],
     "offsetY": -0.57,
     "scaleY": 1,
     "grade": { "gain": 0.74, "sat": 0.86, "_note": "2026-11-11 하늘을 조금 어둡고 덜 진하게: 따뜻한 방이 화면에서 가장 밝게 보이도록. 1, 1 이면 그림 그대로",

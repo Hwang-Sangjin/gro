@@ -65,7 +65,8 @@ function getGenreCovers(slug) {
 
 // onHeroLeave: Hero 에서 아래로 가면 New Vinyls 대신 이걸 부름 (/lab/room-test 의 3D 거실이 이어 받음)
 // onEngine: 엔진이 준비되면 넘겨 줌 (heroPose 등)
-export default function HomeStage({ onHeroLeave, onEngine } = {}) {
+// sharedRenderer: () => 렌더러(또는 Promise). 주면 엔진이 자기 WebGL 을 만들지 않고 그 렌더러로 그림 (바깥이 drawShared 를 부름)
+export default function HomeStage({ onHeroLeave, onEngine, sharedRenderer } = {}) {
   const hostRef = useRef(null);
   const leaveRef = useRef(onHeroLeave);
   leaveRef.current = onHeroLeave;
@@ -133,6 +134,7 @@ export default function HomeStage({ onHeroLeave, onEngine } = {}) {
       onSectionChange: (n) => { memory.section = n; setSection(n); },
       onOpenAlbum: openAlbum,
       onHeroLeave: leaveRef.current ? () => leaveRef.current?.() : undefined,
+      sharedRenderer,
     }).then((engine) => {
       if (cancelled) { engine.dispose(); return; }
       engineRef.current = engine;
