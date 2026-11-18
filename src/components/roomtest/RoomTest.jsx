@@ -36,6 +36,7 @@ import { useIntro } from "@/components/intro/intro-context";
 import { createInkHero, INK_HERO, HERO_HOLD, HS } from "./inkHero";
 import { createSleeveHero, makeSleeveDisc, SLEEVE_HERO } from "./sleeveHero";
 import { applyTurntableLook } from "./turntableLook";
+import { createRoomMusic } from "./roomMusic";
 import { makeEnvironment, drawLabel } from "./sleeveParts";
 
 const MODEL_URL = "/models/room/grooves_room_blockout_reveal.glb";
@@ -340,6 +341,8 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
   const [flyer, setFlyer] = useState(null);   // { rect, animate, landed, closing }
   const [soundOn, setSoundOn] = useState(false);   // 효과음은 사용자가 켤 때만 (브라우저 자동 재생 규칙)
   const tipRef = useRef(null);                      // 방 안 물체 위에 뜨는 이름표
+  const musicHostRef = useRef(null);                // 턴테이블 음악: YouTube 플레이어가 들어가는 자리 ("Now spinning" 카드)
+  const [music, setMusic] = useState({ album: null, active: false, playing: false, buffering: false, blocked: false, error: false });
   const [heroOn, setHeroOn] = useState(true);   // Hero = Home 엔진 레이어가 보이는 동안
   // 모션 줄이기: 칸 이동은 바로, 회전·떠 있는 흔들림·커버 날아가기 없음 (프로젝트 공통 규칙)
   const [reduced] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -1203,6 +1206,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     // ── 방 안 상호작용 (방 완성 칸에서만): 턴테이블 = 재생 · 멈춤, 램프 = 끄고 켬. 올리면 커서 · 이름표 · 살짝 들림
     const sound = createRoomSound();
     st.sound = sound;
+    st.music = createRoomMusic(musicHostRef.current, setMusic);   // 턴테이블 음악 (YouTube) · 카드 상태는 setMusic 으로
     st.playing = true;                  // 판: 33⅓ 이 되면 돌고 있음 (누르면 멈춤)
     st.armK = 1;
     st.lampUser = {}; st.lampK = {};    // 램프 pivot → 켬(1) · 끔(0), 부드럽게 따라가는 값
@@ -1418,15 +1422,21 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       st.ptr.set((e.clientX / innerWidth) * 2 - 1, 1 - (e.clientY / innerHeight) * 2);
       setHover(pick(e), e);
     };
+    // 재생 · 멈춤 (턴테이블 클릭 · 음악 카드 버튼): 바늘이 들리거나 내려가고, 음악도 따라감. 누르면 닫았던 음악도 다시 켬
+    st.togglePlay = () => {
+      if (st.swap) { st.swap.fast = true; return; }
+      if (st.playing && st.musicOff) { st.musicOff = false; return; }   // 판은 도는데 음악 카드를 닫았던 경우: 음악만 다시 켬
+      st.playing = !st.playing;
+      if (st.playing) { st.musicOff = false; sound.needleDown(); } else sound.needleUp();
+    };
+    st.closeMusic = () => { st.musicOff = true; st.music?.stop(); };
     const onClick = (e) => {
       const t = pick(e);
       if (!t) return;
       if (st.swap) { st.swap.fast = true; return; }   // 판을 바꾸는 중: 남은 동작을 빠르게 끝냄
       if (t.cover) { setHover(null); startSwap(t.cover); return; }
-      if (t.key === "turntable") {
-        st.playing = !st.playing;
-        if (st.playing) sound.needleDown(); else sound.needleUp();
-      } else {
+      if (t.key === "turntable") st.togglePlay();
+      else {
         st.lampUser[t.key] = st.lampUser[t.key] ? 0 : 1;
         sound.click();
       }
@@ -1503,6 +1513,13 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       const needleK = st.sleeve ? easeInOut(clamp01(st.ts / SLEEVE_HERO.needle)) : easeInOut(seg(p, [STORY.spinAt, STORY.armDur]));
       const playingNow = (st.sleeve ? st.ts >= SLEEVE_HERO.needle * 0.8 : p >= STORY.spinAt) && st.playing;
       st.sound.setPlaying(playingNow && needleWant && p <= STORY.roomHold + 0.05 && !st.reduced && !st.covered);
+      // 음악 (YouTube): 판이 돌고 바늘이 내려가 있는 동안만. 아래 섹션으로 내려가도 계속 (늦은 밤에서는 "drop the needle" 에서 다시)
+      //  카드를 닫았으면(musicOff) 턴테이블을 다시 누를 때까지 틀지 않음
+      const musicOn = playingNow && needleWant && !st.musicOff && !st.inHero;
+      if (musicOn !== st.musicWas || st.nowPlaying !== st.musicAlbum) {
+        st.musicWas = musicOn; st.musicAlbum = st.nowPlaying;
+        st.music?.set(st.nowPlaying, musicOn);
+      }
       st.ttRise.position.y = -(1 - rise) * 0.35 + 0.025 * (st.targets[0]?.liftK ?? 0);
       st.ttRise.visible = rise > 0;
       // 먼지 덮개: 판이 내려앉기 전에 열림(cover_open), 되돌아가며 지나면 닫힘(cover_close) — 지나는 순간 실제 시간으로 재생
@@ -2002,6 +2019,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       sharedRef.current = deferred();   // 다음 마운트의 Hero 엔진은 새 렌더러를 기다림
       renderer.dispose();
       renderer.domElement.remove();
+      st.music?.dispose();
       if (window.__room === st) delete window.__room;
       st.clearHeader?.();
     };
@@ -2012,7 +2030,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     let cancelled = false;
     getRecentVinyls(createClient()).then((rows) => {
       if (cancelled) return;
-      setAlbums(rows.map((a) => ({ slug: a.slug, title: a.title, artist: a.artist_names || "", image: coverUrl(a.cover_path || a.thumb_path), color: a.cover_color || "#bbcbda" })));
+      setAlbums(rows.map((a) => ({ slug: a.slug, title: a.title, artist: a.artist_names || "", image: coverUrl(a.cover_path || a.thumb_path), color: a.cover_color || "#bbcbda", playlist: a.youtube_playlist_id || null })));
       if (!rows.length) gateRef.current.covers.resolve();
     }).catch((e) => { console.error("New vinyls could not load", e); gateRef.current.covers.resolve(); });
     return () => { cancelled = true; };
@@ -2348,6 +2366,31 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
         style={{ opacity: heroOn ? 0 : 0.8, pointerEvents: heroOn ? "none" : "auto" }}>
         Sound {soundOn ? "on" : "off"}
       </button>
+
+      {/* 턴테이블 음악 카드 ("Now spinning", D): 판을 틀면 오른쪽 아래에 나타남. 페이지를 내려도 남음 (Hero 에서는 숨김)
+          YouTube 플레이어는 약관상 숨길 수 없고 200×200 이상 → 카드 위쪽이 플레이어. 버튼: 재생 · 멈춤(= 턴테이블 클릭), 닫기 */}
+      <div role="region" aria-label="Now spinning" inert={!(music.active && !heroOn)}
+        className={`fixed bottom-[4.5rem] right-[var(--gutter)] z-40 w-[200px] overflow-hidden rounded-xl bg-[#15111a]/90 text-[#f4e7cd] shadow-[0_24px_48px_-20px_rgba(0,0,0,.7)] ring-1 ring-white/10 backdrop-blur-md transition-[opacity,translate] duration-500 ease-groove motion-reduce:transition-none ${music.active && !heroOn ? "opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}>
+        <div ref={musicHostRef} className="size-[200px] bg-black [&_iframe]:block [&_iframe]:size-full" />
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-medium uppercase tracking-[0.24em] opacity-60" aria-live="polite">
+              {music.error ? "Couldn’t load" : music.blocked ? "Press play" : music.buffering ? "Loading…" : music.playing ? "Now spinning" : "Paused"}
+            </p>
+            <p className="truncate text-[13px] leading-snug">{music.album?.title}</p>
+            <p className="truncate text-[11px] opacity-60">{music.album?.artist}</p>
+          </div>
+          <button type="button" aria-label={music.playing ? "Pause" : "Play"}
+            onClick={() => { const st = apiRef.current; if (!st) return; if (music.blocked || (st.playing && !music.playing)) st.music?.resume(); else st.togglePlay?.(); }}
+            className="grid size-9 shrink-0 place-items-center rounded-full bg-[#f4e7cd] text-[#15111a] transition-[background-color,scale] duration-300 hover:bg-[#7fc1bd] active:scale-95">
+            <svg aria-hidden="true" viewBox="0 0 16 16" className="size-3.5" fill="currentColor">{music.playing ? <path d="M4 3h3v10H4zM9 3h3v10H9z" /> : <path d="M4.5 2.5v11l9-5.5z" />}</svg>
+          </button>
+          <button type="button" aria-label="Close player" onClick={() => apiRef.current?.closeMusic?.()}
+            className="grid size-9 shrink-0 place-items-center rounded-full text-[#f4e7cd]/70 transition-colors hover:text-[#f4e7cd]">
+            <svg aria-hidden="true" viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" /></svg>
+          </button>
+        </div>
+      </div>
 
       {/* 종이 결 (Hero 동안만): 캔버스 위에 soft-light 로 섞임. Hero 층 밖에 두고 자기 투명도로 옅어짐
           (예전엔 Hero 층 안에 있어서, 층이 옅어지는 0.4초 동안 층이 따로 그려지며 섞일 바탕을 잃고 회색 결 막이 화면을 한 번 덮었음) */}
