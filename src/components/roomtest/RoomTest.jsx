@@ -36,7 +36,7 @@ import { useIntro } from "@/components/intro/intro-context";
 import { createInkHero, INK_HERO, HERO_HOLD, HS } from "./inkHero";
 import { createSleeveHero, makeSleeveDisc, SLEEVE_HERO } from "./sleeveHero";
 import { applyTurntableLook } from "./turntableLook";
-import { makeEnvironment } from "./sleeveParts";
+import { makeEnvironment, drawLabel } from "./sleeveParts";
 
 const MODEL_URL = "/models/room/grooves_room_blockout_reveal.glb";
 const VINYL_URL = "/models/vinyl.glb";
@@ -1234,10 +1234,158 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
         });
         st.targets.push({ key: pivot, lamp: true, objs, mats, base: objs.map((o) => o.position.y), liftK: 0 });
       }
+      // 벽 선반 커버: 누르면 그 판으로 바꿔 틂 (판 바꾸기)
+      for (const c of st.covers) {
+        const mesh = c.face.parent;
+        if (mesh) st.targets.push({ key: c.pivot, cover: c, objs: [mesh], base: [mesh.position.y], liftK: 0 });
+      }
+    };
+
+    // ── 판 바꾸기 (벽 선반 커버를 누르면, 2026-11-19)
+    //  재킷은 날아가지 않음 (선반은 방 오른쪽 벽, 지금 듣는 판은 창가 콘솔이라 2.6m 를 가로질러 어색했음): 제자리에서 카드처럼 돌며 그림이 바뀜
+    //   선반 커버 → 이전 앨범, 이어서 지금 듣는 판 재킷 → 새 앨범. 판은 덮개가 열리면 떠올라 한 바퀴 돌며 라벨이 바뀜
+    //  바늘 들림 → 덮개 열림 · 선반 커버 돎 → 거치대 재킷 돎 · 판 떠오름 → 라벨 바뀜 → 판 앉음 · 덮개 닫힘 → 바늘 내려감 (겹쳐서 약 3초)
+    //  도중에 다시 누르면 빠르게 끝냄 · 동작 줄이기면 바로 바뀜. 바뀐 앨범은 st.onRecordChange(album) 으로 알림 (음악 재생 D 에서 씀)
+    const SWAP = {
+      wall: [0.1, 0.7], np: [0.45, 0.7],   // 카드 돌기 [시작, 길이]: 선반 커버 · 지금 듣는 판 재킷
+      lidAt: 0.12,                         // 덮개가 열리기 시작
+      lift: 0.04, liftDur: 0.45, hold: 0.2,   // 판이 떠오르는 높이 (m) · 오르내리는 시간 · 떠 있는 시간
+      tail: 0.6,                           // 바늘이 내려간 뒤 끝나기까지
+      fast: 3,                             // 도중에 다시 누르면 이 배속으로
+    };
+    const _fm = new THREE.Matrix4(), _fm2 = new THREE.Matrix4(), _fq = new THREE.Quaternion(), _fv = new THREE.Vector3();
+    // 지금 듣는 판 재킷: prop_cs_np 는 three 에서 그룹 = 나무 거치대(prop_cs_np_1) + 재킷(prop_cs_np_2, sleeve 재질) + 그림(prop_cs_np_cover)
+    //  거치대는 그대로 두고 재킷 + 그림만 돌림. 앞면 기준 판은 재킷에 붙임 (보이지 않음)
+    const npParts = () => {
+      if (st.npParts) return st.npParts;
+      const np = st.root?.getObjectByName("prop_cs_np");
+      if (!np) return null;
+      let sleeve = null, best = -1;
+      np.traverse((o) => {
+        if (!o.isMesh || o.userData.swapRef || o.name.startsWith("prop_cs_np_cover")) return;
+        const nm = [o.material].flat().map((m) => m?.name ?? "").join(" ");
+        o.geometry.computeBoundingBox();
+        const s = o.geometry.boundingBox.getSize(new THREE.Vector3()), a = s.x * s.y + s.y * s.z + s.z * s.x;
+        const score = (/sleeve/i.test(nm) ? 1e6 : 0) + a;   // 재질 이름에 sleeve 가 있으면 그것, 없으면 겉넓이가 큰 것
+        if (score > best) { best = score; sleeve = o; }
+      });
+      if (!sleeve) return null;
+      const cover = st.root.getObjectByName("prop_cs_np_cover");
+      const { face } = makeCoverFace(sleeve, st.roomCenter);
+      face.visible = false; face.userData.swapRef = true;
+      return (st.npParts = { objs: [sleeve, cover].filter(Boolean), face, cover });
+    };
+    // 카드 돌기: 재킷을 앞면 가운데 · 앞면의 '위' 축으로, 카메라에서 정확히 옆면이 보이는 각도(θ)까지 돌렸다가 되돌아옴
+    //  그 순간(옆면)에 그림을 바꿈 → 바뀌는 순간이 보이지 않고, 앞면은 늘 카메라 쪽 (예전: 90° 를 돌아 비스듬한 카메라에서는 검은 뒷면이 보였음)
+    //  돌 때 반대쪽 절반이 벽 · 선반 속으로 들어가지 않게 그만큼 앞으로 꺼냄
+    //  돌기는 월드에서 (부모 pivot 에 크기가 있어도 찌그러지지 않게): 새 지역 = P⁻¹ × T(c + n·pop) × R(axis, θ) × T(-c) × P × 원래
+    const makeFlip = (objs, face, [at, dur], onEdge) => {
+      face.updateMatrixWorld(true);
+      const fw = face.matrixWorld;
+      const c = new THREE.Vector3().setFromMatrixPosition(fw);
+      const axis = new THREE.Vector3().setFromMatrixColumn(fw, 1).normalize();
+      const n = new THREE.Vector3().setFromMatrixColumn(fw, 2).normalize();
+      const half = (face.geometry.parameters.width * new THREE.Vector3().setFromMatrixColumn(fw, 0).length()) / 2;
+      // 옆면이 되는 각: n(θ) = n cosθ + (a×n) sinθ 가 카메라 방향 v 와 수직 → tanθ = -(n·v) / ((a×n)·v), 작은 쪽
+      const v = storyCam.position.clone().sub(c).normalize(), b = new THREE.Vector3().crossVectors(axis, n);
+      const bv = b.dot(v);
+      let theta = Math.abs(bv) < 1e-4 ? Math.PI / 2 : Math.atan(-n.dot(v) / bv);
+      if (Math.abs(theta) < 0.2) theta = Math.sign(theta || 1) * (Math.PI / 2);   // 거의 옆에서 보는 경우: 그냥 90°
+      const pop = half * Math.abs(Math.sin(theta)) * 1.1 + 0.01;
+      const parts = objs.map((obj) => { obj.updateMatrixWorld(true); const P = obj.parent.matrixWorld.clone(); return { obj, base: obj.matrix.clone(), P, Pinv: P.clone().invert() }; });
+      return { parts, at, dur, onEdge, edged: false, c, axis, n, theta, pop };
+    };
+    const flipAt = (f, t) => {
+      const k = clamp01((t - f.at) / f.dur);
+      if (k >= 0.5 && !f.edged) { f.edged = true; f.onEdge(); }
+      const e = f.theta * easeInOut(k < 0.5 ? k * 2 : 2 - k * 2);   // 0 → θ(옆면) → 0
+      const pop = f.pop * Math.sin(Math.PI * k);
+      for (const p of f.parts) {
+        _fm.copy(p.Pinv)
+          .multiply(_fm2.makeTranslation(_fv.copy(f.c).addScaledVector(f.n, pop)))
+          .multiply(_fm2.makeRotationFromQuaternion(_fq.setFromAxisAngle(f.axis, e)))
+          .multiply(_fm2.makeTranslation(_fv.copy(f.c).negate()))
+          .multiply(p.P).multiply(p.base);
+        _fm.decompose(p.obj.position, p.obj.quaternion, p.obj.scale);
+      }
+    };
+    const endFlip = (f) => { for (const p of f.parts) p.base.decompose(p.obj.position, p.obj.quaternion, p.obj.scale); if (!f.edged) { f.edged = true; f.onEdge(); } };
+    // 그림 바꾸기. glTF 재킷은 flipY=false, 선반 판은 기본(true) → 같은 그림을 뒤집기만 다르게 복제
+    //  그림은 미리 ImageBitmap 으로 풀어 둠(predecode): 선반용은 위아래를 뒤집어서, 거치대(glTF UV)용은 그대로 → 그 뒤로는 flipY 가 듣지 않음
+    //  (예전: flipY 만 바꿔 옮겨서 옮긴 그림이 거꾸로 나왔음) → 그림마다 풀린 방향(userData.orient)을 적어 두고, 다른 자리로 가면 UV 를 위아래로 뒤집음
+    const reTex = (tex, slot) => {
+      if (!tex) return null;
+      const t = tex.clone();
+      t.userData = { ...tex.userData };
+      const flip = (t.userData.orient ?? slot) !== slot;
+      t.repeat.set(1, flip ? -1 : 1); t.offset.set(0, flip ? 1 : 0);
+      t.needsUpdate = true;
+      return t;
+    };
+    const wallArt = (s) => {
+      const c = s.cover, tex = reTex(s.npTex, "wall");
+      if (tex) { c.mat.map = tex; c.mat.emissiveMap = tex; c.mat.color.set("#ffffff"); c.mat.needsUpdate = true; }
+      else if (s.old) { c.mat.map = null; c.mat.emissiveMap = null; c.mat.color.set(s.old.color || "#8a7f86"); c.mat.needsUpdate = true; }
+      c.album = s.old?.slug; c.albumObj = s.old;
+    };
+    const npArt = (s) => {
+      const np = s.npCover, tex = reTex(s.wallTex, "np");
+      if (np?.material && tex) { np.material.map = tex; np.material.needsUpdate = true; }
+      st.nowPlaying = s.next;
+      st.onRecordChange?.(s.next);
+    };
+    const setRecordLabel = (a) => { if (a) st.disc?.record?.setLabel(drawLabel({ title: a.title, artist_names: a.artist }, a.color || "#8a7f86")); };
+    const startSwap = (c) => {
+      const next = c.albumObj, mesh = c.face.parent, np = npParts();
+      if (!next || !mesh || !np) return;
+      const npCover = np.cover;
+      // 바꾸기 전 그림 (원래 그림은 버리지 않고 끝날 때 정리)
+      const s = { t: 0, cover: c, next, old: st.nowPlaying, npCover, wallTex: c.mat.map, npTex: npCover?.material?.map, labelDone: false };
+      // 처음 받은 그림이면 풀린 방향을 적어 둠 (선반 = 뒤집어 풂, 거치대 = 그대로). 옮겨 간 그림은 이미 적혀 있음
+      if (s.wallTex && !s.wallTex.userData.orient) s.wallTex.userData.orient = "wall";
+      if (s.npTex && !s.npTex.userData.orient) s.npTex.userData.orient = "np";
+      const cleanup = () => { if (s.wallTex && s.wallTex !== c.mat.map) s.wallTex.dispose(); if (s.npTex && s.npTex !== npCover?.material?.map) s.npTex.dispose(); };
+      if (st.reduced) {
+        wallArt(s); npArt(s); setRecordLabel(next); cleanup(); st.playing = true;
+        return;
+      }
+      const L = st.lid ? st.lid.open.getClip().duration : 0;
+      s.liftAt = Math.max(SWAP.np[0] + SWAP.np[1] * 0.5, SWAP.lidAt + L * 0.6);
+      s.liftEnd = s.liftAt + SWAP.liftDur * 2 + SWAP.hold;
+      s.dropAt = s.liftEnd + (st.lid ? st.lid.closeEnd : 0) * 0.75;
+      s.flips = [makeFlip([mesh], c.face, SWAP.wall, () => wallArt(s)), makeFlip(np.objs, np.face, SWAP.np, () => npArt(s))];
+      s.flipEnd = Math.max(SWAP.wall[0] + SWAP.wall[1], SWAP.np[0] + SWAP.np[1]);
+      s.end = Math.max(s.dropAt + SWAP.tail, s.flipEnd);
+      s.cleanup = cleanup;
+      if (st.playing) sound.needleUp();
+      st.playing = false;       // 바늘이 들리고 판이 느려짐
+      st.swap = s;
+    };
+    st.startSwap = startSwap;   // 콘솔 확인용 (window.__room.startSwap(window.__room.covers[0]))
+    // 매 프레임 (apply 의 호버 처리 뒤): 시간을 흘리고 재킷을 돌림. 덮개 · 바늘 · 판 높이는 apply 의 각 자리에서 st.swap 을 읽음
+    const updateSwap = (dt) => {
+      const s = st.swap;
+      if (!s) return;
+      s.t += dt * (s.fast ? SWAP.fast : 1);
+      const t = s.t;
+      if (!s.flipsDone) {
+        if (t < s.flipEnd) for (const f of s.flips) flipAt(f, t);
+        else { s.flipsDone = true; s.flips.forEach(endFlip); s.cleanup(); }
+      }
+      s.lidOpen = t >= SWAP.lidAt && t < s.liftEnd;
+      const up = easeInOut(clamp01((t - s.liftAt) / SWAP.liftDur)) * (1 - easeInOut(clamp01((t - s.liftAt - SWAP.liftDur - SWAP.hold) / SWAP.liftDur)));
+      s.lift = SWAP.lift * up;
+      s.spin = Math.PI * 2 * easeInOut(clamp01((t - s.liftAt) / (s.liftEnd - s.liftAt)));
+      if (!s.labelDone && t >= s.liftAt + SWAP.liftDur + SWAP.hold * 0.5) { s.labelDone = true; setRecordLabel(s.next); }
+      if (!s.dropped && t >= s.dropAt) { s.dropped = true; st.playing = true; sound.needleDown(); }
+      if (t >= s.end) st.swap = null;
     };
     const ray = new THREE.Raycaster(), _ndc = new THREE.Vector2();
     const canInteract = () => st.ready && !st.inHero && st.camMode === "story" && !st.tween && st.targets.length > 0
-      && st.p >= STORY.camFinal && st.p <= STORY.roomHold + 0.005 && (st.lateNight || pageTop() < innerHeight * 0.25);
+      && st.p >= STORY.camFinal && st.p <= STORY.roomHold + 0.005 && (st.lateNight || pageTop() < roomScrollEnd());
+    // 방 완성 화면이 보이는 스크롤 끝: 한 장면 흐름(Home)은 판 · 방 구간(travel + hold) 뒤부터 섹션이 올라오므로 그 뒤 0.25화면까지
+    //  (예전엔 늘 0.25화면 → Home 에서는 방이 완성될 때 이미 한 화면 넘게 내려와 있어 턴테이블 · 램프 클릭이 전혀 안 됐음, 2026-11-19)
+    const roomScrollEnd = () => ((st.scrollFlow ? FLOW.travel + FLOW.hold : 0) + 0.25) * innerHeight;
     const pick = (e) => {
       if (!canInteract() || e.target !== renderer.domElement) return null;
       const r = renderer.domElement.getBoundingClientRect();
@@ -1250,7 +1398,9 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       }
       return best;
     };
-    const tipText = (t) => (t.key === "turntable" ? (st.playing ? "Stop ■" : "Play ▸") : st.lampUser[t.key] ? "Light off" : "Light on");
+    const tipText = (t) => (t.key === "turntable" ? (st.playing ? "Stop ■" : "Play ▸")
+      : t.cover ? `Play ▸ ${t.cover.albumObj?.title ?? ""}`.trim()
+      : st.lampUser[t.key] ? "Light off" : "Light on");
     const showTip = (t, e) => {
       const el = tipRef.current;
       if (!el) return;
@@ -1271,6 +1421,8 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     const onClick = (e) => {
       const t = pick(e);
       if (!t) return;
+      if (st.swap) { st.swap.fast = true; return; }   // 판을 바꾸는 중: 남은 동작을 빠르게 끝냄
+      if (t.cover) { setHover(null); startSwap(t.cover); return; }
       if (t.key === "turntable") {
         st.playing = !st.playing;
         if (st.playing) sound.needleDown(); else sound.needleUp();
@@ -1337,10 +1489,12 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       for (const t of st.targets) {
         t.liftK += ((st.hoverTarget === t ? 1 : 0) - t.liftK) * (1 - Math.exp(-dt * 12));
         if (t.lamp) t.objs.forEach((o, i) => { o.position.y = t.base[i] + 0.03 * t.liftK; });
+        if (t.cover) t.objs.forEach((o, i) => { o.position.y = t.base[i] + 0.012 * t.liftK; });
       }
+      updateSwap(dt);
       for (const k in st.lampK) st.lampK[k] += (st.lampUser[k] - st.lampK[k]) * (1 - Math.exp(-dt * 9));
       // 늦은 밤: 바늘은 들려 있다가 "drop the needle" 에서 내려감 (판은 계속 돎). 소리를 켰으면 바늘 소리
-      const needleWant = !st.lateNight || st.nightDrop;
+      const needleWant = (!st.lateNight || st.nightDrop) && !(st.swap && !st.swap.dropped);
       if (st.lateNight && needleWant !== st.needleWas && st.playing && !st.covered) { if (needleWant) st.sound.needleDown(); else st.sound.needleUp(); }
       st.needleWas = needleWant;
       st.armK += ((st.playing && needleWant ? 1 : 0) - st.armK) * (1 - Math.exp(-dt * (st.reduced ? 60 : 5)));
@@ -1355,7 +1509,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       const lid = st.lid;
       if (lid) {
         // sleeve Hero: 덮개는 턴테이블이 올라올 때 이미 열려 있고, 판이 앉은 뒤에 닫힘 (사용자 요청). 그 밖: 판이 오기 직전에 열림
-        const wantOpen = st.sleeve ? st.ts < SLEEVE_HERO.needle + SLEEVE_HERO.lidGap : p >= STORY.lidAt;
+        const wantOpen = st.swap ? !!st.swap.lidOpen : st.sleeve ? st.ts < SLEEVE_HERO.needle + SLEEVE_HERO.lidGap : p >= STORY.lidAt;
         if (wantOpen !== lid.isOpen) { lid.isOpen = wantOpen; lid.t = 0; }
         const cur = lid.isOpen ? lid.open : lid.close, other = lid.isOpen ? lid.close : lid.open;
         lid.t = st.reduced ? cur.getClip().duration : lid.t + dt;
@@ -1419,6 +1573,11 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       dr.quaternion.copy(_q);
       if (st.hero) { dr.quaternion.multiply(st.hero.flipQ); dr.position.copy(_dc).sub(_dc2.set(0, DISC_C, 0).applyQuaternion(dr.quaternion)); }
       dr.quaternion.multiply(_yaw);
+      // 판 바꾸기: 덮개가 열린 동안 판이 제자리에서 떠올라 한 바퀴 돌고(그 사이 라벨이 바뀜) 다시 앉음
+      if (st.swap?.lift || st.swap?.spin) {
+        dr.position.addScaledVector(_hlOff.set(0, 1, 0).applyQuaternion(_q2), st.swap.lift ?? 0);
+        dr.quaternion.multiply(_yaw.setFromAxisAngle(UP, st.swap.spin ?? 0));
+      }
       dr.updateMatrixWorld(true);
 
       // 바탕이 검게 → 잉크 선은 크림색으로
@@ -1873,7 +2032,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       return st.covers.map((c, i) => {
         const a = wall[n - 1 - i], { mat } = c;
         if (!a || c.album === a.slug) return null;
-        c.album = a.slug;
+        c.album = a.slug; c.albumObj = a;
         if (!mat.map) mat.color.set(a.color);
         return new Promise((done) => loader.load(a.image, async (tex) => {
           tex.colorSpace = THREE.SRGBColorSpace;
