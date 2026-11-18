@@ -13,6 +13,7 @@ import { GENRES } from "@/lib/genres";
 import { GENRE_LOOK } from "@/components/home/stage/homeGenres";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
 import Reveal, { RiseText } from "@/components/story/Reveal";
+import CursorWeight, { CW_FONT } from "@/components/motion/CursorWeight";
 import StoryCover from "@/content/news/Covers";
 import { STORIES, categoryName } from "@/content/news";
 import SiteFooter from "@/components/layout/SiteFooter";
@@ -223,7 +224,8 @@ function News() {
       <div ref={wrapRef} className="mx-auto w-full max-w-[1080px]">
         <div className="flex flex-col items-center pb-[clamp(2rem,5vh,3.5rem)] text-center">
           <Reveal as="p" className={`${KICKER} opacity-60`}>Side B · Journal</Reveal>
-          <RiseText as="h2" lines={["News & Stories"]} className={`${SERIF} mt-3 text-[clamp(2.4rem,5.6vw,6rem)] font-black uppercase leading-[0.9] tracking-[-0.015em]`} />
+          {/* 제목: 굵은 글자가 커서 근처에서만 가늘어짐 (반대 방향) */}
+          <RiseText as="h2" lines={[<CursorWeight key="t" text="News & Stories" rest={900} near={250} radius={300} />]} className={`${CW_FONT} mt-3 text-[clamp(2.4rem,5.6vw,6rem)] font-black uppercase leading-[0.9] tracking-[-0.015em]`} />
           <Reveal delay={200} className="mt-5"><Link href="/news" className={`${KICKER} border-b border-current/30 pb-1 transition-colors duration-300 hover:border-[#7fc1bd] hover:text-[#7fc1bd]`}>All news →</Link></Reveal>
         </div>
 
@@ -291,7 +293,9 @@ function Closing({ onTop }) {
       <section data-hs-section data-bg="none" data-hs-night className="relative flex h-[265svh] flex-col items-center justify-end px-[var(--gutter)] pb-[62svh] text-center text-[#f4e7cd]">
         <Reveal as="p" className={`${KICKER} opacity-70`}>Still spinning · 33⅓ RPM</Reveal>
         <span data-hs-needle aria-hidden="true" className="block h-0" />
-        <RiseText as="p" lines={["Dust it off,", "drop the needle."]} className={`${SERIF} mt-4 text-[clamp(2rem,5vw,5.5rem)] font-medium leading-[1.08] tracking-[-0.01em]`} />
+        {/* 문구 전체: 가늘게 있다가 커서가 가까이 오는 글자만 굵어짐 (가변 Hahmlet) */}
+        <RiseText as="p" lines={[<CursorWeight key="a" text="Dust it off," />, <CursorWeight key="b" text="drop the needle." />]}
+          className={`${CW_FONT} mt-4 text-[clamp(2rem,5vw,5.5rem)] leading-[1.08] tracking-[-0.02em]`} />
         <Reveal delay={350}>
           <Link href="/digging" className="group/dig mt-[clamp(1.5rem,4vh,3rem)] inline-flex items-center gap-2 rounded-full bg-[#f4e7cd] px-[clamp(1.5rem,1.8vw,2.5rem)] py-[clamp(0.75rem,1vw,1.25rem)] text-[clamp(11px,0.8vw,14px)] font-semibold uppercase tracking-[0.2em] text-[#4c404a] transition-[background-color,scale] duration-300 hover:bg-[#7fc1bd] active:scale-95">
             Start digging <span className="transition-transform duration-300 group-hover/dig:-translate-y-0.5 group-hover/dig:translate-x-0.5">↗︎</span>

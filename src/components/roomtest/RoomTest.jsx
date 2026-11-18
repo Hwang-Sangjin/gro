@@ -29,6 +29,7 @@ import { createRoomSound } from "./roomSound";
 import { markHomeReady } from "@/lib/homeReady";
 import { isPageSettled } from "@/lib/motion";
 import HomeSections from "./HomeSections";
+import CursorWeight, { CW_FONT } from "@/components/motion/CursorWeight";
 import { createInkWipe, WIPE, WIPE_BAND, SLEEVE } from "./inkWipe";
 import usePageLenis from "@/components/layout/usePageLenis";
 import { useIntro } from "@/components/intro/intro-context";
@@ -2171,7 +2172,9 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     // .page = 스크롤 영역. 방 스테이지는 맨 위에 붙어 있고(sticky), 뒤 섹션들이 그 위로 올라옴. 끝의 투명한 창에서 방이 다시 비침
     <div ref={pageRef} className="page home" data-lenis-prevent style={{ overflowY: (free || scrollFlow) && !sleeveLock ? "auto" : "hidden" }}>
     <div ref={contentRef} className="page-content">
-    <div ref={wrapRef} data-header-see-through className="relative w-full bg-[#15111a]">
+    {/* 바탕: Hero 동안은 종이색(--cream, 다크 모드면 테마 값) — 셰이더가 준비될 때까지 캔버스를 숨겨 두는 동안(holdRender) 이 색이 보임.
+        예전엔 늘 #15111a 라 다른 페이지에서 Home 으로 오면 검은 화면이 깔렸다가 종이로 바뀌었음 (2026-11-19) */}
+    <div ref={wrapRef} data-header-see-through className="relative w-full bg-[#15111a]" style={heroOn ? { backgroundColor: "var(--cream)" } : undefined}>
     <div ref={stageRef} className="sticky top-0 z-0 h-svh w-full overflow-hidden [--frame:0]">
       {/* 페이지를 내리면 방 화면이 액자처럼 조금 작아짐 (--frame 0 → 1, 스크롤 처리에서 넣음) */}
       <div ref={hostRef} className="absolute inset-0 origin-[50%_42%] overflow-hidden will-change-transform"
@@ -2259,10 +2262,13 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
           <p className="overflow-y-clip text-[11px] font-medium uppercase tracking-[0.3em]">
             <span className="block translate-y-[110%] opacity-70 transition-[translate] duration-(--dur-enter) ease-groove group-data-[on=true]/done:translate-y-0 motion-reduce:transition-none">Now spinning · 33⅓ RPM</span>
           </p>
-          <p className="mt-3 font-['Grooves_Display','Hahmlet',Georgia,serif] text-[clamp(1.9rem,4.2vw,4.6rem)] font-medium leading-[1.05] tracking-[-0.01em]">
+          {/* 문구: 가늘게 있다가 커서가 가까이 오는 글자만 굵어짐 (보일 때만) */}
+          <p className={`${CW_FONT} mt-3 text-[clamp(1.9rem,4.2vw,4.6rem)] leading-[1.05] tracking-[-0.02em]`}>
             {["Put a record on.", "Stay a while."].map((line, k) => (
               <span key={line} className="block overflow-y-clip pb-[0.06em]">
-                <span className="block translate-y-[110%] transition-[translate] duration-(--dur-enter-title) ease-groove group-data-[on=true]/done:translate-y-0 motion-reduce:transition-none" style={{ transitionDelay: free ? `${120 + k * 110}ms` : "0ms" }}>{line}</span>
+                <span className="block translate-y-[110%] transition-[translate] duration-(--dur-enter-title) ease-groove group-data-[on=true]/done:translate-y-0 motion-reduce:transition-none" style={{ transitionDelay: free ? `${120 + k * 110}ms` : "0ms" }}>
+                  <CursorWeight text={line} active={free && where === 0} />
+                </span>
               </span>
             ))}
           </p>
