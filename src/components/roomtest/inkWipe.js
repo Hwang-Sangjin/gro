@@ -12,7 +12,10 @@
 //  - 위 가장자리: 잘린 종이의 밝은 단면 + 두께 + 입구 쪽 그늘, 모서리는 살짝 둥글고 종이 섬유가 보임
 //  - 그 위로 부드러운 그림자, 덮이는 앞 섹션은 조금 어두워짐
 //
-//  set(list): list[i] = { kind: 1 고리 | 2 슬리브 | 3 창, ... } 또는 null(아직 화면에 닿지 않음)
+// 재킷 들어 올리기(kind 4, 2026-11-19): News 화면 전체가 재킷이 되어 위로 밀려 올라가고, 그 밑의 방(판)이 드러남
+//
+//  set(list): list[i] = { kind: 1 고리 | 2 슬리브 | 3 창 | 4 재킷 들기, ... } 또는 null(아직 화면에 닿지 않음)
+//   재킷 들기: { edge, angle, rgba } — edge = 재킷 아랫변 높이(화면 아래 0 … 위 1), angle = 기울기(rad). rgba 는 쓰지 않음 (아래는 늘 뚫림)
 //   창:     { cx, cy, hw, hh, r, rgba } — 가운데 · 반폭 · 반높이 · 모서리 둥글기 (화면 높이 = 1). 늦은 밤의 방 (2026-11-16)
 //   고리:   { cx, cy, R, a0, aw, rgba }
 //   슬리브: { top, inset, angle, dim, rgba } — top = 윗변 높이(화면 아래 0 … 위 1), inset = 좌우로 들어온 정도(화면 폭 비율),
@@ -53,7 +56,7 @@ uniform vec2 uRes;
 uniform vec3 uCen[${MAX}];   // 고리: cx, cy, R · 슬리브: top, inset, angle · 창: cx, cy, 반폭
 uniform vec2 uAng[${MAX}];   // 고리: a0, aw · 슬리브: dim, - · 창: 반높이, 모서리 둥글기
 uniform vec4 uC[${MAX}];
-uniform float uOn[${MAX}];   // 0 꺼짐 · 1 고리 · 2 슬리브 · 3 창
+uniform float uOn[${MAX}];   // 0 꺼짐 · 1 고리 · 2 슬리브 · 3 창 · 4 재킷 들기
 uniform float uGrain;
 const float BAND = ${WIPE_BAND.toFixed(4)};
 const float GROOVE = ${WIPE.groove.toFixed(2)};
@@ -79,6 +82,25 @@ void main(){
   vec4 c = vec4(0.);   // premultiplied (rgb × a)
   for (int i = 0; i < ${MAX}; i++){
     if (uOn[i] < .5) continue;
+    if (uOn[i] > 3.5) {
+      // ── 재킷 들어 올리기 (kind 4): 지금까지 칠한 화면 전체가 재킷. 아랫변(edge) 아래는 뚫려 방(판)이 보임
+      //  재킷 쪽: 밝은 단면 → 두께 → 입구 안쪽 그늘 · 방 쪽: 재킷이 드리우는 그림자
+      float edge = uCen[i].x, ang = uCen[i].y;
+      vec2 q = p - vec2(asp * .5, edge);
+      float sd = -sin(ang) * q.x + cos(ang) * q.y;            // 아랫변까지 거리 (재킷 쪽 +, 방 쪽 -)
+      sd += (vnoise(p * 260.) - .5) * .0011;                 // 종이 가장자리의 아주 잔 섬유
+      float m = smoothstep(-px * .75, px * .75, sd);
+      float cut = 1. - smoothstep(0., px * 2.2, sd);
+      float lip = smoothstep(px * 2.2, px * 3.5, sd) * (1. - smoothstep(px * 5., px * 11., sd));
+      vec3 col = c.a > 0. ? c.rgb / c.a : vec3(0.);
+      col = mix(col, vec3(1.), cut * .3);
+      col *= 1. - lip * .14;
+      col *= 1. - .12 * exp(-max(sd, 0.) / .045);
+      c = vec4(col * c.a, c.a) * m;
+      float sh = (1. - m) * exp(-max(-sd, 0.) / (SSH * .7)) * .5;
+      c = vec4(0., 0., 0., sh) + c * (1. - sh);
+      continue;
+    }
     if (uOn[i] > 2.5) {
       // ── 창 (kind 3): 둥근 사각형 구멍. 종이(앞 섹션 색)를 오려 낸 자리로 뒤(3D 방)가 비침
       vec2 wq = abs(p - uCen[i].xy) - vec2(uCen[i].z, uAng[i].x) + uAng[i].y;
@@ -224,7 +246,8 @@ export function createInkWipe(canvas) {
       for (let i = 0; i < Math.min(MAX, list.length); i++) {
         const b = list[i];
         if (!b) continue;   // 아직 화면에 닿지 않은 경계
-        if (b.kind === 3) { on[i] = 3; cen.set([b.cx, b.cy, b.hw], i * 3); ang.set([b.hh, b.r], i * 2); }
+        if (b.kind === 4) { on[i] = 4; cen.set([b.edge, b.angle, 0], i * 3); ang.set([0, 0], i * 2); }
+        else if (b.kind === 3) { on[i] = 3; cen.set([b.cx, b.cy, b.hw], i * 3); ang.set([b.hh, b.r], i * 2); }
         else if (b.kind === 2) { on[i] = 2; cen.set([b.top, b.inset, b.angle], i * 3); ang.set([b.dim, 0], i * 2); }
         else { on[i] = 1; cen.set([b.cx, b.cy, b.R], i * 3); ang.set([b.a0, b.aw], i * 2); }
         col.set(b.rgba, i * 4);

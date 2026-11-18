@@ -103,14 +103,13 @@ const LAMP_GLOW = {
 //  NIGHT_NEEDLE: "drop the needle" 문구가 화면 위에서 [내려감, 다시 들림] 비율 높이를 지날 때 (사이를 두어 경계에서 덜컹이지 않게)
 const NIGHT_PUSH = { at: [1.65, 2.45], fill: 0.5, size: 0.45, lift: 0.18 };
 const NIGHT_NEEDLE = [0.62, 0.74];
-// 늦은 밤의 방이 열리는 모양 (2026-11-16 사용자 결정): 세로로 긴 사진 한 장이 화면 아래에서 가운데로 올라오고(rise) → 스크롤을 따라 화면 가득 커짐(grow)
-//  사진일 때는 방 전체가 아니라 턴테이블 쪽만 확대(zoom 배)해 보여 주다가 (처음엔 창문 + 시계였는데 턴테이블이 더 자연스럽다는 사용자 결정), 커지는 만큼 확대가 풀리며 방 전체 구도가 됨
-//  (방 화면 자체를 줄이지 않고 카메라의 보는 범위만 좁힘 → 확대해도 흐려지지 않고, 다 커지면 원래 구도와 정확히 같음)
-//  at: 창 섹션 윗변 높이 T 가 이만큼일 때 시작 · w/h: 사진 크기 (화면 높이 대비, 폭은 화면 폭의 minW~maxW 안에서) · radius: 모서리(px)
-const NIGHT_FRAME = { at: 0.3, rise: 0.6, grow: 0.7, w: 0.46, h: 0.58, minW: 0.2, maxW: 0.6, radius: 18, zoom: 2.6, look: ["pivot_turntable"] };
-// News → 늦은 밤: News 의 바탕색이 밤색으로 천천히 바뀜 (T 구간). 색 = 방의 밤하늘 · 건물 그늘에 가까운 짙은 남보라 → 사진이 커질 때 가장자리가 바탕에 자연스럽게 묻힘
+// 늦은 밤의 방이 열리는 모양 (2026-11-19 사용자 결정, 예전: 사진 한 장이 커짐): News 화면 전체가 LP 재킷이 되어 위로 밀려 올라가고 그 밑의 방이 드러남
+//  재킷 아랫변 = 창 섹션 윗변 + lead (News 끝의 빈 여백 안이라 글과 겹치지 않음) · tilt: 다 들렸을 때 기울기(rad, 한쪽이 먼저 들림)
+//  ride: 방은 재킷보다 느리게 따라 올라옴 (처음에 화면 높이의 이만큼 아래) → 판이 재킷에서 빠져나오는 깊이감
+//  near: 창 섹션 윗변이 이 높이를 넘으면 늦은 밤 (방 화면 틀을 풀고 방 안을 다시 누를 수 있게)
+const NIGHT_LIFT = { lead: 0.12, tilt: 0.022, ride: 0.16, near: -0.2 };
+// News → 늦은 밤: 재킷(News 바탕)이 들리는 동안 밤색으로 천천히 바뀜 (T 구간). 색 = 방의 밤하늘 · 건물 그늘에 가까운 짙은 남보라
 const NIGHT_TINT = { at: [0.25, 1.05], color: "#17131f" };
-const NIGHT_OPEN = [NIGHT_FRAME.at, NIGHT_FRAME.rise + NIGHT_FRAME.grow];                  // 늦은 밤의 방: 창 섹션 윗변이 화면 높이의 [이만큼] 올라온 뒤 [이 길이] 동안 잉크가 걷힘
 const NV_BACK_WAIT = 1.0;                       // New Vinyls → 방: 커버가 선반으로 돌아가는 시간(핸드오프 1초)만큼 카메라가 기다림
 const SCROLL = {
   speed: 1,         // 착지까지: 스크롤·붙는 속도 배율 (1 보다 작으면 더 천천히)
@@ -1200,34 +1199,6 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       _pq.setFromRotationMatrix(_pm);
       storyCam.quaternion.slerp(_pq, e);
     };
-    // 늦은 밤 사진: 사진일 때는 턴테이블 쪽만 확대해 보여 주고, 사진이 커지는 만큼(nightGrow 0 → 1) 확대가 풀려 방 전체 구도로
-    //  카메라는 그대로 두고 보는 범위만 좁힘(setViewOffset) → 원근이 바뀌지 않아 다 커지면 원래 구도와 정확히 같음
-    const _nb = new THREE.Box3(), _nv = new THREE.Vector3();
-    const applyNightView = () => {
-      const on = storyCam.view?.enabled;
-      const g = st.nightGrow;
-      if (g == null || g >= 1 || !st.root) { if (on) storyCam.clearViewOffset(); return; }
-      if (on) storyCam.clearViewOffset();   // 보는 범위를 풀고 (아래에서 물체의 원래 화면 자리를 잼)
-      const F = NIGHT_FRAME, key = `${storyCam.aspect.toFixed(3)}|${st.nightFw.toFixed(3)}`;
-      if (st.nightTarget?.key !== key) {
-        // 볼 곳: look 물체들을 감싸는 범위의 화면 가운데
-        let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
-        for (const name of F.look) {
-          const o = st.root.getObjectByName(name); if (!o) continue;
-          _nb.setFromObject(o);
-          for (const x of [_nb.min.x, _nb.max.x]) for (const y of [_nb.min.y, _nb.max.y]) for (const z of [_nb.min.z, _nb.max.z]) {
-            _nv.set(x, y, z).project(storyCam);
-            x0 = Math.min(x0, _nv.x); x1 = Math.max(x1, _nv.x); y0 = Math.min(y0, _nv.y); y1 = Math.max(y1, _nv.y);
-          }
-        }
-        st.nightTarget = x0 > x1 ? { key, x: 0, y: 0 } : { key, x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
-      }
-      const Z = Math.pow(F.zoom, 1 - g);
-      const cx = THREE.MathUtils.lerp(0.5 + st.nightTarget.x / 2, 0.5, g), cy = THREE.MathUtils.lerp(0.5 - st.nightTarget.y / 2, 0.5, g);
-      // (setViewOffset 은 전체 폭 ÷ 높이를 카메라 화면비로 덮어씀 → 전체 크기를 화면비 × 1 로 넘김)
-      const A = host.clientWidth / Math.max(1, host.clientHeight);
-      storyCam.setViewOffset(A, 1, (cx - 0.5 / Z) * A, cy - 0.5 / Z, A / Z, 1 / Z);
-    };
     // ── 방 안 상호작용 (방 완성 칸에서만): 턴테이블 = 재생 · 멈춤, 램프 = 끄고 켬. 올리면 커서 · 이름표 · 살짝 들림
     const sound = createRoomSound();
     st.sound = sound;
@@ -1711,8 +1682,6 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
         orbitByPointer(st.p, dt);
         pushToTurntable();
         storyCam.updateMatrixWorld();
-        applyNightView();
-        storyCam.updateMatrixWorld();
         // 섹션: 열림/닫힘 문턱 사이에서는 지금 섹션 유지
         const s = st.section;
         let want;
@@ -2047,20 +2016,16 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
         let shape = null;
         if (sec.hasAttribute("data-hs-night")) {
           nightT = T;
-          // 사진: 잉크 바탕에 세로로 긴 둥근 창을 내고(그 안으로 방이 비침) 화면 아래에서 가운데로 → 화면 가득 커짐
-          //  방 화면(host)은 줄이지 않고 창과 같이 아래로 내려 둠 (사진 속 그림이 사진과 함께 올라오게). 창 안에 무엇이 보일지는 카메라가 정함 (applyNightView)
-          const F = NIGHT_FRAME;
-          const u = Math.min(1, Math.max(0, (T - F.at) / F.rise)), v = Math.min(1, Math.max(0, (T - F.at - F.rise) / F.grow));
-          if (st.reduced) { if (T >= F.at + F.rise) shape = { kind: 3, cx: asp * 0.5, cy: 0.5, hw: asp, hh: 1, r: 0 }; }
-          else if (T > F.at) {
-            const gv = v * v * (3 - 2 * v);
-            const hw0 = Math.min(F.maxW * asp, Math.max(F.minW * asp, F.w)) / 2, hh0 = F.h / 2;
-            const down = (1 - u) * (1 - u) * (0.5 + hh0 + 0.04);   // 화면 아래 밖 → 0 (올라오며 느려짐)
-            night = { ty: down * vh, grow: gv, fw: (hw0 * 2) / asp };
-            const extra = Math.max(0, gv - 0.9) * 0.4;   // 거의 다 커졌을 때: 창이 화면보다 조금 커져 가장자리 그늘이 화면 밖으로
-            shape = { kind: 3, cx: asp * 0.5, cy: 0.5 - down, hw: hw0 + (asp / 2 - hw0) * gv + extra, hh: hh0 + (0.5 - hh0) * gv + extra, r: (F.radius * (1 - gv)) / vh };
+          // 재킷 들기: 앞(News)까지 칠한 화면이 재킷. 아랫변이 섹션 윗변(+lead)을 따라 올라가고, 그 아래로 방이 보임
+          //  방 화면(host)은 재킷보다 느리게 따라 올라옴 (ride) · 거의 다 들리면 한쪽이 살짝 먼저 들림
+          const L = NIGHT_LIFT, edge = T + L.lead;
+          if (st.reduced) { if (edge >= 0.5) shape = { kind: 4, edge: 2, angle: 0 }; }
+          else if (edge > -0.05) {
+            const e = Math.min(1, Math.max(0, edge));
+            night = { ty: (1 - e) * L.ride * vh };
+            shape = { kind: 4, edge, angle: L.tilt * e * e };
           }
-          if (T > NIGHT_OPEN[0] - 0.5) nearNight = true;
+          if (T > L.near) nearNight = true;
         } else {
           // 슬리브: 다음 섹션이 종이 재킷처럼 아래에서 밀려 올라옴 (처음엔 좁고 기울어 있다가 올라오며 펴짐, 섹션마다 기울기 방향을 번갈아)
           const side = n++ % 2 ? -1 : 1;
@@ -2083,10 +2048,8 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       const y0 = st.scrollFlow ? (FLOW.travel + FLOW.hold) * vh : 0;   // 한 장면 흐름: 판·방 구간이 끝난 뒤부터
       const k = st.reduced || nearNight ? 0 : Math.min(1, Math.max(0, y - y0) / (vh * 0.9));
       stage.style.setProperty("--frame", k.toFixed(4));
-      // 늦은 밤 사진: 방 화면을 창과 같이 내려 둔 거리 (평소엔 0)
+      // 늦은 밤 재킷 들기: 방 화면을 내려 둔 거리 (평소엔 0)
       stage.style.setProperty("--nty", night ? `${night.ty.toFixed(1)}px` : "0px");
-      st.nightGrow = night ? night.grow : null;   // 사진이 커진 정도 (null = 사진 아님 → 카메라 그대로)
-      st.nightFw = night ? night.fw : 0;          // 사진 폭 (화면 폭 대비)
       // 붙어 있는 구역의 커버 줄: 구역을 지나는 동안 왼쪽으로
       for (const pin of page.querySelectorAll("[data-hs-pin]")) {
         const rail = pin.querySelector("[data-hs-rail]"); if (!rail) continue;
