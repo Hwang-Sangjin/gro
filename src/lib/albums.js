@@ -12,7 +12,8 @@ export function coverUrl(path) {
 // 무작위 순서용 seed — Digging 에 들어올 때마다 새로 만들어 순서가 매번 달라짐
 export const newShuffleSeed = () => Math.random().toString(36).slice(2, 10);
 
-const CARD_COLUMNS = "id, slug, title, artist_names, thumb_path, cover_color";
+// created_at · release_year: 카드 NEW IN 스티커와 캡션의 연도용 (2026-11-20)
+const CARD_COLUMNS = "id, slug, title, artist_names, thumb_path, cover_color, created_at, release_year";
 
 // PAGE_SIZE + 1 개를 요청해서 "다음 페이지가 있는지" 를 판단한다
 // - seed 가 있으면 무작위 순서(digging_shuffle, cursor = 몇 개째부터)

@@ -6,7 +6,8 @@ import { fetchDiggingPage } from "@/lib/albums";
 import { getGenreIds } from "@/lib/genreIds";
 import { GENRES } from "@/lib/genres";
 import { cached } from "@/lib/dataCache";
-import GenreBar from "@/components/albums/GenreBar";
+import GenreBar, { GENRE_ITEMS, lineOf } from "@/components/albums/GenreBar";
+import { MONOTON } from "@/lib/fonts";
 import RequestDialog from "@/components/requests/RequestDialog";
 import DiggingGrid from "./DiggingGrid";
 import useReveal from "./useReveal";
@@ -109,12 +110,29 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
         </>} />
       {/* 장르를 바꾸면 지금 판들이 접혀 사라진 뒤, 그리드만 새로 그려짐 (카드가 다시 펼쳐지며 등장) */}
       <div ref={gridWrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
-        <DiggingGrid key={current.key} initial={current.initial} genreId={current.genreId} query={query} onRequest={() => request.current?.open({ title: query.trim() })} />
+        <DiggingGrid key={current.key} initial={current.initial} genreId={current.genreId} query={query} onRequest={() => request.current?.open({ title: query.trim() })}
+          lead={query.trim() ? null : <GenreDivider slug={current.key === "all" ? null : current.key} count={counts?.[current.key] ?? null} />} />
       </div>
       {/* Crate 보기: 그리드 위를 덮는 3D 크레이트 (Grid / Crate 버튼으로 전환) */}
       <CrateView gridRef={gridWrapRef} view={view} onViewChange={setView} title="Digging" />
       {/* 없는 판 요청 (로그인 사용자) — 검색 결과가 없을 때도 여기로 */}
       <RequestDialog ref={request} />
     </>
+  );
+}
+
+// 장르 칸막이: 그리드 첫 칸. 레코드 가게 상자의 칸막이 카드처럼 위가 튀어나온 탭 + 장르 이름(Monoton) + 판 수
+//  색 = 장르 색 (장르 바 밑줄과 같은 팔레트). 장르를 바꾸면 그리드와 함께 새로 그려짐 (2026-11-20 매대 디자인)
+function GenreDivider({ slug, count }) {
+  const name = GENRE_ITEMS.find((g) => g.slug === slug)?.name ?? "All";
+  return (
+    <div aria-hidden="true" className={styles.divider} style={{ "--divider": lineOf(slug) }}>
+      <span className={styles.dividerTab}>{slug ? "Genre" : "Crate"}</span>
+      <span className={styles.dividerCard}>
+        <span className={styles.dividerKicker}>{slug ? "Now digging" : "Shuffled for you"}</span>
+        <span className={`${MONOTON} ${styles.dividerName}`}>{name}</span>
+        <span className={styles.dividerCount}>{count != null ? `${count} record${count === 1 ? "" : "s"}` : "Records"}</span>
+      </span>
+    </div>
   );
 }

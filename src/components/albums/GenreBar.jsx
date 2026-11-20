@@ -1,7 +1,8 @@
 "use client";
 // 장르 인덱스 바 — Digging·Collection 공용
 // - 장르를 세리프로 크게 나열, 고른 장르만 진하게 + 장르 색 밑줄, 개수는 위첨자
-// - 스크롤해서 헤더 아래에 붙으면 작게 한 줄로 접힘
+// - 늘 한 줄 (넘치면 옆으로 넘겨 봄, 오른쪽 끝은 옅어짐 — 2026-11-20 두 줄로 넘치던 것 정리)
+// - 스크롤해서 헤더 아래에 붙으면 작게 접힘
 // - 오른쪽: (선택) extra 슬롯 + 검색
 //
 // <GenreBar genre={slug|null} counts={{ all: 29, pop: 5, … } | null} onPick={slug => …}
@@ -19,7 +20,7 @@ export const lineOf = (slug) => { const l = lookOf(slug); return `color-mix(in o
 export const GENRE_ITEMS = [{ slug: null, name: "All" }, ...GENRES.map((g) => ({ slug: g.slug, name: g.name }))];
 
 // 페이지와 같은 종이 결 (globals.css 의 .page-content::before 와 같은 값) — 위치는 스크롤마다 맞춤
-const PAPER = "before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:content-[''] before:bg-[color:var(--paper-surface,var(--cream))] before:bg-(image:--paper-texture-image) before:bg-[length:var(--paper-texture-size)_var(--paper-texture-size)] before:bg-repeat before:bg-blend-soft-light before:opacity-(--paper-texture-opacity) before:[background-position:var(--bar-paper-x,0px)_var(--bar-paper-y,0px)]";
+const PAPER = "before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:content-[''] before:bg-[color:var(--paper-surface,var(--cream))] before:bg-(image:--paper-texture-image) before:bg-[length:var(--paper-texture-size)_var(--paper-texture-size)] before:bg-repeat before:bg-blend-soft-light before:opacity-(--paper-texture-opacity) before:[background-position:var(--bar-paper-x,0px)_var(--bar-paper-y,0px)] before:transition-[background-color] before:duration-(--dig-fade,2s) before:ease-(--dig-ease)";   // 앨범 배경으로 바뀔 때 (AlbumGrid 가 이 바에 --paper-surface · --dig-paper 를 넣음)
 
 export default function GenreBar({
   genre = null, counts = null, onPick, hrefFor = () => "#",
@@ -68,7 +69,7 @@ export default function GenreBar({
   const total = counts?.[genre ?? "all"];
 
   return (
-    <div ref={barRef} data-stuck={stuck} className={`group/bar sticky top-[calc(var(--ct-header-h,106px)-3px)] z-20 isolate mb-[clamp(1.5rem,3vw,2.5rem)] bg-[var(--dig-paper,var(--cream))] transition-colors duration-[800ms] ${PAPER} ${className}`}>
+    <div ref={barRef} data-stuck={stuck} data-genre-bar className={`group/bar sticky top-[calc(var(--ct-header-h,106px)-3px)] z-20 isolate mb-[clamp(1.5rem,3vw,2.5rem)] bg-[var(--dig-paper,var(--cream))] transition-[background-color] duration-(--dig-fade,2s) ease-(--dig-ease) ${PAPER} ${className}`}>
       <div className={`grid grid-rows-[1fr] overflow-hidden ${topRule === "thick" ? "border-t-[3px]" : "border-t"} border-(--ink) transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[stuck=true]/bar:grid-rows-[0fr]`}>
         <div className="flex min-h-0 items-center justify-between overflow-hidden pt-3 transition-opacity duration-300 group-data-[stuck=true]/bar:opacity-0 text-[10px] font-medium uppercase tracking-[0.3em] text-(--ink)/60">
           <span>{label}</span>
@@ -78,7 +79,7 @@ export default function GenreBar({
       {/* 모바일: 버튼들(Grid/Crate·Request·검색)은 위 줄 오른쪽, 장르는 아래 줄 전체 폭 — 한 줄에 몰아 장르가 가려지지 않게 */}
       <div className="flex items-center gap-6 max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-2 border-b border-(--ink)/60 py-[clamp(0.75rem,1.4vw,1.25rem)] transition-[padding] duration-500 group-data-[stuck=true]/bar:py-2">
         <nav ref={filtersRef} data-revealed={filtersRevealed} aria-label="Genres"
-          className={`${styles.filterReveal} flex min-w-0 [&_sup]:transition-opacity group-data-[stuck=true]/bar:[&_sup]:opacity-0 flex-1 flex-nowrap items-baseline gap-x-[clamp(0.5rem,0.9vw,1.1rem)] gap-y-1 overflow-x-auto [scrollbar-width:none] max-md:order-2 max-md:basis-full max-md:-my-2.5 max-md:py-2.5 md:flex-wrap group-data-[stuck=true]/bar:flex-nowrap`}>
+          className={`${styles.filterReveal} flex min-w-0 [&_sup]:transition-opacity group-data-[stuck=true]/bar:[&_sup]:opacity-0 flex-1 flex-nowrap items-baseline gap-x-[clamp(0.5rem,0.9vw,1.1rem)] gap-y-1 overflow-x-auto [scrollbar-width:none] pr-12 [mask-image:linear-gradient(to_right,#000_calc(100%-3.5rem),transparent)] max-md:order-2 max-md:basis-full max-md:-my-2.5 max-md:py-2.5`}>
           {GENRE_ITEMS.map((it, i) => {
             const on = (genre ?? null) === it.slug;
             const n = counts ? (counts[it.slug ?? "all"] ?? 0) : null;

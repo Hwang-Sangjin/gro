@@ -10,7 +10,12 @@ import styles from "@/components/digging/Digging.module.css";
 import { sleeveColors } from "@/components/album/sleeveDepth";
 import { coverUrl } from "@/lib/albums";
 
+const NEW_DAYS = 45;   // 들어온 지 이 날수 안이면 NEW IN
+
 export default function AlbumCard({ album }) {
+  // 스티커는 새로 들어온 판에만 (모든 카드에 붙으면 눈에 안 띔)
+  const isNew = album.created_at && Date.now() - new Date(album.created_at).getTime() < NEW_DAYS * 864e5;
+  const sticker = isNew ? { kind: "new", label: "New in" } : null;
   const transition = useAlbumTransition();
   function open(event) {
     if (!transition || event.defaultPrevented || event.button !== 0 ||
@@ -57,20 +62,20 @@ export default function AlbumCard({ album }) {
       className={`${styles.card} group relative [--sleeve-depth:1.3%] hover:z-10 hover:scale-[1.04] focus-visible:z-10 focus-visible:scale-[1.04] motion-reduce:transition-none`} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
       <span ref={revealRef} className={styles.hitArea} data-revealed={revealed}>
         <span ref={art} data-album-source className={styles.art}>
-          {/* 호버하면 슬리브 뒤에 숨어 있던 판이 옆으로 반쯤 빠져나옴. 가운데 라벨 = 앨범 대표색 */}
-          <span aria-hidden="true" data-disc className={styles.disc} style={{ "--disc-label": album.cover_color || "#bbcbda" }} />
           {/* 호버하면 슬리브에 두께가 생김: 위·오른쪽 면이 비스듬히 솟아 종이 재킷 상자처럼 보임 */}
           <span aria-hidden="true" className="pointer-events-none absolute bottom-full left-0 h-0 w-full origin-bottom-left -skew-x-45 bg-[var(--sleeve-top)] shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] transition-[height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:h-[var(--sleeve-depth)] group-focus-visible:h-[var(--sleeve-depth)] motion-reduce:transition-none" />
           <span aria-hidden="true" className="pointer-events-none absolute left-full top-0 h-full w-0 origin-top-left -skew-y-45 bg-[var(--sleeve-side)] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:w-[var(--sleeve-depth)] group-focus-visible:w-[var(--sleeve-depth)] motion-reduce:transition-none" />
           <span className={styles.revealPanel} data-image-ready={loaded || failed || !src} style={{ backgroundColor: album.cover_color || "#bbcbda" }}>
           {src && !failed ? <img ref={imageRef} src={src} alt="" loading="lazy" decoding="async" /> : <span className={styles.placeholder} aria-hidden="true">G</span>}
+          {/* 스티커: 새로 들어온 판 = NEW IN */}
+          {sticker && <span aria-hidden="true" className={styles.sticker} data-kind={sticker.kind}>{sticker.label}</span>}
           </span>
         </span>
       </span>
       {/* 제목·아티스트: 커버가 거의 펼쳐질 즈음 아래에서 스르륵 올라옴 (줄마다 잘라 주는 틀 안에서) */}
       <span className={styles.caption}>
         <span className="-mt-[0.18em] block overflow-y-clip pb-[0.1em] pt-[0.18em]"><strong className="block translate-y-[110%] transition-[translate] delay-[420ms] duration-(--dur-enter) ease-groove group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.title}</strong></span>
-        <span className="block overflow-y-clip"><span className="block translate-y-[110%] transition-[translate] delay-[510ms] duration-(--dur-enter) ease-groove group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.artist_names}</span></span>
+        <span className="block overflow-y-clip"><span className="block translate-y-[110%] transition-[translate] delay-[510ms] duration-(--dur-enter) ease-groove group-data-[revealed=true]:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:translate-y-0 motion-reduce:transition-none">{album.artist_names}{album.release_year ? <span className="tabular-nums opacity-70"> · {album.release_year}</span> : null}</span></span>
       </span>
     </Link>
   );

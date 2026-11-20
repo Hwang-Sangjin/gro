@@ -10,9 +10,6 @@ export default function closeGrid(wrap) {
   wrap.querySelectorAll("a[data-album-slug]").forEach((card) => {
     const r = card.getBoundingClientRect();
     const visible = r.bottom > 0 && r.top < H;
-    // 커버 뒤의 판(마우스 오버 때 나오는 것)은 먼저 숨김 — 안 그러면 커버가 접히는 동안 뒤에서 그대로 드러남
-    const disc = card.querySelector("[data-disc]");
-    if (disc) disc.style.visibility = "hidden";
     const panel = card.querySelector("[data-image-ready]");
     const caption = card.lastElementChild;
     if (!visible || !panel) { card.style.visibility = "hidden"; return; }

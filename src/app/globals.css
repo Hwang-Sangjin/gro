@@ -479,6 +479,9 @@ html[data-crate-transition="true"] .ct-page{will-change:transform,opacity;user-s
 .ct-page[data-crate-path="/"] > .ct-navbar { transition: opacity .5s, background-color .3s ease; }
 .ct-page[data-crate-path="/"] > .ct-navbar[data-drop="true"] { background-color: var(--page-bg); }
 /* 헤더 바: 평소엔 페이지와 같은 종이 결, 메뉴가 펼쳐지면(data-drop) 결이 빠지고 바·패널이 한 장의 민무늬 (홈과 같은 모습) */
+/* 헤더 글자도 페이지와 같은 시간 · 곡선으로 (앨범 그리드가 있는 페이지만) */
+/*  (헤더는 자기 바탕 · 종이 결 층 두 겹이 모두 --ct-header-bg 를 씀 → 둘 다 같은 전환) */
+.ct-page:has([data-album-grid]) > .ct-navbar { transition: color .8s cubic-bezier(.4,0,.2,1) .6s, background-color 2s cubic-bezier(.4,0,.2,1); }   /* 글자는 페이지 글자와 같이 가운데에 짧게 */
 .ct-page:has(.paper-textured) > .ct-navbar::before {
   content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
   opacity:var(--paper-texture-opacity);
@@ -487,7 +490,8 @@ html[data-crate-transition="true"] .ct-page{will-change:transform,opacity;user-s
   background-size:var(--paper-texture-size) var(--paper-texture-size);
   background-position:0 var(--paper-header-y,0px);
   background-repeat:repeat;background-blend-mode:soft-light;
-  transition:opacity .3s ease;
+  /* 배경색: Digging · Collection 앨범 배경으로 바뀔 때 페이지와 같은 시간 · 곡선 (AlbumGrid · Digging.module.css --dig-fade · --dig-ease) */
+  transition:opacity .3s ease, background-color 2s cubic-bezier(.4,0,.2,1);
 }
 .ct-page:has(.paper-textured) > .ct-navbar[data-drop="true"]::before { opacity:0; }
 html[data-crate-transition="true"] .ct-handle{opacity:0;pointer-events:none}
