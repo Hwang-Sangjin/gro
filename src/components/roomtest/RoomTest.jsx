@@ -37,6 +37,8 @@ import { createInkHero, INK_HERO, HERO_HOLD, HS } from "./inkHero";
 import { createSleeveHero, makeSleeveDisc, SLEEVE_HERO } from "./sleeveHero";
 import { applyTurntableLook } from "./turntableLook";
 import { createRoomMusic } from "./roomMusic";
+import { setupRoomProps } from "./roomProps";
+import { useRouter } from "next/navigation";
 import { makeEnvironment, drawLabel } from "./sleeveParts";
 
 const MODEL_URL = "/models/room/grooves_room_blockout_reveal.glb";
@@ -341,7 +343,11 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
   const [flyer, setFlyer] = useState(null);   // { rect, animate, landed, closing }
   const [soundOn, setSoundOn] = useState(false);   // 효과음은 사용자가 켤 때만 (브라우저 자동 재생 규칙)
   const tipRef = useRef(null);                      // 방 안 물체 위에 뜨는 이름표
+  const router = useRouter();
+  const routerRef = useRef(router);
+  routerRef.current = router;
   const musicHostRef = useRef(null);                // 턴테이블 음악: YouTube 플레이어가 들어가는 자리 ("Now spinning" 카드)
+  const [propMenu, setPropMenu] = useState(null);   // 소품 메뉴 카드 (레코드 상자 · 책 · 지금 듣는 판): { x, y, kicker, title, sub, actions }
   const [music, setMusic] = useState({ album: null, active: false, playing: false, buffering: false, blocked: false, error: false });
   const [heroOn, setHeroOn] = useState(true);   // Hero = Home 엔진 레이어가 보이는 동안
   // 모션 줄이기: 칸 이동은 바로, 회전·떠 있는 흔들림·커버 날아가기 없음 (프로젝트 공통 규칙)
@@ -1206,7 +1212,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     // ── 방 안 상호작용 (방 완성 칸에서만): 턴테이블 = 재생 · 멈춤, 램프 = 끄고 켬. 올리면 커서 · 이름표 · 살짝 들림
     const sound = createRoomSound();
     st.sound = sound;
-    st.music = createRoomMusic(musicHostRef.current, setMusic);   // 턴테이블 음악 (YouTube) · 카드 상태는 setMusic 으로
+    st.music = createRoomMusic(musicHostRef.current, (m) => { st.musicPlaying = m.playing; setMusic(m); });   // 턴테이블 음악 (YouTube) · 카드 상태는 setMusic 으로
     st.playing = true;                  // 판: 33⅓ 이 되면 돌고 있음 (누르면 멈춤)
     st.armK = 1;
     st.lampUser = {}; st.lampK = {};    // 램프 pivot → 켬(1) · 끔(0), 부드럽게 따라가는 값
@@ -1243,6 +1249,10 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
         const mesh = c.face.parent;
         if (mesh) st.targets.push({ key: c.pivot, cover: c, objs: [mesh], base: [mesh.position.y], liftK: 0 });
       }
+      // 그 밖의 소품 (레코드 상자 · 지금 듣는 판 · 책 · 스피커 · 앰프 · 커튼 · 창문 · 벽 그림 · 컵): roomProps.js
+      const props = setupRoomProps({ st, root, makeCoverFace, sound, camera: storyCam });
+      st.targets.push(...props.targets);
+      st.propsTick = props.tick;
     };
 
     // ── 판 바꾸기 (벽 선반 커버를 누르면, 2026-11-19)
@@ -1404,6 +1414,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     };
     const tipText = (t) => (t.key === "turntable" ? (st.playing ? "Stop ■" : "Play ▸")
       : t.cover ? `Play ▸ ${t.cover.albumObj?.title ?? ""}`.trim()
+      : t.tip ? t.tip()
       : st.lampUser[t.key] ? "Light off" : "Light on");
     const showTip = (t, e) => {
       const el = tipRef.current;
@@ -1430,11 +1441,27 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       if (st.playing) { st.musicOff = false; sound.needleDown(); } else sound.needleUp();
     };
     st.closeMusic = () => { st.musicOff = true; st.music?.stop(); };
+    // 소품 메뉴 카드: 물체 윗면 가운데의 화면 자리에 띄움 (카메라는 방 완성 구도에서 거의 움직이지 않으므로 열 때 한 번만 잼)
+    const _mb = new THREE.Box3(), _mv = new THREE.Vector3();
+    st.openMenu = (m) => {
+      _mb.setFromObject(m.obj);
+      _mv.set((_mb.min.x + _mb.max.x) / 2, _mb.max.y, (_mb.min.z + _mb.max.z) / 2).project(storyCam);
+      const r = renderer.domElement.getBoundingClientRect();
+      st.menuOpen = true;
+      setHover(null);
+      setPropMenu({ ...m, obj: undefined, x: r.left + (_mv.x + 1) / 2 * r.width, y: r.top + (1 - _mv.y) / 2 * r.height });
+    };
+    st.closeMenu = () => { if (!st.menuOpen) return; st.menuOpen = false; setPropMenu(null); };
+    const onMenuKey = (e) => { if (e.key === "Escape") st.closeMenu(); };
+    window.addEventListener("keydown", onMenuKey);
     const onClick = (e) => {
+      if (e.target?.closest?.("[data-prop-menu]")) return;   // 카드 안을 누른 것
+      st.closeMenu();
       const t = pick(e);
       if (!t) return;
       if (st.swap) { st.swap.fast = true; return; }   // 판을 바꾸는 중: 남은 동작을 빠르게 끝냄
       if (t.cover) { setHover(null); startSwap(t.cover); return; }
+      if (t.click) { t.click(t); showTip(t, e); return; }
       if (t.key === "turntable") st.togglePlay();
       else {
         st.lampUser[t.key] = st.lampUser[t.key] ? 0 : 1;
@@ -1495,13 +1522,16 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       const rise = easeInOut(seg(p, STORY.ttRise));
       // 방 안 상호작용: 방 완성 칸을 벗어나면 이름표를 숨기고, 이야기 앞쪽으로 돌아가면 처음 상태(판 재생 · 램프 켬)로
       if (st.hoverTarget && !canInteract()) setHover(null);
+      if (st.menuOpen && !canInteract()) st.closeMenu();   // 스크롤해서 방을 벗어나면 메뉴 카드도 닫음
       if (p < STORY.camFinal - 0.05) { st.playing = true; for (const k in st.lampUser) st.lampUser[k] = 1; }
       for (const t of st.targets) {
         t.liftK += ((st.hoverTarget === t ? 1 : 0) - t.liftK) * (1 - Math.exp(-dt * 12));
         if (t.lamp) t.objs.forEach((o, i) => { o.position.y = t.base[i] + 0.03 * t.liftK; });
         if (t.cover) t.objs.forEach((o, i) => { o.position.y = t.base[i] + 0.012 * t.liftK; });
+        if (t.lift) t.objs.forEach((o, i) => { o.position.y = t.base[i] + t.lift * t.liftK + (t.hop || 0); });
       }
       updateSwap(dt);
+      st.propsTick?.(dt, time);
       for (const k in st.lampK) st.lampK[k] += (st.lampUser[k] - st.lampK[k]) * (1 - Math.exp(-dt * 9));
       // 늦은 밤: 바늘은 들려 있다가 "drop the needle" 에서 내려감 (판은 계속 돎). 소리를 켰으면 바늘 소리
       const needleWant = (!st.lateNight || st.nightDrop) && !(st.swap && !st.swap.dropped);
@@ -1693,8 +1723,9 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       st.ttLook?.update(st.seatNow, rk, st.reduced ? _zero2 : st.ptrS);
       const nk = easeInOut(seg(p, st.night));
       const ek = easeInOut(seg(p, ENV_IN));
-      st.env.night(nk);                                   // 창문 안 남산: 창문 벽이 다 선 뒤 밝아짐
+      st.env.night(nk * (st.cityMul ?? 1));               // 창문 안 남산: 창문 벽이 다 선 뒤 밝아짐 (창문을 누르면 cityMul 로 어둡게, roomProps)
       st.env.fade(ek);                                    // 바깥 배경: 방 완성 구도로 다가가며
+      if ((st.cityMul ?? 1) < 1 && st.env.sky?.material?.uniforms?.uOpacity) st.env.sky.material.uniforms.uOpacity.value *= 0.35 + 0.65 * st.cityMul;
       // 레이어가 가까운 것부터 아래에서 올라옴 (fade 가 정한 투명도에 레이어별 등장 정도를 곱함)
       if (!st.layerRise) {
         const byId = Object.fromEntries(LAYER_CFG.layers.map((L) => [L.id, L]));
@@ -2002,6 +2033,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("pointermove", onPointer);
       window.removeEventListener("click", onClick);
+      window.removeEventListener("keydown", onMenuKey);
       sound.dispose();
       controls.dispose();
       draco.dispose();
@@ -2366,6 +2398,28 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
         style={{ opacity: heroOn ? 0 : 0.8, pointerEvents: heroOn ? "none" : "auto" }}>
         Sound {soundOn ? "on" : "off"}
       </button>
+
+      {/* 소품 메뉴 카드 (레코드 상자 · 책 · 지금 듣는 판): 누른 물체 위에 뜸 → 버튼을 눌러야 페이지로. 밖을 누르거나 Esc · 스크롤하면 닫힘 */}
+      {propMenu && (
+        <div data-prop-menu role="dialog" aria-label={propMenu.title}
+          className="fixed z-40 w-[min(15rem,80vw)] -translate-x-1/2 -translate-y-full animate-[menu-in_.35s_cubic-bezier(.22,1,.36,1)] rounded-xl bg-[#15111a]/90 p-4 text-[#f4e7cd] shadow-[0_24px_48px_-20px_rgba(0,0,0,.7)] ring-1 ring-white/10 backdrop-blur-md motion-reduce:animate-none"
+          style={{ left: `clamp(8.5rem, ${propMenu.x}px, calc(100vw - 8.5rem))`, top: `max(${propMenu.y - 14}px, 15rem)` }}>
+          <p className="text-[9px] font-medium uppercase tracking-[0.24em] opacity-60">{propMenu.kicker}</p>
+          <p className="mt-1 text-[15px] leading-snug [word-break:keep-all]">{propMenu.title}</p>
+          {propMenu.sub && <p className="truncate text-[11px] opacity-60">{propMenu.sub}</p>}
+          <div className="mt-3 flex flex-col gap-1.5">
+            {propMenu.actions.map((a, i) => {
+              const cls = `group/act flex min-h-10 items-center justify-between rounded-full px-4 text-[11px] font-semibold uppercase tracking-[0.18em] transition-[background-color,color,scale] duration-300 active:scale-[.97] ${i === 0 ? "bg-[#f4e7cd] text-[#15111a] hover:bg-[#7fc1bd]" : "ring-1 ring-[#f4e7cd]/30 hover:bg-[#f4e7cd]/10"}`;
+              const arrow = <span aria-hidden="true" className="transition-transform duration-300 group-hover/act:-translate-y-0.5 group-hover/act:translate-x-0.5">↗︎</span>;
+              return a.external
+                ? <a key={a.href} href={a.href} target="_blank" rel="noopener noreferrer" className={cls} onClick={() => apiRef.current?.closeMenu?.()}>{a.label}{arrow}</a>
+                : <button key={a.href} type="button" className={cls} onClick={() => { apiRef.current?.closeMenu?.(); router.push(a.href); }}>{a.label}{arrow}</button>;
+            })}
+          </div>
+          {/* 아래 꼬리: 누른 물체를 가리킴 */}
+          <span aria-hidden="true" className="absolute left-1/2 top-full size-3 -translate-x-1/2 -translate-y-1.5 rotate-45 bg-[#15111a]/90" />
+        </div>
+      )}
 
       {/* 턴테이블 음악 카드 ("Now spinning", D): 판을 틀면 오른쪽 아래에 나타남. 페이지를 내려도 남음 (Hero 에서는 숨김)
           YouTube 플레이어는 약관상 숨길 수 없고 200×200 이상 → 카드 위쪽이 플레이어. 버튼: 재생 · 멈춤(= 턴테이블 클릭), 닫기 */}
