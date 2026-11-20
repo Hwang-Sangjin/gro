@@ -20,7 +20,7 @@ export const lineOf = (slug) => { const l = lookOf(slug); return `color-mix(in o
 export const GENRE_ITEMS = [{ slug: null, name: "All" }, ...GENRES.map((g) => ({ slug: g.slug, name: g.name }))];
 
 // 페이지와 같은 종이 결 (globals.css 의 .page-content::before 와 같은 값) — 위치는 스크롤마다 맞춤
-const PAPER = "before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:content-[''] before:bg-[color:var(--paper-surface,var(--cream))] before:bg-(image:--paper-texture-image) before:bg-[length:var(--paper-texture-size)_var(--paper-texture-size)] before:bg-repeat before:bg-blend-soft-light before:opacity-(--paper-texture-opacity) before:[background-position:var(--bar-paper-x,0px)_var(--bar-paper-y,0px)] before:transition-[background-color] before:duration-(--dig-fade,2s) before:ease-(--dig-ease)";   // 앨범 배경으로 바뀔 때 (AlbumGrid 가 이 바에 --paper-surface · --dig-paper 를 넣음)
+const PAPER = "before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:content-[''] before:bg-[color:var(--paper-surface,var(--cream))] before:bg-(image:--paper-texture-image) before:bg-[length:var(--paper-texture-size)_var(--paper-texture-size)] before:bg-repeat before:bg-blend-soft-light before:opacity-(--paper-texture-opacity) before:[background-position:var(--bar-paper-x,0px)_var(--bar-paper-y,0px)]";
 
 export default function GenreBar({
   genre = null, counts = null, onPick, hrefFor = () => "#",
@@ -69,7 +69,7 @@ export default function GenreBar({
   const total = counts?.[genre ?? "all"];
 
   return (
-    <div ref={barRef} data-stuck={stuck} data-genre-bar className={`group/bar sticky top-[calc(var(--ct-header-h,106px)-3px)] z-20 isolate mb-[clamp(1.5rem,3vw,2.5rem)] bg-[var(--dig-paper,var(--cream))] transition-[background-color] duration-(--dig-fade,2s) ease-(--dig-ease) ${PAPER} ${className}`}>
+    <div ref={barRef} data-stuck={stuck} className={`group/bar sticky top-[calc(var(--ct-header-h,106px)-3px)] z-20 isolate mb-[clamp(1.5rem,3vw,2.5rem)] bg-[var(--dig-paper,var(--cream))] transition-colors duration-[800ms] ${PAPER} ${className}`}>
       <div className={`grid grid-rows-[1fr] overflow-hidden ${topRule === "thick" ? "border-t-[3px]" : "border-t"} border-(--ink) transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[stuck=true]/bar:grid-rows-[0fr]`}>
         <div className="flex min-h-0 items-center justify-between overflow-hidden pt-3 transition-opacity duration-300 group-data-[stuck=true]/bar:opacity-0 text-[10px] font-medium uppercase tracking-[0.3em] text-(--ink)/60">
           <span>{label}</span>

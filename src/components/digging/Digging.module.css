@@ -1,20 +1,11 @@
 .page,
 .page:global(.paper-textured) {
-  /* 앨범 배경으로 바뀌는 시간 · 곡선 — 페이지 · 헤더 · 장르 바 · 글자가 모두 같은 값 (AlbumGrid, 2026-11-20 속도를 하나로 맞춤) */
-  --dig-fade: 2s;
-  /* 글자색은 배경 전환의 가운데에 짧게 (2초 내내 바꾸면 페이지 글자 전체를 매 프레임 다시 그려 버벅였음) */
-  --dig-ink-fade: .8s;
-  --dig-ink-delay: .6s;
-  --dig-ease: cubic-bezier(.4,0,.2,1);
   --dig-paper: var(--cream);
   --paper-surface: var(--dig-paper);
   --paper-texture-opacity: 0.65;
   background: var(--dig-paper);
   color: var(--ink);
-  transition: color var(--dig-ink-fade) var(--dig-ease) var(--dig-ink-delay);   /* 글자색도 서서히 (카드 제목 · 캡션은 이 색을 물려받음) */
 }
-/* 페이지 종이 결 바탕을 따로 떼어 둠: 글자색이 바뀌는 동안 글자를 다시 그려도 종이 결(블렌드)까지 다시 그리지 않게 (2026-11-20) */
-.page :global(.page-content)::before { will-change: transform; }
 .page :global(.page-content) {
   position: relative;
   isolation: isolate;
@@ -563,30 +554,3 @@
 .dividerName { font-size: clamp(30px, 16cqi, 92px); line-height: .98; text-transform: uppercase; overflow-wrap: anywhere; }
 .dividerCount { font: 600 clamp(9px, 3.6cqi, 13px)/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .2em; text-transform: uppercase; opacity: .85; font-variant-numeric: tabular-nums; }
 
-/* 앨범 배경 층 (AlbumGrid): 마우스를 올린 앨범의 상세 페이지 배경 — 앨범 색 + 가운데 은은한 빛 + 아래로 살짝 어두워짐 + 종이 결
-   화면에 붙어 있고 페이지 종이 결(z -1) 위 · 카드 아래. 두 장(A · B)을 번갈아 써서 앨범이 바뀔 때도 투명도만 바뀜
-   가벼움 (2026-11-20 버벅임 수정):
-   - 투명도만 바꾸므로 그리기는 앨범이 바뀔 때 한 번, 나머지는 합성(GPU)만 (예전: 배경색을 2초 동안 매 프레임 다시 칠함)
-   - 종이 결은 이 층 안에서만 섞음(background-blend-mode). 예전 ::after 의 mix-blend-mode 는 아래 화면 전체와 섞여서
-     층이 나타나는 동안 매 프레임 아래까지 다시 섞었음 */
-.albumBg {
-  position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background-color: var(--dig-bg, transparent);
-  /* 위에서부터: 가운데 빛 · 아래로 어두워짐 · 앨범 색 덮개 · 종이 결
-     - 종이 결 세기: 헤더 · 장르 바처럼 --paper-texture-opacity(65%). 층 투명도 대신 앨범 색 덮개를 (1 - 세기)만큼 얹어 같은 결과
-       (예전: 결이 100% 세기라 헤더 · 장르 바보다 진해 보였음, 2026-11-20)
-     - 가운데 빛은 헤더 · 장르 바 높이(위쪽 약 190px)에 닿지 않게 아래로 (닿으면 그 옆만 밝아 보였음) */
-  background-image:
-    radial-gradient(ellipse min(62vw, 900px) min(40vh, 420px) at 50% calc(50% + 120px), rgb(255 255 255 / .16) 0%, rgb(255 255 255 / .06) 38%, transparent 72%),
-    linear-gradient(to bottom, transparent 0, transparent 35%, rgb(0 0 0 / .16) 100%),
-    linear-gradient(color-mix(in srgb, var(--dig-bg, transparent) calc((1 - var(--paper-texture-opacity, .65)) * 100%), transparent) 0 0),
-    var(--paper-texture-image);
-  background-size: 100% 100%, 100% 100%, 100% 100%, var(--paper-texture-size) var(--paper-texture-size);
-  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
-  background-blend-mode: normal, normal, normal, soft-light;
-  opacity: 0;
-  will-change: opacity;
-  transition: opacity var(--dig-fade) var(--dig-ease);
-}
-.albumBg[data-on="true"] { opacity: 1; }
-@media (prefers-reduced-motion: reduce) { .albumBg { transition: none; } }
