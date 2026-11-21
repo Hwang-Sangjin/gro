@@ -51,6 +51,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
   // 재킷 디테일 (sleeveFx.js): 앞면의 광택 · 종이 모서리 + 새로 들어온 판의 떼어지는 스티커 (NEW IN)
   const fx = createSleeveFx({ aniso });
   const PEEL_DIR = new THREE.Vector2(Math.cos((PEEL.dir * Math.PI) / 180), Math.sin((PEEL.dir * Math.PI) / 180));   // 평소에 들려 있는 쪽 (오른쪽 위)
+  const tone = new THREE.Color();
   const hashOf = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
   // 재킷의 입구(오른쪽 옆면): 판지 두 겹 사이의 어두운 틈과 그 안의 흰 속지 — 뒤에 비스듬히 선 판들은 이 면이 보임
   const openTex = (() => {
@@ -142,7 +143,9 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     slot.card = card; slot.peel = PEEL.rest; slot.fly = 0; slot.dir.copy(PEEL_DIR);
     if (!card) return;
     slot.mesh.material[0] = card.divider ? slot.edge : slot.open;   // 칸막이(판지 한 장)에는 입구가 없음
-    fx.wrapFor(slot.finish, hashOf(card.slug || ''));   // 판마다 다른 비닐 주름
+    // 판마다 다른 비닐 주름 · 커버의 밝기 (어두운 커버에서는 빛 띠를 줄임)
+    tone.set(card.color || '#bbcbda');
+    fx.wrapFor(slot.finish, hashOf(card.slug || ''), 0.2126 * tone.r + 0.7152 * tone.g + 0.0722 * tone.b);
     if (card.divider) {
       const t = dividerTex(card);
       slot.front.map = t.face; slot.tabFront.map = t.tab;

@@ -31,6 +31,8 @@ export const S = {
   intro: { dur: 1.25, stagger: 0.16, maxSteps: 4, scale: 0.05, recede: 1.5, turn: 0.55, rise: 0.05 },
   fog: { near: 1.25, far: 2.7 },     // 먼 재킷이 종이 바탕에 묻힘 (안개 색 = 페이지 바탕색)
   light: { key: 1.5, hemi: 1.15, env: 1.0, exposure: 1.0, shadow: 0.2 },   // hemi = 종이를 고르게 밝히는 빛 (반사에는 안 잡힘)
+  // 비닐 포장 (2026-11-22, Crate 와 같은 주름 지도 — albums/sleeveFx.js): 재킷 면 위의 맑은 코팅 층. coat = 세기 · rough = 흐림 · normal = 주름의 깊이 · fade = 주름이 나타나는 시간(초)
+  wrap: { coat: 0.85, rough: 0.16, normal: 0.85, fade: 0.9 },
 };
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
@@ -74,7 +76,9 @@ export function makePaperMaps() {
   }
   rc.putImageData(rd, 0, 0); bc.putImageData(bd, 0, 0);
   const tex = (c) => { const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3); return t; };
-  return { rough: tex(rough), bump: tex(bump) };
+  // flat: 평평한 노멀 한 점 — 비닐의 주름 지도가 만들어지기 전까지 코팅 층에 끼워 둠 (나중에 그림만 바꾸면 되므로 셰이더를 다시 짜지 않음)
+  const flat = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1, THREE.RGBAFormat); flat.needsUpdate = true;
+  return { rough: tex(rough), bump: tex(bump), flat };
 }
 
 // 재킷 면에 세월을 얹음: 가장자리 · 모서리가 하얗게 닳음 + 안의 판이 눌러 생긴 둥근 자국(ring wear)
@@ -250,8 +254,10 @@ export function makeJacket(renderer, paper) {
   const J = S.jacket;
   const face = () => new THREE.MeshPhysicalMaterial({
     color: "#ffffff", roughness: 1, roughnessMap: paper.rough,
-    // 얇은 무광 코팅: 빛 띠가 아주 흐릿하게만 비침 (2026-11-17: 요철을 빼고 코팅을 낮춤 — 커버 위에 흰 점이 반짝이고 뿌연 막이 끼어 색이 떠 보였음)
-    clearcoat: 0.12, clearcoatRoughness: 0.55, specularIntensity: 0.35,
+    // 비닐 포장: 맑은 코팅 층이 환경의 빛 띠를 또렷하게 비추고, 주름(clearcoatNormalMap — setWrap 으로 끼움)을 만나면 꺾임
+    //  (2026-11-17 에는 무광 코팅 0.12 · 0.55 였음: 요철이 점 단위라 흰 점이 반짝였음 → 지금 요철은 넓고 부드러운 주름뿐)
+    clearcoat: S.wrap.coat, clearcoatRoughness: S.wrap.rough, specularIntensity: 0.35,
+    clearcoatNormalMap: paper.flat, clearcoatNormalScale: new THREE.Vector2(0, 0),
   });
   const front = face(), back = face();
   const edge = new THREE.MeshStandardMaterial({ color: "#e9e1d0", roughness: 0.9 });
@@ -269,5 +275,12 @@ export function makeJacket(renderer, paper) {
     mesh,
     setArt(frontCanvas, backCanvas, color) { set(front, frontCanvas); set(back, backCanvas); spine.color.set(shade(color, 0.82)); },
     setFront(frontCanvas) { set(front, frontCanvas); },
+    /** 비닐의 주름: tex = 노멀 그림 (판마다 뒤집어 쓰려고 복사한 것 — flipX · flipY 는 그 그림을 뒤집은 방향), k = 깊이 0…1 (나타날 때 0 → 1) */
+    setWrap(tex, flipX, flipY, k = 1) {
+      for (const m of [front, back]) {
+        if (m.clearcoatNormalMap !== tex) m.clearcoatNormalMap = tex;
+        m.clearcoatNormalScale.set(flipX * S.wrap.normal * k, flipY * S.wrap.normal * k);
+      }
+    },
   };
 }

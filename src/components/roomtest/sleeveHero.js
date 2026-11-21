@@ -8,6 +8,7 @@
 //  방 재질에 영향을 주지 않게: 장면 전체 환경(scene.environment) · 안개(scene.fog) 대신 재킷 · 판 재질에만 환경을 달고, 멀어지는 재킷은 투명도로 옅어짐
 import * as THREE from "three";
 import { S, makeEnvironment, makePaperMaps, makeJacket, makeRecord, drawFront, drawBack, drawLabel } from "./sleeveParts";
+import { WRAP, wrapNormalData } from "@/components/albums/sleeveFx";
 
 export const SLEEVE_HERO = {
   heroP: 0.006,              // 이 진행도 아래 = Hero (끌기 · 누르기는 여기서만). 넘으면 스크롤이 연 것으로 봄
@@ -88,6 +89,40 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
   scene.add(frame);
   /** @type {{ album: any, color: string, holder: THREE.Group, jacket: ReturnType<typeof makeJacket>, mats: THREE.Material[] }[]} */
   let items = [];
+
+  // ── 비닐 포장의 주름 (Crate 와 같은 주름 지도): 만드는 데 한 장에 수십 ms 걸리므로 등장이 끝난 뒤 틈틈이 한 장씩 만들고,
+  //  다 되면 재킷마다 한 장을 골라(가로 · 세로로 뒤집어 12 가지) 코팅 층에 끼움. 주름은 fade 초 동안 서서히 깊어짐 (갑자기 생기지 않게)
+  const wrap = { maps: [], alive: true, k: 0, raf: 0, timer: 0 };
+  const hashOf = (str) => { let x = 2166136261; for (let i = 0; i < str.length; i++) x = Math.imul(x ^ str.charCodeAt(i), 16777619); return x >>> 0; };
+  const putWrap = (it) => {
+    if (wrap.maps.length < WRAP.maps) return;
+    if (!it.wrap) {
+      const n = hashOf(`${it.album.title}|${it.album.artist_names}`), fx = (n >> 3) & 1 ? -1 : 1, fy = (n >> 4) & 1 ? -1 : 1;
+      const tex = wrap.maps[n % WRAP.maps].clone();
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(fx, fy); tex.offset.set(fx < 0 ? 1 : 0, fy < 0 ? 1 : 0); tex.needsUpdate = true;
+      it.wrap = { tex, fx, fy };
+    }
+    it.jacket.setWrap(it.wrap.tex, it.wrap.fx, it.wrap.fy, wrap.k);
+  };
+  const idle = (f) => (window.requestIdleCallback ? window.requestIdleCallback(f, { timeout: 1500 }) : setTimeout(f, 120));
+  const makeWrap = (i) => idle(() => {
+    if (!wrap.alive) return;
+    const t = new THREE.DataTexture(wrapNormalData(i), WRAP.size, WRAP.size, THREE.RGBAFormat);
+    t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    t.needsUpdate = true;
+    wrap.maps.push(t);
+    if (i + 1 < WRAP.maps) { makeWrap(i + 1); return; }
+    const t0 = performance.now();
+    const step = () => {
+      if (!wrap.alive) return;
+      const x = reduced ? 1 : Math.min(1, (performance.now() - t0) / (S.wrap.fade * 1000));
+      wrap.k = x * x * (3 - 2 * x);
+      items.forEach(putWrap);
+      if (x < 1) wrap.raf = requestAnimationFrame(step);
+    };
+    step();
+  });
+  wrap.timer = setTimeout(() => makeWrap(0), reduced ? 300 : 2600);
 
   const s = {
     pointer: new THREE.Vector2(), tilt: new THREE.Vector2(),
@@ -498,6 +533,7 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
   const disposeItem = (it) => {
     it.holder.removeFromParent();
     it.jacket.mesh.geometry.dispose();
+    it.wrap?.tex.dispose();
     for (const m of it.mats) { m.map?.dispose(); m.dispose(); }
   };
   Object.defineProperty(h, "items", { get: () => items });     // (Object.assign 은 getter 를 값으로 복사해 버림)
@@ -517,6 +553,7 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
         rig.add(holder);
         return { album, color, holder, jacket, mats };
       });
+      items.forEach(putWrap);     // 주름 지도가 이미 있으면 바로 (없으면 다 만들어졌을 때)
       s.pos = s.target = Math.min(s.target, Math.max(0, items.length - 1)); s.vel = 0;
       s.open = s.openV = s.pull = 0; s.clickOpen = s.wantOpen = false; s.recAt = -1; s.index = -1;
       sayOpen();
@@ -548,7 +585,8 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
       items.forEach(disposeItem);
       frame.removeFromParent();
       paperQuad.removeFromParent(); paperQuad.geometry.dispose(); paperMat.dispose(); paperU.tGrain.value?.dispose();
-      paper.rough.dispose(); paper.bump.dispose();
+      wrap.alive = false; clearTimeout(wrap.timer); cancelAnimationFrame(wrap.raf); for (const t of wrap.maps) t.dispose();
+      paper.rough.dispose(); paper.bump.dispose(); paper.flat.dispose();
       envMap.dispose();
     },
   });

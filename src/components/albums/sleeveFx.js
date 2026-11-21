@@ -88,7 +88,7 @@ const FINISH_FRAG = /* glsl */ `
   ${FOG_F}
   uniform sampler2D uWrapMap;   // 비닐의 주름 지도: rg = 표면의 기울기(가로 · 세로), b = 들뜬 높이
   uniform vec2 uLight, uFlip;
-  uniform float uOpacity, uGloss, uWrap, uSeed;
+  uniform float uOpacity, uGloss, uWrap, uSeed, uTone;
   varying vec2 vUv;
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p) {
@@ -111,12 +111,14 @@ const FINISH_FRAG = /* glsl */ `
     float paper = soft + exp(-pow(along + 0.34, 2.0) / 0.004) * 0.06;   // 비닐이 없을 때: 종이의 부드러운 광택
     float bent = along + 0.035 * sin(across * 5.0 + uSeed);
     float win = band(bent, 0.02, 0.085, 0.02) * (1.0 - 0.8 * band(bent, 0.035, 0.007, 0.006));   // 창 하나 (가운데 창살)
-    float wrap = soft * 0.45 + (win * 0.20 + band(bent, -0.34, 0.02, 0.012) * 0.15 + band(bent, 0.47, 0.03, 0.03) * 0.07)
+    //  (2026-11-22 세기를 줄임: 어두운 커버에서 띠가 커버를 넓게 덮었음. 어두운 커버일수록 흰 띠가 도드라지므로 uTone 으로 더 줄임)
+    float wrap = soft * 0.28 + (win * 0.13 + band(bent, -0.34, 0.02, 0.012) * 0.10 + band(bent, 0.47, 0.03, 0.03) * 0.045)
       * (0.88 + 0.12 * film) * (0.55 + 0.45 * smoothstep(-0.62, 0.05, across));
-    float w = mix(paper, wrap, uWrap) * uGloss;
+    float tone = mix(0.55, 1.0, smoothstep(0.08, 0.55, uTone));
+    float w = mix(paper, wrap * tone, uWrap) * uGloss;
     // 주름의 입체감: 빛(왼쪽 위)을 향한 비탈은 밝고 등진 비탈은 어두움 — 빛 띠와 상관없이 어디서나 (흰 커버에서도 주름이 보이게)
     float d = -dot(g, vec2(-0.6, 0.8));
-    w += max(d, 0.0) * (0.26 + 0.16 * uGloss) + d * abs(d) * step(0.0, d) * 0.30;   // 가파른 비탈에는 반짝임이 더 얹힘
+    w += (max(d, 0.0) * (0.24 + 0.12 * uGloss) + d * abs(d) * step(0.0, d) * 0.24) * mix(0.7, 1.0, tone);   // 가파른 비탈에는 반짝임이 더 얹힘
     float k = max(-d, 0.0) * 0.30;
     // 비닐에 비친 어두운 것들 (방 안): 넓고 흐린 얼룩이 굴곡을 따라 휘어 보임 — 밝은 커버에서도 비닐이 씌워진 것이 보이게
     vec2 r2 = q + g * 0.30;
@@ -245,6 +247,18 @@ function stickerTexture(label, aniso) {
   return t;
 }
 
+export const WRAP = { maps: WRAP_MAPS, size: WRAP_SIZE };
+/** 주름 지도 i 번째(0 ~ WRAP.maps-1)를 노멀 그림(RGBA, 접선 공간)으로 — Home hero 의 재킷이 코팅 층의 요철로 씀 (sleeveParts.js)
+ *  k = 기울기를 얼마나 살릴지 (1 = 가장 가파른 주름이 45°) */
+export function wrapNormalData(i, k = 0.6) {
+  const g = wrapMap(7 + i * 3, i === 1), n = g.length / 4, out = new Uint8Array(g.length);
+  for (let p = 0; p < n; p++) {
+    const x = -(g[p * 4] / 127.5 - 1) * k, y = -(g[p * 4 + 1] / 127.5 - 1) * k, l = Math.hypot(x, y, 1);
+    out[p * 4] = Math.round((x / l * 0.5 + 0.5) * 255); out[p * 4 + 1] = Math.round((y / l * 0.5 + 0.5) * 255); out[p * 4 + 2] = Math.round((1 / l * 0.5 + 0.5) * 255); out[p * 4 + 3] = 255;
+  }
+  return out;
+}
+
 /** 엔진마다 하나: 모양 · 그림은 같이 쓰고, 재질은 판마다 따로 (투명도 · 들림이 판마다 다름) */
 export function createSleeveFx({ aniso = 1 } = {}) {
   const stickerGeo = new THREE.PlaneGeometry(1.3, 1.3, 40, 40);   // 지름 1 의 스티커 + 둘레의 그림자 자리
@@ -280,15 +294,16 @@ export function createSleeveFx({ aniso = 1 } = {}) {
     /** 재킷 마감 한 장: 크기 1 = 재킷 한 변. u.uLight(빛의 자리, -1~1) · u.uGloss(광택 세기) · u.uOpacity · u.uWrap(비닐 포장 0~1). 주름은 wrapFor 로 판마다 고름 */
     finish() {
       const material = new THREE.ShaderMaterial({
-        uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uLight: { value: new THREE.Vector2() }, uFlip: { value: new THREE.Vector2(1, 1) }, uWrapMap: { value: null }, uOpacity: { value: 1 }, uGloss: { value: 1 }, uWrap: { value: 1 }, uSeed: { value: 0 } }]),
+        uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uLight: { value: new THREE.Vector2() }, uFlip: { value: new THREE.Vector2(1, 1) }, uWrapMap: { value: null }, uOpacity: { value: 1 }, uGloss: { value: 1 }, uWrap: { value: 1 }, uSeed: { value: 0 }, uTone: { value: 0.5 } }]),
         vertexShader: FINISH_VERT, fragmentShader: FINISH_FRAG, transparent: true, depthWrite: false, fog: true,
         polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
       });
       material.uniforms.uWrapMap.value = wraps[0];
       return { mesh: new THREE.Mesh(planeGeo, material), u: material.uniforms };
     },
-    /** 이 판의 비닐: n(판마다 다른 정수)으로 주름 지도와 뒤집는 방향을 고름 */
-    wrapFor(finish, n) {
+    /** 이 판의 비닐: n(판마다 다른 정수)으로 주름 지도와 뒤집는 방향을 고름 · tone = 커버의 밝기 0~1 (어두우면 빛 띠를 줄임) */
+    wrapFor(finish, n, tone = 0.5) {
+      finish.u.uTone.value = tone;
       finish.u.uWrapMap.value = wraps[n % WRAP_MAPS];
       finish.u.uFlip.value.set((n >> 3) & 1 ? -1 : 1, (n >> 4) & 1 ? -1 : 1);
       finish.u.uSeed.value = (n % 1000) / 37;
