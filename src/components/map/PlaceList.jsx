@@ -1,8 +1,10 @@
 "use client";
-// /lab/map 왼쪽 "01 — Places": 종류(세리프 + 슬래시, Brick 의 Albums / Upload 와 같은 문법) · 동네 칩 · 목록
-// 목록에 올리면 지도 마커가 떠오르고, 누르면 고름
-import { KINDS, kindOf, kindsOf, hasKind } from "@/lib/places";
-import { SERIF, Reveal } from "@/components/lab/LabUI";
+// /lab/map 의 장소 목록 = "트랙리스트" (2026-11-22 다시 짬): 레코드 뒷면의 곡 목록처럼
+//  동네 = 판의 면 (Side A 홍대 · Side B 이태원 …, 장소가 많은 동네부터), 장소 = 곡 (A1 · A2 …)
+//  면 이름을 누르면 지도가 그 동네로 가고, 곡을 누르면 그 장소를 고름. 목록에 올리면 지도 마커가 떠오름
+//  종류 필터 · Open now 는 지도 오른쪽 위의 칩으로 옮김 (MapFilters)
+import { KINDS, AREA_ROMAN, kindOf, kindsOf } from "@/lib/places";
+import { SERIF } from "@/components/lab/LabUI";
 
 // 작은 판 — 지금 영업 중이면 돎 (지도 마커와 같은 문법)
 export function Disc({ color, spinning, className = "size-[18px]" }) {
@@ -15,69 +17,68 @@ export function Disc({ color, spinning, className = "size-[18px]" }) {
   );
 }
 
-const FADE = "[mask-image:linear-gradient(to_bottom,#000_calc(100%-28px),transparent)]";
+const CHIP = "inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border border-(--ink)/25 bg-(--cream) px-3.5 text-[12px] text-(--ink)/80 shadow-[0_6px_14px_-10px_rgba(0,0,0,.5)] transition-colors hover:border-(--ink) aria-pressed:border-(--ink) aria-pressed:bg-(--ink) aria-pressed:text-(--cream)";
 
-export default function PlaceList({ places, all, kind, setKind, area, setArea, areas, selected, open = {}, openOnly, setOpenOnly, openCount = 0, onPick, onHover, loading }) {
-  const tabs = [{ key: "all", label: "All" }, ...KINDS];
+/** 종류 칩(색 점 = 마커의 라벨 색 → 범례를 겸함) + Open now. 장소가 없는 종류는 숨김 */
+export function MapFilters({ kind, setKind, counts, total, openOnly, setOpenOnly, openCount, className = "" }) {
+  const tabs = [{ key: "all", label: "All", n: total }, ...KINDS.map((k) => ({ ...k, n: counts[k.key] ?? 0 })).filter((k) => k.n > 0)];
   return (
-    <>
-      <Reveal i={1} role="tablist" aria-label="Kind" className="flex flex-wrap items-baseline gap-y-1">
-        {tabs.map((t, i) => {
-          const n = t.key === "all" ? all.length : all.filter((p) => hasKind(p, t.key)).length;
-          return (
-            <span key={t.key} className="flex items-baseline">
-              <button type="button" role="tab" aria-selected={kind === t.key} onClick={() => setKind(t.key)}
-                className={`${SERIF} min-h-8 border-b-[3px] border-transparent text-[1.25rem] leading-none text-(--ink)/60 transition-colors hover:text-(--ink)/85 aria-selected:border-(--accent) aria-selected:text-(--ink)`}>
-                {t.label}<sup className="ml-0.5 text-[10px] font-normal tracking-normal text-(--ink)/45">{n}</sup>
-              </button>
-              {i < tabs.length - 1 && <span aria-hidden="true" className="mx-2 text-[1rem] text-(--ink)/20">/</span>}
-            </span>
-          );
-        })}
-      </Reveal>
-
-      {/* 지금 영업 중인 곳만 — 판이 도는 칩 */}
-      <Reveal i={2} className="mt-3">
-        <button type="button" aria-pressed={openOnly} onClick={() => setOpenOnly(!openOnly)}
-          className="inline-flex items-center gap-2 rounded-full border border-(--ink)/25 py-1 pl-1.5 pr-3 text-[12px] text-(--ink)/75 transition-colors hover:border-(--ink) aria-pressed:border-(--accent) aria-pressed:bg-(--accent) aria-pressed:text-(--cream)">
-          <Disc color="#f4e7cd" spinning={openOnly || openCount > 0} className="size-[18px]" />
-          Open now <span className="tabular-nums opacity-70">{openCount}</span>
+    <div role="group" aria-label="Filter places" className={`flex gap-1.5 ${className}`}>
+      {tabs.map((t) => (
+        <button key={t.key} type="button" aria-pressed={kind === t.key} onClick={() => setKind(t.key)} className={CHIP}>
+          {t.color && <span aria-hidden="true" className="size-2 rounded-full ring-1 ring-black/20" style={{ background: t.color }} />}
+          {t.label}<span className="tabular-nums opacity-60">{t.n}</span>
         </button>
-      </Reveal>
-      {areas.length > 1 && (
-        <Reveal i={2} className="mt-2 flex flex-wrap gap-1.5">
-          {["all", ...areas].map((a) => (
-            <button key={a} type="button" aria-pressed={area === a} onClick={() => setArea(a)}
-              className="rounded-full border border-(--ink)/25 px-3 py-1 text-[12px] text-(--ink)/70 transition-colors hover:border-(--ink) aria-pressed:border-(--ink) aria-pressed:bg-(--ink) aria-pressed:text-(--cream)">
-              {a === "all" ? "모든 동네" : a}
-            </button>
-          ))}
-        </Reveal>
-      )}
+      ))}
+      <button type="button" aria-pressed={openOnly} onClick={() => setOpenOnly(!openOnly)} className={`${CHIP} pl-2`}>
+        <Disc color="#f4e7cd" spinning={openOnly || openCount > 0} className="size-[18px]" />
+        Open now<span className="tabular-nums opacity-60">{openCount}</span>
+      </button>
+    </div>
+  );
+}
 
-      <Reveal as="ul" i={3} data-lenis-prevent data-crate-ignore onPointerLeave={() => onHover(null)}
-        className={`${FADE} mt-3 max-h-[min(52svh,560px)] overflow-y-auto overscroll-contain pb-6 max-lg:max-h-[42svh]`}>
-        {loading && Array.from({ length: 6 }, (_, i) => <li key={i} className="my-2 h-11 animate-pulse bg-(--ink)/8" />)}
-        {!loading && places.length === 0 && (
-          <li className="py-6 break-keep text-[13px] leading-6 text-(--ink)/55">{!all.length ? "아직 지도에 올라온 장소가 없어요." : openOnly ? "지금 문을 연 곳이 없어요. Open now 를 끄면 모든 장소가 보여요." : "이 조건에 맞는 장소가 없어요."}</li>
-        )}
-        {places.map((p) => {
-          const k = kindOf(p.kind);
-          return (
-            <li key={p.slug} className="border-b border-dashed border-(--ink)/25">
-              <button type="button" onClick={() => onPick(p.slug)} onPointerEnter={() => onHover(p.slug)} onFocus={() => onHover(p.slug)} onBlur={() => onHover(null)}
-                aria-pressed={selected === p.slug}
-                className="grid w-full grid-cols-[18px_1fr] items-center gap-3 border-l-[3px] border-transparent py-2.5 pl-2.5 text-left transition-colors hover:border-(--accent) aria-pressed:border-(--accent)">
-                <Disc color={k.color} spinning={open[p.slug]?.state === "open"} />
-                <span className="min-w-0">
-                  <span className="block truncate text-[14px] leading-tight">{p.name}</span>
-                  <span className="block truncate text-[11px] text-(--ink)/50">{[kindsOf(p).map((x) => kindOf(x).ko).join(" + "), p.area].filter(Boolean).join(" · ")}</span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </Reveal>
-    </>
+/**
+ * sides: [{ area, letter, list: [장소] }] — 지금 조건에 맞는 장소만 (빈 면은 빠져 있음)
+ * codes: slug → "A1" (조건이 바뀌어도 같은 번호) · focus: 지금 지도가 보고 있는 동네 · onFocus(area)
+ */
+export default function PlaceList({ sides, codes, focus, onFocus, selected, open = {}, onPick, onHover, loading, emptyText }) {
+  if (loading) return <ul>{Array.from({ length: 5 }, (_, i) => <li key={i} className="my-2 h-10 animate-pulse bg-(--ink)/8" />)}</ul>;
+  if (!sides.length) return <p className="break-keep py-5 text-[13px] leading-6 text-(--ink)/60">{emptyText}</p>;
+  return (
+    <ul onPointerLeave={() => onHover(null)} className="grid gap-4">
+      {sides.map((side) => (
+        <li key={side.area}>
+          {/* 면 이름: 누르면 지도가 그 동네로 */}
+          <button type="button" onClick={() => onFocus(side.area)} aria-pressed={focus === side.area}
+            className="group/side flex w-full items-baseline gap-2.5 border-b border-(--ink)/40 pb-1.5 text-left">
+            <span className="text-[10px] font-medium uppercase tracking-[0.26em] text-(--accent)">Side {side.letter}</span>
+            <span className={`${SERIF} text-[1.2rem] leading-none transition-colors group-hover/side:text-(--accent) group-aria-pressed/side:text-(--accent)`}>{side.area}</span>
+            {AREA_ROMAN[side.area] && <span className="text-[11px] tracking-[0.08em] text-(--ink)/50">{AREA_ROMAN[side.area]}</span>}
+            <span aria-hidden="true" className="ml-auto text-[12px] text-(--ink)/40 transition-[translate,color] group-hover/side:translate-x-0.5 group-hover/side:text-(--accent)">→</span>
+          </button>
+          <ul>
+            {side.list.map((p) => {
+              const st = open[p.slug]?.state;
+              return (
+                <li key={p.slug} className="border-b border-dashed border-(--ink)/20">
+                  <button type="button" onClick={() => onPick(p.slug)} onPointerEnter={() => onHover(p.slug)} onFocus={() => onHover(p.slug)} onBlur={() => onHover(null)}
+                    aria-pressed={selected === p.slug}
+                    className="group/row grid w-full grid-cols-[2rem_18px_minmax(0,1fr)_auto] items-center gap-2.5 py-2.5 text-left transition-colors aria-pressed:bg-(--ink)/6">
+                    <span className="text-[11px] font-medium tabular-nums tracking-[0.1em] text-(--ink)/55 group-aria-pressed/row:text-(--accent)">{codes[p.slug]}</span>
+                    <Disc color={kindOf(p.kind).color} spinning={st === "open"} />
+                    <span className="min-w-0 transition-transform duration-300 group-hover/row:translate-x-1 motion-reduce:transition-none">
+                      <span className="block truncate text-[14.5px] leading-tight">{p.name}</span>
+                      <span className="block truncate text-[11px] text-(--ink)/55">{kindsOf(p).map((x) => kindOf(x).ko).join(" + ")}</span>
+                    </span>
+                    {st === "open" && <span className="pr-1 text-[10px] font-medium uppercase tracking-[0.16em] text-(--accent)">Open</span>}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </li>
+      ))}
+    </ul>
   );
 }

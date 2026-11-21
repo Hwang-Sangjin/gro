@@ -25,10 +25,10 @@ export const PALETTES = {
     land: "#4c404a",
     landuse: "#50434e",
     park: "#4a4d45",
-    water: "#36414f",
+    water: "#2b394b",     // (2026-11-22) 땅과 밝기가 비슷해 한강이 묻혔음 → 더 어둡고 푸르게
     building: "#574955",
-    road: "#64585f",      // 분홍기를 뺀 회갈색
-    roadCase: "#3b3139",
+    road: "#72666c",      // 분홍기를 뺀 회갈색 (2026-11-22 조금 밝게 — 큰길이 보이게)
+    roadCase: "#352b33",
     rail: "#776a72",
     label: "#f4e7cd",
   },
@@ -40,7 +40,7 @@ const LABELS = ["label-city", "label-district", "label-place-minor", "label-road
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const mixHex = (a, b, t) => "#" + hexRgb(a).map((v, i) => Math.round(v + (hexRgb(b)[i] - v) * t).toString(16).padStart(2, "0")).join("");
 export function nightPalette(p, theme) {
-  const to = theme === "dark" ? "#1b151b" : "#4c404a", t = theme === "dark" ? 0.22 : 0.16;
+  const to = theme === "dark" ? "#1b151b" : "#4c404a", t = theme === "dark" ? 0.12 : 0.16;   // 어두운 테마는 이미 어두워서 조금만 (0.22 는 물 · 길 · 땅이 한 덩어리로 보였음)
   return Object.fromEntries(Object.entries(p).map(([k, v]) => [k, k === "label" ? v : mixHex(v, to, t)]));
 }
 export const isNight = (now = new Date()) => {

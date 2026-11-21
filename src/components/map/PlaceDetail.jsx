@@ -1,11 +1,12 @@
 "use client";
-// /lab/map 오른쪽 "02 — Detail"
-// - 아무것도 안 골랐을 때: Now on (지금 열린·곧 열리는 페어·팝업) + 범례(종류별 개수)
-// - 장소를 골랐을 때: 장소 카드 (영업시간은 요일별로, 오늘 줄 강조)
+// /lab/map 의 장소 카드 (지도 오른쪽 위에 뜸 · 휴대폰은 아래에서 올라오는 시트)
+// - 장소를 골랐을 때: PlaceDetail (영업시간은 요일별로, 오늘 줄 강조)
+// - 아무것도 안 골랐을 때: NowOn — 지금 열린 · 곧 열리는 페어 · 팝업이 있을 때만 (없으면 카드 없음)
+//   (2026-11-22 범례 칸을 뺌: 종류별 색 · 개수는 지도 위 필터 칩이 겸함)
 import Link from "next/link";
 import { GENRES } from "@/lib/genres";
 import { STORIES } from "@/content/news";
-import { KINDS, kindOf, kindsOf, hasKind, parseHours, isOnNow, naverSearch } from "@/lib/places";
+import { kindOf, kindsOf, hasKind, parseHours, isOnNow, naverSearch } from "@/lib/places";
 import { SERIF, Reveal } from "@/components/lab/LabUI";
 import StoryCover from "@/content/news/Covers";
 import { Disc } from "./PlaceList";
@@ -16,8 +17,9 @@ const KEY = "text-[11px] font-medium uppercase tracking-[0.22em] text-(--ink)/50
 const pillBase = "inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-4 transition-colors";
 const pill = `${pillBase} text-[11px] font-medium uppercase tracking-[0.16em]`;
 
-export default function PlaceDetail({ place, places, counts, open = {}, onPick, onClose }) {
-  if (!place) return <NowOn places={places} counts={counts} open={open} onPick={onPick} />;
+// code: 트랙리스트의 번호 (A1 …)
+export default function PlaceDetail({ place, open = {}, onClose, code = null }) {
+  if (!place) return null;
   const k = kindOf(place.kind);
   const hours = parseHours(place.hours ?? "");
   const story = place.news_slug ? STORIES.find((s) => s.slug === place.news_slug) : null;
@@ -27,6 +29,7 @@ export default function PlaceDetail({ place, places, counts, open = {}, onPick, 
     <div key={place.slug} className="grid">
       <Reveal i={1} className="flex items-center justify-between gap-3">
         <span className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.22em]">
+          {code && <span className="tabular-nums text-(--accent)">{code}</span>}
           {kindsOf(place).map((x) => <span key={x} className="size-2.5 rounded-full" style={{ background: kindOf(x).color }} />)}
           {kindsOf(place).map((x) => kindOf(x).one).join(" · ")}{place.area ? ` · ${place.area}` : ""}
         </span>
@@ -108,46 +111,26 @@ export default function PlaceDetail({ place, places, counts, open = {}, onPick, 
   );
 }
 
-// 고르기 전: 지금·곧 열리는 행사 + 범례
-function NowOn({ places, counts, open, onPick }) {
-  const events = places.filter((p) => hasKind(p, "event") && (p.starts_on || p.ends_on)).sort((a, b) => (a.starts_on ?? "").localeCompare(b.starts_on ?? "")).slice(0, 3);
+// 고르기 전: 지금 · 곧 열리는 행사 (없으면 아무것도 그리지 않음)
+export const upcomingEvents = (places) => places.filter((p) => hasKind(p, "event") && (p.starts_on || p.ends_on)).sort((a, b) => (a.starts_on ?? "").localeCompare(b.starts_on ?? "")).slice(0, 3);
+export function NowOn({ events, onPick }) {
+  if (!events.length) return null;
   return (
-    <div className="grid">
-      <Reveal i={1}>
-        <p className={KEY}>Now on</p>
-        {events.length === 0 && <p className="mt-2 break-keep text-[13px] leading-6 text-(--ink)/60">지금 열린 페어·팝업은 없어요. 새 소식이 생기면 여기에 먼저 올라와요.</p>}
-        <ul className="mt-2">
-          {events.map((p) => (
-            <li key={p.slug}>
-              <button type="button" onClick={() => onPick(p.slug)} className="group grid w-full gap-1 border-b border-dashed border-(--ink)/25 py-3 text-left">
-                <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-(--accent)">
-                  {isOnNow(p) ? "Open now" : "Coming up"} · {fmt(p.starts_on)}–{fmt(p.ends_on)}
-                </span>
-                <span className={`${SERIF} text-[1.25rem] leading-tight group-hover:text-(--accent)`}>{p.name}</span>
-                {p.area && <span className="text-[12px] text-(--ink)/55">{p.area}</span>}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Reveal>
-      <Reveal i={2} className="mt-6">
-        <p className={KEY}>Legend</p>
-        <ul className="mt-2">
-          {KINDS.map((k) => (
-            <li key={k.key} className="flex items-center justify-between border-b border-dashed border-(--ink)/20 py-2 text-[13px]">
-              <span className="flex items-center gap-2.5">
-                <span className="grid size-5 place-items-center rounded-full bg-[#141113]"><span className="size-2 rounded-full" style={{ background: k.color }} /></span>
-                {k.ko}
+    <Reveal i={1}>
+      <p className={KEY}>Now on</p>
+      <ul className="mt-1">
+        {events.map((p) => (
+          <li key={p.slug}>
+            <button type="button" onClick={() => onPick(p.slug)} className="group grid w-full gap-1 border-b border-dashed border-(--ink)/25 py-3 text-left last:border-b-0 last:pb-0">
+              <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-(--accent)">
+                {isOnNow(p) ? "Open now" : "Coming up"} · {fmt(p.starts_on)}–{fmt(p.ends_on)}
               </span>
-              <span className={`${SERIF} text-[1.1rem] tabular-nums`}>{counts[k.key] ?? 0}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 flex items-center gap-2 text-[12px] text-(--ink)/65">
-          <Disc color="#f4e7cd" spinning className="size-4" /> 돌고 있는 판 = 지금 영업 중 <span className="tabular-nums text-(--ink)/45">({Object.values(open).filter((o) => o.state === "open").length}곳)</span>
-        </p>
-        <p className="mt-2 break-keep text-[12px] leading-5 text-(--ink)/55">지도의 판을 누르거나 왼쪽 목록에서 고르면 여기에 자세한 정보가 떠요.</p>
-      </Reveal>
-    </div>
+              <span className={`${SERIF} text-[1.25rem] leading-tight group-hover:text-(--accent)`}>{p.name}</span>
+              {p.area && <span className="text-[12px] text-(--ink)/55">{p.area}</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Reveal>
   );
 }
