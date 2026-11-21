@@ -27,6 +27,7 @@ export const SLEEVE_HERO = {
   buildSpeed: 1.2,           // 방이 지어지는 빠르기 (Blender 클립 시간의 몇 배속 — 순서 · 간격의 비율은 그대로)   // 사라지며 물러나는 거리 · 내려가는 거리 (m)
   fade: [1.6, 3.2],          // 가운데에서 이만큼(장) 떨어진 재킷부터 옅어져 → 안 보임
   //  land: 열린 뒤 판이 턴테이블까지 내려가는 구간에서 휠 한 칸에 곱하는 값 (작을수록 천천히 · 많이 굴려야 함)
+  swipeOpen: 48,             // 터치: 위로 이만큼(px) 밀면 가운데 재킷을 엶
   wheel: { step: 36, cooldown: 300, idle: 160, land: 0.3 },   // 휠로 넘기기: 한 장 넘기는 양(px) · 넘긴 뒤 쉬는 시간(ms) · 입력이 끊겼다고 보는 간격(ms)
   // 판이 턴테이블로 가는 길 (2026-11-16 사용자 요청): 재킷 옆에서 곧장 비스듬히 가지 않고, 먼저 화면 가운데(턴테이블 바로 위)로 온 뒤 위에서 아래로 내려앉음
   center: [0.03, 0.18],      // 판이 화면 가운데로 오는 진행도 [시작, 길이]
@@ -254,6 +255,27 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
   stage.addEventListener("wheel", onWheel, { passive: false });
   const touchWas = stage.style.touchAction;
   stage.style.touchAction = "pan-y";     // 가로로 끌면 줄 넘기기(브라우저가 가로채지 않게), 세로는 페이지 스크롤
+  // 터치 (열지 않은 Hero 에서만): 위로 밀면(= 아래로 스크롤하려는 손짓) 가운데 재킷을 엶
+  //  열기 전에는 페이지 스크롤이 잠겨 있어서, 휴대폰에서 밀어도 아무 일도 안 일어났음 → 밀면 판이 나오고, 한 번 더 밀면 방으로 내려감
+  //  (세로 밀기는 브라우저가 가져가 pointer 이벤트가 끊기므로 touch 이벤트로 봄)
+  const swipe = { id: null, x: 0, y: 0 };
+  const onTouchStart = (e) => {
+    const t = e.changedTouches[0];
+    if (e.touches.length !== 1 || !hero() || s.clickOpen || introBusy() || isControl(e)) { swipe.id = null; return; }
+    swipe.id = t.identifier; swipe.x = t.clientX; swipe.y = t.clientY;
+  };
+  const onTouchMove = (e) => {
+    if (swipe.id == null) return;
+    const t = [...e.changedTouches].find((c) => c.identifier === swipe.id);
+    if (!t) return;
+    const dx = t.clientX - swipe.x, up = swipe.y - t.clientY;
+    if (Math.abs(dx) > S.browse.dragStart && Math.abs(dx) > up) { swipe.id = null; return; }     // 가로 끌기 = 넘기기
+    if (up > SLEEVE_HERO.swipeOpen && up > Math.abs(dx) * 1.5) { swipe.id = null; if (hero() && !s.clickOpen && items.length) setOpen(true); }
+  };
+  const onTouchEnd = () => { swipe.id = null; };
+  stage.addEventListener("touchstart", onTouchStart, { passive: true });
+  stage.addEventListener("touchmove", onTouchMove, { passive: true });
+  for (const t of ["touchend", "touchcancel"]) stage.addEventListener(t, onTouchEnd, { passive: true });
   // 키보드 (Hero 에서만 · 글자 입력 중이 아닐 때): ← → 넘기기 · Enter 열고 닫기 · Esc 닫기
   const onKey = (e) => {
     if (!hero() || introBusy() || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -516,6 +538,9 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
       stage.style.cursor = ""; stage.removeAttribute("data-home-stage");
       stage.style.touchAction = touchWas;
       stage.removeEventListener("wheel", onWheel);
+      stage.removeEventListener("touchstart", onTouchStart);
+      stage.removeEventListener("touchmove", onTouchMove);
+      for (const t of ["touchend", "touchcancel"]) stage.removeEventListener(t, onTouchEnd);
       stage.removeEventListener("pointerdown", onDown);
       stage.removeEventListener("pointermove", onMove);
       for (const t of ["pointerup", "pointercancel"]) stage.removeEventListener(t, onUp);

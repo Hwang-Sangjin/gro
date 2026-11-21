@@ -2478,10 +2478,11 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
             <p className="truncate text-[11px] font-medium uppercase tracking-[0.3em] opacity-70">{albums[sleeveAt]?.artist || " "}</p>
             <p className="mt-1 truncate font-['Grooves_Display','Hahmlet',Georgia,serif] text-[clamp(1.4rem,2.6vw,2.4rem)] leading-tight">{albums[sleeveAt]?.title || " "}</p>
             <button type="button" onClick={() => apiRef.current?.sleeve?.setOpen(!sleeveOpen)}
-              className="pointer-events-auto mt-3 rounded-full border border-current/30 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] transition-opacity hover:opacity-70">
-              {sleeveOpen ? "Close" : "Open"}
+              className={`pointer-events-auto mt-3 min-h-11 rounded-full border px-6 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] transition-[opacity,background-color,color,border-color] duration-300 hover:opacity-80 ${sleeveOpen ? "border-current/30" : "border-(--ink) bg-(--ink) text-(--cream)"}`}>
+              {/* 닫혀 있을 때는 채운 버튼: 여기를 눌러야 방으로 내려갈 수 있다는 걸 첫 화면에서 알 수 있게 */}
+              {sleeveOpen ? "Close" : "Open the record"}
             </button>
-            <p className="mt-2 text-[11px] tracking-[0.06em] opacity-60">{sleeveOpen ? "Click the record or scroll to play it" : "Scroll or drag to browse · click a sleeve to open"}</p>
+            <p className="mt-2 text-[11px] tracking-[0.06em] opacity-60">{sleeveOpen ? "Click the record or scroll to play it" : "Scroll or drag to browse · open a record to step into the room"}</p>
           </div>
         </div>
       )}
