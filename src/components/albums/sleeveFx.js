@@ -3,13 +3,14 @@ import * as THREE from 'three';
 /* 3D 재킷의 디테일 — Crate(crateEngine) 가 씀. 엔진에 빛 계산이 없어서(MeshBasic) 여기서 셰이더로 그림
    ① 떼어지는 스티커 (NEW IN): 그리드 카드의 CSS 스티커(Digging.module.css .sticker)와 같은 물건을 3D 로
       참고: fablegrounds.com/labs/sticker-peel — 접힌 선을 넘어간 꼭짓점을 원통에 감아 올림(말림), 뒷면은 종이 색
-      스티커를 잡고 끌면 떼어짐 (crateEngine): 잡은 가장자리와 손가락 사이의 수직이등분선이 접힌 선 → uDir(떼어지는 방향) · uPeel(접힌 선의 자리)
+      평소에는 완전히 붙어 있고, 스티커를 잡고 끌면 떼어짐 (crateEngine): 잡은 가장자리와 손가락 사이의 수직이등분선이 접힌 선 → uDir(떼어지는 방향) · uPeel(접힌 선의 자리)
    ② 재킷 마감 (finish): 앞면 위에 덧대는 투명한 판 — 종이 모서리의 밝고 어두운 선 · 가장자리 그늘, 그리고
       비닐 포장 (uWrap, 2026-11-22): 주름 지도(wrapMap — 판마다 다른 구김)의 표면에 빛을 비춤 → 창이 비친 빛 띠가 주름에서 꺾이고, 비탈마다 밝고 어두움 · 필름의 결 · 가장자리를 감싼 선 · 옅은 흰 막
    둘 다 안개(scene.fog) · 투명도 · 밝기(uShade)를 재킷과 같이 받음 */
 
-// 평소 들림 · 재킷에 마우스를 올렸을 때 · 스티커에 올렸을 때 (지름 대비) · 말리는 반지름 · 떼어지는 방향(도, 오른쪽 위) · 이만큼 넘게 떼고 놓으면 떨어짐
-export const PEEL = { rest: 0.09, hover: 0.15, grab: 0.26, radius: 0.075, dir: 38, off: 0.6 };
+// 평소에는 완전히 붙어 있음(rest 0) — 직접 잡고 끌 때만 떼어짐 (2026-11-22 평소에도 가장자리가 들려 있고 마우스를 올리면 더 들리던 것을 뺌. 사용자: 떼기 전까지는 잘 붙어 있게)
+//  말리는 반지름 · 가운데를 잡았을 때 들리는 쪽(도, 오른쪽 위) · 이만큼 넘게 떼고 놓으면 떨어짐 (지름 대비)
+export const PEEL = { rest: 0, radius: 0.075, dir: 38, off: 0.6 };
 export const STICKER = { size: 0.2, at: 0.35, tilt: 0.21 };                 // 재킷 한 변 대비 지름 · 가운데에서의 거리(오른쪽 위) · 기울기(rad)
 const NEW_MS = 45 * 864e5;   // 들어온 지 45일 안 = NEW IN (lib/albums.js NEW_DAYS 와 같은 기준)
 export const isNewIn = (createdAt) => !!createdAt && Date.now() - new Date(createdAt).getTime() < NEW_MS;
@@ -143,13 +144,12 @@ const FINISH_FRAG = /* glsl */ `
 /* 비닐의 주름 지도 한 장 (seed 마다 다름) — 높이를 그린 뒤 기울기로 바꿔 담음 (rg = 기울기, b = 높이)
    실제 수축 비닐을 보고 넣은 것들 (2026-11-22, 예전에는 모서리마다 같은 부챗살을 수식으로 그려서 네 모서리가 똑같아 보였음):
    - 필름 전체의 완만한 굴곡 (빛 띠가 곧지 않고 울게 됨)
-   - 모서리의 구김: 모서리마다 0~4 줄 — 시작하는 자리 · 방향 · 길이 · 굵기 · 휘는 정도가 제각각. 가끔 한 줄이 길게 뻗음
+   - 모서리의 구김: 모서리마다 0~5 줄 — 시작하는 자리 · 방향 · 길이 · 굵기 · 휘는 정도가 제각각. 가끔 한 줄이 조금 길게 (한 변의 3분의 1 까지)
    - 변에서 안으로 당겨진 짧은 선 몇 줄, 한쪽 변에 몰린 잔주름 한두 무더기
-   - 면을 가로지르는 넓고 완만한 주름 1~3 줄
-   - 세 장에 한 장꼴로 한쪽 변 가까이의 이음선
+   - 면 안쪽의 넓고 완만한 주름 1~3 줄 (짧게 — 길면 커버를 가로지르는 줄로 보임)
    세기는 "기울기" 단위: amp 1 = 가장 가파른 곳의 기울기 1 (셰이더가 이 값으로 빛을 밀고 · 비탈을 밝히고 어둡게 함) */
 const WRAP_MAPS = 3, WRAP_SIZE = 512;
-function wrapMap(seed, seam = false, N = WRAP_SIZE) {
+function wrapMap(seed, N = WRAP_SIZE) {
   let a = seed >>> 0;
   const rnd = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const pm = () => rnd() * 2 - 1;
@@ -174,7 +174,7 @@ function wrapMap(seed, seam = false, N = WRAP_SIZE) {
       const px = (x + 0.5) / N - sx, py = (y + 0.5) / N - sy, t = (px * dx + py * dy) / len;
       if (t < -0.06 || t > 1.02) continue;
       const tc = Math.min(1, Math.max(0, t));
-      const env = taper === 'none' ? 1 : taper === 'mid' ? Math.sin(Math.PI * tc) ** 0.9 : (1 - tc) ** 1.5 * Math.min(1, (t + 0.06) / 0.06);
+      const env = taper === 'none' ? 1 : taper === 'mid' ? Math.sin(Math.PI * tc) ** 2 : (1 - tc) ** 1.5 * Math.min(1, (t + 0.06) / 0.06);
       const wt = taper === 'start' ? w * (0.55 + 1.1 * tc) : w;                // 당겨진 주름은 풀리면서 넓어짐
       const d = (px * nx + py * ny - bend * len * tc * tc) / wt;
       if (d > 4 || d < -4) continue;
@@ -186,9 +186,10 @@ function wrapMap(seed, seam = false, N = WRAP_SIZE) {
     const ix = cx ? -1 : 1, iy = cy ? -1 : 1, diag = Math.atan2(iy, ix), r = rnd();
     const count = r < 0.08 ? 0 : r < 0.28 ? 1 : r < 0.56 ? 2 : r < 0.8 ? 3 : r < 0.93 ? 4 : 5;
     for (let k = 0; k < count; k++) {
-      const off = rnd() * rnd() * 0.13, onX = rnd() < 0.5, long = rnd() < 0.22;
+      const off = rnd() * rnd() * 0.13, onX = rnd() < 0.5, long = rnd() < 0.12;
       const x = cx + (onX ? ix * off : ix * 0.004), y = cy + (onX ? iy * 0.004 : iy * off), ang = diag + pm() * 0.68;
-      const len = long ? 0.28 + rnd() * 0.42 : 0.06 + rnd() * rnd() * 0.26, w = (0.0045 + rnd() * 0.008) * (long ? 1.5 : 1);
+      //  (2026-11-22 긴 주름은 한 변의 3분의 1 까지만: 예전에는 0.7 까지 뻗어 모서리에서 커버를 가로지르는 긴 줄이 생겼음)
+      const len = long ? 0.2 + rnd() * 0.13 : 0.06 + rnd() * rnd() * 0.2, w = (0.0045 + rnd() * 0.008) * (long ? 1.25 : 1);
       const amp = (0.5 + rnd() * 0.5) * (rnd() < 0.22 ? -1 : 1), bend = pm() * 0.34;
       crease(x, y, ang, len, w, amp, bend);
       // 가끔 바로 옆에 나란한 짝 (비닐이 접혀 두 겹으로 잡힌 자국)
@@ -213,10 +214,9 @@ function wrapMap(seed, seam = false, N = WRAP_SIZE) {
     }
   }
   // 6) 면을 가로지르는 넓고 완만한 주름
-  for (let i = 2 + Math.floor(rnd() * 3); i > 0; i--)
-    crease(0.08 + rnd() * 0.5, 0.08 + rnd() * 0.84, pm() * 1.1, 0.35 + rnd() * 0.45, 0.012 + rnd() * 0.02, (0.24 + rnd() * 0.26) * (rnd() < 0.4 ? -1 : 1), pm() * 0.3, 'mid');
-  // 7) 이음선: 비닐을 붙인 자리 — 한쪽 변 가까이의 곧은 두 줄 (seam: 세 장에 한 장)
-  if (seam) { const u = 0.945 + rnd() * 0.02; crease(u, -0.02, Math.PI / 2, 1.04, 0.0026, 0.5, 0, 'none'); crease(u + 0.007, -0.02, Math.PI / 2, 1.04, 0.0022, -0.28, 0, 'none'); }
+  for (let i = 1 + Math.floor(rnd() * 3); i > 0; i--)
+    crease(0.1 + rnd() * 0.6, 0.1 + rnd() * 0.8, pm() * 1.1, 0.24 + rnd() * 0.2, 0.012 + rnd() * 0.02, (0.2 + rnd() * 0.22) * (rnd() < 0.4 ? -1 : 1), pm() * 0.3, 'mid');
+  // (이음선 — 한 변을 끝에서 끝까지 가로지르는 곧은 두 줄 — 은 2026-11-22 뺌: 긴 줄은 줄이기로)
   // 높이 → 기울기 (가운데 차분). 0~255 로 담음
   const out = new Uint8Array(N * N * 4);
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
@@ -251,7 +251,7 @@ export const WRAP = { maps: WRAP_MAPS, size: WRAP_SIZE };
 /** 주름 지도 i 번째(0 ~ WRAP.maps-1)를 노멀 그림(RGBA, 접선 공간)으로 — Home hero 의 재킷이 코팅 층의 요철로 씀 (sleeveParts.js)
  *  k = 기울기를 얼마나 살릴지 (1 = 가장 가파른 주름이 45°) */
 export function wrapNormalData(i, k = 0.6) {
-  const g = wrapMap(7 + i * 3, i === 1), n = g.length / 4, out = new Uint8Array(g.length);
+  const g = wrapMap(7 + i * 3), n = g.length / 4, out = new Uint8Array(g.length);
   for (let p = 0; p < n; p++) {
     const x = -(g[p * 4] / 127.5 - 1) * k, y = -(g[p * 4 + 1] / 127.5 - 1) * k, l = Math.hypot(x, y, 1);
     out[p * 4] = Math.round((x / l * 0.5 + 0.5) * 255); out[p * 4 + 1] = Math.round((y / l * 0.5 + 0.5) * 255); out[p * 4 + 2] = Math.round((1 / l * 0.5 + 0.5) * 255); out[p * 4 + 3] = 255;
@@ -271,7 +271,7 @@ export function createSleeveFx({ aniso = 1 } = {}) {
     t.needsUpdate = true;
     setTimeout(() => {
       if (!alive) return;
-      t.image = { data: wrapMap(7 + i * 3, i === 1), width: WRAP_SIZE, height: WRAP_SIZE };
+      t.image = { data: wrapMap(7 + i * 3), width: WRAP_SIZE, height: WRAP_SIZE };
       t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.anisotropy = aniso;
       t.needsUpdate = true;
     }, 60 + i * 90);

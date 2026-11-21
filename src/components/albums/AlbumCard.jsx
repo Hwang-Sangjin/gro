@@ -71,15 +71,7 @@ export default function AlbumCard({ album }) {
           <span className={styles.revealPanel} data-image-ready={loaded || failed || !src} style={{ backgroundColor: album.cover_color || "#bbcbda" }}>
           {src && !failed ? <img ref={imageRef} src={src} alt="" loading="lazy" decoding="async" /> : <span className={styles.placeholder} aria-hidden="true">G</span>}
           {/* 스티커: 새로 들어온 판 = NEW IN */}
-          {/* 가장자리가 살짝 들려 있다가, 카드에 마우스를 올리면 떼어지듯 말려 올라감 (뒷면이 보임). 틀(stickerPeel)을 돌려 둔 방향이 떼어지는 방향 */}
-          {sticker && (
-            <span aria-hidden="true" className={styles.sticker} data-kind={sticker.kind}>
-              <span className={styles.stickerPeel}>
-                <span className={styles.stickerFace}><span>{sticker.label}</span></span>
-                <span className={styles.stickerFlap} />
-              </span>
-            </span>
-          )}
+          {sticker && <span aria-hidden="true" className={styles.sticker} data-kind={sticker.kind}>{sticker.label}</span>}
           </span>
         </span>
       </span>

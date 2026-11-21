@@ -50,7 +50,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
   const geo = new THREE.BoxGeometry(1, 1, 0.022);
   // 재킷 디테일 (sleeveFx.js): 앞면의 광택 · 종이 모서리 + 새로 들어온 판의 떼어지는 스티커 (NEW IN)
   const fx = createSleeveFx({ aniso });
-  const PEEL_DIR = new THREE.Vector2(Math.cos((PEEL.dir * Math.PI) / 180), Math.sin((PEEL.dir * Math.PI) / 180));   // 평소에 들려 있는 쪽 (오른쪽 위)
+  const PEEL_DIR = new THREE.Vector2(Math.cos((PEEL.dir * Math.PI) / 180), Math.sin((PEEL.dir * Math.PI) / 180));   // 스티커 가운데를 잡았을 때 들리는 쪽 (오른쪽 위)
   const tone = new THREE.Color();
   const hashOf = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
   // 재킷의 입구(오른쪽 옆면): 판지 두 겹 사이의 어두운 틈과 그 안의 흰 속지 — 뒤에 비스듬히 선 판들은 이 면이 보임
@@ -266,7 +266,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     if (hit) {
       const r = Math.hypot(hit.x, hit.y);
       const G = r > 0.12 ? new THREE.Vector2(hit.x, hit.y).multiplyScalar(0.5 / r) : PEEL_DIR.clone().multiplyScalar(0.5);
-      peel = { slot: hit.slot, G, id: e.pointerId, moved: false, x: e.clientX, y: e.clientY, to: PEEL.grab, dir: G.clone().normalize() };
+      peel = { slot: hit.slot, G, id: e.pointerId, moved: false, x: e.clientX, y: e.clientY, to: PEEL.rest, dir: G.clone().normalize() };
       canvas.setPointerCapture?.(e.pointerId);
       return;
     }
@@ -406,21 +406,11 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     pos += (target - pos) * (1 - Math.exp(-dt / 0.14));
     if (Math.abs(target - pos) < 0.0005) pos = target;
     const front = wrap(Math.round(pos));
-    if (front !== shownFront && N()) {
-      shownFront = front; onFront?.(front, cards[front]);
-      // 새 판이 맨 앞에 오면 스티커 가장자리가 한 번 팔랑임 (터치 기기에서도 떼어지는 물건으로 보이게)
-      if (!anim) { const fs = frontSlot(); if (fs.fly === 0) fs.peel = Math.max(fs.peel, 0.22); }
-    }
+    if (front !== shownFront && N()) { shownFront = front; onFront?.(front, cards[front]); }
     // 마우스: 부드럽게 따라감 · 맨 앞 판 위에 있는지 (지난 프레임의 자리로 잼)
     const hk = 1 - Math.exp(-dt / 0.18);
     hover.x += ((hover.on ? hover.nx : 0) - hover.x) * hk; hover.y += ((hover.on ? hover.ny : 0) - hover.y) * hk;
-    // 스티커: 재킷에 올리면 조금, 스티커에 올리면 더 들림 (잡을 수 있다는 표시). 잡고 끌면 손가락을 따라 떼어짐
-    let over = null, lift = PEEL.hover;
-    if (hover.on && live() && !drag && !peel) {
-      const fs = frontSlot();
-      ndc.set(hover.nx, hover.ny); raycaster.setFromCamera(ndc, camera);
-      if (fs.mesh.visible && raycaster.intersectObject(fs.mesh, false).length) { over = fs; if (stickerAt(hover.cx, hover.cy)) lift = PEEL.grab; }
-    }
+    // 스티커: 평소에는 완전히 붙어 있음. 직접 잡고 끌 때만 손가락을 따라 떼어짐 (놓으면 도로 붙거나, 반 넘게 뗐으면 떨어짐)
     for (const s of slots) {
       if (s.fly > 0) {
         // 떨어져 나가는 중: 끝까지 말리며 날아가고, 다 가면 떼어 낸 것으로 기록
@@ -430,7 +420,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
         const f = 1 - Math.exp(-dt / 0.045);
         s.peel += (peel.to - s.peel) * f; s.dir.lerp(peel.dir, f).normalize();
       } else {
-        s.peel += ((s === over ? lift : PEEL.rest) - s.peel) * (1 - Math.exp(-dt / 0.16));
+        s.peel += (PEEL.rest - s.peel) * (1 - Math.exp(-dt / 0.16));
+        if (s.peel < 0.002) s.peel = PEEL.rest;
         s.dir.lerp(PEEL_DIR, 1 - Math.exp(-dt / 0.2)).normalize();
       }
     }
