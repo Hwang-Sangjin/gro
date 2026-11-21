@@ -29,11 +29,21 @@ export function ViewToggle({ view, onChange, className = "" }) {
 
 function readCards(root) {
   if (!root) return [];
-  return [...root.querySelectorAll("[data-album-card]")].map((a) => ({
+  const albums = [...root.querySelectorAll("[data-album-card]")].map((a) => ({
     slug: a.dataset.albumSlug, color: a.dataset.albumColor, image: a.dataset.albumImage || null,
     title: a.dataset.albumTitle || "", artist: a.dataset.albumArtist || "",
     art: a.querySelector("[data-album-source]"),
   })).filter((c) => c.slug && c.art);
+  // 장르 칸막이(Digging, [data-crate-divider]): 크레이트 맨 앞에도 꽂음 — 크래프트 판 + 위로 솟은 다이모 탭 (crateDivider.js)
+  const d = root.querySelector("[data-crate-divider]"), art = d?.querySelector("[data-divider-art]");
+  if (!d || !art || !albums.length) return albums;
+  const dot = d.querySelector("[data-divider-dot]");
+  return [{
+    divider: true, slug: "__divider", art, image: null,
+    head: d.dataset.head || "", count: d.dataset.count || "", tab: d.dataset.tab || "",
+    dot: dot ? getComputedStyle(dot).backgroundColor : "#bbcbda",
+    color: "#c9a679", title: d.dataset.head || "", artist: d.dataset.count || "",
+  }, ...albums];
 }
 
 /**
@@ -64,7 +74,11 @@ export default function CrateView({ gridRef, view, onViewChange, title }) {
     if (!hostRef.current) return null;
     engineRef.current = createCrateEngine({
       host: hostRef.current,
-      onFront: (i, c) => setFront({ i, n: cardsRef.current.length, title: c.title, artist: c.artist, color: c.color, slug: c.slug }),
+      // 번호 · 전체 수는 판만 셈 (칸막이는 빼고). 칸막이가 앞이면 번호 대신 판 수만
+      onFront: (i, c) => {
+        const lead = cardsRef.current[0]?.divider ? 1 : 0;
+        setFront({ i: i - lead, n: cardsRef.current.length - lead, divider: !!c.divider, title: c.title, artist: c.artist, color: c.color, slug: c.slug });
+      },
       onOpen: (i, rect) => openRef.current?.(i, rect),
       onSettled: (m) => {
         if (m === "grid") { setShown(false); lockPage(false); }
@@ -76,7 +90,7 @@ export default function CrateView({ gridRef, view, onViewChange, title }) {
 
   function openAlbum(i, rect) {
     const c = cardsRef.current[i];
-    if (!c) return;
+    if (!c || c.divider) return;   // 칸막이는 열 앨범이 없음
     try { sessionStorage.setItem(storeKey(), JSON.stringify({ view: "crate", slug: c.slug })); } catch {}
     const src = sourceRef.current;
     Object.assign(src.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
@@ -189,7 +203,7 @@ export default function CrateView({ gridRef, view, onViewChange, title }) {
               <p key={front.slug} className={`${SERIF} min-w-0 flex-1 truncate text-[clamp(1.9rem,5.6vw,6rem)] font-black uppercase leading-none tracking-[-0.02em] animate-[crate-title_.8s_cubic-bezier(.22,1,.36,1)_both]`}
                 style={{ color: `color-mix(in oklab, ${front.color || "var(--ink)"} 55%, var(--ink))` }}>{front.title}</p>
               <div className="shrink-0 text-right max-md:text-left">
-                <p className={`${SERIF} text-[clamp(1.6rem,3vw,2.75rem)] font-bold tabular-nums leading-none`}>{String(front.i + 1).padStart(3, "0")} / {String(front.n).padStart(3, "0")}</p>
+                <p className={`${SERIF} text-[clamp(1.6rem,3vw,2.75rem)] font-bold tabular-nums leading-none`}>{front.divider ? "—" : String(front.i + 1).padStart(3, "0")} / {String(front.n).padStart(3, "0")}</p>
                 <p className="mt-2 max-w-[22rem] truncate text-[12px] uppercase tracking-[0.24em] text-(--ink)/70">{front.artist}</p>
               </div>
             </div>

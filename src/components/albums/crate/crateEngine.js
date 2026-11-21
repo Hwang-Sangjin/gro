@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { drawDividerFace, drawDividerTab } from './crateDivider';
 
 /* Crate 보기 3D 엔진 (Digging · Collection 공용, DOM 그리드 위에 덮는 캔버스)
    - 크레이트: 맨 앞 판은 정면, 뒤의 판들은 오른쪽으로 비스듬히 줄지어 꽂힘. 스크롤·드래그·키로 끝없이 넘어감
@@ -37,13 +38,22 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
 
   let CARD = 3.2, W = 1, H = 1, narrow = false;
   const geo = new THREE.BoxGeometry(1, 1, 0.022);
+  // 장르 칸막이(card.divider)일 때만 보이는 탭: 판 위로 솟은 크래프트 조각 + 다이모 라벨 (판의 자식 → 같이 움직임)
+  const TAB = { w: 0.46, h: 0.12, x: -0.18 };
+  const KRAFT = new THREE.Color('#c9a679'), KRAFT_EDGE = new THREE.Color('#a9865a');
   const slots = Array.from({ length: SLOTS }, () => {
     const edge = new THREE.MeshBasicMaterial({ transparent: true });
     const front = new THREE.MeshBasicMaterial({ transparent: true });
     const back = new THREE.MeshBasicMaterial({ transparent: true, color: 0xd9ccb2 });
     const mesh = new THREE.Mesh(geo, [edge, edge, edge, edge, front, back]);
+    const tabFront = new THREE.MeshBasicMaterial({ transparent: true });
+    const tabEdge = new THREE.MeshBasicMaterial({ transparent: true, color: KRAFT_EDGE });
+    const tabBack = new THREE.MeshBasicMaterial({ transparent: true, color: KRAFT });
+    const tab = new THREE.Mesh(geo, [tabEdge, tabEdge, tabEdge, tabEdge, tabFront, tabBack]);
+    tab.scale.set(TAB.w, TAB.h, 1); tab.position.set(TAB.x, 0.5 + TAB.h / 2, 0); tab.visible = false;
+    mesh.add(tab);
     scene.add(mesh);
-    return { mesh, edge, front, back, card: null, edgeBase: new THREE.Color() };
+    return { mesh, edge, front, back, tab, tabFront, tabEdge, tabBack, card: null, edgeBase: new THREE.Color() };
   });
 
   /* ---- 커버 텍스처: 불러오는 동안은 대표 색 ---- */
@@ -71,6 +81,24 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     return t;
   }
 
+  // 칸막이 그림 (앞면 · 탭): 손글씨 글꼴이 늦게 오면 한 번 더 그림
+  function dividerTex(card) {
+    const key = `divider:${card.head}|${card.count}|${card.tab}|${card.dot}`;
+    let t = textures.get(key);
+    if (t) return t;
+    const make = () => ({ face: drawDividerFace(card), tab: drawDividerTab(card) });
+    const d = make();
+    const face = new THREE.CanvasTexture(d.face), tab = new THREE.CanvasTexture(d.tab);
+    for (const x of [face, tab]) { x.colorSpace = THREE.SRGBColorSpace; x.anisotropy = aniso; }
+    t = { face, tab, dispose() { face.dispose(); tab.dispose(); } };
+    textures.set(key, t);
+    document.fonts?.load?.('400 40px "Permanent Marker"').then(() => {
+      if (disposed) return;
+      const n = make(); face.image = n.face; tab.image = n.tab; face.needsUpdate = tab.needsUpdate = true;
+    }).catch(() => {});
+    return t;
+  }
+
   let cards = [];
   const N = () => cards.length;
   const wrap = (i) => (N() ? ((i % N()) + N()) % N() : 0);
@@ -79,8 +107,16 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     if (slot.card === card) return;
     slot.card = card;
     if (!card) return;
+    if (card.divider) {
+      const t = dividerTex(card);
+      slot.front.map = t.face; slot.tabFront.map = t.tab;
+      slot.front.needsUpdate = slot.tabFront.needsUpdate = true;
+      slot.edgeBase.copy(KRAFT_EDGE); slot.back.color.copy(KRAFT);
+      return;
+    }
     slot.front.map = texOf(card); slot.front.needsUpdate = true;
     slot.edgeBase.set(card.color || '#bbcbda').multiplyScalar(0.62);
+    slot.back.color.set(0xd9ccb2);
   }
 
   /* ---- 자세 ---- */
@@ -116,10 +152,12 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     m.position.set(p.x, p.y, p.z);
     m.rotation.set(p.rx, p.ry, p.rz);
     m.scale.set(CARD * p.s, CARD * p.s, CARD * p.s);
-    for (const mat of [slot.front, slot.back, slot.edge]) mat.opacity = p.o;
+    for (const mat of [slot.front, slot.back, slot.edge, slot.tabFront, slot.tabEdge, slot.tabBack]) mat.opacity = p.o;
     slot.front.color.setScalar(p.c);
+    slot.tabFront.color.setScalar(p.c);
     slot.edge.color.copy(slot.edgeBase).multiplyScalar(p.c);
     m.visible = p.o > 0.003 && !!slot.card;
+    slot.tab.visible = !!slot.card?.divider;
     m.renderOrder = Math.round(p.z * 100) + (fly ? 5000 : 0);
   }
 
@@ -323,7 +361,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
       host.removeEventListener('pointerup', onUp);
       window.removeEventListener('keydown', onKey);
       textures.forEach((t) => t.dispose()); geo.dispose();
-      slots.forEach((s) => { s.edge.dispose(); s.front.dispose(); s.back.dispose(); });
+      slots.forEach((s) => { s.edge.dispose(); s.front.dispose(); s.back.dispose(); s.tabEdge.dispose(); s.tabFront.dispose(); s.tabBack.dispose(); });
       renderer.dispose(); canvas.remove();
     },
   };

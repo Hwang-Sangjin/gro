@@ -516,41 +516,117 @@
   .nvDisc { opacity: 0; }
 }
 
-/* 장르 칸막이 (그리드 첫 칸, DiggingCatalog GenreDivider): 레코드 상자 칸막이 카드 — 위로 튀어나온 탭 + 장르 이름(Monoton) + 판 수
-   카드 아래 끝이 옆 커버의 아래 끝과 맞게 (탭 높이만큼 카드를 낮춤) */
+/* 장르 칸막이 (그리드 첫 칸, DiggingCatalog GenreDivider) — 레코드 가게 상자의 크래프트 판지 칸막이 (2026-11-21)
+   카드 아래 끝이 옆 커버의 아래 끝과 맞게 (탭 높이만큼 카드를 낮춤). 그림 파일 없이 CSS 로만
+   - 판지: 크래프트 갈색 + 종이 결 + 섬유 얼룩 · 손때 탄 가장자리(안쪽 그늘) · 닳아 밝아진 모서리
+   - 탭: 판지와 한 장(같은 색)으로 둥글게 오려 냄 · 다이모 라벨(검은 테이프에 눌려 튀어나온 흰 글자, 살짝 비뚤게)
+   - 판: 고무 도장 · 장르 색 동그라미 스티커 · 마커 손글씨
+   - 마우스를 올리면 상자에서 손가락으로 당긴 듯 앞으로 살짝 기울어짐 */
 .divider {
-  --tab: clamp(18px, 1.7vw, 26px);
+  --tab: clamp(22px, 2.2vw, 34px);
+  --kraft: #c9a679;
+  --kraft-dark: #a9865a;
+  --marker: #231c1a;
   position: relative;
   padding-top: var(--tab);
   container-type: inline-size;
-  color: #f8eedd;
+  transform-origin: 50% 100%;   /* 탭과 판이 한 장으로 기울게 칸막이 전체를 */
+  transition: transform .6s var(--ease-groove);
+}
+@media (hover: hover) and (pointer: fine) {
+  .divider:hover { transform: perspective(900px) rotateX(7deg) translateY(-1.5%); }
+}
+/* 판지 면 (탭 · 카드 공통) */
+.dividerTab,
+.dividerCard {
+  background-color: var(--kraft);
+  background-image:
+    /* 섬유 얼룩: 옅은 큰 얼룩 몇 개 */
+    radial-gradient(60% 40% at 25% 30%, rgb(255 240 210 / .18), transparent 70%),
+    radial-gradient(50% 45% at 80% 75%, rgb(90 60 30 / .12), transparent 70%),
+    /* 종이 결 */
+    var(--paper-texture-image);
+  background-size: 100% 100%, 100% 100%, 180px 180px;
+  background-blend-mode: normal, normal, soft-light;   /* multiply 는 크래프트를 절반쯤 어둡게 해 탁해 보였음 */
 }
 .dividerTab {
-  position: absolute; top: 0; left: 9%;
-  height: calc(var(--tab) + 6px);
-  padding: 0 1.1em;
-  display: grid; place-items: center start;
-  padding-bottom: 6px;
-  border-radius: 7px 7px 0 0;
-  background: var(--divider);
-  font: 700 clamp(8px, 0.62vw, 10px)/1 ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: .26em; text-transform: uppercase;
+  position: absolute; top: 0; left: 8%;
+  height: calc(var(--tab) + 8px);
+  min-width: 46%;
+  padding: 0 .8em 8px;
+  display: grid; place-items: center;
+  border-radius: 12px 12px 0 0;
+  box-shadow: inset 0 1px 0 rgb(255 245 225 / .35), inset 0 0 0 1px rgb(110 80 45 / .18);
+}
+/* 다이모 라벨: 검은 테이프 · 양 끝은 비스듬히 잘림 · 글자는 눌려 튀어나와 하얗게 (위는 밝고 아래 그늘) */
+.dymo {
+  display: inline-block;
+  max-width: 100%;
+  padding: .28em .75em .3em;
+  background: linear-gradient(to bottom, #2a2a2c, #111113 55%, #1b1b1d);
+  color: #f2f2ee;
+  font: 700 clamp(10px, 4.1cqi, 15px)/1 "Arial Narrow", "Roboto Condensed", "Helvetica Neue", system-ui, sans-serif;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 -1px 0 rgb(0 0 0 / .9), 0 1px 0 rgb(255 255 255 / .22);
+  clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%);
+  box-shadow: 0 1px 1.5px rgb(0 0 0 / .35);
+  rotate: -1.4deg;
 }
 .dividerCard {
   position: relative;
   display: flex; flex-direction: column; justify-content: space-between;
   aspect-ratio: 1 / 0.94;
-  padding: 8cqi 8cqi 7cqi;
-  border-radius: 3px 6px 6px 6px;
-  background: var(--divider);
-  box-shadow: 0 18px 30px -22px rgb(20 14 18 / .55), inset 0 0 0 1px rgb(255 255 255 / .08);
+  padding: 7cqi 8cqi 7cqi;
+  border-radius: 3px 8px 8px 8px;
   overflow: hidden;
+  /* 손때 탄 가장자리 · 닳은 모서리 · 상자 속에 꽂힌 그림자 */
+  box-shadow:
+    inset 0 0 0 1px rgb(110 80 45 / .22),
+    inset 0 0 18px rgb(90 60 30 / .28),
+    inset 0 -24px 30px -20px rgb(70 45 20 / .25),
+    0 18px 30px -22px rgb(20 14 18 / .55);
 }
-.dividerCard::after {   /* 종이 결 */
+.dividerCard::after {   /* 아래 두 모서리의 닳아서 밝아진 자국 */
   content: ""; position: absolute; inset: 0; pointer-events: none;
-  background-image: var(--paper-texture-image); background-size: 260px 260px; mix-blend-mode: soft-light; opacity: .7;
+  background:
+    radial-gradient(14% 10% at 0 100%, rgb(255 238 205 / .35), transparent 70%),
+    radial-gradient(14% 10% at 100% 100%, rgb(255 238 205 / .3), transparent 70%);
 }
-.dividerKicker { font: 600 clamp(8px, 3.4cqi, 12px)/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .26em; text-transform: uppercase; opacity: .75; }
-.dividerName { font-size: clamp(30px, 16cqi, 92px); line-height: .98; text-transform: uppercase; overflow-wrap: anywhere; }
-.dividerCount { font: 600 clamp(9px, 3.6cqi, 13px)/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .2em; text-transform: uppercase; opacity: .85; font-variant-numeric: tabular-nums; }
+/* 고무 도장: 붉은 갈색 잉크 · 테두리 · 살짝 기울고 군데군데 흐림 */
+.dividerStamp {
+  align-self: flex-start;
+  padding: .45em .7em;
+  border: 2px solid currentColor; border-radius: 3px;
+  color: rgb(132 42 32 / .78);
+  font: 800 clamp(8px, 3.3cqi, 12px)/1.25 "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  letter-spacing: .22em; text-transform: uppercase;
+  rotate: -4deg;
+  mix-blend-mode: multiply;
+  -webkit-mask-image: var(--paper-texture-image); mask-image: var(--paper-texture-image);
+  -webkit-mask-size: 120px 120px; mask-size: 120px 120px;
+}
+/* 장르 색 동그라미 스티커 (오른쪽 위) */
+.dividerDot {
+  position: absolute; top: 7cqi; right: 8cqi;
+  width: clamp(14px, 7cqi, 26px); aspect-ratio: 1; border-radius: 50%;
+  background: var(--divider);
+  box-shadow: 0 1px 2px rgb(0 0 0 / .3), inset 0 0 0 1.5px rgb(255 255 255 / .25);
+}
+/* 마커 손글씨: 장르 이름 · 판 수 */
+.dividerHand { display: flex; flex-direction: column; gap: .2em; color: var(--marker); }
+.dividerName {
+  font: 400 clamp(22px, 12cqi, 58px)/1 "Permanent Marker", "Comic Sans MS", cursive;
+  rotate: -3deg; transform-origin: left center;
+  overflow-wrap: anywhere;
+  opacity: .92;
+}
+.dividerCount {
+  font: 400 clamp(12px, 5.6cqi, 22px)/1 "Permanent Marker", "Comic Sans MS", cursive;
+  rotate: -2deg; transform-origin: left center;
+  opacity: .78;
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) { .divider { transition: none; } .divider:hover { transform: none; } }
 

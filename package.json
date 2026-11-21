@@ -28,6 +28,7 @@
     "@fontsource/hahmlet": "^5.3.0",
     "@fontsource-variable/hahmlet": "^5.3.0",
     "@fontsource/monoton": "5.3.0",
+    "@fontsource/permanent-marker": "5.3.0",
     "@fontsource/rubik": "^5.3.0"
   },
   "devDependencies": {

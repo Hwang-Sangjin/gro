@@ -7,7 +7,7 @@ import { getGenreIds } from "@/lib/genreIds";
 import { GENRES } from "@/lib/genres";
 import { cached } from "@/lib/dataCache";
 import GenreBar, { GENRE_ITEMS, lineOf } from "@/components/albums/GenreBar";
-import { MONOTON } from "@/lib/fonts";
+import "@fontsource/permanent-marker/400.css";   // 칸막이 마커 손글씨
 import RequestDialog from "@/components/requests/RequestDialog";
 import DiggingGrid from "./DiggingGrid";
 import useReveal from "./useReveal";
@@ -121,17 +121,29 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
   );
 }
 
-// 장르 칸막이: 그리드 첫 칸. 레코드 가게 상자의 칸막이 카드처럼 위가 튀어나온 탭 + 장르 이름(Monoton) + 판 수
-//  색 = 장르 색 (장르 바 밑줄과 같은 팔레트). 장르를 바꾸면 그리드와 함께 새로 그려짐 (2026-11-20 매대 디자인)
+// 장르 칸막이: 그리드 첫 칸 — 레코드 가게 상자의 크래프트 판지 칸막이 (2026-11-21 더 실물처럼)
+//  탭: 판지를 둥글게 오려 낸 탭에 다이모 라벨(검은 테이프 · 눌려 튀어나온 흰 글자)로 장르 이름
+//  판: 고무 도장(GROOVES · RECORD CRATE) · 장르 색 동그라미 스티커 · 마커 손글씨(장르 · 판 수)
+//  장르를 바꾸면 그리드와 함께 새로 그려짐
 function GenreDivider({ slug, count }) {
   const name = GENRE_ITEMS.find((g) => g.slug === slug)?.name ?? "All";
+  const head = slug ? name : "Shuffled for you", tab = slug ? name : "All records";
+  const countText = count != null ? `${count} record${count === 1 ? "" : "s"}` : "records";
+  // data-crate-divider: Crate 보기(CrateView)가 이 칸막이도 크레이트 맨 앞에 꽂음 (같은 글을 3D 판에 그림)
+  // data-crate-ignore: 칸막이를 잡고 끌어도 페이지 넘기기(CrateStage)가 일어나지 않게 — 끌어 볼 만한 물건처럼 보여서 Home 으로 넘어갔음
   return (
-    <div aria-hidden="true" className={styles.divider} style={{ "--divider": lineOf(slug) }}>
-      <span className={styles.dividerTab}>{slug ? "Genre" : "Crate"}</span>
-      <span className={styles.dividerCard}>
-        <span className={styles.dividerKicker}>{slug ? "Now digging" : "Shuffled for you"}</span>
-        <span className={`${MONOTON} ${styles.dividerName}`}>{name}</span>
-        <span className={styles.dividerCount}>{count != null ? `${count} record${count === 1 ? "" : "s"}` : "Records"}</span>
+    <div aria-hidden="true" className={styles.divider} style={{ "--divider": lineOf(slug) }}
+      data-crate-divider data-crate-ignore data-tab={tab} data-head={head} data-count={countText}>
+      <span className={styles.dividerTab}>
+        <span className={styles.dymo}>{tab}</span>
+      </span>
+      <span className={styles.dividerCard} data-divider-art>
+        <span className={styles.dividerStamp}>Grooves<br />Record crate</span>
+        <span className={styles.dividerDot} data-divider-dot />
+        <span className={styles.dividerHand}>
+          <span className={styles.dividerName}>{head}</span>
+          <span className={styles.dividerCount}>{countText}</span>
+        </span>
       </span>
     </div>
   );
