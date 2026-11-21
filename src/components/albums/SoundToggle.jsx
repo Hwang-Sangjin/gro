@@ -1,5 +1,5 @@
 "use client";
-// 소리 켜기 · 끄기 (Crate · Shelf 무대의 작은 글자 버튼) — 판을 넘기는 소리 · 꺼내는 소리
+// 소리 켜기 · 끄기 (Crate 무대의 작은 글자 버튼) — 판을 넘기는 소리
 //  처음에는 꺼져 있음. 켜는 순간(누르는 동작)에만 오디오가 만들어짐 (CrateProvider) · 페이지를 옮겨도 그대로
 import { useCrate } from "@/components/crate/CrateProvider";
 

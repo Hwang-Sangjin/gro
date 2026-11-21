@@ -1,5 +1,5 @@
-// 보기 전환(Grid ↔ List ↔ Shelf)에서 커버가 제자리로 날아가는 움직임
-//  Grid ↔ Crate 는 3D 상자가 따로 하고(crateEngine), 나머지 보기 사이는 여기서: 화면 위에 커버 그림의 "허깨비"를 띄워
+// 보기 전환(Grid ↔ List)에서 커버가 제자리로 날아가는 움직임
+//  Grid ↔ Crate 는 3D 상자가 따로 하고(crateEngine), 그 밖의 보기 사이는 여기서: 화면 위에 커버 그림의 "허깨비"를 띄워
 //  떠난 자리 → 새 자리로 옮긴 뒤 치움. 그동안 진짜 커버는 숨겨 둠 (부르는 쪽이 숨기고 · 다 내려앉으면 다시 보임)
 //  같은 판(slug)이 양쪽에 다 보일 때만 날아감 — 화면 밖의 판은 그냥 나타남
 
@@ -18,9 +18,8 @@ export function collectCovers(root) {
 }
 
 /**
- * from: Map(slug → { rect, image, color, thin? }) — 떠나는 자리. 부르면 바로 그 자리에 허깨비가 뜸 (새 화면이 준비될 때까지 그대로)
- * 돌려주는 것: to(target, opts) — target: Map(slug → { rect, thin? }) 로 날려 보내고, 다 내려앉으면 끝나는 Promise · cancel()
- *   thin: 책등처럼 얇은 자리 (Shelf) — 가는 동안 그림이 옅어지고 커버 색만 남음
+ * from: Map(slug → { rect, image, color }) — 떠나는 자리. 부르면 바로 그 자리에 허깨비가 뜸 (새 화면이 그려질 때까지 그대로)
+ * 돌려주는 것: to(target, opts) — target: Map(slug → { rect }) 로 날려 보내고, 다 내려앉으면 끝나는 Promise · cancel()
  */
 export function startFlight(from) {
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -35,11 +34,10 @@ export function startFlight(from) {
     if (s.image) {
       const img = document.createElement("img");
       img.src = s.image; img.alt = ""; img.decoding = "sync";
-      // 책등에서 떠나는 판(thin): 처음에는 커버 색만 — 펼쳐지면서 그림이 드러남
-      img.style.cssText = `display:block;width:100%;height:100%;object-fit:cover;opacity:${s.thin ? 0 : 1}`;
+      img.style.cssText = "display:block;width:100%;height:100%;object-fit:cover";
       g.append(img);
     }
-    layer.append(g); ghosts.set(slug, { g, r, thin: !!s.thin });
+    layer.append(g); ghosts.set(slug, { g, r });
   }
   document.body.append(layer);
   let done = false;
@@ -50,7 +48,7 @@ export function startFlight(from) {
     to(target, { duration = 720, stagger = 14, fadeRest = 220 } = {}) {
       if (done) return Promise.resolve();
       const jobs = []; let i = 0;
-      for (const [slug, { g, r, thin }] of ghosts) {
+      for (const [slug, { g, r }] of ghosts) {
         const t = target.get(slug);
         if (!t) {   // 새 화면에 없는(안 보이는) 판: 제자리에서 사라짐
           jobs.push(g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fadeRest, fill: "forwards" }).finished);
@@ -60,9 +58,6 @@ export function startFlight(from) {
         jobs.push(g.animate(
           [{ transform: "none" }, { transform: `translate(${q.left - r.left}px, ${q.top - r.top}px) scale(${q.width / r.width}, ${q.height / r.height})` }],
           { duration, delay, easing: EASE, fill: "forwards" }).finished);
-        const img = g.firstElementChild;
-        if (!img || !!t.thin === thin) continue;
-        img.animate(t.thin ? [{ opacity: 1 }, { opacity: 1, offset: 0.45 }, { opacity: 0 }] : [{ opacity: 0 }, { opacity: 1, offset: 0.55 }, { opacity: 1 }], { duration, delay, fill: "forwards" });
       }
       return Promise.all(jobs).catch(() => {}).then(cancel);
     },

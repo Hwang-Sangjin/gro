@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-/* 3D 재킷의 디테일 — Crate(crateEngine) · Shelf(shelfEngine) 공용. 두 엔진 다 빛 계산이 없어서(MeshBasic) 여기서 셰이더로 그림
+/* 3D 재킷의 디테일 — Crate(crateEngine) 가 씀. 엔진에 빛 계산이 없어서(MeshBasic) 여기서 셰이더로 그림
    ① 떼어지는 스티커 (NEW IN): 그리드 카드의 CSS 스티커(Digging.module.css .sticker)와 같은 물건을 3D 로
       참고: fablegrounds.com/labs/sticker-peel — 접힌 선을 넘어간 꼭짓점을 원통에 감아 올림(말림), 뒷면은 종이 색
    ② 재킷 마감 (finish): 앞면 위에 덧대는 투명한 판 — 미끄러지는 광택 띠 · 종이 모서리의 밝고 어두운 선 · 가장자리 그늘

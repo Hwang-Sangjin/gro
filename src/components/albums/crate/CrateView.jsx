@@ -24,13 +24,12 @@ const VIEW_ICON = {
   grid: <path d="M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z" />,
   crate: <path d="M2 5.5h12v8H2zM4.5 5.5v-3h7v3M6.5 2.5v3M9 2.5v3" />,
   list: <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />,
-  shelf: <path d="M3.5 2.5v10M6 2.5v10M8.5 2.5v10M11 4l1.6 8.5M1.5 13.5h13" />,
 };
 const storeKey = () => `grooves:crate:${location.pathname}`;
 // 정보 패널에 쓰는 판 상세 (그리드 카드에는 제목 · 아티스트 · 색만 있음)
 const DETAIL = "id, slug, release_year, format, rpm, description, youtube_playlist_id, album_genres(genres(name)), tracks(count)";
 
-/** Grid / Crate 스위치 (그리드 위·크레이트 위 같은 모양). views 로 보기를 더 넣을 수 있음 (Collection 의 Shelf) */
+/** Grid / Crate 스위치 (그리드 위·크레이트 위 같은 모양). views 로 보기를 더 넣을 수 있음 (List) */
 export function ViewToggle({ view, onChange, className = "", views = VIEWS }) {
   const at = Math.max(0, views.indexOf(view));
   return (
