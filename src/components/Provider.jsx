@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ReactLenis } from "lenis/react";
 import { usePathname } from "next/navigation";
 
@@ -11,6 +11,7 @@ import CrateStage from "./crate/CrateStage";
 import AlbumTransitionProvider from "./album/AlbumTransitionProvider";
 import SpinningFavicon from "./SpinningFavicon";
 import SiteCursor from "./SiteCursor";
+import { isHomeRoute } from "@/lib/homeReady";
 
 // 인트로가 끝날 때까지 Lenis와 네이티브 스크롤을 모두 잠근다.
 function ScrollLock({ lenisRef }) {
@@ -33,7 +34,7 @@ function ScrollLock({ lenisRef }) {
   return null;
 }
 
-// 배경 테스트 페이지(/lab/env-test)는 인트로 없이 바로 열리게: 인트로를 끝난 것으로만 표시
+// 인트로 없이 바로 열리는 페이지: 인트로를 끝난 것으로만 표시
 function SkipIntro() {
   const { finish } = useIntro();
   useEffect(() => { finish(); }, [finish]);
@@ -42,7 +43,11 @@ function SkipIntro() {
 
 export default function Providers({ children }) {
   const lenisRef = useRef(null);
-  const skipIntro = usePathname()?.startsWith("/lab/env-test");
+  // 인트로(바이닐 프리로더)는 3D 방을 준비해야 하는 Home 에서만. 다른 페이지로 바로 들어오면(검색 · 공유 링크) 건너뜀
+  //  — 글은 이미 HTML 에 있는데 인트로가 최소 3.5초 동안 덮고 있었음
+  //  처음 들어온 주소로 한 번만 정함: 사이트 안에서 Home 으로 옮겨 올 때 인트로가 뒤늦게 뜨지 않게
+  const pathname = usePathname();
+  const [skipIntro] = useState(() => !isHomeRoute(pathname ?? "/"));
 
   return (
     <IntroProvider>

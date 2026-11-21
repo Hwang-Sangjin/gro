@@ -11,7 +11,15 @@
 import * as THREE from "three";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 
-export const BAKE_URL = new URLSearchParams(location.search).get("quality") === "mobile" ? "/models/room/bake_mobile/" : "/models/room/bake/";
+// 구운 그림 묶음: 휴대폰(터치 기기 · 짧은 변 820px 이하)은 1K 묶음(bake_mobile, 약 2.6MB), 그 밖에는 원래 묶음(약 6.8MB)
+//  ?quality=mobile · ?quality=full 로 직접 고를 수 있음 (비교용)
+const wantMobileBake = () => {
+  const q = new URLSearchParams(location.search).get("quality");
+  if (q === "mobile") return true;
+  if (q === "full") return false;
+  return matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) <= 820;
+};
+export const BAKE_URL = wantMobileBake() ? "/models/room/bake_mobile/" : "/models/room/bake/";
 
 // 모든 구운 재질이 같이 쓰는 섞는 비율 (on, off, empty, empty_lit)
 const state = { value: new THREE.Vector4(1, 0, 0, 0) };
