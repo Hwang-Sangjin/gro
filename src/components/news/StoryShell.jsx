@@ -23,7 +23,7 @@ export default function StoryShell({ meta }) {
               </span>
               News
             </Link>
-            <span className="hidden opacity-70 sm:block">{categoryName(meta.category)} · {formatDate(meta.date)} · {meta.read} read</span>
+            <span className="hidden opacity-70 sm:block">{categoryName(meta.category)} · <time dateTime={meta.date}>{formatDate(meta.date)}</time> · {meta.read} read</span>
           </div>
         </div>
 

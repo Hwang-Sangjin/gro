@@ -51,9 +51,14 @@ function variantDefs(sh, v) {
   return defs;
 }
 
+// 셰이더 안에서만 쓰는 상태별 그림 목록 — 미리 올릴 때 찾을 수 있게 (RoomTest prewarm)
+//  열거되지 않는 속성으로 둠: 재질을 clone() 하면 three 가 userData 를 JSON 으로 복사하는데,
+//  그때 그림(압축 텍스처)까지 직렬화하려다 "Unable to serialize Texture" 경고가 재질마다 났음 (복제본에는 이 목록이 필요 없음)
+const setBakeTex = (m, v) => Object.defineProperty(m.userData, "bakeTex", { value: Object.values(v).map((e) => e.t), enumerable: false, configurable: true, writable: true });
+
 // 색까지 구운 그림: map 대신 상태별 그림을 섞음 (빛 계산 없음, 톤매핑 끔)
 function colorShader(m, v) {
-  m.userData.bakeTex = Object.values(v).map((e) => e.t);   // 셰이더 안에서만 쓰는 상태별 그림 — 미리 올릴 때 찾을 수 있게 (RoomTest prewarm)
+  setBakeTex(m, v);   // 셰이더 안에서만 쓰는 상태별 그림 — 미리 올릴 때 찾을 수 있게 (RoomTest prewarm)
   if (!VARIANTS.some((n) => v[n])) return;
   m.onBeforeCompile = (sh) => {
     sh.fragmentShader = variantDefs(sh, v) + sh.fragmentShader.replace("#include <map_fragment>", `${LM_WEIGHTS}
@@ -72,7 +77,7 @@ function colorShader(m, v) {
   m.customProgramCacheKey = () => "lmc" + VARIANTS.map((n) => (v[n] ? 1 : 0)).join("");
 }
 function variantShader(m, v) {
-  m.userData.bakeTex = Object.values(v).map((e) => e.t);
+  setBakeTex(m, v);
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uLmK = { value: new THREE.Vector4(v.on.k, v.off?.k ?? 0, v.empty?.k ?? 0, v.empty_lit?.k ?? 0) };
     sh.fragmentShader = "uniform vec4 uLmK;\n" + variantDefs(sh, v) + sh.fragmentShader.replace(

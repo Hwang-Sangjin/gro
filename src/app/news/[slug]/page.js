@@ -2,6 +2,7 @@
 import { notFound } from "next/navigation";
 import { STORIES, getStory } from "@/content/news";
 import StoryShell from "@/components/news/StoryShell";
+import { JsonLd, storyLd } from "@/lib/jsonLd";
 
 export function generateStaticParams() {
   return STORIES.map((s) => ({ slug: s.slug }));
@@ -21,5 +22,5 @@ export default async function StoryPage({ params }) {
   const { slug } = await params;
   const meta = getStory(slug);
   if (!meta) notFound();
-  return <StoryShell meta={meta} />;
+  return <><JsonLd data={storyLd(meta)} /><StoryShell meta={meta} /></>;
 }

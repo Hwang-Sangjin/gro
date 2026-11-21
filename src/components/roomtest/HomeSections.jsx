@@ -260,7 +260,7 @@ function News() {
                     {post.dek && <span lang="ko" className="mt-1.5 block max-w-[60ch] truncate text-[0.82rem] transition-opacity duration-700 max-md:hidden" style={{ opacity: arrived ? 0.55 : 0, ...at(d + 160) }}>{post.dek}</span>}
                   </span>
                   <span className={`${KICKER} hidden text-[10px] transition-opacity duration-700 md:block`} style={{ opacity: arrived ? 0.6 : 0, ...at(d + 120) }}>{categoryName(post.category)}</span>
-                  <span className={`${KICKER} hidden text-[10px] tabular-nums transition-opacity duration-700 md:block`} style={{ opacity: arrived ? 0.6 : 0, ...at(d + 160) }}>{shortDate(post.date)}</span>
+                  <span className={`${KICKER} hidden text-[10px] tabular-nums transition-opacity duration-700 md:block`} style={{ opacity: arrived ? 0.6 : 0, ...at(d + 160) }}><time dateTime={post.date}>{shortDate(post.date)}</time></span>
                   <span className={`${KICKER} text-right text-[10px] tabular-nums transition-opacity duration-700`} style={{ opacity: arrived ? 0.6 : 0, ...at(d + 200) }}>
                     {post.read ?? ""} <span aria-hidden="true" className="ml-1 inline-block transition-[translate,color] duration-300 group-hover/row:-translate-y-0.5 group-hover/row:translate-x-0.5 group-hover/row:text-[#7fc1bd]">↗︎</span>
                   </span>

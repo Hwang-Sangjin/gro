@@ -14,7 +14,7 @@ function Meta({ s }) {
   return (
     <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium uppercase tracking-[0.22em] text-(--ink)/55">
       <span className="text-(--accent)">{categoryName(s.category)}</span>
-      <span aria-hidden="true" className="h-px w-4 bg-current/50" />{formatDate(s.date)}
+      <span aria-hidden="true" className="h-px w-4 bg-current/50" /><time dateTime={s.date}>{formatDate(s.date)}</time>
       <span aria-hidden="true" className="h-px w-4 bg-current/50" />{s.read}
     </p>
   );

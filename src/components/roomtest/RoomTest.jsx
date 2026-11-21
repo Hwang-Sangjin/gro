@@ -2542,8 +2542,8 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
         </p>
       </div>
 
-      {/* 디버그 패널 (?debug=1) */}
-      <div hidden={!debug} className="absolute left-4 top-20 z-20 w-72 rounded-lg bg-black/70 p-3 font-mono text-[11px] leading-relaxed text-white">
+      {/* 디버그 패널 (?debug=1 일 때만 그림 — 평소에는 DOM 에 두지 않음: 화면 낭독기 · 검색엔진에 개발용 조작이 읽혔음) */}
+      {debug && <div className="absolute left-4 top-20 z-20 w-72 rounded-lg bg-black/70 p-3 font-mono text-[11px] leading-relaxed text-white">
         <button className="text-xs font-bold" onClick={() => setPanel((v) => !v)}>Room Test {panel ? "▾" : "▸"}</button>
         {panel && (
           <div className="mt-2 max-h-[calc(100svh-10rem)] overflow-auto">
@@ -2581,7 +2581,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
             </div>
           </div>
         )}
-      </div>
+      </div>}
     </div>
     {/* 한 장면 흐름: 판이 앉기까지 + 방이 지어지는 걸 보는 스크롤 길이 (그동안 방 스테이지가 화면에 붙어 있음) */}
     {scrollFlow && <div aria-hidden="true" style={{ height: `${(FLOW.travel + FLOW.hold) * 100}svh` }} />}

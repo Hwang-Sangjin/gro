@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { publicClient } from "@/lib/publicSupabase";
 import { coverUrl } from "@/lib/albums";
 import AlbumDetailView from "@/components/album/AlbumDetailView";
+import { JsonLd, albumLd } from "@/lib/jsonLd";
 
 // 앨범 상세는 로그인과 상관없는 공개 데이터 → 처음 열릴 때 한 번 만들어 캐시(ISR)해 두고 5분마다 새로 고침
 // (관리자에서 고치면 revalidateAlbum 으로 바로 새로 만듦). 캐시된 페이지라 그리드에서 미리 받아 둘 수 있어 열리는 게 빠름
@@ -45,12 +46,13 @@ export default async function Album({ params }) {
     .select("disc_no, side, side_position, title, duration_sec")
     .eq("album_id", data.id)
     .order("disc_no").order("side").order("side_position");
-  return <AlbumDetailView album={{ id: data.id, slug: data.slug,
+  const album = { id: data.id, slug: data.slug,
     title: data.title, artistNames: data.artist_names,
     coverUrl: coverUrl(data.cover_path || data.thumb_path), thumbUrl: coverUrl(data.thumb_path), coverColor: data.cover_color,
     releaseYear: data.release_year, format: data.format, label: data.label,
     tracksUnavailable: Boolean(tracksError),
     tracks: (tracksError ? [] : tracks || []).map(track => ({ discNo: track.disc_no,
       side: track.side, position: track.side_position, title: track.title, durationSec: track.duration_sec })),
-    youtubePlaylistId: data.youtube_playlist_id, rpm: data.rpm, description: data.description }} />;
+    youtubePlaylistId: data.youtube_playlist_id, rpm: data.rpm, description: data.description };
+  return <><JsonLd data={albumLd(album)} /><AlbumDetailView album={album} /></>;
 }
