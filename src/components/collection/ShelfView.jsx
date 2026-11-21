@@ -1,112 +1,104 @@
 "use client";
-// Collection 의 Shelf 보기 — 판을 책등처럼 세워 나무 선반에 꽂음 (Grid · Crate 에 이은 세 번째 보기)
-//  - 책등에 마우스를 올리면(또는 Tab) 그 판이 살짝 들리고 재킷이 옆으로 펼쳐져 나옴. 옆으로 쓸면 재킷이 잇달아 넘어감
-//  - 누르면 앨범 상세로 (펼쳐진 재킷이 날아가는 전환). 터치는 첫 번에 뽑고, 한 번 더 누르면 열림
-//  - 장르를 고르지 않았으면 장르별로 모아 꽂고 사이에 크래프트 칸막이. 칸막이를 누르면 그 장르만
-//  모양은 Shelf.module.css
-import { useMemo, useRef, useState } from "react";
+// Collection 의 Shelf 보기 — 나무 선반에 LP 재킷이 얇게 꽂힌 3D 장면 (Grid · Crate 에 이은 세 번째 보기)
+//  - 책등 위에 마우스를 두면 그 판이 앞으로 나와 앞면을 보여 줌 (shelfEngine.js). 옆으로 쓸면 잇달아 나왔다 들어감
+//  - 누르면 앨범 상세로 (나온 재킷이 그대로 날아가는 전환). 터치는 첫 번에 뽑고, 한 번 더 누르면 열림
+//  - 장르를 고르지 않았으면 장르별로 모아 꽂고 사이에 크래프트 칸막이 + 선반 턱의 다이모 라벨. 라벨을 누르면 그 장르만
+//  (2026-11-22 다시 만듦: 처음엔 DOM 으로 넓은 책등을 그렸는데 — 실제 재킷은 훨씬 얇고, 재킷이 3D 로 나오는 쪽이 낫다는 요청)
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
-import { lineOf } from "@/components/albums/GenreBar";
 import { GENRES } from "@/lib/genres";
 import { coverUrl } from "@/lib/albums";
-import styles from "./Shelf.module.css";
 
 const ORDER = GENRES.map((g) => g.slug);
 const NAME = Object.fromEntries(GENRES.map((g) => [g.slug, g.name]));
-const WIDTHS = [34, 38, 42, 46, 52];        // 책등 두께 (px) — 판마다 조금씩 다르게
-const HEIGHTS = [0.9, 0.93, 0.95, 0.97];    // 줄 높이 대비 책등 높이
-
-// 판마다 늘 같은 값이 나오는 작은 해시 (두께 · 높이를 고르는 데 씀: 새로 그려도 모양이 안 바뀜)
-const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
-// 책등 글자색: 커버 색이 밝으면 잉크, 어두우면 크림
-function inkOn(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
-  if (!m) return "#2a2228";
-  const n = parseInt(m[1], 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.55 ? "#2a2228" : "#f7efdf";
-}
 const byArtist = (a, b) => (a.artist_names || "").localeCompare(b.artist_names || "") || a.title.localeCompare(b.title);
 const primary = (a) => ORDER.find((s) => a.genres?.includes(s)) ?? "etc";
 
 /**
  * albums: 지금 탭 · 장르 · 검색으로 걸러진 판들 · grouped: 장르별로 모아 칸막이를 꽂음 (장르를 고르지 않았을 때)
- * onGenre(slug): 칸막이를 누름
+ * onGenre(slug): 장르 라벨을 누름
  */
 export default function ShelfView({ albums, grouped = false, onGenre }) {
+  const hostRef = useRef(null), engineRef = useRef(null), sourceRef = useRef(null);
+  const [active, setActive] = useState(null);     // 지금 나와 있는 판
+  const [labels, setLabels] = useState([]);       // 장르 라벨 자리 (캔버스 px)
   const transition = useAlbumTransition();
-  const [active, setActive] = useState(null);   // { slug, side }
-  const pointer = useRef("mouse");
+  const transitionRef = useRef(transition);
+  useEffect(() => { transitionRef.current = transition; });
 
   // 꽂는 순서: (장르별로 모아) 아티스트 → 제목
-  const row = useMemo(() => {
-    if (!grouped) return [...albums].sort(byArtist).map((album) => ({ album }));
+  const items = useMemo(() => {
+    const card = (a) => ({ album: { ...a, image: coverUrl(a.thumb_path) } });
+    if (!grouped) return [...albums].sort(byArtist).map(card);
     const out = [];
     for (const slug of ORDER) {
       const group = albums.filter((a) => primary(a) === slug).sort(byArtist);
-      if (group.length) out.push({ divider: slug }, ...group.map((album) => ({ album })));
+      if (group.length) out.push({ divider: slug, name: NAME[slug] }, ...group.map(card));
     }
     return out;
   }, [albums, grouped]);
+  const order = useMemo(() => items.filter((it) => it.album).map((it) => it.album), [items]);
 
-  const current = active && albums.find((a) => a.slug === active.slug);
-  // 뽑을 때: 재킷이 선반 오른쪽 밖으로 나가면 왼쪽으로 펼침
-  const pull = (el, slug) => {
-    if (active?.slug === slug) return;
-    const r = el.getBoundingClientRect(), box = el.parentElement.getBoundingClientRect();
-    setActive({ slug, side: r.right + el.offsetHeight > box.right && r.left - el.offsetHeight >= box.left ? "left" : "right" });
+  // 재킷의 화면 자리에 맞춘 빈 상자를 출발점으로 넘겨 커버가 상세 페이지로 날아가게 함 (Crate 와 같은 방식)
+  const open = (album, rect) => {
+    const t = transitionRef.current, src = sourceRef.current;
+    if (!t || !src || !rect) { location.assign(`/album/${encodeURIComponent(album.slug)}`); return; }
+    Object.assign(src.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+    t.openAlbum({ slug: album.slug, color: album.cover_color, imageUrl: album.image, source: src });
   };
-  const open = (e, album) => {
-    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    // 터치: 첫 번은 뽑기만 (마우스는 올리는 순간 이미 뽑혀 있음)
-    if (pointer.current !== "mouse" && active?.slug !== album.slug) { e.preventDefault(); pull(e.currentTarget, album.slug); return; }
-    if (!transition) return;
-    e.preventDefault();
-    transition.openAlbum({ slug: album.slug, color: album.cover_color, imageUrl: coverUrl(album.thumb_path), source: e.currentTarget.querySelector("[data-shelf-cover]") });
-  };
+  const openRef = useRef(open);
+  useEffect(() => { openRef.current = open; });
+
+  useEffect(() => {
+    let alive = true, engine = null;
+    import("./shelfEngine").then(({ createShelfEngine }) => {
+      if (!alive || !hostRef.current) return;
+      engine = createShelfEngine({ host: hostRef.current, items, onActive: setActive, onLabels: setLabels, onOpen: (a, r) => openRef.current(a, r) });
+      engineRef.current = engine;
+    });
+    return () => { alive = false; engine?.dispose(); engineRef.current = null; setActive(null); setLabels([]); };
+  }, [items]);
 
   return (
     <div role="tabpanel">
-      {/* 지금 뽑은 판 (없으면 쓰는 법) */}
-      <div className="mb-[clamp(1.25rem,3vh,2rem)] flex min-h-7 items-baseline justify-between gap-6">
+      {/* 지금 나와 있는 판 (없으면 쓰는 법) */}
+      <div className="mb-2 flex min-h-7 items-baseline justify-between gap-6">
         <span className="shrink-0 text-[11px] font-medium uppercase tracking-[0.24em] text-(--ink)/65">{albums.length} on the shelf</span>
         <p aria-live="polite" className="min-w-0 truncate text-right text-[15px]">
-          {current
-            ? <><strong className="font-bold">{current.title}</strong><span className="text-(--ink)/70"> — {current.artist_names}</span></>
-            : <span className="text-[11px] font-medium uppercase tracking-[0.24em] text-(--ink)/65"><span className="[@media(hover:none)]:hidden">Run along the spines</span><span className="hidden [@media(hover:none)]:inline">Tap a spine</span></span>}
+          {active
+            ? <><strong className="font-bold">{active.title}</strong><span className="text-(--ink)/70"> — {active.artist_names}</span></>
+            : <span className="text-[11px] font-medium uppercase tracking-[0.24em] text-(--ink)/65"><span className="[@media(hover:none)]:hidden">Run along the spines</span><span className="hidden [@media(hover:none)]:inline">Slide along the spines</span></span>}
         </p>
       </div>
-      <div className={styles.shelf} data-has-active={!!active} onPointerLeave={(e) => { if (e.pointerType === "mouse") setActive(null); }}>
-        {row.map((it, i) => {
-          if (it.divider) {
-            return (
-              <button key={`d:${it.divider}`} type="button" className={styles.divider} style={{ "--i": i, "--line": lineOf(it.divider) }}
-                onClick={() => onGenre?.(it.divider)} aria-label={`Show only ${NAME[it.divider]}`}>
-                <span className={styles.dymo}>{NAME[it.divider]}</span>
-              </button>
-            );
-          }
-          const a = it.album, h = hash(a.slug), on = active?.slug === a.slug, src = coverUrl(a.thumb_path);
-          return (
-            <Link key={a.id} href={`/album/${a.slug}`} data-shelf-spine className={styles.slot} aria-label={`${a.title} — ${a.artist_names}`}
-              data-active={on} data-side={on ? active.side : undefined}
-              style={{ "--i": i, "--w": `${WIDTHS[h % WIDTHS.length]}px`, "--h": `${HEIGHTS[(h >>> 4) % HEIGHTS.length] * 100}%`, "--c": a.cover_color || "#bbcbda", "--t": inkOn(a.cover_color) }}
-              onPointerDown={(e) => { pointer.current = e.pointerType; }}
-              onPointerEnter={(e) => { if (e.pointerType === "mouse") { pointer.current = "mouse"; pull(e.currentTarget, a.slug); } }}
-              onFocus={(e) => pull(e.currentTarget, a.slug)}
-              onBlur={() => setActive((v) => (v?.slug === a.slug ? null : v))}
-              onClick={(e) => open(e, a)}>
-              <span className={styles.spine}>
-                <span className={styles.title}>{a.title}</span>
-                <span className={styles.artist}>{a.artist_names}</span>
-              </span>
-              <span className={styles.cover} data-shelf-cover aria-hidden="true">
-                {src && <img src={src} alt="" loading="lazy" decoding="async" />}
-              </span>
-            </Link>
-          );
-        })}
+      {/* 3D 선반 (캔버스는 엔진이 넣음) + 그 위의 장르 라벨. 판이 나와 있는 동안은 라벨을 숨김 (HTML 이라 재킷 위에 떠 보임) */}
+      <div ref={hostRef} className="relative min-h-[40vh]">
+        {labels.map((l) => (
+          <button key={l.slug} type="button" onClick={() => onGenre?.(l.slug)} aria-label={`Show only ${l.name}`}
+            className={`absolute -translate-y-1/2 whitespace-nowrap rounded-[1px] bg-[#1d1a1c] px-1.5 py-[3px] text-[9px] font-bold uppercase leading-none tracking-[0.14em] text-[#f4efe6] transition-opacity duration-300 before:absolute before:-inset-2 before:content-[''] ${active ? "pointer-events-none opacity-0" : "hover:opacity-80"}`}
+            style={{ left: l.left - 3, top: l.top }}>
+            {l.name}
+          </button>
+        ))}
       </div>
+      {/* 키보드 · 화면 낭독기: 같은 판들의 링크 목록 (Tab 으로 옮기면 선반에서 그 판이 나옴) */}
+      <ul className="sr-only">
+        {order.map((a) => (
+          <li key={a.id}>
+            <Link href={`/album/${a.slug}`} onFocus={() => engineRef.current?.setActive(a.slug)} onBlur={() => engineRef.current?.setActive(null)}
+              onClick={(e) => {
+                if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                const rect = engineRef.current?.rectOf(a.slug);
+                if (!rect) return;
+                e.preventDefault(); open(a, rect);
+              }}>
+              {a.title} — {a.artist_names}
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {/* 앨범 상세로 날아가는 커버의 출발점 */}
+      <div ref={sourceRef} aria-hidden="true" className="pointer-events-none fixed z-[26]" />
     </div>
   );
 }
