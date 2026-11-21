@@ -159,13 +159,9 @@
 }
 .grid {
   display: grid;
-  grid-auto-flow: dense;   /* 큰 칸(data-feature) 옆에 생기는 빈 자리를 뒤의 판이 채움 */
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1.25rem clamp(20px, 3vw, 48px);
 }
-/* 큰 칸: 새로 들어온 판 몇 장 (AlbumGrid) */
-.card[data-feature="true"] { grid-column: span 2; grid-row: span 2; }
-.card[data-feature="true"] .caption strong { font-size: clamp(1.25rem, 2.1vw, 2rem); }
 .card {
   display: block;
   min-width: 0;

@@ -15,6 +15,22 @@ export const newShuffleSeed = () => Math.random().toString(36).slice(2, 10);
 // created_at · release_year: 카드 NEW IN 스티커와 캡션의 연도용 (2026-11-20)
 const CARD_COLUMNS = "id, slug, title, artist_names, thumb_path, cover_color, created_at, release_year";
 
+// 새로 들어온 판 (NEW IN): 들어온 지 NEW_DAYS 안 — 카드 스티커 · Digging 의 "New in" 탭 · Crate 표시가 같은 기준
+export const NEW_DAYS = 45;
+const newSince = () => new Date(Date.now() - NEW_DAYS * 864e5).toISOString();
+// Digging 의 한 묶음과 같은 모양으로 돌려줌 (최근 들어온 순 · 더 받을 것 없음)
+export async function fetchNewIn(supabase) {
+  const { data, error } = await supabase.from("albums").select(CARD_COLUMNS)
+    .eq("status", "published").gte("created_at", newSince()).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(60);
+  if (error) throw error;
+  return { items: data ?? [], hasMore: false, cursor: null, seed: null };
+}
+export async function countNewIn(supabase) {
+  const { count, error } = await supabase.from("albums").select("id", { count: "exact", head: true }).eq("status", "published").gte("created_at", newSince());
+  if (error) throw error;
+  return count ?? 0;
+}
+
 // PAGE_SIZE + 1 개를 요청해서 "다음 페이지가 있는지" 를 판단한다
 // - seed 가 있으면 무작위 순서(digging_shuffle, cursor = 몇 개째부터)
 // - 그 함수가 아직 DB 에 없으면 예전 순서(digging_page, cursor = 날짜·id)로 자동 전환 → 결과의 seed 가 null

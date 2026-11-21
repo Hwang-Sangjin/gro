@@ -26,7 +26,7 @@ const PAPER = "before:pointer-events-none before:absolute before:inset-0 before:
 export default function GenreBar({
   genre = null, counts = null, onPick, hrefFor = () => "#",
   query = "", onQueryChange, label = "Browse by genre", searchId = "album-search",
-  extra = null, meta = null, topRule = "thick", className = "",
+  extra = null, meta = null, topRule = "thick", className = "", pinned = null,
 }) {
   const barRef = useRef(null);
   const [filtersRef, filtersRevealed] = useReveal();
@@ -85,7 +85,8 @@ export default function GenreBar({
       <div className="flex items-center gap-6 max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-2 border-b border-(--ink)/60 py-[clamp(0.75rem,1.4vw,1.25rem)] transition-[padding] duration-500 group-data-[stuck=true]/bar:py-2">
         <nav ref={filtersRef} data-revealed={filtersRevealed} aria-label="Genres"
           className={`${styles.filterReveal} flex min-w-0 [&_sup]:transition-opacity group-data-[stuck=true]/bar:[&_sup]:opacity-0 flex-1 flex-nowrap items-baseline gap-x-[clamp(0.5rem,0.9vw,1.1rem)] gap-y-1 overflow-x-auto [scrollbar-width:none] max-md:order-2 max-md:basis-full max-md:-my-2.5 max-md:py-2.5 md:flex-wrap group-data-[stuck=true]/bar:flex-nowrap`}>
-          {GENRE_ITEMS.filter((it) => hasRecords(counts, it.slug, genre)).map((it, i, items) => {
+          {/* pinned: All 바로 뒤에 끼우는 탭 (Digging 의 "New in" — 장르는 아니지만 같은 줄에서 고름) */}
+          {(pinned ? [GENRE_ITEMS[0], ...pinned, ...GENRE_ITEMS.slice(1)] : GENRE_ITEMS).filter((it) => hasRecords(counts, it.slug, genre)).map((it, i, items) => {
             const on = (genre ?? null) === it.slug;
             const n = counts ? (counts[it.slug ?? "all"] ?? 0) : null;
             return (

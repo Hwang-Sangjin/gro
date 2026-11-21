@@ -86,7 +86,10 @@ export default function CratePanel({ label, toggle, front, total, info, kind, li
       {/* 넓은 화면: 왼쪽 정보 패널 */}
       {front && (
         <div key={front.slug} className="absolute left-[var(--crate-gut)] top-[calc(var(--ct-header-h,106px)+clamp(3.25rem,9vh,6rem))] w-[var(--crate-panel)] max-[819px]:hidden">
-          <p className={`${KICKER} tabular-nums opacity-70`}>{front.divider ? "Start" : pad3(front.i + 1)} / {pad3(n)}</p>
+          <p className="flex items-center gap-3">
+            <span className={`${KICKER} tabular-nums opacity-70`}>{front.divider ? "Start" : pad3(front.i + 1)} / {pad3(n)}</span>
+            {front.isNew && <span className="rounded-full bg-[#d9603b] px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.14em] text-[#fff7ea]">New in</span>}
+          </p>
           <h2 className={`${SERIF} mt-2 line-clamp-3 text-[clamp(1.9rem,3.1vw,3.4rem)] font-black leading-[1.02] tracking-[-0.015em] [word-break:keep-all] animate-[crate-title_.7s_cubic-bezier(.22,1,.36,1)_both]`} style={tint}>{front.title}</h2>
           <p className="mt-3 truncate text-[clamp(0.95rem,1.15vw,1.15rem)]">{front.artist}</p>
           {front.divider
@@ -111,7 +114,10 @@ export default function CratePanel({ label, toggle, front, total, info, kind, li
       {/* 좁은 화면: 판 바로 아래 한 덩어리 (판의 자리 · 크기는 crateEngine resize 의 좁은 화면 식과 같음) */}
       {front && (
         <div key={`m:${front.slug}`} className="absolute inset-x-[var(--crate-gut)] top-[calc(max(19dvh,150px)+min(70vw,34dvh)+1.5rem)] min-[820px]:hidden">
-          <p className={`${KICKER} tabular-nums opacity-70`}>{front.divider ? "Start" : pad3(front.i + 1)} / {pad3(n)}</p>
+          <p className="flex items-center gap-3">
+            <span className={`${KICKER} tabular-nums opacity-70`}>{front.divider ? "Start" : pad3(front.i + 1)} / {pad3(n)}</span>
+            {front.isNew && <span className="rounded-full bg-[#d9603b] px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.14em] text-[#fff7ea]">New in</span>}
+          </p>
           <h2 className={`${SERIF} mt-1.5 line-clamp-2 text-[clamp(1.6rem,7vw,2.4rem)] font-black leading-[1.04] tracking-[-0.015em] [word-break:keep-all] animate-[crate-title_.7s_cubic-bezier(.22,1,.36,1)_both]`} style={tint}>{front.title}</h2>
           <p className="mt-1.5 truncate text-[15px]">{front.artist}</p>
           {front.divider

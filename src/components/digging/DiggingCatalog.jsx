@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import SplitTitle from "@/components/digging/SplitTitle";
 import { createClient } from "@/utils/supabase/client";
-import { fetchDiggingPage, newShuffleSeed } from "@/lib/albums";
+import { fetchDiggingPage, fetchNewIn, countNewIn, newShuffleSeed } from "@/lib/albums";
 import useAuthUser from "@/lib/useAuthUser";
 import { fetchOwnedIds } from "@/lib/userAlbums";
 import { getGenreIds } from "@/lib/genreIds";
@@ -19,6 +19,8 @@ import CrateView, { ViewToggle } from "@/components/albums/crate/CrateView";
 import ShelfView from "@/components/collection/ShelfView";
 
 const VIEWS = ["grid", "crate", "list", "shelf"];
+// "New in" 탭: 새로 들어온 판만 (최근 들어온 순). 장르가 아니라서 장르 id 없이 따로 받아 옴
+const NEW = "new", PINNED = [{ slug: NEW, name: "New in" }];
 
 /* 장르를 바꿔도 페이지는 그대로: 그리드만 해당 장르의 판으로 바뀜.
    - 주소(?genre=)는 replaceState로만 맞춰 둠 → 새로고침·공유하면 그 장르로 열림 (서버가 첫 페이지를 그려 줌)
@@ -48,8 +50,11 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
       let data = cache.current.get(key);
       if (!data) {
         const supabase = (supabaseRef.current ??= createClient());
-        const id = slug ? (await getGenreIds(supabase))[slug] ?? null : null;
-        data = { initial: await fetchDiggingPage(supabase, { genreId: id, seed: seedRef.current }), genreId: id };
+        if (slug === NEW) data = { initial: await fetchNewIn(supabase), genreId: null };
+        else {
+          const id = slug ? (await getGenreIds(supabase))[slug] ?? null : null;
+          data = { initial: await fetchDiggingPage(supabase, { genreId: id, seed: seedRef.current }), genreId: id };
+        }
         cache.current.set(key, data);
       }
       await closing;
@@ -63,7 +68,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
   }, []);
   // 다시 섞기: 지금 장르를 새 순서로 (지금 판들을 접고 → 새 순서를 받아 → 펼침). 기억해 둔 다른 장르 목록은 버림 (예전 순서라서)
   const shuffle = async () => {
-    if (switching) return;
+    if (switching || wanted.current === NEW) return;   // New in 은 들어온 순서 그대로 (섞지 않음)
     const key = wanted.current, seed = newShuffleSeed();
     seedRef.current = seed;
     cache.current.clear();
@@ -98,7 +103,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
   // 페이지는 캐시된 '전체' 화면 → 주소에 ?genre= 가 있으면 열리자마자 그 장르로 바꿈
   useEffect(() => {
     const slug = new URLSearchParams(location.search).get("genre");
-    if (slug && GENRES.some((g) => g.slug === slug)) selectGenre(slug);
+    if (slug && (slug === NEW || GENRES.some((g) => g.slug === slug))) selectGenre(slug);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [titleRef, titleRevealed] = useReveal();
@@ -109,7 +114,9 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
   const [counts, setCounts] = useState(null);
   useEffect(() => {
     let alive = true;
-    getGenreCounts((supabaseRef.current ??= createClient())).then((c) => { if (alive) setCounts(c); });
+    const supabase = (supabaseRef.current ??= createClient());
+    // 장르별 수 + 새로 들어온 판 수 (0 이면 New in 탭이 안 보임)
+    Promise.all([getGenreCounts(supabase), countNewIn(supabase).catch(() => 0)]).then(([c, n]) => { if (alive) setCounts(c ? { ...c, [NEW]: n } : c); });
     return () => { alive = false; };
   }, []);
 
@@ -123,12 +130,12 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
         </div>
       </header>
       {/* 장르 인덱스 (Collection 과 같은 컴포넌트). Digging 에만 + Request */}
-      <GenreBar genre={genre} counts={counts} onPick={selectGenre}
+      <GenreBar genre={genre} counts={counts} onPick={selectGenre} pinned={PINNED}
         hrefFor={(slug) => (slug ? `/digging?genre=${slug}` : "/digging")}
         query={query} onQueryChange={setQuery} searchId="digging-search"
         /* 다시 섞기 · (로그인하면) 내가 가진 판 빼고 보기: 장르 줄 위 작은 줄(판 수 옆)에 — 장르 목록의 폭을 뺏지 않게 (2026-11-21) */
         meta={<>
-          <button type="button" className={styles.tool} onClick={shuffle} disabled={switching} aria-label="Shuffle the crate again">
+          <button type="button" className={styles.tool} onClick={shuffle} disabled={switching || genre === NEW} aria-label="Shuffle the crate again">
             <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4.5h2.6c1.4 0 2.3.6 3 1.7l1.8 3.1c.7 1.1 1.6 1.7 3 1.7H14M11.8 9.4 14 11l-2.2 1.6M2 11h2.6c.9 0 1.6-.3 2.2-.8M14 4.5h-1.6c-.9 0-1.6.3-2.2.8M11.8 2.9 14 4.5l-2.2 1.6" /></svg>
             Shuffle
           </button>
@@ -169,7 +176,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
 //  장르를 바꾸면 그리드와 함께 새로 그려짐
 //  글씨 움직임 (2026-11-21): 새로 그려질 때 다이모 테이프가 붙고 · 도장이 찍히고 · 마커로 써짐 / 바뀌기 직전(leaving) 지워지고 떨어짐
 function GenreDivider({ slug, count, notOwned = false, leaving = false }) {
-  const name = GENRE_ITEMS.find((g) => g.slug === slug)?.name ?? "All";
+  const name = slug === NEW ? "New in" : GENRE_ITEMS.find((g) => g.slug === slug)?.name ?? "All";
   const head = slug ? name : "Shuffled for you", tab = slug ? name : "All records";
   const countText = notOwned ? "Not in your shelf" : count != null ? `${count} record${count === 1 ? "" : "s"}` : "records";
   // data-crate-divider: Crate 보기(CrateView)가 이 칸막이도 크레이트 맨 앞에 꽂음 (같은 글을 3D 판에 그림)

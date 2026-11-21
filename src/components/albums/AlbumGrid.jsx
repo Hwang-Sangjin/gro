@@ -6,17 +6,12 @@ import AlbumCard from "./AlbumCard";
 import styles from "@/components/digging/Digging.module.css";
 
 // lead: 카드 앞에 놓이는 칸 (Digging 의 장르 칸막이) · children: 카드 뒤에 붙는 것 (더 불러오는 동안의 빈 재킷 자리)
-// 리듬: 새로 들어온 판(NEW IN) 가운데 앞의 두 장은 가로 · 세로 두 칸짜리로 크게 (끝까지 같은 크기의 칸만 이어지지 않게)
-//  빈 칸은 뒤의 판이 당겨 와 채움 (grid-auto-flow: dense). created_at 이 없는 목록(Collection)에서는 생기지 않음
-const NEW_MS = 45 * 864e5, FEATURES = 2;
-
+// (2026-11-22 새로 들어온 판을 두 칸짜리로 크게 두어 봤다가 뺌 — 사용자: 별로. 넓은 화면에서 한 장이 화면을 다 차지했음. 새 판은 Digging 의 "New in" 탭으로 따로 봄)
 export default function AlbumGrid({ albums, className = "", lead = null, children, ...rest }) {
-  const now = Date.now();
-  const featured = new Set(albums.filter((a) => a.created_at && now - new Date(a.created_at).getTime() < NEW_MS).slice(0, FEATURES).map((a) => a.id));
   return (
     <div {...rest} data-scroll-tilt="" className={`${styles.grid} ${className}`}>
       {lead}
-      {albums.map(album => <AlbumCard key={album.id} album={album} feature={featured.has(album.id)} />)}
+      {albums.map(album => <AlbumCard key={album.id} album={album} />)}
       {children}
     </div>
   );

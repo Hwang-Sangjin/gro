@@ -51,7 +51,7 @@ function readCards(root) {
   if (!root) return [];
   const albums = [...root.querySelectorAll("[data-album-card]")].map((a) => ({
     slug: a.dataset.albumSlug, color: a.dataset.albumColor, image: a.dataset.albumImage || null,
-    title: a.dataset.albumTitle || "", artist: a.dataset.albumArtist || "",
+    title: a.dataset.albumTitle || "", artist: a.dataset.albumArtist || "", isNew: a.dataset.albumNew === "true",
     art: a.querySelector("[data-album-source]"),
   })).filter((c) => c.slug && c.art);
   // 장르 칸막이(Digging, [data-crate-divider]): 크레이트 맨 앞에도 꽂음 — 크래프트 판 + 위로 솟은 다이모 탭 (crateDivider.js)
@@ -133,7 +133,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       // 번호 · 전체 수는 판만 셈 (칸막이는 빼고). 칸막이가 앞이면 번호 대신 판 수만
       onFront: (i, c) => {
         const lead = cardsRef.current[0]?.divider ? 1 : 0;
-        setFront({ i: i - lead, n: cardsRef.current.length - lead, divider: !!c.divider, title: c.title, artist: c.artist, color: c.color, slug: c.slug });
+        setFront({ i: i - lead, n: cardsRef.current.length - lead, divider: !!c.divider, title: c.title, artist: c.artist, color: c.color, slug: c.slug, isNew: !!c.isNew });
       },
       onOpen: (i, rect) => openRef.current?.(i, rect),
       onSettled: (m) => {
