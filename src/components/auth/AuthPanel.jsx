@@ -24,6 +24,7 @@ const GROOVES = [
   [118, 218, 0.95, 2.3, 1], [106, 112, 0.97, 2.1, 0.92], [94, 295, 0.93, 2.4, 1], [84, 176, 0.98, 2, 0.88],
 ];
 const RIM = "GROOVES · SIDE A · 33⅓ RPM · LOG IN TO YOUR SHELF · ";
+const RIM_LENGTH = Math.floor(2 * Math.PI * 178) - 2;   // 글자가 놓이는 원(반지름 178)의 둘레 — 두 번 쓴 글이 이 길이에 딱 맞게 펴짐
 
 function GoogleMark({ className = "" }) {
   return (
@@ -89,16 +90,16 @@ export default function AuthPanel() {
     : "Tap the label to drop the needle";
 
   return (
-    <PageShell className="paper-textured" footer={false}>
-      <section className="flex min-h-[calc(100svh-var(--ct-header-h,106px))] w-full overflow-x-clip flex-col items-center justify-center gap-[clamp(18px,2.6vh,32px)] px-5 pb-12 pt-6 text-center font-['Hahmlet',Georgia,serif] text-(--ink)">
+    <PageShell className="paper-textured [&>.page-content]:gap-0! [&>.page-content]:p-0!" footer={false}>
+      <section className="flex min-h-svh w-full overflow-x-clip flex-col items-center justify-center gap-[clamp(12px,2.2svh,28px)] px-5 pb-[clamp(20px,4svh,44px)] pt-[calc(var(--ct-header-h,106px)+clamp(4px,1.5svh,20px))] text-center font-['Hahmlet',Georgia,serif] text-(--ink)">
         <p className="text-[11px] font-medium uppercase tracking-[0.3em] opacity-60">Login</p>
-        <h1 className={`${MONOTON} text-[clamp(30px,4.4vw,56px)] leading-[1.1]`}>
+        <h1 className={`${MONOTON} -mt-1 text-[clamp(30px,min(4.4vw,6.4svh),56px)] leading-[1.1]`}>
           {state === "done" ? <>Welcome back{p.name ? <>, <span className="whitespace-nowrap">{p.name.split(" ")[0]}</span></> : ""}</> : "Drop the needle"}
         </h1>
 
         {/* 턴테이블 */}
         <div data-state={state} data-hover={hover && state === "idle"}
-          className="group/deck relative aspect-square w-[min(78vw,54vh,520px)] [--size:min(78vw,54vh,520px)]">
+          className="group/deck relative aspect-square w-[min(74vw,47svh,540px)] [--size:min(74vw,47svh,540px)]">
           <svg viewBox="0 0 400 400" aria-hidden="true" className="absolute inset-0 size-full overflow-visible">
             <defs><path id="login-rim" d="M200,200 m-178,0 a178,178 0 1,1 356,0 a178,178 0 1,1 -356,0" /></defs>
             <g ref={spinRef}>
@@ -107,11 +108,13 @@ export default function AuthPanel() {
                   strokeWidth={w} opacity={o} pathLength="1" strokeDasharray={`${len} ${1 - len + 0.0001}`}
                   transform={`rotate(${rot} 200 200)`} />
               ))}
-              <text className="fill-current text-[9px] font-medium tracking-[3.2px] opacity-55">
-                <textPath href="#login-rim">{RIM + RIM}</textPath>
+              <text className="fill-current text-[9px] font-medium opacity-55">
+                <textPath href="#login-rim" textLength={RIM_LENGTH} lengthAdjust="spacing">{RIM + RIM}</textPath>
               </text>
             </g>
           </svg>
+          {/* 판이 종이에 드리우는 그림자 */}
+          <span aria-hidden="true" className="pointer-events-none absolute inset-[7%] -z-10 rounded-full shadow-[0_calc(var(--size)*.07)_calc(var(--size)*.09)_calc(var(--size)*-.045)_rgba(30,20,28,.5)]" />
           {/* 반사광: 판은 돌아도 빛은 제자리 */}
           <span aria-hidden="true" className="pointer-events-none absolute inset-[9%] rounded-full opacity-45 mix-blend-soft-light"
             style={{
@@ -124,17 +127,22 @@ export default function AuthPanel() {
           <span aria-hidden="true"
             className={`pointer-events-none absolute -right-[9%] -top-[4%] h-[86%] w-[34%] origin-[74%_9%] rotate-[-12deg] transition-[rotate] duration-[950ms] ${EASE} group-data-[hover=true]/deck:rotate-[-6deg] group-data-[state=playing]/deck:rotate-[6deg] group-data-[state=done]/deck:rotate-[6deg] motion-reduce:transition-none`}>
             <svg viewBox="0 0 100 300" className="size-full overflow-visible">
-              <circle cx="74" cy="27" r="13" fill="none" stroke="currentColor" strokeWidth="2.4" />
+              {/* 무게추(축 뒤) · 축 · 팔 · 헤드셸(손잡이가 달린 카트리지) */}
+              <path d="M74 27 L74 -4" fill="none" stroke="currentColor" strokeWidth="9" strokeLinecap="round" />
+              <circle cx="74" cy="27" r="13" fill="var(--cream)" stroke="currentColor" strokeWidth="2.4" />
               <circle cx="74" cy="27" r="4" fill="currentColor" />
               <path d="M74 27 L74 210 Q74 236 52 258" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
-              <rect x="38" y="252" width="22" height="30" rx="3" fill="currentColor" transform="rotate(38 49 267)" />
+              <g transform="rotate(38 49 267)">
+                <rect x="38" y="252" width="22" height="30" rx="3" fill="currentColor" />
+                <path d="M60 258 L72 254" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+              </g>
             </svg>
           </span>
 
           {/* 라벨 = 로그인 버튼 (로그인 상태면 내 컬렉션으로) */}
           {state === "done" ? (
             <Link href={next !== "/" ? next : "/collection"} aria-label="Open my collection"
-              className="absolute left-1/2 top-1/2 grid aspect-square w-[36%] -translate-1/2 place-items-center rounded-full bg-[#bbcbda] text-[#4c404a] shadow-[0_0_0_calc(var(--size)*.008)_var(--ink),0_10px_30px_-12px_rgba(30,20,28,.45)] transition-[scale] duration-500 hover:scale-[1.035] focus-visible:outline-3 focus-visible:outline-offset-6 focus-visible:outline-(--accent)">
+              className="absolute left-1/2 top-1/2 grid aspect-square w-[clamp(36%,128px,46%)] -translate-1/2 place-items-center rounded-full bg-[#bbcbda] text-[#4c404a] shadow-[0_0_0_calc(var(--size)*.008)_var(--ink),0_10px_30px_-12px_rgba(30,20,28,.45)] transition-[scale] duration-500 hover:scale-[1.035] focus-visible:outline-3 focus-visible:outline-offset-6 focus-visible:outline-(--accent)">
               <span className="grid justify-items-center gap-[calc(var(--size)*.014)]">
                 {p.avatar
                   ? <img src={p.avatar} alt="" referrerPolicy="no-referrer" className="size-[calc(var(--size)*.11)] rounded-full object-cover" />
@@ -146,12 +154,12 @@ export default function AuthPanel() {
             <button type="button" onClick={drop} disabled={user === undefined}
               onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)} onFocus={() => setHover(true)} onBlur={() => setHover(false)}
               aria-label="Continue with Google"
-              className="absolute left-1/2 top-1/2 grid aspect-square w-[36%] -translate-1/2 cursor-pointer place-items-center rounded-full bg-[#bbcbda] text-[#4c404a] shadow-[0_0_0_calc(var(--size)*.008)_var(--ink),0_10px_30px_-12px_rgba(30,20,28,.45)] transition-[scale] duration-500 ease-[cubic-bezier(.22,1,.36,1)] hover:scale-[1.035] active:scale-[.98] disabled:cursor-wait focus-visible:outline-3 focus-visible:outline-offset-6 focus-visible:outline-(--accent)">
+              className="absolute left-1/2 top-1/2 grid aspect-square w-[clamp(36%,128px,46%)] -translate-1/2 cursor-pointer place-items-center rounded-full bg-[#bbcbda] text-[#4c404a] shadow-[0_0_0_calc(var(--size)*.008)_var(--ink),0_10px_30px_-12px_rgba(30,20,28,.45)] transition-[scale] duration-500 ease-[cubic-bezier(.22,1,.36,1)] hover:scale-[1.035] active:scale-[.98] disabled:cursor-wait focus-visible:outline-3 focus-visible:outline-offset-6 focus-visible:outline-(--accent)">
               <span className="grid justify-items-center gap-[calc(var(--size)*.012)]">
                 <span className="grid size-[calc(var(--size)*.075)] place-items-center rounded-full bg-white shadow-[0_1px_0_rgba(0,0,0,.08)]">
                   <GoogleMark className="size-[58%]" />
                 </span>
-                <span className="text-[clamp(11px,calc(var(--size)*.03),15px)] font-semibold tracking-[0.02em]">
+                <span className="whitespace-nowrap text-[clamp(10px,calc(var(--size)*.03),15px)] font-semibold tracking-[0.02em]">
                   {state === "playing" ? "Connecting…" : "Continue with Google"}
                 </span>
                 <span className="text-[clamp(8px,calc(var(--size)*.018),10px)] uppercase tracking-[0.26em] opacity-60">Side A · Login</span>
@@ -160,7 +168,7 @@ export default function AuthPanel() {
           )}
         </div>
 
-        <p role="status" className={`min-h-[1.6em] text-[13px] tracking-[0.02em] ${error ? "text-(--danger)" : "opacity-75"}`}>{user === undefined ? "" : status}</p>
+        <p role="status" className={`min-h-[1.6em] text-[14px] tracking-[0.02em] ${error ? "text-(--danger)" : "opacity-80"}`}>{user === undefined ? "" : status}</p>
 
         {state === "done" ? (
           <div className="flex flex-wrap justify-center gap-2.5">
@@ -173,9 +181,9 @@ export default function AuthPanel() {
             </button>
           </div>
         ) : (
-          <p className="max-w-[38ch] text-[12px] leading-6 opacity-60">
-            First time here? Your shelf is set up automatically.<br />We only receive your name, email and profile photo.<br />
-            By continuing you agree to our <Link href="/terms" className="relative underline underline-offset-4 before:absolute before:-inset-x-1 before:-inset-y-3.5 before:content-[''] hover:opacity-100">Terms</Link> and <Link href="/privacy" className="relative underline underline-offset-4 before:absolute before:-inset-x-1 before:-inset-y-3.5 before:content-[''] hover:opacity-100">Privacy Policy</Link>.
+          <p className="max-w-[58ch] text-balance text-[12px] leading-[1.75] opacity-65">
+            First time here? Your shelf is set up automatically.<br className="max-sm:hidden" /> We only receive your name, email and profile photo.<br className="max-sm:hidden" />{" "}
+            By continuing you agree to our <Link href="/terms" className="relative underline underline-offset-4 before:absolute before:-inset-x-1 before:-inset-y-3.5 before:content-[''] hover:opacity-100">Terms</Link> and <Link href="/privacy" className="relative whitespace-nowrap underline underline-offset-4 before:absolute before:-inset-x-1 before:-inset-y-3.5 before:content-[''] hover:opacity-100">Privacy Policy</Link>.
           </p>
         )}
       </section>
