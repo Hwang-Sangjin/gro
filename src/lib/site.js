@@ -7,5 +7,6 @@ export const SITE = {
   owner: "Hwang Sangjin",                 // 운영자 = 개인정보 보호책임자
   email: "aosdb5640@naver.com",          // 문의·개인정보 요청 받는 메일
   city: "Seoul",
+  featuredShelf: "tkdwls5640",            // 로그인 전 Collection 화면에 견본으로 보여 줄 공개 선반의 아이디 (비공개로 바뀌면 견본이 안 나옴)
   legalUpdated: "2026-10-14",             // 방침·약관 시행일
 };

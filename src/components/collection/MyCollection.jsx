@@ -8,6 +8,8 @@ import Link from "next/link";
 import PageShell from "@/components/layout/PageShell";
 import ShelfBrowser from "@/components/collection/ShelfBrowser";
 import ShareCollection from "@/components/collection/ShareCollection";
+import SampleShelf from "@/components/collection/SampleShelf";
+import { SITE } from "@/lib/site";
 import useReveal from "@/components/digging/useReveal";
 import styles from "@/components/digging/Digging.module.css";
 import useAuthUser, { profileOf } from "@/lib/useAuthUser";
@@ -46,7 +48,7 @@ export default function Collection() {
         </div>
       </header>
 
-      {user === null ? (
+      {user === null ? (<>
         <div className="mt-6 flex flex-col items-start gap-6 border-t-[3px] border-(--ink) pt-10">
           <p className={`${SERIF} text-[clamp(1.75rem,3vw,2.5rem)] font-black leading-tight`}>Log in to start your shelf</p>
           <p className="text-[15px] leading-7 text-(--ink)/70">Keep the records you own and the ones you want, all in one place.</p>
@@ -54,7 +56,9 @@ export default function Collection() {
             Login
           </Link>
         </div>
-      ) : (
+        {/* 견본 선반: 로그인하지 않아도 선반이 어떻게 생겼는지 보이게 */}
+        <SampleShelf handle={SITE.featuredShelf} />
+      </>) : (
         <ShelfBrowser
           shelves={shelves} error={error} errorText="Couldn’t load your shelves. Please refresh."
           label={name ? `${name}’s shelf` : "My shelf"} tablistLabel="My shelves"
