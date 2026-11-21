@@ -14,6 +14,13 @@ export const CRATE = {
 };
 const { SLOTS } = CRATE;
 const FOV = 32, CAM_Z = 10;
+const clampN = (lo, x, hi) => Math.min(hi, Math.max(lo, x));
+// 넓은 화면(820px 이상)의 자리 나눔 — CrateView 의 CSS 변수(--crate-gut · --crate-panel · --crate-gap)와 같은 식
+//  왼쪽: 여백 + 정보 패널 + 틈 → 그 오른쪽부터 맨 앞 판. 판 더미는 화면 오른쪽 밖으로 이어짐
+export const crateLayout = (W) => {
+  const gut = clampN(16, W * 0.04, 56), panel = clampN(260, W * 0.28, 380), gap = clampN(24, W * 0.03, 56);
+  return { gut, panel, gap, left: gut + panel + gap };
+};
 
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
@@ -36,7 +43,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   scene.fog = new THREE.Fog(0xf3e7cd, 11, 26);
   const aniso = renderer.capabilities.getMaxAnisotropy();
 
-  let CARD = 3.2, W = 1, H = 1, narrow = false;
+  let CARD = 3.2, W = 1, H = 1, narrow = false, FX = 0, FY = 0;
   const geo = new THREE.BoxGeometry(1, 1, 0.022);
   // 장르 칸막이(card.divider)일 때만 보이는 탭: 판 위로 솟은 크래프트 조각 + 다이모 라벨 (판의 자식 → 같이 움직임)
   const TAB = { w: 0.46, h: 0.12, x: -0.18 };
@@ -123,7 +130,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   // d = 맨 앞에서 몇 번째(소수). 0 = 맨 앞, 음수 = 앞으로 넘긴 판
   function cratePose(d, o) {
     const u = CARD / 3.2;
-    const fx = (narrow ? -0.25 : -1.25) * u, fy = (narrow ? 0.25 : 0.0) * u;
+    const fx = FX, fy = FY;   // 맨 앞 판의 자리 (resize 에서 정함)
     if (d < 0) {
       const k = Math.min(1, -d);
       o.x = fx - k * 0.2 * u; o.y = fy - k * 2.4 * u; o.z = k * 2.2 * u;
@@ -255,8 +262,21 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     narrow = W < 820;
     renderer.setSize(W, H, false);
     camera.aspect = W / H; camera.updateProjectionMatrix();
-    const visH = 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360);
-    CARD = Math.min(3.2, visH * camera.aspect * 0.62, visH * 0.52);
+    const visH = 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360), wpp = visH / H;
+    // 맨 앞 판의 크기 · 자리 (화면 px 로 정한 뒤 z=0 평면의 크기로)
+    //  넓은 화면: 정보 패널 오른쪽에, 화면 높이의 68%까지 (예전 52% · 화면 가운데 왼쪽 → 왼쪽 3분의 1이 비어 있었음)
+    //  좁은 화면: 위쪽에 두고 정보는 그 아래
+    let cardPx, cx, cy;
+    if (narrow) {
+      const top = Math.max(H * 0.19, 150)   // 칸막이 탭이 위 글자(어디의 상자인지)와 겹치지 않게 — CratePanel 의 좁은 화면 자리와 같은 식;
+      cardPx = Math.min(W * 0.7, H * 0.34);
+      cx = W / 2 - 0.078 * cardPx; cy = top + cardPx / 2;
+    } else {
+      const { left } = crateLayout(W), top = Math.max(H * 0.14, 110), bottom = Math.max(H * 0.1, 72);
+      cardPx = Math.max(160, Math.min(H * 0.68, H - top - bottom, W - left - W * 0.16));
+      cx = left + cardPx / 2; cy = top + (H - top - bottom) / 2;
+    }
+    CARD = cardPx * wpp; FX = (cx - W / 2) * wpp; FY = -(cy - H / 2) * wpp;
   }
   const ro = new ResizeObserver(resize);
   ro.observe(host);
@@ -358,6 +378,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
       run();
       return true;
     },
+    /** 맨 앞 판 열기 (정보 패널의 "Open record" 버튼 — 판을 누른 것과 같음) */
+    openFront() { if (live() && N()) onOpen?.(wrap(Math.round(pos)), frontRect()); },
     get front() { return wrap(Math.round(pos)); },
     get busy() { return !!anim; },
     setFog(hex) { scene.fog.color.set(hex); },

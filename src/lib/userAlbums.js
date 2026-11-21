@@ -50,6 +50,13 @@ export async function fetchOwnerCount(albumId) {
 }
 
 // 내가 가진 판(owned)의 앨범 id 모음 — Digging 의 "Not owned" 거르기용 (2026-11-21)
+// 내 선반 전체를 한 번에: 앨범 id → "owned" | "wishlist" (Crate 보기 — 판을 넘길 때마다 묻지 않게)
+export async function fetchMyKinds() {
+  const { data, error } = await authClient().from("user_albums").select("album_id, kind");
+  if (error) throw error;
+  return new Map((data ?? []).map((r) => [r.album_id, r.kind]));
+}
+
 export async function fetchOwnedIds() {
   const { data, error } = await authClient().from("user_albums").select("album_id").eq("kind", "owned");
   if (error) throw error;

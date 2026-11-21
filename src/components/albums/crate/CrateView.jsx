@@ -6,11 +6,20 @@
 //  - Crate → Grid: 맨 앞 판의 칸이 보이게 스크롤해 두고, 판들이 맨 앞부터 차례로 날아가 칸에 꽂힘
 // 카드 정보는 그리드 DOM([data-album-card])에서 읽음 → 장르·탭·검색으로 걸러진 지금 그리드 그대로
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
+import { createClient } from "@/utils/supabase/client";
+import useAuthUser from "@/lib/useAuthUser";
+import { fetchMyKinds, setAlbumKind } from "@/lib/userAlbums";
+import { setNowSpinning } from "@/lib/nowSpinning";
+import { createRoomMusic } from "@/components/roomtest/roomMusic";
+import CratePanel from "./CratePanel";
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const EASE = "ease-[cubic-bezier(0.22,1,0.36,1)]";
 const storeKey = () => `grooves:crate:${location.pathname}`;
+// 정보 패널에 쓰는 판 상세 (그리드 카드에는 제목 · 아티스트 · 색만 있음)
+const DETAIL = "id, slug, release_year, format, rpm, description, youtube_playlist_id, album_genres(genres(name)), tracks(count)";
 
 /** Grid / Crate 스위치 (그리드 위·크레이트 위 같은 모양) */
 export function ViewToggle({ view, onChange, className = "" }) {
@@ -59,6 +68,41 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
   const [shown, setShown] = useState(false);        // 덮개가 있음 (전환 중 포함)
   const [front, setFront] = useState(null);         // { i, n, title, artist, color }
   const transition = useAlbumTransition();
+  const router = useRouter();
+  const user = useAuthUser();
+
+  // ── 정보 패널: 상자에 꽂힌 판들의 상세를 한 번에 받아 둠 (판을 넘길 때마다 묻지 않게)
+  const details = useRef(new Map());                // slug → 상세 (못 받았으면 null)
+  const [, bump] = useState(0);
+  const loadDetails = useCallback(async (cards) => {
+    const want = cards.filter((c) => !c.divider && !details.current.has(c.slug)).map((c) => c.slug);
+    if (!want.length) return;
+    for (const slug of want) details.current.set(slug, undefined);   // 받는 중 (같은 판을 두 번 묻지 않게)
+    try {
+      for (let i = 0; i < want.length; i += 60) {
+        const { data, error } = await createClient().from("albums").select(DETAIL).eq("status", "published").in("slug", want.slice(i, i + 60));
+        if (error) throw error;
+        for (const row of data ?? []) details.current.set(row.slug, row);
+      }
+    } catch { for (const slug of want) if (details.current.get(slug) === undefined) details.current.delete(slug); }
+    bump((n) => n + 1);
+  }, []);
+
+  // ── 내 선반: 로그인했으면 한 번 받아 둠 (앨범 id → owned | wishlist)
+  const [kinds, setKinds] = useState(null);
+  useEffect(() => {
+    if (view !== "crate" || !user || kinds) return;
+    let alive = true;
+    fetchMyKinds().then((m) => { if (alive) setKinds(m); }).catch(() => {});
+    return () => { alive = false; };
+  }, [view, user, kinds]);
+  useEffect(() => { if (!user) setKinds(null); }, [user]);
+
+  // ── 듣기: Home 의 "Now spinning" 카드와 같은 작은 플레이어 (YouTube 약관상 플레이어는 보여야 함 → 카드 안에)
+  const musicHostRef = useRef(null), musicRef = useRef(null), playingRef = useRef(null);
+  const [music, setMusic] = useState({ album: null, active: false, playing: false, buffering: false, blocked: false, error: false });
+  const stopMusic = useCallback(() => { musicRef.current?.stop(); playingRef.current = null; setNowSpinning(null); }, []);
+  useEffect(() => () => { musicRef.current?.dispose(); musicRef.current = null; if (playingRef.current) setNowSpinning(null); }, []);
   // 엔진은 한 번 만들고 계속 씀 → 전환 함수는 늘 최신 것을 ref 로 읽음
   // (앨범 상세에서 돌아오는 페이지 넘김 중에 엔진이 만들어지면 그때의 '전환 중' 상태가 굳어 클릭이 막히던 문제)
   const transitionRef = useRef(transition);
@@ -93,6 +137,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
     const c = cardsRef.current[i];
     if (!c || c.divider) return;   // 칸막이는 열 앨범이 없음
     try { sessionStorage.setItem(storeKey(), JSON.stringify({ view: "crate", slug: c.slug })); } catch {}
+    stopMusic();   // 상세 페이지에는 그 앨범의 플레이어가 따로 있음
     const src = sourceRef.current;
     Object.assign(src.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
     const transition = transitionRef.current;
@@ -112,7 +157,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       if (view === "crate") {
         const cards = readCards(gridRef.current);
         if (!cards.length) { onViewChange("grid"); return; }
-        cardsRef.current = cards;
+        cardsRef.current = cards; loadDetails(cards);
         // 화면에 보이는 첫 판 (헤더 아래)
         const topLine = (hostRef.current.getBoundingClientRect().top || 0) + 80;
         const start = Math.max(0, cards.findIndex((c) => c.art.getBoundingClientRect().bottom > topLine));
@@ -123,6 +168,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       } else {
         if (eng.busy) return;
         modeRef.current = "grid";
+        stopMusic();   // 플레이어 카드는 상자 안에 있음 → 상자를 떠나면 소리도 멈춤
         try { sessionStorage.removeItem(storeKey()); } catch {}
         // 맨 앞 판의 칸이 화면 위쪽에 오도록 페이지를 옮긴 뒤 날려 보냄
         const c = cardsRef.current[eng.front];
@@ -136,7 +182,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       }
     })();
     return () => { alive = false; };
-  }, [view, engine, gridRef, onViewChange]);
+  }, [view, engine, gridRef, onViewChange, loadDetails, stopMusic]);
 
   // 앨범 상세에서 돌아오면: 떠날 때 크레이트였으면 그 판을 맨 앞에 두고 바로 크레이트로
   useEffect(() => {
@@ -151,7 +197,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       done = true;
       const eng = await engine();
       if (!eng) return true;
-      cardsRef.current = cards;
+      cardsRef.current = cards; loadDetails(cards);
       modeRef.current = "crate";
       setShown(true); lockPage(true);
       eng.setFog(getComputedStyle(page() || document.body).backgroundColor);
@@ -181,13 +227,13 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       if (eng.busy) { raf = requestAnimationFrame(sync); return; }   // 날아오는 중이면 끝난 뒤에
       // 이미 꽂힌 판은 그대로 두고(같은 물체) 새 판만 뒤에
       const next = [...cardsRef.current, ...cards.slice(cardsRef.current.length)];
-      if (eng.extend(next)) cardsRef.current = next;
+      if (eng.extend(next)) { cardsRef.current = next; loadDetails(next); }
     };
     const mo = new MutationObserver(() => { if (!raf) raf = requestAnimationFrame(sync); });
     mo.observe(gridRef.current, { childList: true, subtree: true });
     sync();
     return () => { mo.disconnect(); cancelAnimationFrame(raf); };
-  }, [view, gridRef]);
+  }, [view, gridRef, loadDetails]);
 
   // Esc → 그리드
   useEffect(() => {
@@ -199,39 +245,71 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
 
   useEffect(() => () => { engineRef.current?.dispose(); engineRef.current = null; lockPage(false); }, []);
 
+  // ── 정보 패널의 값 · 버튼
+  const info = front && !front.divider ? details.current.get(front.slug) : null;
+  const kind = info && kinds ? kinds.get(info.id) ?? null : null;
+  const listening = !!front && music.playing && playingRef.current?.slug === front.slug;
+  // Listen: 맨 앞 판을 틂. 이미 그 판이면 멈춤 · 다시 재생
+  const listen = () => {
+    if (!front || !info?.youtube_playlist_id || !musicHostRef.current) return;
+    musicRef.current ??= createRoomMusic(musicHostRef.current, setMusic);
+    if (playingRef.current?.slug === front.slug) { musicRef.current.set(playingRef.current, !music.playing); return; }
+    playingRef.current = { slug: front.slug, title: front.title, artist: front.artist, playlist: info.youtube_playlist_id };
+    musicRef.current.set(playingRef.current, true);
+    setNowSpinning({ slug: front.slug, title: front.title, artist: front.artist });
+  };
+  const togglePlay = () => {
+    const m = musicRef.current, a = playingRef.current;
+    if (!m || !a) return;
+    if (music.blocked) m.resume(); else m.set(a, !music.playing);
+  };
+  // 선반에 담기 · 빼기 (상세 페이지의 버튼과 같은 규칙: 한 판은 한 칸에만, 로그인 전이면 로그인으로)
+  const shelve = async (next) => {
+    if (!info || user === undefined) return;
+    if (!user) { router.push(`/login?next=${encodeURIComponent(location.pathname)}`); return; }
+    const prev = kinds?.get(info.id) ?? null, target = prev === next ? null : next;
+    const put = (v) => setKinds((m) => { const n = new Map(m ?? []); if (v) n.set(info.id, v); else n.delete(info.id); return n; });
+    put(target);   // 먼저 화면에 반영, 실패하면 되돌림
+    try { await setAlbumKind(user.id, info.id, target); } catch { put(prev); }
+  };
+
   return (
     <>
       <div ref={hostRef} data-no-select data-lenis-prevent data-crate-ignore tabIndex={view === "crate" ? 0 : -1}
         aria-hidden={!shown} aria-label={shown ? `${title} crate. Scroll or use the arrow keys to dig; press Enter to open the front record.` : undefined}
         role={shown ? "region" : undefined}
         className={`fixed inset-0 z-[25] isolate touch-none outline-none ${shown ? "visible" : "invisible pointer-events-none"} ${view === "crate" ? "cursor-grab active:cursor-grabbing" : ""}`}
-        style={{ "--crate-m": 1 }}>
+        style={{ "--crate-m": 1, "--crate-gut": "clamp(16px, 4vw, 56px)", "--crate-panel": "clamp(260px, 28vw, 380px)", "--crate-gap": "clamp(24px, 3vw, 56px)" }}>
         {/* 바탕: 그리드와 같은 종이(페이지 색 + 종이 결) — 헤더와 이어짐. 그리드로 갈수록 투명해져 아래 그리드가 드러남 */}
         <div aria-hidden="true" className="absolute inset-0 -z-10" style={{ opacity: "calc(1 - var(--crate-m))" }}>
           <div className="absolute inset-0 bg-(--bg)" />
           <div className="absolute inset-0 bg-(--paper-surface,var(--bg)) bg-(image:--paper-texture-image) bg-repeat bg-blend-soft-light opacity-(--paper-texture-opacity) [background-size:var(--paper-texture-size)_var(--paper-texture-size)]" />
         </div>
-        {/* 글자: 크레이트를 떠나자마자 빠지고, 돌아오면 판들이 거의 다 꽂힐 때 나타남 */}
-        <div className="pointer-events-none absolute inset-0 flex flex-col justify-between px-[clamp(16px,4vw,56px)] pb-[clamp(20px,5vh,48px)] pt-[calc(var(--ct-header-h,106px)+0.5rem)] text-(--ink)"
-          style={{ opacity: "max(0, 1 - var(--crate-m) * 5)" }}>
-          <div className="flex items-start justify-between gap-4 max-md:flex-col-reverse max-md:gap-3">
-            <p className={`${SERIF} min-w-0 text-[clamp(2.25rem,6vw,5.75rem)] font-black uppercase leading-[0.86] tracking-[-0.02em]`}>{title}</p>
-            <div className="pointer-events-auto flex flex-col items-end gap-3 max-md:self-end">
-              {/* 판 더미가 이 자리까지 올라오므로 종이 바탕을 깔아 줌 (없으면 커버 그림 위에 글자만 떠서 안 읽힘) */}
-              <ViewToggle view={view} onChange={onViewChange} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />
-              <p className="hidden rounded-md bg-(--bg)/85 px-2.5 py-1.5 text-right text-[11px] uppercase leading-5 tracking-[0.24em] text-(--ink)/70 backdrop-blur-sm md:block">Scroll · Drag · ← → to dig<br />Click the front record to open</p>
+        {/* 글자: 크레이트를 떠나자마자 빠지고, 돌아오면 판들이 거의 다 꽂힐 때 나타남 (CratePanel) */}
+        <CratePanel label={title} front={front} total={total} info={info} kind={kind} listening={listening}
+          toggle={<ViewToggle view={view} onChange={onViewChange} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />}
+          onOpen={() => engineRef.current?.openFront()} onListen={listen} onShelf={shelve} />
+        {/* 듣기 카드 ("Now spinning"): Listen 을 누르면 오른쪽 아래에 뜸. 판을 넘겨도 남고, 상자를 떠나면 닫힘 (좁은 화면에서는 쓰지 않음) */}
+        <div role="region" aria-label="Now spinning" inert={!music.active}
+          className={`absolute bottom-[clamp(3rem,8vh,4.5rem)] right-[var(--crate-gut)] z-10 w-[200px] cursor-auto overflow-hidden rounded-xl bg-[#15111a]/90 text-[#f4e7cd] shadow-[0_24px_48px_-20px_rgba(0,0,0,.7)] ring-1 ring-white/10 backdrop-blur-md transition-[opacity,translate] duration-500 ${EASE} motion-reduce:transition-none max-[819px]:hidden ${music.active ? "opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}>
+          <div ref={musicHostRef} className="size-[200px] bg-black [&_iframe]:block [&_iframe]:size-full" />
+          <div className="flex items-center gap-2 px-3 py-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-[9px] font-medium uppercase tracking-[0.24em] opacity-60" aria-live="polite">
+                {music.error ? "Couldn’t load" : music.blocked ? "Press play" : music.buffering ? "Loading…" : music.playing ? "Now spinning" : "Paused"}
+              </p>
+              <p className="truncate text-[13px] leading-snug">{music.album?.title}</p>
+              <p className="truncate text-[11px] opacity-60">{music.album?.artist}</p>
             </div>
+            <button type="button" aria-label={music.playing ? "Pause" : "Play"} onClick={togglePlay}
+              className="grid size-9 shrink-0 place-items-center rounded-full bg-[#f4e7cd] text-[#15111a] transition-[background-color,scale] duration-300 hover:bg-[#7fc1bd] active:scale-95">
+              <svg aria-hidden="true" viewBox="0 0 16 16" className="size-3.5" fill="currentColor">{music.playing ? <path d="M4 3h3v10H4zM9 3h3v10H9z" /> : <path d="M4.5 2.5v11l9-5.5z" />}</svg>
+            </button>
+            <button type="button" aria-label="Close player" onClick={stopMusic}
+              className="grid size-9 shrink-0 place-items-center rounded-full text-[#f4e7cd]/70 transition-colors hover:text-[#f4e7cd]">
+              <svg aria-hidden="true" viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" /></svg>
+            </button>
           </div>
-          {front && (
-            <div className="flex items-end justify-between gap-6 max-md:flex-col-reverse max-md:items-start max-md:gap-2">
-              <p key={front.slug} className={`${SERIF} min-w-0 flex-1 truncate text-[clamp(1.9rem,5.6vw,6rem)] font-black uppercase leading-none tracking-[-0.02em] animate-[crate-title_.8s_cubic-bezier(.22,1,.36,1)_both]`}
-                style={{ color: `color-mix(in oklab, ${front.color || "var(--ink)"} 55%, var(--ink))` }}>{front.title}</p>
-              <div className="shrink-0 text-right max-md:text-left">
-                <p className={`${SERIF} text-[clamp(1.6rem,3vw,2.75rem)] font-bold tabular-nums leading-none`}>{front.divider ? "—" : String(front.i + 1).padStart(3, "0")} / {String(Math.max(front.n, total ?? 0)).padStart(3, "0")}</p>
-                <p className="mt-2 max-w-[22rem] truncate text-[12px] uppercase tracking-[0.24em] text-(--ink)/70">{front.artist}</p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
       {/* 앨범 상세로 날아가는 커버의 출발점 (맨 앞 판 자리에 맞춰 둠) */}
