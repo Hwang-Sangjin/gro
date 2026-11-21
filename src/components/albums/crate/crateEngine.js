@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { drawDividerFace, drawDividerTab } from './crateDivider';
 import { createSleeveFx, PEEL, STICKER } from '../sleeveFx';
+import { isPeeled, markPeeled } from '../peeled';
 
 /* Crate 보기 3D 엔진 (Digging · Collection 공용, DOM 그리드 위에 덮는 캔버스)
    - 크레이트: 맨 앞 판은 정면, 뒤의 판들은 오른쪽으로 비스듬히 줄지어 꽂힘. 스크롤·드래그·키로 끝없이 넘어감
@@ -29,7 +30,8 @@ const easeIO = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const KEYS = ['x', 'y', 'z', 'rx', 'ry', 'rz', 's', 'o', 'c'];
 const lerpPose = (a, b, t, o) => { for (const k of KEYS) o[k] = a[k] + (b[k] - a[k]) * t; return o; };
 
-export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
+// onPeel(): 스티커를 떼어 냄 (소리용)
+export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -48,6 +50,19 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   const geo = new THREE.BoxGeometry(1, 1, 0.022);
   // 재킷 디테일 (sleeveFx.js): 앞면의 광택 · 종이 모서리 + 새로 들어온 판의 떼어지는 스티커 (NEW IN)
   const fx = createSleeveFx({ aniso });
+  const PEEL_DIR = new THREE.Vector2(Math.cos((PEEL.dir * Math.PI) / 180), Math.sin((PEEL.dir * Math.PI) / 180));   // 평소에 들려 있는 쪽 (오른쪽 위)
+  const seedOf = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return ((h >>> 0) % 1000) / 37; };
+  // 재킷의 입구(오른쪽 옆면): 판지 두 겹 사이의 어두운 틈과 그 안의 흰 속지 — 뒤에 비스듬히 선 판들은 이 면이 보임
+  const openTex = (() => {
+    const c = document.createElement('canvas'); c.width = 32; c.height = 4;
+    const g = c.getContext('2d');
+    g.fillStyle = '#d9cfbb'; g.fillRect(0, 0, 32, 4);        // 판지
+    g.fillStyle = '#2b2422'; g.fillRect(9, 0, 14, 4);        // 틈
+    g.fillStyle = '#f6f1e6'; g.fillRect(13, 0, 6, 4);        // 속지
+    g.fillStyle = '#17120f'; g.fillRect(15.5, 0, 1.5, 4);    // 속지 안의 판
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })();
   // 장르 칸막이(card.divider)일 때만 보이는 탭: 판 위로 솟은 크래프트 조각 + 다이모 라벨 (판의 자식 → 같이 움직임)
   const TAB = { w: 0.46, h: 0.12, x: -0.18 };
   const KRAFT = new THREE.Color('#c9a679'), KRAFT_EDGE = new THREE.Color('#a9865a');
@@ -55,7 +70,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     const edge = new THREE.MeshBasicMaterial({ transparent: true });
     const front = new THREE.MeshBasicMaterial({ transparent: true });
     const back = new THREE.MeshBasicMaterial({ transparent: true, color: 0xd9ccb2 });
-    const mesh = new THREE.Mesh(geo, [edge, edge, edge, edge, front, back]);
+    const open = new THREE.MeshBasicMaterial({ transparent: true, map: openTex });
+    const mesh = new THREE.Mesh(geo, [open, edge, edge, edge, front, back]);
     const tabFront = new THREE.MeshBasicMaterial({ transparent: true });
     const tabEdge = new THREE.MeshBasicMaterial({ transparent: true, color: KRAFT_EDGE });
     const tabBack = new THREE.MeshBasicMaterial({ transparent: true, color: KRAFT });
@@ -64,10 +80,11 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     mesh.add(tab);
     const finish = fx.finish(); finish.mesh.position.z = 0.0114; mesh.add(finish.mesh);
     const sticker = fx.sticker();
+    const dir = PEEL_DIR.clone(); sticker.u.uDir.value = dir;
     sticker.mesh.scale.setScalar(STICKER.size); sticker.mesh.position.set(STICKER.at, STICKER.at, 0.0126); sticker.mesh.rotation.z = STICKER.tilt;
     mesh.add(sticker.mesh);
     scene.add(mesh);
-    return { mesh, edge, front, back, tab, tabFront, tabEdge, tabBack, finish, sticker, peel: PEEL.rest, d: 0, card: null, edgeBase: new THREE.Color() };
+    return { mesh, edge, front, back, tab, tabFront, tabEdge, tabBack, open, finish, sticker, peel: PEEL.rest, dir, fly: 0, d: 0, card: null, edgeBase: new THREE.Color() };
   });
 
   /* ---- 커버 텍스처: 불러오는 동안은 대표 색 ---- */
@@ -119,8 +136,13 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   function setSlot(slot, idx) {
     const card = cards[idx];
     if (slot.card === card) return;
-    slot.card = card; slot.peel = PEEL.rest;
+    // 떼어져 날아가던 스티커는 판이 바뀌면 그대로 떼어진 것으로 · 잡고 있던 것은 놓음
+    if (slot.fly > 0 && slot.card) markPeeled(slot.card.slug);
+    if (peel?.slot === slot) peel = null;
+    slot.card = card; slot.peel = PEEL.rest; slot.fly = 0; slot.dir.copy(PEEL_DIR);
     if (!card) return;
+    slot.mesh.material[0] = card.divider ? slot.edge : slot.open;   // 칸막이(판지 한 장)에는 입구가 없음
+    slot.finish.u.uSeed.value = seedOf(card.slug || '');
     if (card.divider) {
       const t = dividerTex(card);
       slot.front.map = t.face; slot.tabFront.map = t.tab;
@@ -166,7 +188,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     m.position.set(p.x, p.y, p.z);
     m.rotation.set(p.rx, p.ry, p.rz);
     m.scale.set(CARD * p.s, CARD * p.s, CARD * p.s);
-    for (const mat of [slot.front, slot.back, slot.edge, slot.tabFront, slot.tabEdge, slot.tabBack]) mat.opacity = p.o;
+    for (const mat of [slot.front, slot.back, slot.edge, slot.open, slot.tabFront, slot.tabEdge, slot.tabBack]) mat.opacity = p.o;
+    slot.open.color.setScalar(p.c);
     slot.front.color.setScalar(p.c);
     slot.tabFront.color.setScalar(p.c);
     slot.edge.color.copy(slot.edgeBase).multiplyScalar(p.c);
@@ -179,8 +202,12 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     f.mesh.visible = plain; f.mesh.renderOrder = m.renderOrder + 1;
     f.u.uOpacity.value = p.o; f.u.uGloss.value = 1 - ss(0.3, 1.8, near);
     f.u.uLight.value.set(hover.x * 0.55 + slot.d * 0.9, hover.y * 0.3);
-    st.mesh.visible = plain && !!slot.card.isNew; st.mesh.renderOrder = m.renderOrder + 2;
-    st.u.uOpacity.value = p.o; st.u.uShade.value = p.c; st.u.uPeel.value = slot.peel;
+    st.mesh.visible = plain && !!slot.card.isNew && !isPeeled(slot.card.slug); st.mesh.renderOrder = m.renderOrder + 2;
+    // 떼어져 떨어지는 동안(fly 0→1): 당긴 쪽으로 밀려나며 아래로 떨어지고 · 돌고 · 옅어짐
+    const fl = slot.fly;
+    st.mesh.position.set(STICKER.at - slot.dir.x * 0.26 * fl, STICKER.at - slot.dir.y * 0.26 * fl - 0.5 * fl * fl, 0.0126 + 0.12 * fl);
+    st.mesh.rotation.z = STICKER.tilt + fl * 0.9;
+    st.u.uOpacity.value = p.o * (1 - ss(0.45, 1, fl)); st.u.uShade.value = p.c; st.u.uPeel.value = slot.peel;
   }
 
   /* ---- 상태 ---- */
@@ -188,6 +215,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   let pos = 0, target = 0, lastInput = 0, drag = null, touch = null;
   // 마우스 자리 (-1~1, 부드럽게 따라감): 광택이 따라 움직이고, 맨 앞 판 위에 있으면 스티커가 더 말려 올라감
   const hover = { on: false, nx: 0, ny: 0, x: 0, y: 0 };
+  // 스티커를 잡고 끄는 중: { slot, G(잡은 가장자리, 스티커 기준 · 지름 1), id, moved, x, y, to(들림), dir }
+  let peel = null;
   const hidden = new Set();   // 3D가 대신하는 동안 숨긴 그리드 커버
   function hideArt(el, on) {
     if (!el) return;
@@ -206,15 +235,58 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   };
   // 화면 위치는 매번 새로 잼: 페이지 넘김 중(페이지가 기울고 작아진 상태)에 열려도 클릭 위치가 어긋나지 않게
   const syncRect = () => { hostRect = host.getBoundingClientRect(); };
+  // 화면의 점 → 맨 앞 판 스티커 위의 점 (스티커 기준: 가운데 0 · 지름 1). 스티커 밖이면 null
+  const plane = new THREE.Plane(), v3 = new THREE.Vector3(), n3 = new THREE.Vector3();
+  const aim = (cx, cy) => { ndc.set(((cx - hostRect.left) / hostRect.width) * 2 - 1, -((cy - hostRect.top) / hostRect.height) * 2 + 1); raycaster.setFromCamera(ndc, camera); };
+  function stickerAt(cx, cy, reach = 0.56) {
+    const fs = frontSlot(), st = fs.sticker.mesh;
+    if (!live() || !fs.mesh.visible || !st.visible || fs.fly > 0) return null;
+    aim(cx, cy);
+    const hit = raycaster.intersectObject(fs.mesh, false)[0];
+    if (!hit) return null;
+    const p = st.worldToLocal(hit.point.clone());
+    return Math.hypot(p.x, p.y) <= reach ? { slot: fs, x: p.x, y: p.y } : null;
+  }
+  // 끄는 중에는 판 밖으로 나가도 따라와야 하므로, 스티커가 놓인 평면과 만나는 점으로 잼
+  function onStickerPlane(slot, cx, cy) {
+    const st = slot.sticker.mesh;
+    aim(cx, cy);
+    plane.setFromNormalAndCoplanarPoint(n3.set(0, 0, 1).transformDirection(slot.mesh.matrixWorld), st.getWorldPosition(v3));
+    return raycaster.ray.intersectPlane(plane, v3) ? st.worldToLocal(v3) : null;
+  }
   const onDown = (e) => {
     if (!live() || e.button !== 0) return;
     syncRect();
     if (e.target instanceof Element && e.target.closest('button, a')) return;
+    // 스티커를 잡았으면 판을 넘기는 대신 스티커를 뗌. 잡은 곳에서 가장 가까운 가장자리가 들림 (가운데를 잡으면 평소 들려 있는 쪽)
+    const hit = stickerAt(e.clientX, e.clientY, e.pointerType === 'touch' ? 0.7 : 0.56);
+    if (hit) {
+      const r = Math.hypot(hit.x, hit.y);
+      const G = r > 0.12 ? new THREE.Vector2(hit.x, hit.y).multiplyScalar(0.5 / r) : PEEL_DIR.clone().multiplyScalar(0.5);
+      peel = { slot: hit.slot, G, id: e.pointerId, moved: false, x: e.clientX, y: e.clientY, to: PEEL.grab, dir: G.clone().normalize() };
+      canvas.setPointerCapture?.(e.pointerId);
+      return;
+    }
     drag = { x: e.clientX, y: e.clientY, start: target, moved: false, id: e.pointerId, touch: e.pointerType === 'touch' };
     canvas.setPointerCapture?.(e.pointerId);
   };
   const onMove = (e) => {
-    if (e.pointerType === 'mouse') { hover.on = true; hover.nx = ((e.clientX - hostRect.left) / hostRect.width) * 2 - 1; hover.ny = -((e.clientY - hostRect.top) / hostRect.height) * 2 + 1; }
+    if (e.pointerType === 'mouse') { hover.on = true; hover.nx = ((e.clientX - hostRect.left) / hostRect.width) * 2 - 1; hover.ny = -((e.clientY - hostRect.top) / hostRect.height) * 2 + 1; hover.cx = e.clientX; hover.cy = e.clientY; }
+    if (peel && e.pointerId === peel.id) {
+      if (Math.hypot(e.clientX - peel.x, e.clientY - peel.y) > 6) peel.moved = true;
+      // 잡은 가장자리 G 가 손가락 P 까지 접혀 오려면: 접힌 선 = G 와 P 의 수직이등분선. 떼어지는 방향 = P → G, 접힌 선의 자리 = 가운데 점
+      const P = onStickerPlane(peel.slot, e.clientX, e.clientY);
+      if (P) {
+        const vx = peel.G.x - P.x, vy = peel.G.y - P.y, len = Math.hypot(vx, vy);
+        // 바깥으로 끌면(가장자리에서 멀어지는 쪽) 떼어지지 않음
+        if (len < 0.02 || (vx * peel.G.x + vy * peel.G.y) * 2 < 0.02) peel.to = PEEL.rest;
+        else {
+          peel.dir.set(vx / len, vy / len);
+          peel.to = clampN(PEEL.rest, 0.5 - ((peel.G.x + P.x) / 2 * peel.dir.x + (peel.G.y + P.y) / 2 * peel.dir.y), 1.08);
+        }
+      }
+      return;
+    }
     if (!drag || e.pointerId !== drag.id) return;
     const dx = drag.x - e.clientX, dy = drag.y - e.clientY;
     if (Math.hypot(dx, dy) > 10) drag.moved = true;   // 클릭하며 손이 조금 움직여도 클릭으로
@@ -222,6 +294,17 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   };
   const raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2();
   const onUp = (e) => {
+    if (peel && e.pointerId === peel.id) {
+      const pd = peel; peel = null;
+      if (pd.moved) {
+        // 반 넘게 떼고 놓으면 떨어져 나감 (그 판의 스티커는 그리드에서도 사라짐). 덜 뗐으면 도로 붙음
+        //  (화면의 들림은 손가락을 조금 늦게 따라가므로, 빠르게 휙 떼어도 되게 손가락이 간 곳(to)으로 판단)
+        if (pd.to > PEEL.off && pd.slot.card) { pd.slot.dir.copy(pd.dir); pd.slot.fly = 0.001; onPeel?.(); }
+        return;
+      }
+      // 움직이지 않고 눌렀다 뗀 것은 판을 누른 것으로 → 아래에서 앨범을 엶
+      drag = { moved: false, id: e.pointerId };
+    }
     if (!drag || e.pointerId !== drag.id) return;
     const was = drag; drag = null;
     if (was.moved || !live()) return;
@@ -252,7 +335,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   host.addEventListener('pointerdown', onDown);
   host.addEventListener('pointermove', onMove);
   host.addEventListener('pointerup', onUp);
-  host.addEventListener('pointercancel', () => { drag = null; });
+  host.addEventListener('pointercancel', () => { drag = null; peel = null; });
   host.addEventListener('pointerleave', () => { hover.on = false; });
   host.addEventListener('touchmove', (e) => { if (mode === 'crate' && e.cancelable) e.preventDefault(); }, { passive: false });
   window.addEventListener('keydown', onKey);
@@ -320,17 +403,34 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     pos += (target - pos) * (1 - Math.exp(-dt / 0.14));
     if (Math.abs(target - pos) < 0.0005) pos = target;
     const front = wrap(Math.round(pos));
-    if (front !== shownFront && N()) { shownFront = front; onFront?.(front, cards[front]); }
+    if (front !== shownFront && N()) {
+      shownFront = front; onFront?.(front, cards[front]);
+      // 새 판이 맨 앞에 오면 스티커 가장자리가 한 번 팔랑임 (터치 기기에서도 떼어지는 물건으로 보이게)
+      if (!anim) { const fs = frontSlot(); if (fs.fly === 0) fs.peel = Math.max(fs.peel, 0.22); }
+    }
     // 마우스: 부드럽게 따라감 · 맨 앞 판 위에 있는지 (지난 프레임의 자리로 잼)
     const hk = 1 - Math.exp(-dt / 0.18);
     hover.x += ((hover.on ? hover.nx : 0) - hover.x) * hk; hover.y += ((hover.on ? hover.ny : 0) - hover.y) * hk;
-    let over = null;
-    if (hover.on && live() && !drag) {
+    // 스티커: 재킷에 올리면 조금, 스티커에 올리면 더 들림 (잡을 수 있다는 표시). 잡고 끌면 손가락을 따라 떼어짐
+    let over = null, lift = PEEL.hover;
+    if (hover.on && live() && !drag && !peel) {
       const fs = frontSlot();
       ndc.set(hover.nx, hover.ny); raycaster.setFromCamera(ndc, camera);
-      if (fs.mesh.visible && raycaster.intersectObject(fs.mesh, false).length) over = fs;
+      if (fs.mesh.visible && raycaster.intersectObject(fs.mesh, false).length) { over = fs; if (stickerAt(hover.cx, hover.cy)) lift = PEEL.grab; }
     }
-    for (const s of slots) s.peel += ((s === over ? PEEL.hover : PEEL.rest) - s.peel) * (1 - Math.exp(-dt / 0.16));
+    for (const s of slots) {
+      if (s.fly > 0) {
+        // 떨어져 나가는 중: 끝까지 말리며 날아가고, 다 가면 떼어 낸 것으로 기록
+        s.fly = Math.min(1, s.fly + dt / 0.6); s.peel += (1.1 - s.peel) * (1 - Math.exp(-dt / 0.1));
+        if (s.fly >= 1) { if (s.card) markPeeled(s.card.slug); s.fly = 0; s.peel = PEEL.rest; s.dir.copy(PEEL_DIR); }
+      } else if (peel?.slot === s) {
+        const f = 1 - Math.exp(-dt / 0.045);
+        s.peel += (peel.to - s.peel) * f; s.dir.lerp(peel.dir, f).normalize();
+      } else {
+        s.peel += ((s === over ? lift : PEEL.rest) - s.peel) * (1 - Math.exp(-dt / 0.16));
+        s.dir.lerp(PEEL_DIR, 1 - Math.exp(-dt / 0.2)).normalize();
+      }
+    }
 
     // 그리드 칸과 짝: cardOff(맨 앞과 짝인 칸)부터 화면 안에 보이는 칸들
     if (m > 0) syncRect();
@@ -422,8 +522,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
       host.removeEventListener('pointerup', onUp);
       window.removeEventListener('keydown', onKey);
       textures.forEach((t) => t.dispose()); geo.dispose();
-      slots.forEach((s) => { s.edge.dispose(); s.front.dispose(); s.back.dispose(); s.tabEdge.dispose(); s.tabFront.dispose(); s.tabBack.dispose(); s.finish.mesh.material.dispose(); s.sticker.mesh.material.dispose(); });
-      fx.dispose();
+      slots.forEach((s) => { s.edge.dispose(); s.front.dispose(); s.back.dispose(); s.tabEdge.dispose(); s.tabFront.dispose(); s.tabBack.dispose(); s.open.dispose(); s.finish.mesh.material.dispose(); s.sticker.mesh.material.dispose(); });
+      fx.dispose(); openTex.dispose();
       renderer.dispose(); canvas.remove();
     },
   };

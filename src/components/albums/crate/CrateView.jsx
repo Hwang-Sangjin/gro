@@ -140,6 +140,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
         setFront({ i: i - lead, n: cardsRef.current.length - lead, divider: !!c.divider, title: c.title, artist: c.artist, color: c.color, slug: c.slug, isNew: !!c.isNew });
       },
       onOpen: (i, rect) => openRef.current?.(i, rect),
+      onPeel: () => sfx?.current?.play("flip"),   // 스티커가 떼어지는 소리
       onSettled: (m) => {
         if (m === "grid") { setShown(false); lockPage(false); }
       },

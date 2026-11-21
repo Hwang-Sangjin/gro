@@ -2,20 +2,23 @@
 // 앨범 카드 한 장 — Digging·Collection 공용
 // 누르면 커버가 앨범 상세로 날아가는 전환(AlbumTransitionProvider), 스크롤로 보이면 가운데 줄에서 펼쳐지며 등장
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
 import useReveal from "@/components/digging/useReveal";
 import styles from "@/components/digging/Digging.module.css";
 import { sleeveColors } from "@/components/album/sleeveDepth";
 import { coverUrl } from "@/lib/albums";
+import { isPeeled, subscribePeeled } from "./peeled";
 
 const NEW_DAYS = 45;   // 들어온 지 이 날수 안이면 NEW IN
 
 export default function AlbumCard({ album }) {
   // 스티커는 새로 들어온 판에만 (모든 카드에 붙으면 눈에 안 띔)
   const isNew = album.created_at && Date.now() - new Date(album.created_at).getTime() < NEW_DAYS * 864e5;
-  const sticker = isNew ? { kind: "new", label: "New in" } : null;
+  // Crate 에서 스티커를 떼어 냈으면 여기서도 안 보임 (peeled.js)
+  const peeled = useSyncExternalStore(subscribePeeled, () => isPeeled(album.slug), () => false);
+  const sticker = isNew && !peeled ? { kind: "new", label: "New in" } : null;
   const transition = useAlbumTransition();
   function open(event) {
     if (!transition || event.defaultPrevented || event.button !== 0 ||
