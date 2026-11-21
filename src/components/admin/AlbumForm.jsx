@@ -16,7 +16,7 @@ const mmss = (sec) => (sec == null ? "" : `${Math.floor(sec / 60)}:${String(sec 
 const fromAlbum = (a) => ({
   slug: a?.slug ?? "",
   title: a?.title ?? "",
-  artists: (a?.artists ?? []).join(", "),
+  artists: (a?.artists ?? []).join("\n"),
   releaseDate: a?.release_date ?? "",
   releaseYear: a?.release_year ? String(a.release_year) : "",
   format: a?.format ?? "LP",
@@ -40,7 +40,7 @@ export default function AlbumForm({ initial = null, prefill = null, requestId = 
     const keep = (v, d) => (v == null || v === "" ? d : v);
     return {
       ...base,
-      title: keep(prefill.title, ""), artists: (prefill.artists ?? []).join(", "), slug: keep(prefill.slug, ""),
+      title: keep(prefill.title, ""), artists: (prefill.artists ?? []).join("\n"), slug: keep(prefill.slug, ""),
       releaseDate: keep(prefill.releaseDate, ""), releaseYear: keep(prefill.releaseYear, ""), format: keep(prefill.format, base.format),
       label: keep(prefill.label, ""), catalogNo: keep(prefill.catalogNo, ""), youtubePlaylistId: keep(prefill.youtubePlaylistId, ""),
       description: keep(prefill.description, ""),
@@ -80,7 +80,7 @@ export default function AlbumForm({ initial = null, prefill = null, requestId = 
       fd.append("payload", JSON.stringify({
         ...form,
         releaseYear: Number(form.releaseYear) || null,
-        artists: form.artists.split(",").map((s) => s.trim()).filter(Boolean),
+        artists: form.artists.split("\n").map((s) => s.trim()).filter(Boolean),   // 한 줄에 한 명 — 이름에 쉼표가 있어도 안 잘림 (Earth, Wind & Fire)
         genres,
         requestCoverPath: !cover && requestCover ? requestCover : null,
         tracks: parsed.rows,
@@ -123,8 +123,9 @@ export default function AlbumForm({ initial = null, prefill = null, requestId = 
         </div>
 
         <div>
-          <label className={labelCls} htmlFor="f-artists">Artists (comma separated)</label>
-          <input id="f-artists" className={field} value={form.artists} onChange={set("artists")} required />
+          <label className={labelCls} htmlFor="f-artists">Artists (one per line)</label>
+          <textarea id="f-artists" className={`${field} min-h-16`} rows={2} value={form.artists} onChange={set("artists")} required />
+          <p className="mt-2 text-[12px] text-(--ink)/55">A comma stays part of the name — “Earth, Wind &amp; Fire” is one artist.</p>
         </div>
 
         <div>
