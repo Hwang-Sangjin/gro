@@ -10,10 +10,17 @@ import styles from "@/components/digging/Digging.module.css";
 import closeGrid from "@/components/digging/closeGrid";
 import CrateView, { ViewToggle } from "@/components/albums/crate/CrateView";
 import ShelfView from "@/components/collection/ShelfView";
+import AlbumList from "@/components/albums/AlbumList";
 
-const VIEWS = ["grid", "crate", "shelf"];   // Shelf: 판을 책등처럼 선반에 꽂은 보기 (Collection 에만 — Digging 은 가게의 상자, 여기는 집의 선반)
+const VIEWS = ["grid", "crate", "list", "shelf"];   // Shelf: 판을 책등처럼 선반에 꽂은 보기 (Collection 에만 — Digging 은 가게의 상자, 여기는 집의 선반)
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
+const byArtist = (a, b) => (a.artist_names || "").localeCompare(b.artist_names || "") || a.title.localeCompare(b.title);
+const SORTS = [
+  { key: "added", name: "Recently added", cmp: null },
+  { key: "artist", name: "Artist A–Z", cmp: byArtist },
+  { key: "title", name: "Title A–Z", cmp: (a, b) => a.title.localeCompare(b.title) },
+];
 export const SHELF_TABS = [
   { kind: "owned", name: "Owned" },
   { kind: "wishlist", name: "Wishlist" },
@@ -32,6 +39,7 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
   const [query, setQuery] = useState("");
   const [switching, setSwitching] = useState(false);
   const [crateView, setCrateView] = useState("grid");   // 'grid' | 'crate' — 지금 탭(Owned / Wishlist)·장르·검색의 판들로
+  const [sort, setSort] = useState("added");   // "added" 최근 담은 순 (받은 순서 그대로) | "artist" | "title"
   const wanted = useRef(shown);
   const wrapRef = useRef(null);
   const [barRef, barRevealed] = useReveal({ ready });
@@ -74,9 +82,11 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
   const term = query.trim().toLocaleLowerCase();
   const inShelf = shelves?.[shown.tab] ?? [];
   const inGenre = shown.genre ? inShelf.filter(a => a.genres?.includes(shown.genre)) : inShelf;
-  const items = term ? inGenre.filter(a => `${a.title} ${a.artist_names}`.toLocaleLowerCase().includes(term)) : inGenre;
+  const found = term ? inGenre.filter(a => `${a.title} ${a.artist_names}`.toLocaleLowerCase().includes(term)) : inGenre;
+  const order = SORTS.find((s) => s.key === sort)?.cmp;
+  const items = order ? [...found].sort(order) : found;
   const genreName = GENRE_ITEMS.find(g => g.slug === shown.genre)?.name;
-  const key = `${shown.tab}:${shown.genre ?? "all"}`;
+  const key = `${shown.tab}:${shown.genre ?? "all"}:${sort}`;
 
   return (
     <>
@@ -112,6 +122,16 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
       <GenreBar genre={view.genre} counts={counts} onPick={(slug) => change({ genre: slug })}
         hrefFor={(slug) => `${basePath}?${new URLSearchParams({ ...(view.tab === "wishlist" && { tab: "wishlist" }), ...(slug && { genre: slug }) })}`}
         query={query} onQueryChange={setQuery} searchId="collection-search"
+        /* 정렬: 판 수 옆 작은 줄에 (Digging 의 Shuffle 자리) */
+        meta={shelf.length > 1 ? (
+          <label className="inline-flex cursor-pointer items-center gap-2 transition-colors hover:text-(--ink)">
+            Sort
+            <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort records"
+              className="cursor-pointer appearance-none rounded-sm border-b border-current/40 bg-transparent pb-px font-[inherit] uppercase tracking-[inherit] text-(--ink) outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--ink)">
+              {SORTS.map((s) => <option key={s.key} value={s.key} style={{ color: "#2a2228", backgroundColor: "#f4e7cd" }}>{s.name}</option>)}
+            </select>
+          </label>
+        ) : null}
         extra={items.length ? <ViewToggle view={crateView} onChange={setCrateView} views={VIEWS} className="mr-1" /> : null} />
 
       {/* Crate 는 그리드의 판이 날아와 꽂히는 보기 → Shelf 일 때는 그리드로 알려 둠 (Shelf 에서 Crate 를 누르면 그리드가 먼저 그려지고 거기서 날아옴) */}
@@ -126,6 +146,8 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
           <p className={styles.empty} role="status">{errorText}</p>
         ) : !shelves ? (
           <p className={styles.status} role="status">Loading…</p>
+        ) : items.length && crateView === "list" ? (
+          <AlbumList key={`list:${key}`} role="tabpanel" albums={items} />
         ) : items.length ? (
           <AlbumGrid key={key} role="tabpanel" albums={items} />
         ) : term && inGenre.length ? (

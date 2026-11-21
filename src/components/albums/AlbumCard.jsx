@@ -12,7 +12,7 @@ import { coverUrl } from "@/lib/albums";
 
 const NEW_DAYS = 45;   // 들어온 지 이 날수 안이면 NEW IN
 
-export default function AlbumCard({ album }) {
+export default function AlbumCard({ album, feature = false }) {
   // 스티커는 새로 들어온 판에만 (모든 카드에 붙으면 눈에 안 띔)
   const isNew = album.created_at && Date.now() - new Date(album.created_at).getTime() < NEW_DAYS * 864e5;
   const sticker = isNew ? { kind: "new", label: "New in" } : null;
@@ -58,7 +58,7 @@ export default function AlbumCard({ album }) {
     <Link prefetch={intent ? true : null} onPointerEnter={() => setIntent(true)} onFocus={() => setIntent(true)} data-crate-skip data-album-card data-album-title={album.title} data-album-artist={album.artist_names} data-album-slug={album.slug} data-album-color={album.cover_color || "#bbcbda"} data-album-image={failed ? undefined : src} onClick={open}
       // 두께 면 색 = 앨범 대표색보다 조금 진하게 (위 면은 덜, 오른쪽 면은 더 — 빛이 왼쪽 위에서 오는 느낌)
       style={{ "--sleeve-top": sleeveColors(album.cover_color).top, "--sleeve-side": sleeveColors(album.cover_color).side }}
-      data-revealed={revealed}
+      data-revealed={revealed} data-feature={feature || undefined}
       className={`${styles.card} group relative [--sleeve-depth:1.3%] hover:z-10 hover:scale-[1.04] focus-visible:z-10 focus-visible:scale-[1.04] motion-reduce:transition-none`} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
       <span ref={revealRef} className={styles.hitArea} data-revealed={revealed}>
         <span ref={art} data-album-source className={styles.art}>

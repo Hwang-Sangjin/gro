@@ -16,6 +16,9 @@ import useReveal from "./useReveal";
 import closeGrid from "./closeGrid";
 import styles from "./Digging.module.css";
 import CrateView, { ViewToggle } from "@/components/albums/crate/CrateView";
+import ShelfView from "@/components/collection/ShelfView";
+
+const VIEWS = ["grid", "crate", "list", "shelf"];
 
 /* 장르를 바꿔도 페이지는 그대로: 그리드만 해당 장르의 판으로 바뀜.
    - 주소(?genre=)는 replaceState로만 맞춰 둠 → 새로고침·공유하면 그 장르로 열림 (서버가 첫 페이지를 그려 줌)
@@ -100,7 +103,8 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
   }, []);
   const [titleRef, titleRevealed] = useReveal();
   const [query, setQuery] = useState("");
-  const [view, setView] = useState("grid");   // 'grid' | 'crate' (Crate 보기는 지금 그리드의 판들로)
+  const [view, setView] = useState("grid");   // 'grid' | 'crate' | 'list' | 'shelf' (Crate · Shelf 는 지금 그리드의 판들로)
+  const [shown, setShown] = useState([]);     // 지금 그리드가 보여 주는 판들 (Shelf 보기에 넘김)
   const request = useRef(null);
   const [counts, setCounts] = useState(null);
   useEffect(() => {
@@ -137,18 +141,22 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
           )}
         </>}
         extra={<>
-          <ViewToggle view={view} onChange={setView} className="mr-2" />
+          <ViewToggle view={view} onChange={setView} views={VIEWS} className="mr-2" />
           <button className={styles.request} onClick={() => request.current?.open({ title: query.trim() })}>+ Request</button>
           <span className={styles.separator} aria-hidden="true" />
         </>} />
       {/* 장르를 바꾸면 지금 판들이 접혀 사라진 뒤, 그리드만 새로 그려짐 (카드가 다시 펼쳐지며 등장) */}
       <div ref={gridWrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         <DiggingGrid key={`${current.key}:${current.seed ?? ""}:${notOwned}`} initial={current.initial} genreId={current.genreId} query={query} onRequest={() => request.current?.open({ title: query.trim() })}
-          exclude={notOwned ? owned : null} loadAll={view === "crate"}
+          exclude={notOwned ? owned : null} loadAll={view === "crate" || view === "shelf"} view={view} onItems={setShown}
           lead={query.trim() ? null : <GenreDivider slug={current.key === "all" ? null : current.key} count={counts?.[current.key] ?? null} notOwned={notOwned} leaving={switching} />} />
       </div>
       {/* Crate 보기: 그리드 위를 덮는 3D 크레이트 (Grid / Crate 버튼으로 전환) */}
-      <CrateView gridRef={gridWrapRef} view={view} onViewChange={setView} title="Digging" total={notOwned || query.trim() ? null : counts?.[current.key] ?? null} />
+      {/* Shelf 보기: 화면을 덮는 3D 선반 (Collection 과 같은 것). 판이 다 받아지는 대로 다시 꽂힘 */}
+      {view === "shelf" && shown.length > 0 && (
+        <ShelfView key={`shelf:${current.key}:${current.seed ?? ""}`} albums={shown} label="Digging" view={view} onViewChange={setView} views={VIEWS} />
+      )}
+      <CrateView gridRef={gridWrapRef} view={view === "crate" ? "crate" : "grid"} onViewChange={setView} title="Digging" total={notOwned || query.trim() ? null : counts?.[current.key] ?? null} />
       {/* 없는 판 요청 (로그인 사용자) — 검색 결과가 없을 때도 여기로 */}
       <RequestDialog ref={request} />
     </>

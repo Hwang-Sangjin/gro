@@ -33,7 +33,7 @@ export default function ShelfView({ albums, grouped = false, label = "Shelf", vi
 
   // 꽂는 순서: (장르별로 모아) 아티스트 → 제목
   const items = useMemo(() => {
-    const card = (a) => ({ album: { ...a, image: coverUrl(a.thumb_path), genre: NAME[primary(a)] } });
+    const card = (a) => ({ album: { ...a, image: coverUrl(a.thumb_path), genre: a.genres?.length ? NAME[primary(a)] : null } });
     if (!grouped) return [...albums].sort(byArtist).map(card);
     const out = [];
     for (const slug of ORDER) {

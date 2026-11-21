@@ -18,6 +18,12 @@ import CratePanel from "./CratePanel";
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const EASE = "ease-[cubic-bezier(0.22,1,0.36,1)]";
 const VIEWS = ["grid", "crate"];
+const VIEW_ICON = {
+  grid: <path d="M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z" />,
+  crate: <path d="M2 5.5h12v8H2zM4.5 5.5v-3h7v3M6.5 2.5v3M9 2.5v3" />,
+  list: <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />,
+  shelf: <path d="M3.5 2.5v10M6 2.5v10M8.5 2.5v10M11 4l1.6 8.5M1.5 13.5h13" />,
+};
 const storeKey = () => `grooves:crate:${location.pathname}`;
 // 정보 패널에 쓰는 판 상세 (그리드 카드에는 제목 · 아티스트 · 색만 있음)
 const DETAIL = "id, slug, release_year, format, rpm, description, youtube_playlist_id, album_genres(genres(name)), tracks(count)";
@@ -30,9 +36,11 @@ export function ViewToggle({ view, onChange, className = "", views = VIEWS }) {
       <span aria-hidden="true" className={`absolute inset-y-[3px] left-[3px] rounded-full bg-(--ink) transition-transform duration-500 ${EASE}`}
         style={{ width: `calc((100% - 6px) / ${views.length})`, transform: `translateX(${at * 100}%)` }} />
       {views.map((v) => (
-        <button key={v} type="button" aria-pressed={view === v} onClick={() => onChange(v)}
-          className={`relative z-[1] min-h-8 w-[4.6rem] rounded-full text-[11px] font-medium uppercase tracking-[0.2em] transition-colors duration-500 ${view === v ? "text-(--cream)" : "text-(--ink)"}`}>
-          {v}
+        <button key={v} type="button" aria-pressed={view === v} aria-label={`${v} view`} onClick={() => onChange(v)}
+          className={`relative z-[1] grid min-h-8 place-items-center rounded-full text-[11px] font-medium uppercase tracking-[0.2em] transition-colors duration-500 ${views.length > 2 ? "w-[4.1rem] max-md:w-10" : "w-[4.6rem]"} ${view === v ? "text-(--cream)" : "text-(--ink)"}`}>
+          {/* 보기가 셋 이상이면 좁은 화면에서는 글자 대신 그림 (네 칸이 한 줄에 안 들어감) */}
+          <span className={views.length > 2 ? "max-md:hidden" : ""}>{v}</span>
+          {views.length > 2 && <svg aria-hidden="true" viewBox="0 0 16 16" className="size-3.5 md:hidden" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">{VIEW_ICON[v]}</svg>}
         </button>
       ))}
     </div>

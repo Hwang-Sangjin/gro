@@ -14,7 +14,6 @@ import useReveal from "@/components/digging/useReveal";
 import styles from "@/components/digging/Digging.module.css";
 import useAuthUser, { profileOf } from "@/lib/useAuthUser";
 import { fetchShelves } from "@/lib/userAlbums";
-import shuffle from "@/lib/shuffle";
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const EMPTY = {
@@ -32,8 +31,8 @@ export default function Collection() {
     if (!user) { setShelves(null); return; }
     let alive = true;
     setError(false);
-    // 들어올 때마다 순서를 섞어서 (새로 발견하는 느낌으로)
-    fetchShelves().then(s => { if (alive) setShelves({ owned: shuffle(s.owned), wishlist: shuffle(s.wishlist) }); }).catch(() => { if (alive) setError(true); });
+    // 받은 순서 = 최근 담은 순 (정렬은 ShelfBrowser 에서 고름). 예전엔 들어올 때마다 섞었는데, 내 수집품은 방금 담은 판이 앞에 있어야 찾기 쉬움
+    fetchShelves().then(s => { if (alive) setShelves(s); }).catch(() => { if (alive) setError(true); });
     return () => { alive = false; };
   }, [user]);
 
