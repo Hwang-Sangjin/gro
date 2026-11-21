@@ -13,8 +13,9 @@ import { fetchDiggingPage } from "@/lib/albums";
 
 // exclude: 빼고 보여 줄 앨범 id 모음 (로그인 사용자의 "Not owned" — 내가 가진 판)
 // loadAll: 스크롤을 기다리지 않고 남은 묶음을 끝까지 받음 (Crate · Shelf 보기 — 그리드가 덮여 있어 스크롤로는 더 안 받아짐)
-// view: "list" 면 그리드 대신 글자 목록 · onItems(판들): 지금 보여 주는 판들을 위로 알림 (Shelf 보기가 씀)
-export default function DiggingGrid({ initial, genreId = null, query = "", onRequest, lead = null, exclude = null, loadAll = false, view = "grid", onItems }) {
+// view: "list" 면 그리드 대신 글자 목록 · onItems(판들, 다 받았는지): 지금 보여 주는 판들을 위로 알림 (Shelf 보기가 씀 — 다 받은 뒤에 한 번에 꽂음)
+// arriving: 다른 보기에서 커버가 날아오는 중 (AlbumList 로 넘김)
+export default function DiggingGrid({ initial, genreId = null, query = "", onRequest, lead = null, exclude = null, loadAll = false, view = "grid", onItems, arriving = false }) {
   const supabase = useMemo(() => createClient(), []);
 
   const [items, setItems] = useState(initial.items);
@@ -69,7 +70,7 @@ export default function DiggingGrid({ initial, genreId = null, query = "", onReq
   }, [loadAll, hasMore, loading, error, loadMore]);
   const filtered = items.filter(album => (!exclude || !exclude.has(album.id)) && (!term ||
     `${album.title} ${album.artist_names}`.toLocaleLowerCase().includes(term)));
-  useEffect(() => { onItems?.(filtered); }, [items, exclude, term]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onItems?.(filtered, !hasMore || !!error); }, [items, exclude, term, hasMore, error]);   // eslint-disable-line react-hooks/exhaustive-deps
   // 빼고 나니 보이는 판이 적으면 다음 묶음을 바로 이어서 받음 (화면이 비어 보이지 않게)
   useEffect(() => {
     if (exclude && filtered.length < 8 && hasMore && !loading && !error) loadMore();
@@ -86,7 +87,7 @@ export default function DiggingGrid({ initial, genreId = null, query = "", onReq
   return (
     <>
       {/* 앨범에 마우스를 올리면 나머지 앨범은 흐려짐 (마우스를 떼면 원래대로) */}
-      {view === "list" && filtered.length > 0 ? <AlbumList albums={filtered} aria-busy={loading} /> : <AlbumGrid albums={filtered} aria-busy={loading} lead={lead}>
+      {view === "list" && filtered.length > 0 ? <AlbumList albums={filtered} aria-busy={loading} arriving={arriving} /> : <AlbumGrid albums={filtered} aria-busy={loading} lead={lead}>
         {/* 다음 묶음이 남아 있는 동안 그리드 끝에 빈 재킷 자리 한 줄 → 받아 오는 사이에 화면이 비지 않음 */}
         {hasMore && !error && !term && filtered.length > 0 && [0, 1, 2, 3].map((i) => (
           <span key={`sk${i}`} aria-hidden="true" className={styles.skeleton} style={{ "--i": i }}><span /><span /></span>

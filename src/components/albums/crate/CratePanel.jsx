@@ -40,9 +40,9 @@ function facts(info) {
 /**
  * label: 어디의 상자인지 (Digging · Owned …) · toggle: Grid / Crate 스위치 · front: 맨 앞 판 { i, n, divider, title, artist, color, slug } · total: 전체 판 수
  * info: 맨 앞 판의 상세 (없으면 아직 받는 중) · kind: 내 선반에서의 자리 ("owned" | "wishlist" | null)
- * listening: 이 판을 지금 틀고 있음 · onOpen · onListen · onShelf(kind)
+ * listening: 이 판을 지금 틀고 있음 · onOpen · onListen · onShelf(kind) · sound: 소리 켜기 버튼 (어디의 상자인지 옆)
  */
-export default function CratePanel({ label, toggle, front, total, info, kind, listening, onOpen, onListen, onShelf }) {
+export default function CratePanel({ label, toggle, sound = null, front, total, info, kind, listening, onOpen, onListen, onShelf }) {
   const n = front ? Math.max(front.n, total ?? 0) : 0;
   const rows = front && !front.divider ? facts(info) : [];
   // 제목 색: 커버 색을 잉크에 섞음. 35%만 — 흰 커버여도 종이 위에서 대비 3:1 이 나오게 (예전 55% 는 밝은 커버에서 2:1)
@@ -77,7 +77,10 @@ export default function CratePanel({ label, toggle, front, total, info, kind, li
   return (
     <div className="pointer-events-none absolute inset-0 text-(--ink)" style={{ opacity: "max(0, 1 - var(--crate-m) * 5)" }}>
       {/* 위: 어디의 상자인지 (예전의 큰 "DIGGING" 제목 대신 — 그리드와 글꼴이 달랐고 상자 탭과 겹쳤음) · 보기 전환 */}
-      <p className={`${KICKER} absolute left-[var(--crate-gut)] top-[calc(var(--ct-header-h,106px)+1.1rem)] opacity-70`}>{label} · Crate</p>
+      <div className="absolute left-[var(--crate-gut)] top-[calc(var(--ct-header-h,106px)+0.6rem)] flex min-h-9 items-center gap-5 max-[819px]:gap-3">
+        <p className={`${KICKER} opacity-70`}>{label}<span className="max-[819px]:hidden"> · Crate</span></p>
+        {sound}
+      </div>
       <div className="pointer-events-auto absolute right-[var(--crate-gut)] top-[calc(var(--ct-header-h,106px)+0.6rem)]">
         {/* 판 더미가 이 자리까지 올라오므로 종이 바탕을 깔아 줌 */}
         {toggle}

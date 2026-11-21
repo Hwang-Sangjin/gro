@@ -14,6 +14,8 @@ import { fetchMyKinds, setAlbumKind } from "@/lib/userAlbums";
 import { setNowSpinning } from "@/lib/nowSpinning";
 import { createRoomMusic } from "@/components/roomtest/roomMusic";
 import CratePanel from "./CratePanel";
+import SoundToggle from "@/components/albums/SoundToggle";
+import { useCrate } from "@/components/crate/CrateProvider";
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const EASE = "ease-[cubic-bezier(0.22,1,0.36,1)]";
@@ -81,6 +83,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
   const transition = useAlbumTransition();
   const router = useRouter();
   const user = useAuthUser();
+  const sfx = useCrate()?.sfx;   // 판을 넘길 때의 소리 (소리를 켰을 때만 남)
 
   // ── 정보 패널: 상자에 꽂힌 판들의 상세를 한 번에 받아 둠 (판을 넘길 때마다 묻지 않게)
   const details = useRef(new Map());                // slug → 상세 (못 받았으면 null)
@@ -132,6 +135,8 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       host: hostRef.current,
       // 번호 · 전체 수는 판만 셈 (칸막이는 빼고). 칸막이가 앞이면 번호 대신 판 수만
       onFront: (i, c) => {
+        // 손으로 넘길 때만 소리 (그리드에서 날아와 꽂히는 동안은 조용히)
+        if (modeRef.current === "crate" && !engineRef.current?.busy) sfx?.current?.play("flip");
         const lead = cardsRef.current[0]?.divider ? 1 : 0;
         setFront({ i: i - lead, n: cardsRef.current.length - lead, divider: !!c.divider, title: c.title, artist: c.artist, color: c.color, slug: c.slug, isNew: !!c.isNew });
       },
@@ -298,7 +303,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
         </div>
         {/* 글자: 크레이트를 떠나자마자 빠지고, 돌아오면 판들이 거의 다 꽂힐 때 나타남 (CratePanel) */}
         <CratePanel label={title} front={front} total={total} info={info} kind={kind} listening={listening}
-          toggle={<ViewToggle view={view} onChange={onViewChange} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />}
+          toggle={<ViewToggle view={view} onChange={onViewChange} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />} sound={<SoundToggle />}
           onOpen={() => engineRef.current?.openFront()} onListen={listen} onShelf={shelve} />
         {/* 듣기 카드 ("Now spinning"): Listen 을 누르면 오른쪽 아래에 뜸. 판을 넘겨도 남고, 상자를 떠나면 닫힘 (좁은 화면에서는 쓰지 않음) */}
         <div role="region" aria-label="Now spinning" inert={!music.active}

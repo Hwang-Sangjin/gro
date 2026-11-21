@@ -433,28 +433,54 @@
 /* ── 매대 디자인 (2026-11-20): 스티커(NEW IN) · 재킷 들림 (오비는 같은 날 뺌) ─────────────────────────────
    크기는 카드 폭 기준(cqi) — hitArea 가 크기 기준 상자 */
 .hitArea { container-type: inline-size; }
-/* 스티커: 오른쪽 위에 비스듬히 붙은 동그란 종이 (NEW IN) */
+/* 스티커: 오른쪽 위에 비스듬히 붙은 동그란 종이 (NEW IN)
+   떼어지는 스티커 (2026-11-22, 참고: fablegrounds.com/labs/sticker-peel — 거기는 셰이더, 여기는 CSS 로 같은 원리):
+   --peel = 접힌 선이 가장자리에서 들어온 거리(지름 대비). 앞면은 접힌 선까지만 보이고(clip),
+   넘어간 부분은 접힌 선에 대해 거울처럼 뒤집혀 뒷면(종이 색 · 말린 음영)으로 그 위에 얹힘 → 원을 뒤집은 것도 같은 크기의 원이라 원 하나를 옮기면 됨
+   평소에도 가장자리가 조금 들려 있고(9%), 카드에 마우스를 올리면 더 말려 올라감. 틀(.stickerPeel)을 돌린 방향이 떼어지는 방향 */
+@property --peel { syntax: "<percentage>"; inherits: true; initial-value: 0%; }
 .sticker {
+  --peel: 9%;
+  --peel-dir: -38deg;   /* 오른쪽 위에서부터 떼어짐 */
   position: absolute; top: 5cqi; right: 5cqi;
-  width: clamp(38px, 20cqi, 72px); aspect-ratio: 1; border-radius: 50%;
+  width: clamp(38px, 20cqi, 72px); aspect-ratio: 1;
+  rotate: -12deg;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / .3));   /* 그림자는 떼어진 모양을 따라가야 해서 box-shadow 대신 */
+  transition: rotate .5s var(--ease-groove), scale .5s var(--ease-groove), --peel .7s var(--ease-groove);
+}
+.sticker::before {   /* 떼어진 자리에 남은 풀 자국 */
+  content: ""; position: absolute; inset: 4%; border-radius: 50%;
+  background: rgb(255 255 255 / .18);
+}
+.stickerPeel { position: absolute; inset: 0; rotate: var(--peel-dir); }
+.stickerFace {
+  position: absolute; inset: 0; border-radius: 50%;
   display: grid; place-items: center; text-align: center;
   font: 800 clamp(7px, 3.3cqi, 12px)/1.05 ui-sans-serif, system-ui, sans-serif;
   letter-spacing: .12em; text-transform: uppercase;
   color: #fff7ea;
   background: #d9542c;
-  rotate: -12deg;
-  box-shadow: 0 3px 8px rgb(0 0 0 / .28), inset 0 0 0 2px rgb(255 255 255 / .22), inset 0 0 0 4px #d9542c, inset 0 0 0 5px rgb(255 255 255 / .35);
-  pointer-events: none;
-  transition: rotate .5s var(--ease-groove), scale .5s var(--ease-groove);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / .22), inset 0 0 0 4px #d9542c, inset 0 0 0 5px rgb(255 255 255 / .35);
+  clip-path: inset(0 var(--peel) 0 0);
 }
-@container (max-width: 150px) { .sticker { font-size: 6.5px; letter-spacing: .06em; } }
+.stickerFace > span { rotate: calc(var(--peel-dir) * -1); }   /* 글자는 틀을 돌린 만큼 되돌려 바로 */
+.stickerFlap {   /* 넘어간 부분의 뒷면: 접힌 선 쪽이 어둡고(말려 올라감) 가운데가 밝음 */
+  position: absolute; inset: 0; border-radius: 50%;
+  translate: calc(100% - 2 * var(--peel)) 0;
+  clip-path: inset(-5px calc(100% - var(--peel)) -5px -5px);
+  background: linear-gradient(to right, #e3d4b8, #fffaf0 42%, #dccbac 86%, #b3a182) 0 0 / var(--peel) 100% no-repeat;
+  filter: drop-shadow(-1.5px 1px 1.5px rgb(0 0 0 / .34));
+}
+@container (max-width: 150px) { .stickerFace { font-size: 6.5px; letter-spacing: .06em; } }
 /* 재킷 들림: 마우스를 올리면 커버가 상자에서 조금 빠져 올라오고 그림자가 깊어짐 · 스티커는 살짝 펴짐 */
 @media (hover: hover) and (pointer: fine) {
   .card:hover .art { translate: 0 -3.5%; transition: transform 0.18s ease-out, box-shadow 0.25s, translate .5s var(--ease-groove), scale 0.2s ease-out; }
   .card:hover .art::after { opacity: 1; }
-  .card:hover .sticker { rotate: -4deg; scale: 1.06; }
+  .card:hover .sticker { rotate: -4deg; scale: 1.06; --peel: 32%; }   /* 글자가 반쯤은 남게 (40% 는 다 가려짐) */
 }
 .card:focus-visible .art { translate: 0 -3.5%; }
+.card:focus-visible .sticker { --peel: 32%; }
 .card:focus-visible .art::after { opacity: 1; }
 /* 들렸을 때의 깊은 그림자: 그림자를 바꾸면 매 프레임 다시 그려야 해서, 미리 그려 둔 층의 투명도만 바꿈 */
 .art::after {
@@ -630,6 +656,12 @@
   opacity: .78;
   font-variant-numeric: tabular-nums;
 }
+/* 셋째 줄 (Collection 의 메모 판지 — 가장 최근에 담은 판): 한 줄로, 길면 말줄임 */
+.dividerLatest {
+  line-height: 1.3; padding-right: .3em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: .62;
+}
 @media (prefers-reduced-motion: reduce) { .divider { transition: none; } .divider:hover { transform: none; } }
 
 
@@ -663,6 +695,7 @@
 .dividerDot { animation: dotIn .4s cubic-bezier(.2, 1.6, .4, 1) .55s both; }
 .dividerName { animation: writeIn .9s cubic-bezier(.55, 0, .3, 1) .62s both; }
 .dividerCount { animation: writeIn .55s cubic-bezier(.55, 0, .3, 1) 1.35s both; }
+.dividerLatest { animation-delay: 1.8s; }
 .divider[data-leaving="true"] .dividerName,
 .divider[data-leaving="true"] .dividerCount { animation: writeOut .38s cubic-bezier(.55, 0, .8, .3) both; }
 .divider[data-leaving="true"] .dymo { animation: dymoOut .4s cubic-bezier(.55, 0, .8, .3) .08s both; }
@@ -677,6 +710,7 @@
 @keyframes inkOut { to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .dymo, .dividerStamp, .dividerDot, .dividerName, .dividerCount,
-  .divider[data-leaving="true"] .dividerName, .divider[data-leaving="true"] .dividerCount,
+  .dividerLatest { animation-delay: 1.8s; }
+.divider[data-leaving="true"] .dividerName, .divider[data-leaving="true"] .dividerCount,
   .divider[data-leaving="true"] .dymo, .divider[data-leaving="true"] .dividerStamp, .divider[data-leaving="true"] .dividerDot { animation: none; }
 }

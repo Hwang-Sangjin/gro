@@ -17,6 +17,7 @@ import closeGrid from "./closeGrid";
 import styles from "./Digging.module.css";
 import CrateView, { ViewToggle } from "@/components/albums/crate/CrateView";
 import ShelfView from "@/components/collection/ShelfView";
+import useViewSwitch from "@/components/albums/useViewSwitch";
 
 const VIEWS = ["grid", "crate", "list", "shelf"];
 // "New in" 탭: 새로 들어온 판만 (최근 들어온 순). 장르가 아니라서 장르 id 없이 따로 받아 옴
@@ -108,8 +109,10 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
   }, []);
   const [titleRef, titleRevealed] = useReveal();
   const [query, setQuery] = useState("");
-  const [view, setView] = useState("grid");   // 'grid' | 'crate' | 'list' | 'shelf' (Crate · Shelf 는 지금 그리드의 판들로)
-  const [shown, setShown] = useState([]);     // 지금 그리드가 보여 주는 판들 (Shelf 보기에 넘김)
+  // 'grid' | 'crate' | 'list' | 'shelf' (Crate · Shelf 는 지금 그리드의 판들로). 보기 사이는 커버가 날아가며 넘어감 · 돌아오면 보던 보기로
+  const { view, setView, arriving, shelfOn, shelfLeaving, shelfApi } = useViewSwitch(gridWrapRef);
+  const [shown, setShown] = useState({ items: [], done: false });   // 지금 그리드가 보여 주는 판들 · 끝까지 받았는지 (Shelf 보기에 넘김)
+  const onItems = useCallback((items, done) => setShown({ items, done }), []);
   const request = useRef(null);
   const [counts, setCounts] = useState(null);
   useEffect(() => {
@@ -155,13 +158,13 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
       {/* 장르를 바꾸면 지금 판들이 접혀 사라진 뒤, 그리드만 새로 그려짐 (카드가 다시 펼쳐지며 등장) */}
       <div ref={gridWrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         <DiggingGrid key={`${current.key}:${current.seed ?? ""}:${notOwned}`} initial={current.initial} genreId={current.genreId} query={query} onRequest={() => request.current?.open({ title: query.trim() })}
-          exclude={notOwned ? owned : null} loadAll={view === "crate" || view === "shelf"} view={view} onItems={setShown}
+          exclude={notOwned ? owned : null} loadAll={view === "crate" || view === "shelf"} view={view} onItems={onItems} arriving={arriving}
           lead={query.trim() ? null : <GenreDivider slug={current.key === "all" ? null : current.key} count={counts?.[current.key] ?? null} notOwned={notOwned} leaving={switching} />} />
       </div>
       {/* Crate 보기: 그리드 위를 덮는 3D 크레이트 (Grid / Crate 버튼으로 전환) */}
-      {/* Shelf 보기: 화면을 덮는 3D 선반 (Collection 과 같은 것). 판이 다 받아지는 대로 다시 꽂힘 */}
-      {view === "shelf" && shown.length > 0 && (
-        <ShelfView key={`shelf:${current.key}:${current.seed ?? ""}`} albums={shown} label="Digging" view={view} onViewChange={setView} views={VIEWS} />
+      {/* Shelf 보기: 화면을 덮는 3D 선반 (Collection 과 같은 것). 판을 끝까지 받은 뒤에 한 번에 꽂음 (받는 도중에 다시 지으면 날아오던 커버의 자리가 바뀜) */}
+      {shelfOn && shown.done && shown.items.length > 0 && (
+        <ShelfView key={`shelf:${current.key}:${current.seed ?? ""}`} albums={shown.items} label="Digging" view={view} onViewChange={setView} views={VIEWS} api={shelfApi} leaving={shelfLeaving} />
       )}
       <CrateView gridRef={gridWrapRef} view={view === "crate" ? "crate" : "grid"} onViewChange={setView} title="Digging" total={notOwned || query.trim() ? null : counts?.[current.key] ?? null} />
       {/* 없는 판 요청 (로그인 사용자) — 검색 결과가 없을 때도 여기로 */}

@@ -11,6 +11,8 @@ import closeGrid from "@/components/digging/closeGrid";
 import CrateView, { ViewToggle } from "@/components/albums/crate/CrateView";
 import ShelfView from "@/components/collection/ShelfView";
 import AlbumList from "@/components/albums/AlbumList";
+import useViewSwitch from "@/components/albums/useViewSwitch";
+import ShelfNote from "./ShelfNote";
 
 const VIEWS = ["grid", "crate", "list", "shelf"];   // Shelf: 판을 책등처럼 선반에 꽂은 보기 (Collection 에만 — Digging 은 가게의 상자, 여기는 집의 선반)
 
@@ -38,10 +40,11 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
   const [shown, setShown] = useState({ tab: "owned", genre: null });
   const [query, setQuery] = useState("");
   const [switching, setSwitching] = useState(false);
-  const [crateView, setCrateView] = useState("grid");   // 'grid' | 'crate' — 지금 탭(Owned / Wishlist)·장르·검색의 판들로
   const [sort, setSort] = useState("added");   // "added" 최근 담은 순 (받은 순서 그대로) | "artist" | "title"
   const wanted = useRef(shown);
   const wrapRef = useRef(null);
+  // 보기: 'grid' | 'crate' | 'list' | 'shelf' — 지금 탭(Owned / Wishlist)·장르·검색의 판들로. 보기 사이는 커버가 날아가며 넘어감 · 돌아오면 보던 보기로
+  const { view: crateView, setView: setCrateView, arriving, shelfOn, shelfLeaving, shelfApi } = useViewSwitch(wrapRef);
   const [barRef, barRevealed] = useReveal({ ready });
 
   // ?tab=wishlist&genre=pop 로 바로 열기 (서버 렌더와 어긋나지 않게 마운트 후에 읽음)
@@ -137,9 +140,9 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
       {/* Crate 는 그리드의 판이 날아와 꽂히는 보기 → Shelf 일 때는 그리드로 알려 둠 (Shelf 에서 Crate 를 누르면 그리드가 먼저 그려지고 거기서 날아옴) */}
       <CrateView gridRef={wrapRef} view={crateView === "crate" ? "crate" : "grid"} onViewChange={setCrateView} title={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} />
       {/* Shelf: 그리드 위를 덮는 3D 무대 (Crate 와 같은 방식 — 그리드는 밑에 그대로 있어서 Grid · Crate 로 바로 넘어갈 수 있음) */}
-      {crateView === "shelf" && items.length > 0 && (
+      {shelfOn && items.length > 0 && (
         <ShelfView key={`shelf:${key}`} albums={items} grouped={!shown.genre && !term}
-          label={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} view={crateView} onViewChange={setCrateView} views={VIEWS} />
+          label={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} view={crateView} onViewChange={setCrateView} views={VIEWS} api={shelfApi} leaving={shelfLeaving} />
       )}
       <div ref={wrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         {error ? (
@@ -147,9 +150,11 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
         ) : !shelves ? (
           <p className={styles.status} role="status">Loading…</p>
         ) : items.length && crateView === "list" ? (
-          <AlbumList key={`list:${key}`} role="tabpanel" albums={items} />
+          <AlbumList key={`list:${key}`} role="tabpanel" albums={items} arriving={arriving} />
         ) : items.length ? (
-          <AlbumGrid key={key} role="tabpanel" albums={items} />
+          <AlbumGrid key={key} role="tabpanel" albums={items}
+            /* 첫 칸: 손글씨 메모 판지 (판 수 · 가장 많은 장르 · 가장 최근에 담은 판). 검색 중에는 뺌 (Digging 의 칸막이와 같은 규칙) */
+            lead={term ? null : <ShelfNote albums={inGenre} latest={inGenre[0]} tab={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} genre={shown.genre} leaving={switching} />} />
         ) : term && inGenre.length ? (
           <p className={styles.empty} role="status">No records match your search.</p>
         ) : shown.genre && inShelf.length ? (

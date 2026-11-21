@@ -61,14 +61,22 @@ export default function AlbumCard({ album }) {
       data-revealed={revealed} data-album-new={isNew ? "true" : undefined}
       className={`${styles.card} group relative [--sleeve-depth:1.3%] hover:z-10 hover:scale-[1.04] focus-visible:z-10 focus-visible:scale-[1.04] motion-reduce:transition-none`} href={`/album/${album.slug}`} aria-label={`${album.title} — ${album.artist_names}`}>
       <span ref={revealRef} className={styles.hitArea} data-revealed={revealed}>
-        <span ref={art} data-album-source className={styles.art}>
+        <span ref={art} data-album-source data-cover-slug={album.slug} data-cover-color={album.cover_color || "#bbcbda"} data-cover-image={failed ? undefined : src || undefined} className={styles.art}>
           {/* 호버하면 슬리브에 두께가 생김: 위·오른쪽 면이 비스듬히 솟아 종이 재킷 상자처럼 보임 */}
           <span aria-hidden="true" className="pointer-events-none absolute bottom-full left-0 h-0 w-full origin-bottom-left -skew-x-45 bg-[var(--sleeve-top)] shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] transition-[height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:h-[var(--sleeve-depth)] group-focus-visible:h-[var(--sleeve-depth)] motion-reduce:transition-none" />
           <span aria-hidden="true" className="pointer-events-none absolute left-full top-0 h-full w-0 origin-top-left -skew-y-45 bg-[var(--sleeve-side)] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:w-[var(--sleeve-depth)] group-focus-visible:w-[var(--sleeve-depth)] motion-reduce:transition-none" />
           <span className={styles.revealPanel} data-image-ready={loaded || failed || !src} style={{ backgroundColor: album.cover_color || "#bbcbda" }}>
           {src && !failed ? <img ref={imageRef} src={src} alt="" loading="lazy" decoding="async" /> : <span className={styles.placeholder} aria-hidden="true">G</span>}
           {/* 스티커: 새로 들어온 판 = NEW IN */}
-          {sticker && <span aria-hidden="true" className={styles.sticker} data-kind={sticker.kind}>{sticker.label}</span>}
+          {/* 가장자리가 살짝 들려 있다가, 카드에 마우스를 올리면 떼어지듯 말려 올라감 (뒷면이 보임). 틀(stickerPeel)을 돌려 둔 방향이 떼어지는 방향 */}
+          {sticker && (
+            <span aria-hidden="true" className={styles.sticker} data-kind={sticker.kind}>
+              <span className={styles.stickerPeel}>
+                <span className={styles.stickerFace}><span>{sticker.label}</span></span>
+                <span className={styles.stickerFlap} />
+              </span>
+            </span>
+          )}
           </span>
         </span>
       </span>

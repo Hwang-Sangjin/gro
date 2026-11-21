@@ -7,6 +7,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
 import { ViewToggle } from "@/components/albums/crate/CrateView";
+import SoundToggle from "@/components/albums/SoundToggle";
+import { viewKey, shelfKey } from "@/components/albums/useViewSwitch";
+import { useCrate } from "@/components/crate/CrateProvider";
 import { GENRES } from "@/lib/genres";
 import { coverUrl } from "@/lib/albums";
 
@@ -21,8 +24,10 @@ const pad3 = (n) => String(n).padStart(3, "0");
 /**
  * albums: 지금 탭 · 장르 · 검색으로 걸러진 판들 · grouped: 장르별로 모아 칸막이를 꽂음 (장르를 고르지 않았을 때)
  * label: 어디의 선반인지 (Owned · Wishlist) · view / onViewChange / views: 보기 전환 (무대 안의 스위치)
+ * api: useViewSwitch 의 shelfApi — 선반이 준비되면 { rects, hold, release } 를 채워 둠 (커버가 책등으로 날아오고 · 날아가게)
+ * leaving: 다른 보기로 떠나는 중 (옅어지며 물러남)
  */
-export default function ShelfView({ albums, grouped = false, label = "Shelf", view, onViewChange, views }) {
+export default function ShelfView({ albums, grouped = false, label = "Shelf", view, onViewChange, views, api = null, leaving = false }) {
   const hostRef = useRef(null), engineRef = useRef(null), sourceRef = useRef(null);
   const [layout, setLayout] = useState(null);     // { narrow, spot: { left, top, size } } — 꺼낸 판 자리
   const [picked, setPicked] = useState(null);     // { index, total, album, marker }
@@ -30,6 +35,7 @@ export default function ShelfView({ albums, grouped = false, label = "Shelf", vi
   const transition = useAlbumTransition();
   const transitionRef = useRef(transition);
   useEffect(() => { transitionRef.current = transition; });
+  const sfx = useCrate()?.sfx;   // 판을 꺼낼 때의 소리 (소리를 켰을 때만 남)
 
   // 꽂는 순서: (장르별로 모아) 아티스트 → 제목
   const items = useMemo(() => {
@@ -46,6 +52,8 @@ export default function ShelfView({ albums, grouped = false, label = "Shelf", vi
   // 재킷의 화면 자리에 맞춘 빈 상자를 출발점으로 넘겨 커버가 상세 페이지로 날아가게 함 (Crate 와 같은 방식)
   const open = (album, rect) => {
     const t = transitionRef.current, src = sourceRef.current;
+    // 돌아오면 Shelf 로, 이 판을 꺼낸 채로 (useViewSwitch 가 읽음)
+    try { sessionStorage.setItem(viewKey(), "shelf"); sessionStorage.setItem(shelfKey(), album.slug); } catch {}
     if (!t || !src || !rect) { location.assign(`/album/${encodeURIComponent(album.slug)}`); return; }
     Object.assign(src.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
     t.openAlbum({ slug: album.slug, color: album.cover_color, imageUrl: album.image, source: src });
@@ -57,21 +65,31 @@ export default function ShelfView({ albums, grouped = false, label = "Shelf", vi
     let alive = true, engine = null;
     import("./shelfEngine").then(({ createShelfEngine }) => {
       if (!alive || !hostRef.current) return;
-      engine = createShelfEngine({ host: hostRef.current, items, onLayout: setLayout, onSelect: setPicked, onOpen: (a, r) => openRef.current(a, r) });
+      let start = null;
+      try { start = sessionStorage.getItem(shelfKey()); sessionStorage.removeItem(shelfKey()); } catch {}
+      let n = 0;
+      engine = createShelfEngine({ host: hostRef.current, items, start, onLayout: setLayout, onOpen: (a, r) => openRef.current(a, r),
+        onSelect: (p) => { setPicked(p); if (p && n++) sfx?.current?.play("slide"); } });   // 처음 저절로 나오는 판은 조용히
       engineRef.current = engine;
+      if (api) api.current = { rects: engine.rects, hold: engine.hold, release: engine.release };
       setReady(true);
     });
-    return () => { alive = false; engine?.dispose(); engineRef.current = null; setPicked(null); setReady(false); };
+    return () => { alive = false; engine?.dispose(); engineRef.current = null; if (api) api.current = null; setPicked(null); setReady(false); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
   // 무대가 떠 있는 동안 아래 페이지는 잠금 (휠이 판을 넘기는 데 쓰임) · Esc → 그리드
   useEffect(() => {
     const page = hostRef.current?.closest(".page");
     page?.dispatchEvent(new Event("page:lock"));
+    return () => { page?.dispatchEvent(new Event("page:unlock")); };
+  }, []);
+  useEffect(() => {
+    if (view !== "shelf") return;
     const esc = (e) => { if (e.key === "Escape") onViewChange?.("grid"); };
     window.addEventListener("keydown", esc);
-    return () => { page?.dispatchEvent(new Event("page:unlock")); window.removeEventListener("keydown", esc); };
-  }, [onViewChange]);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onViewChange, view]);
 
   const a = picked?.album, spot = layout?.spot;
   const tint = { color: `color-mix(in oklab, ${a?.cover_color || "var(--ink)"} 35%, var(--ink))` };
@@ -81,7 +99,8 @@ export default function ShelfView({ albums, grouped = false, label = "Shelf", vi
     <>
       <div ref={hostRef} data-no-select data-lenis-prevent data-crate-ignore role="region"
         aria-label={`${label} shelf. Scroll or use the arrow keys to pull out the next record; press Enter to open it.`}
-        className={`fixed inset-0 z-[25] isolate cursor-grab touch-none text-(--ink) outline-none transition-opacity duration-500 ${ready ? "opacity-100" : "opacity-0"}`}
+        inert={leaving}
+        className={`fixed inset-0 z-[25] isolate cursor-grab touch-none text-(--ink) outline-none transition-opacity duration-500 ${ready && !leaving ? "opacity-100" : "opacity-0"} ${leaving ? "pointer-events-none" : ""}`}
         style={{ "--gut": "clamp(16px, 4vw, 56px)" }}>
         {/* 바탕: 페이지와 같은 종이 (페이지 색 + 종이 결) — 헤더와 이어짐 */}
         <div aria-hidden="true" className="absolute inset-0 -z-10">
@@ -90,7 +109,10 @@ export default function ShelfView({ albums, grouped = false, label = "Shelf", vi
         </div>
 
         {/* 위: 어디의 선반인지 · 보기 전환 */}
-        <p className={`${KICKER} pointer-events-none absolute left-[var(--gut)] top-[calc(var(--ct-header-h,106px)+1.1rem)] opacity-70`}>{label} · Shelf</p>
+        <div className="absolute left-[var(--gut)] top-[calc(var(--ct-header-h,106px)+0.6rem)] flex min-h-9 items-center gap-5 max-[819px]:gap-3">
+          <p className={`${KICKER} pointer-events-none opacity-70`}>{label}<span className="max-[819px]:hidden"> · Shelf</span></p>
+          <SoundToggle />
+        </div>
         <div className="absolute right-[var(--gut)] top-[calc(var(--ct-header-h,106px)+0.6rem)]">
           <ViewToggle view={view} onChange={onViewChange} views={views} className="bg-(--bg)" />
         </div>

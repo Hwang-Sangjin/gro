@@ -34,8 +34,9 @@ const PAPER = '#efe6d2';
  * onLayout({ spot: { left, top, size }, narrow }): 꺼낸 판 자리 (캔버스 px) — 그 아래에 글을 놓으려고
  * onSelect({ index, total, album, marker: { left, top } }): 고른 판 · 그 판이 꽂혀 있던 자리
  * onOpen(album, rect): 꺼낸 판을 누름 (rect = 화면 기준 재킷 자리)
+ * start: 처음에 꺼내 둘 판의 slug (앨범 상세에서 돌아왔을 때 — 없으면 첫 판)
  */
-export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
+export function createShelfEngine({ host, items, onLayout, onSelect, onOpen, start = null }) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
@@ -109,6 +110,8 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
   const mag = SHELF.DIST / (SHELF.DIST - SHELF.OUT);   // 다 나온 재킷이 화면에서 커지는 비율 (원근)
   let disposed = false, W = 1, H = 1, S = 300, D = 1500, raf = 0, prev = 0, narrow = false;
   let slots = [], cubes = [], built = [], sel = -1;
+  // 보기 전환(useViewSwitch): 커버가 날아오는 · 날아가는 동안 그 판들은 선반에서 숨겨 둠 (held) — 그동안은 첫 판도 꺼내지 않음
+  let held = false, later = 0; const hidden = new Set();
   const spot = { x: 0, y: 0 };   // 꺼낸 판의 화면 자리 (가운데, 캔버스 가운데 기준 px · 위가 +)
   const pointer = { x: 0, y: 0, on: false, tx: 0, ty: 0 };
 
@@ -253,6 +256,7 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
       const shadow = new THREE.Mesh(plane, new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0, depthWrite: false }));
       shadow.scale.set(S * 1.9, S * 1.9, 1); shadow.position.set(S / 2 + S * 0.03, -S * 0.07, -p.t / 2 - 3); shadow.visible = false;
       pivot.add(shadow); built.push(shadow);
+      pivot.visible = !hidden.has(a.slug);
       const slot = { i: slots.length, album: a, cube: p.cube, x, yb, yc: yb + S / 2, t: p.t, pivot, mesh, front, shadow, p: 0, v: 0 };
       slots.push(slot); cube.slots.push(slot);
       loadCover(slot);
@@ -345,6 +349,29 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
     return best;
   }
   const local = (e) => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top, r]; };
+  // 보기 전환용: 판마다 지금 화면에서의 자리 (꽂혀 있으면 책등 — 얇음(thin), 꺼낸 판은 앞면)
+  function spots() {
+    const out = new Map(), r = canvas.getBoundingClientRect();
+    for (const s of slots) {
+      const face = s.i === sel && s.p > 0.6;
+      const q = face ? rectOf(s) : { left: W / 2 + s.x - s.t / 2, top: H / 2 - (s.yb + S), width: s.t, height: S };
+      out.set(s.album.slug, { rect: { left: r.left + q.left, top: r.top + q.top, width: q.width, height: q.height }, thin: !face, image: s.album.image || null, color: s.album.cover_color || '#bbcbda' });
+    }
+    return out;
+  }
+  const startIndex = () => Math.max(0, slots.findIndex((s) => s.album.slug === start));
+  function hold(slugs) {
+    held = true; hidden.clear();
+    for (const slug of slugs) hidden.add(slug);
+    for (const s of slots) s.pivot.visible = !hidden.has(s.album.slug);
+    run();
+  }
+  function release() {
+    held = false; hidden.clear();
+    for (const s of slots) s.pivot.visible = true;
+    run();
+    if (sel < 0) later = setTimeout(() => { if (!disposed && sel < 0) select(startIndex()); }, reduced ? 0 : 140);
+  }
   function openSelected() {
     const s = slots[sel];
     if (!s || s.p < 0.6) return;
@@ -417,15 +444,16 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
   ro.observe(host);
   build();
   // 들어오면 잠깐 뒤 첫 판이 나옴 (선반이 먼저 보이고 → 한 장이 나오는 순서)
-  const first = setTimeout(() => { if (!disposed && sel < 0) select(0); }, reduced ? 0 : 450);
+  const first = setTimeout(() => { if (!disposed && sel < 0 && !held) select(startIndex()); }, reduced ? 0 : 450);
 
   return {
     step(d) { select(sel + d); },
     select,
     openSelected,
+    rects: spots, hold, release,
     dispose() {
       disposed = true;
-      clearTimeout(first); cancelAnimationFrame(raf); ro.disconnect();
+      clearTimeout(first); clearTimeout(later); cancelAnimationFrame(raf); ro.disconnect();
       host.removeEventListener('wheel', onWheel); window.removeEventListener('keydown', onKey);
       for (const m of built) for (const mat of [m.material].flat()) mat.dispose();
       for (const t of textures.values()) t.dispose();
