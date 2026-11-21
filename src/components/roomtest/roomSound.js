@@ -1,11 +1,15 @@
-// 방 안 효과음 — 파일 없이 Web Audio 로 바로 만듦 (사용자가 소리를 켠 뒤에만 AudioContext 를 만듦: 브라우저 자동 재생 규칙)
-//  click(): 램프 스위치 딸깍 · needleDown()/needleUp(): 톤암 내려감 · 올라감 · setPlaying(): 판이 도는 동안 잡음(크래클 + 쉬익)
+import { SOUNDS, loadSample, playSample } from "@/lib/samples";
+// Home 의 효과음 (사용자가 소리를 켠 뒤에만 AudioContext 를 만듦: 브라우저 자동 재생 규칙)
+//  녹음한 파일 (public/sounds/, 2026-11-22 — 켜는 순간에 받음. 못 받으면 예전 합성음):
+//   needleDown(): 바늘이 판에 내려앉음 (Hero → 방에서 판이 턴테이블에 놓일 때 · 멈췄다가 다시 틀 때) · flip(): Hero 에서 재킷을 한 장 넘김
+//  Web Audio 로 바로 만드는 것: click() 램프 스위치 딸깍 · needleUp() 톤암 올라감 · setPlaying() 판이 도는 동안 잡음(크래클 + 쉬익)
 //  MUSIC_URL 을 넣으면 판이 도는 동안 그 음악을 같이 틀어 줌 (지금은 없음)
 const MUSIC_URL = null;
 
 export function createRoomSound() {
   let ctx = null, master = null, crackle = null, crackleGain = null, music = null, musicGain = null;
   let enabled = false, playing = false;
+  let needle = null, flip = null, lastFlip = 0;   // 받아 둔 녹음 소리
 
   const ensure = () => {
     if (ctx) return ctx;
@@ -94,6 +98,7 @@ export function createRoomSound() {
     setEnabled(on) {
       enabled = on;
       if (on && ensure() && ctx.state === "suspended") ctx.resume();
+      if (on && ctx) { loadSample(ctx, SOUNDS.needle).then((s) => { needle = s; }); loadSample(ctx, SOUNDS.flip).then((s) => { flip = s; }); }
       apply();
     },
     setPlaying(on) {
@@ -102,7 +107,18 @@ export function createRoomSound() {
       apply();
     },
     click() { burst(2400, 1.4, 0.03, 0.55); },
-    needleDown() { burst(500, 0.8, 0.06, 0.5, 90); },
+    needleDown() {
+      if (!enabled || !ensure()) return;
+      if (!playSample(ctx, needle, { gain: 0.6, dest: master })) burst(500, 0.8, 0.06, 0.5, 90);
+    },
+    // 재킷 한 장 넘김: 빠르게 넘길 때 겹쳐 뭉개지지 않게 간격을 두고, 넘길 때마다 빠르기 · 크기를 조금씩 다르게
+    flip() {
+      if (!enabled || !ensure()) return;
+      const now = performance.now();
+      if (now - lastFlip < 90) return;
+      lastFlip = now;
+      if (!playSample(ctx, flip, { rate: 0.94 + Math.random() * 0.16, gain: 0.42 + Math.random() * 0.16, dest: master })) burst(2800, 0.9, 0.05, 0.25);
+    },
     needleUp() { burst(1800, 1.2, 0.04, 0.3); },
     dispose() {
       music?.pause();

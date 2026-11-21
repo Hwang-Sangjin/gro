@@ -933,7 +933,8 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
           camAtHero: () => placeStoryCam(0),
           title: titleRef.current,
           cursor: curRefs.ring.current ? { ring: curRefs.ring.current, dot: curRefs.dot.current, shape: curRefs.shape.current, label: curRefs.label.current, tick: curRefs.tick.current } : null,
-          onIndex: (i) => st.onSleeveIndex?.(i), onOpen: (o) => st.onSleeveOpen?.(o), onRecord: (i) => st.onSleeveRecord?.(i),
+          // 재킷을 한 장 넘길 때마다 넘기는 소리 (처음 자리를 잡을 때는 조용히)
+          onIndex: (i) => { if (st.sleeveSeen) st.sound?.flip(); st.sleeveSeen = true; st.onSleeveIndex?.(i); }, onOpen: (o) => st.onSleeveOpen?.(o), onRecord: (i) => st.onSleeveRecord?.(i),
           // 고른 앨범의 커버를 창가 선반 "지금 듣는 판" 재킷에
           onPlay: (i) => { const a = st.sleeveFilled?.[i]; if (a && st.root) st.nowPlaying = applyNowPlaying(st.root, [a], 0, st.warmNowPlaying) ?? st.nowPlaying; st.setWall?.(st.nowPlaying); },
         });
