@@ -25,7 +25,7 @@ const ss = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (
 const lerp = (a, b, t) => a + (b - a) * t;
 const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 
-const WOOD = { top: '#b98d5c', front: '#a47a4b', side: '#8d6740', inner: '#7a5735', back: '#5c4028', under: '#6b4b2d' };
+const WOOD = { top: '#d2a872', front: '#c0915a', side: '#a67b4a', inner: '#9a7044', back: '#4f3520', under: '#86613a' };
 const PAPER = '#efe6d2';
 
 /**
@@ -57,6 +57,54 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
     return t;
   })();
+
+  // 나뭇결: 밝은 바탕에 가는 결을 그은 그림 한 장 (색은 재질 색이 곱해짐). 위쪽은 밝게 · 아래쪽은 어둡게 → 널빤지 모서리가 깎인 듯 보임
+  const woodTex = (() => {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 64;
+    const g = c.getContext('2d');
+    g.fillStyle = '#e4e4e4'; g.fillRect(0, 0, 512, 64);
+    let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 110; i++) {
+      const y = rnd() * 64, amp = rnd() * 1.8, ph = rnd() * 6.283, k = (Math.PI * 2 * (1 + Math.floor(rnd() * 3))) / 512;   // 가로로 이어 붙여도 끊기지 않는 물결
+      g.strokeStyle = `rgba(70,40,12,${(0.04 + rnd() * 0.11).toFixed(3)})`; g.lineWidth = 0.5 + rnd() * 1.5;
+      g.beginPath();
+      for (let x = 0; x <= 512; x += 8) { const yy = y + Math.sin(x * k + ph) * amp; if (x) g.lineTo(x, yy); else g.moveTo(x, yy); }
+      g.stroke();
+    }
+    const bevel = g.createLinearGradient(0, 0, 0, 64);
+    bevel.addColorStop(0, 'rgba(255,255,255,0.55)'); bevel.addColorStop(0.16, 'rgba(255,255,255,0)');
+    bevel.addColorStop(0.82, 'rgba(0,0,0,0)'); bevel.addColorStop(1, 'rgba(0,0,0,0.3)');
+    g.fillStyle = bevel; g.fillRect(0, 0, 512, 64);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso;
+    return t;
+  })();
+  // 칸 안의 그늘: 천장 아래 · 왼쪽 벽 옆이 어두운 그림 (뒤판 앞에 한 장 덧댐)
+  const shadeTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d');
+    const a = g.createLinearGradient(0, 0, 0, 64); a.addColorStop(0, 'rgba(0,0,0,0.6)'); a.addColorStop(0.5, 'rgba(0,0,0,0)');
+    g.fillStyle = a; g.fillRect(0, 0, 64, 64);
+    const b = g.createLinearGradient(0, 0, 64, 0); b.addColorStop(0, 'rgba(0,0,0,0.45)'); b.addColorStop(0.3, 'rgba(0,0,0,0)'); b.addColorStop(0.8, 'rgba(0,0,0,0)'); b.addColorStop(1, 'rgba(0,0,0,0.3)');
+    g.fillStyle = b; g.fillRect(0, 0, 64, 64);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })();
+  // 널빤지용 상자: 뒤쪽 꼭짓점을 어둡게 칠해 둠 → 윗면 · 옆면이 안쪽으로 갈수록 어두워짐 (빛 계산 없이 깊이감)
+  const boardGeo = (() => {
+    const geo = new THREE.BoxGeometry(1, 1, 1), pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) col.fill(pos.getZ(i) > 0 ? 1 : 0.5, i * 3, i * 3 + 3);
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    return geo;
+  })();
+  let grains = [];   // 널빤지마다 길이에 맞춰 복사한 나뭇결 (다시 지을 때 버림)
+  const grain = (len, vertical) => {
+    const t = woodTex.clone();
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    if (vertical) { t.center.set(0.5, 0.5); t.rotation = Math.PI / 2; }
+    t.repeat.set(Math.max(1, len / 340), 1); t.needsUpdate = true;
+    grains.push(t);
+    return t;
+  };
 
   const mag = SHELF.DIST / (SHELF.DIST - SHELF.OUT);   // 다 나온 재킷이 화면에서 커지는 비율 (원근)
   let disposed = false, W = 1, H = 1, S = 300, D = 1500, raf = 0, prev = 0, narrow = false;
@@ -107,8 +155,11 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
   const gridOf = (n) => { const cols = narrow ? Math.min(n, 2) : n <= 2 ? n : Math.ceil(Math.sqrt(n * 1.5)); return { cols, rows: Math.ceil(n / cols) }; };
 
   const add = (mesh) => { scene.add(mesh); built.push(mesh); return mesh; };
-  function board(w, h, d, x, y, z, faces) {   // faces: [+x, -x, +y, -y, +z, -z] 색
-    const m = new THREE.Mesh(box, faces.map(flat));
+  // faces: [+x, -x, +y, -y, +z, -z] 색 · wood: 'h' 가로로 긴 널빤지 / 'v' 세로로 긴 널빤지 (나뭇결 방향) / 없으면 단색
+  function board(w, h, d, x, y, z, faces, wood = null) {
+    const lit = wood === 'h' ? [2, 3, 4] : wood === 'v' ? [0, 1, 4] : [];   // 나뭇결을 입힐 면
+    const map = wood ? grain(wood === 'h' ? w : h, wood === 'v') : null;
+    const m = new THREE.Mesh(boardGeo, faces.map((hex, i) => new THREE.MeshBasicMaterial({ color: hex, vertexColors: true, map: lit.includes(i) ? map : null })));
     m.scale.set(w, h, d); m.position.set(x, y, z);
     return add(m);
   }
@@ -116,7 +167,8 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
   function build() {
     // 재킷은 축(pivot) 안에 들어 있으므로 축째로 뺌
     for (const m of built) { scene.remove(m.parent && m.parent !== scene ? m.parent : m); for (const mat of [m.material].flat()) mat.dispose(); }
-    built = []; slots = []; cubes = [];
+    for (const t of grains) t.dispose();
+    built = []; slots = []; cubes = []; grains = [];
     W = Math.max(1, host.clientWidth); H = Math.max(1, host.clientHeight); narrow = W < 820;
     renderer.setSize(W, H, false);
 
@@ -160,19 +212,29 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
 
     // 3) 칸막이장: 가로 판(칸 줄마다) · 세로 판(칸마다) · 뒤판
     const cabLeft = cabX - cabW / 2, cabTop = cabY + cabH / 2, zc = -depth / 2 + B * 0.3, dz = depth + B * 0.6;
-    for (let r = 0; r <= grid.rows; r++) board(cabW, B, dz, cabX, cabTop - B / 2 - r * cubeH, zc, [WOOD.side, WOOD.side, WOOD.top, WOOD.under, WOOD.front, WOOD.back]);
-    for (let c = 0; c <= grid.cols; c++) board(B, cabH, dz, cabLeft + B / 2 + c * cubeW, cabY, zc, [WOOD.inner, WOOD.inner, WOOD.top, WOOD.under, WOOD.front, WOOD.back]);
+    // 선반 뒤 그림자: 종이(벽)에 드리운 듯 조금 아래 · 오른쪽으로
+    const soft = (w, h, x, y, z, opacity, tex = shadowTex) => {
+      const m = new THREE.Mesh(plane, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity, depthWrite: false }));
+      m.scale.set(w, h, 1); m.position.set(x, y, z);
+      return add(m);
+    };
+    soft(cabW * 1.92, cabH * 1.92, cabX + S * 0.035, cabY - S * 0.075, -depth - 8, 0.42);
+    for (let r = 0; r <= grid.rows; r++) board(cabW, B, dz, cabX, cabTop - B / 2 - r * cubeH, zc, [WOOD.side, WOOD.side, WOOD.top, WOOD.under, WOOD.front, WOOD.back], 'h');
+    for (let c = 0; c <= grid.cols; c++) board(B, cabH, dz, cabLeft + B / 2 + c * cubeW, cabY, zc, [WOOD.inner, WOOD.inner, WOOD.top, WOOD.under, WOOD.front, WOOD.back], 'v');
     board(cabW - 2 * B, cabH - 2 * B, 2, cabX, cabY, -depth, Array(6).fill(WOOD.back));
     for (let i = 0; i < grid.cols * grid.rows; i++) {
       const c = i % grid.cols, r = Math.floor(i / grid.cols);
       cubes.push({ left: cabLeft + B + c * cubeW, floor: cabTop - (r + 1) * cubeH, slots: [] });
+      // 칸 안의 그늘 (뒤판 바로 앞): 천장 아래와 벽 옆이 어두움
+      soft(S * 1.04, S * 1.1, cabLeft + B + c * cubeW + S * 0.52, cabTop - (r + 1) * cubeH + S * 0.55, -depth + 3, 0.9, shadeTex);
     }
 
     // 4) 재킷 · 칸막이
-    const lastInCube = new Map();
+    const lastInCube = new Map(), firstInCube = new Map();
     for (const p of placed.out) {
       const cube = cubes[p.cube], x = cube.left + p.x, yb = cube.floor;
       lastInCube.set(p.cube, x + p.t / 2);
+      if (!firstInCube.has(p.cube)) firstInCube.set(p.cube, x - p.t / 2);
       if (p.it.divider) {
         const h = S * 1.045, kraft = '#c9a679', edge = '#a9865a';
         board(p.t, h, S * 0.98, x, yb + h / 2, -S * 0.49, [kraft, kraft, edge, edge, '#d6b58a', edge]);
@@ -194,6 +256,12 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
       const slot = { i: slots.length, album: a, cube: p.cube, x, yb, yc: yb + S / 2, t: p.t, pivot, mesh, front, shadow, p: 0, v: 0 };
       slots.push(slot); cube.slots.push(slot);
       loadCover(slot);
+    }
+    // 판들이 바닥에 드리우는 그림자: 칸 바닥에 눕힌 부드러운 검은 조각 (판이 꽂힌 폭만큼)
+    for (const [ci, right] of lastInCube) {
+      const cube = cubes[ci], left = firstInCube.get(ci), w = right - left + S * 0.14;
+      const m = soft(w * 1.6, depth * 1.7, (left + right) / 2 + S * 0.03, cube.floor + 0.8, -depth * 0.46, 0.5);
+      m.rotation.x = -Math.PI / 2;
     }
     // 덜 찬 칸마다 마지막 판 옆에 북엔드
     for (const [ci, right] of lastInCube) {
@@ -361,7 +429,8 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
       host.removeEventListener('wheel', onWheel); window.removeEventListener('keydown', onKey);
       for (const m of built) for (const mat of [m.material].flat()) mat.dispose();
       for (const t of textures.values()) t.dispose();
-      box.dispose(); plane.dispose(); shadowTex.dispose(); renderer.dispose(); canvas.remove();
+      for (const t of grains) t.dispose();
+      box.dispose(); boardGeo.dispose(); plane.dispose(); shadowTex.dispose(); woodTex.dispose(); shadeTex.dispose(); renderer.dispose(); canvas.remove();
     },
   };
 }
