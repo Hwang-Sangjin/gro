@@ -2,7 +2,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import SplitTitle from "@/components/digging/SplitTitle";
 import { createClient } from "@/utils/supabase/client";
-import { fetchDiggingPage } from "@/lib/albums";
+import { fetchDiggingPage, newShuffleSeed } from "@/lib/albums";
+import useAuthUser from "@/lib/useAuthUser";
+import { fetchOwnedIds } from "@/lib/userAlbums";
 import { getGenreIds } from "@/lib/genreIds";
 import { GENRES } from "@/lib/genres";
 import { cached } from "@/lib/dataCache";
@@ -45,6 +47,8 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
   const wanted = useRef(initialGenre ?? "all");
   const supabaseRef = useRef(null);
   const gridWrapRef = useRef(null);
+  // 섞는 순서: 처음엔 서버가 정한 것, Shuffle 을 누르면 새로 (장르를 바꿔도 같은 순서로)
+  const seedRef = useRef(initial.seed);
   const selectGenre = useCallback(async (slug) => {
     const key = slug ?? "all";
     if (key === wanted.current) return;
@@ -61,7 +65,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
       if (!data) {
         const supabase = (supabaseRef.current ??= createClient());
         const id = slug ? (await getGenreIds(supabase))[slug] ?? null : null;
-        data = { initial: await fetchDiggingPage(supabase, { genreId: id, seed: initial.seed }), genreId: id };
+        data = { initial: await fetchDiggingPage(supabase, { genreId: id, seed: seedRef.current }), genreId: id };
         cache.current.set(key, data);
       }
       await closing;
@@ -72,7 +76,41 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
     } finally {
       if (wanted.current === key) setSwitching(false);
     }
-  }, [initial.seed]);
+  }, []);
+  // 다시 섞기: 지금 장르를 새 순서로 (지금 판들을 접고 → 새 순서를 받아 → 펼침). 기억해 둔 다른 장르 목록은 버림 (예전 순서라서)
+  const shuffle = async () => {
+    if (switching) return;
+    const key = wanted.current, seed = newShuffleSeed();
+    seedRef.current = seed;
+    cache.current.clear();
+    setSwitching(true);
+    const closing = closeGrid(gridWrapRef.current);
+    try {
+      const supabase = (supabaseRef.current ??= createClient());
+      const id = key === "all" ? null : (await getGenreIds(supabase))[key] ?? null;
+      const data = { initial: await fetchDiggingPage(supabase, { genreId: id, seed }), genreId: id };
+      cache.current.set(key, data);
+      await closing;
+      if (wanted.current === key) setCurrent({ key, ...data, seed });
+    } catch { await closing; }
+    finally { setSwitching(false); }
+  };
+  // 로그인한 경우: 내가 가진 판(owned)은 빼고 보기. 처음 켤 때 내 판 목록을 받아 둠
+  const user = useAuthUser();
+  const [hideOwned, setHideOwned] = useState(false);
+  const [owned, setOwned] = useState(null);
+  const notOwned = !!user && hideOwned && !!owned;
+  const toggleOwned = async () => {
+    if (switching) return;
+    const next = !hideOwned;
+    if (next && !owned) {
+      try { setOwned(await fetchOwnedIds()); } catch { return; }
+    }
+    setSwitching(true);
+    await closeGrid(gridWrapRef.current);
+    setHideOwned(next);
+    setSwitching(false);
+  };
   // 페이지는 캐시된 '전체' 화면 → 주소에 ?genre= 가 있으면 열리자마자 그 장르로 바꿈
   useEffect(() => {
     const slug = new URLSearchParams(location.search).get("genre");
@@ -104,14 +142,27 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
         hrefFor={(slug) => (slug ? `/digging?genre=${slug}` : "/digging")}
         query={query} onQueryChange={setQuery} searchId="digging-search"
         extra={<>
-          <ViewToggle view={view} onChange={setView} className="mr-2" />
+          <ViewToggle view={view} onChange={setView} className="mr-1" />
+          {/* 다시 섞기 · (로그인하면) 내가 가진 판 빼고 보기 */}
+          <button type="button" className={styles.tool} onClick={shuffle} disabled={switching} aria-label="Shuffle the crate again">
+            <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4.5h2.6c1.4 0 2.3.6 3 1.7l1.8 3.1c.7 1.1 1.6 1.7 3 1.7H14M11.8 9.4 14 11l-2.2 1.6M2 11h2.6c.9 0 1.6-.3 2.2-.8M14 4.5h-1.6c-.9 0-1.6.3-2.2.8M11.8 2.9 14 4.5l-2.2 1.6" /></svg>
+            Shuffle
+          </button>
+          {user && (
+            <button type="button" className={styles.tool} onClick={toggleOwned} disabled={switching} aria-pressed={hideOwned}
+              title="Show only records you don’t own yet">
+              <span aria-hidden="true" className={styles.toolCheck} />
+              Not owned
+            </button>
+          )}
           <button className={styles.request} onClick={() => request.current?.open({ title: query.trim() })}>+ Request</button>
           <span className={styles.separator} aria-hidden="true" />
         </>} />
       {/* 장르를 바꾸면 지금 판들이 접혀 사라진 뒤, 그리드만 새로 그려짐 (카드가 다시 펼쳐지며 등장) */}
       <div ref={gridWrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
-        <DiggingGrid key={current.key} initial={current.initial} genreId={current.genreId} query={query} onRequest={() => request.current?.open({ title: query.trim() })}
-          lead={query.trim() ? null : <GenreDivider slug={current.key === "all" ? null : current.key} count={counts?.[current.key] ?? null} />} />
+        <DiggingGrid key={`${current.key}:${current.seed ?? ""}:${notOwned}`} initial={current.initial} genreId={current.genreId} query={query} onRequest={() => request.current?.open({ title: query.trim() })}
+          exclude={notOwned ? owned : null}
+          lead={query.trim() ? null : <GenreDivider slug={current.key === "all" ? null : current.key} count={counts?.[current.key] ?? null} notOwned={notOwned} leaving={switching} />} />
       </div>
       {/* Crate 보기: 그리드 위를 덮는 3D 크레이트 (Grid / Crate 버튼으로 전환) */}
       <CrateView gridRef={gridWrapRef} view={view} onViewChange={setView} title="Digging" />
@@ -125,15 +176,16 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
 //  탭: 판지를 둥글게 오려 낸 탭에 다이모 라벨(검은 테이프 · 눌려 튀어나온 흰 글자)로 장르 이름
 //  판: 고무 도장(GROOVES · RECORD CRATE) · 장르 색 동그라미 스티커 · 마커 손글씨(장르 · 판 수)
 //  장르를 바꾸면 그리드와 함께 새로 그려짐
-function GenreDivider({ slug, count }) {
+//  글씨 움직임 (2026-11-21): 새로 그려질 때 다이모 테이프가 붙고 · 도장이 찍히고 · 마커로 써짐 / 바뀌기 직전(leaving) 지워지고 떨어짐
+function GenreDivider({ slug, count, notOwned = false, leaving = false }) {
   const name = GENRE_ITEMS.find((g) => g.slug === slug)?.name ?? "All";
   const head = slug ? name : "Shuffled for you", tab = slug ? name : "All records";
-  const countText = count != null ? `${count} record${count === 1 ? "" : "s"}` : "records";
+  const countText = notOwned ? "Not in your shelf" : count != null ? `${count} record${count === 1 ? "" : "s"}` : "records";
   // data-crate-divider: Crate 보기(CrateView)가 이 칸막이도 크레이트 맨 앞에 꽂음 (같은 글을 3D 판에 그림)
   // data-crate-ignore: 칸막이를 잡고 끌어도 페이지 넘기기(CrateStage)가 일어나지 않게 — 끌어 볼 만한 물건처럼 보여서 Home 으로 넘어갔음
   return (
     <div aria-hidden="true" className={styles.divider} style={{ "--divider": lineOf(slug) }}
-      data-crate-divider data-crate-ignore data-tab={tab} data-head={head} data-count={countText}>
+      data-crate-divider data-crate-ignore data-leaving={leaving} data-tab={tab} data-head={head} data-count={countText}>
       <span className={styles.dividerTab}>
         <span className={styles.dymo}>{tab}</span>
       </span>

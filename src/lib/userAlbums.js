@@ -48,3 +48,10 @@ export async function fetchOwnerCount(albumId) {
   if (error || typeof data !== "number") return null;
   return data;
 }
+
+// 내가 가진 판(owned)의 앨범 id 모음 — Digging 의 "Not owned" 거르기용 (2026-11-21)
+export async function fetchOwnedIds() {
+  const { data, error } = await authClient().from("user_albums").select("album_id").eq("kind", "owned");
+  if (error) throw error;
+  return new Set((data ?? []).map((r) => r.album_id));
+}
