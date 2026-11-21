@@ -2488,11 +2488,14 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       {(inkHero || sleeveHero) && (
         <>
           {/* sleeve Hero 는 재킷 줄이 화면 가운데를 차지하므로 제목을 그 위(헤더와 재킷 사이)에 조금 작게 */}
+          {/* 재킷을 열면 재킷이 제목 자리까지 커지므로 제목은 비켜 줌 (h1 의 투명도는 엔진이 매 프레임 쓰므로 바깥 층에서 옅게) */}
+          <div className={`pointer-events-none absolute inset-0 z-10 transition-opacity duration-300 motion-reduce:transition-none ${sleeveHero && sleeveOpen ? "opacity-0" : ""}`}>
           <h1 ref={titleRef} aria-label="Grooves"
             className={`pointer-events-none absolute inset-x-0 z-10 select-none overflow-y-clip py-[0.06em] text-center ${MONOTON} leading-none ${sleeveHero ? "top-[15svh] text-[min(8.5vw,12svh)]" : "top-1/2 text-[11vw]"}`}
             style={{ color: HS.text, translate: "0 -50%" }}>
             {"Grooves".split("").map((ch, i) => <span key={i} aria-hidden="true" className="inline-block origin-bottom translate-y-[110%]">{ch}</span>)}
           </h1>
+          </div>
           <div ref={curRefs.ring} className="pointer-events-none fixed left-0 top-0 z-50 opacity-0 transition-opacity duration-300" aria-hidden="true">
             <div className="-translate-x-1/2 -translate-y-1/2">
               <div ref={curRefs.shape} style={{ transform: "scale(0.32)", borderColor: HS.ink3d }} className="relative h-[88px] w-[88px] rounded-full border transition-[transform,background-color,border-color,backdrop-filter] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]">
@@ -2584,7 +2587,8 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     {/* 섹션 바탕: 방 스테이지 위 · 섹션 글과 그림 아래에 붙어 있는 캔버스 (흐름에서 자리를 차지하지 않게 한 화면만큼 끌어올림) */}
     <canvas ref={wipeRef} aria-hidden="true" className="pointer-events-none sticky top-0 z-[5] -mt-[100svh] block h-svh w-full" />
     {/* 섹션 목차 01–05: 화면 오른쪽에 붙어 있음. 색은 헤더 글자색(지금 바탕에 맞춰 바뀜)을 따름. New Vinyls · News 에서는 번호만 */}
-    <nav aria-label="Home sections" data-header-fg="" className={`pointer-events-none sticky top-0 z-20 -mt-[100svh] flex h-svh items-center justify-end pr-[var(--gutter)] text-[var(--ct-header-fg,#4c404a)] transition-opacity duration-700 max-md:hidden ${done ? "opacity-100" : "opacity-0"}`}>
+    {/* 음악 카드(오른쪽 아래, 아래 여백 포함 약 21rem)가 떠 있는데 화면이 낮으면 목차가 카드와 겹침 → 카드 위 빈 자리의 가운데로 올림 */}
+    <nav aria-label="Home sections" data-header-fg="" className={`pointer-events-none sticky top-0 z-20 -mt-[100svh] flex h-svh items-center justify-end pr-[var(--gutter)] text-[var(--ct-header-fg,#4c404a)] transition-[opacity,padding] duration-700 max-md:hidden ${music.active && !heroOn ? "[@media(max-height:900px)]:pb-[21rem]" : ""} ${done ? "opacity-100" : "opacity-0"}`}>
       <ol className="flex flex-col items-end gap-[clamp(10px,1.6vh,18px)]">
         {INDEX.map((name, i) => {
           const cur = where > 0 ? where + 1 : heroOn ? 0 : 1;

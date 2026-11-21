@@ -194,8 +194,9 @@ export default function CrateView({ gridRef, view, onViewChange, title }) {
           <div className="flex items-start justify-between gap-4 max-md:flex-col-reverse max-md:gap-3">
             <p className={`${SERIF} min-w-0 text-[clamp(2.25rem,6vw,5.75rem)] font-black uppercase leading-[0.86] tracking-[-0.02em]`}>{title}</p>
             <div className="pointer-events-auto flex flex-col items-end gap-3 max-md:self-end">
-              <ViewToggle view={view} onChange={onViewChange} />
-              <p className="hidden text-right text-[11px] uppercase leading-5 tracking-[0.24em] text-(--ink)/55 md:block">Scroll · Drag · ← → to dig<br />Click the front record to open</p>
+              {/* 판 더미가 이 자리까지 올라오므로 종이 바탕을 깔아 줌 (없으면 커버 그림 위에 글자만 떠서 안 읽힘) */}
+              <ViewToggle view={view} onChange={onViewChange} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />
+              <p className="hidden rounded-md bg-(--bg)/85 px-2.5 py-1.5 text-right text-[11px] uppercase leading-5 tracking-[0.24em] text-(--ink)/70 backdrop-blur-sm md:block">Scroll · Drag · ← → to dig<br />Click the front record to open</p>
             </div>
           </div>
           {front && (

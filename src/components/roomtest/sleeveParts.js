@@ -24,7 +24,7 @@ export const S = {
   pull: { out: 0.5 },     // 열렸을 때 판이 재킷 밖으로 나온 정도 (재킷 폭 대비)
   // 열기 (4단계): 가운데 재킷을 누르면 양옆 재킷은 옆으로 밀려나며 멀어지고(spread · recede m), 가운데 재킷은 정면을 보며 다가옴(forward m · scale 배)
   //  판은 열림이 pullFrom 을 지난 뒤부터 빠져나옴. 열린 동안 재킷은 조금만 기울고(hover 배), 판은 마우스를 따라 기울며(discTilt rad) 빛이 돎(envTurn rad)
-  open: { stiff: 30, damp: 10.5, spread: 1.0, recede: 0.9, forward: 0.1, scale: 1.1, fitW: 0.78, pullFrom: 0.3, hover: 0.45, discTilt: 0, envTurn: 1.3, discSpin: 0.9 },     // discTilt 는 0: 판만 따로 기울이면 재킷 앞면을 뚫고 나옴 → 재킷과 같이 기울고 빛이 돎
+  open: { stiff: 30, damp: 10.5, spread: 1.0, recede: 0.9, forward: 0.1, scale: 1.1, fitW: 0.78, clearPx: 150, pullFrom: 0.3, hover: 0.45, discTilt: 0, envTurn: 1.3, discSpin: 0.9 },     // discTilt 는 0: 판만 따로 기울이면 재킷 앞면을 뚫고 나옴 → 재킷과 같이 기울고 빛이 돎
   camera: { fov: 28, dist: 1.12, fitH: 0.56, fitW: 0.4, fitWNarrow: 0.6 },     // 가운데 재킷이 화면 높이 · 폭에서 차지하는 최대 비율 (좁은 화면은 폭의 fitWNarrow)
   // 등장: 재킷이 멀리(recede m 뒤) 점처럼 작게(scale) 있다가 dur 초 동안 다가오며 커짐. 가운데 먼저, 옆은 한 칸에 stagger 초씩 늦게 (최대 maxSteps 칸)
   //  멀리 있는 동안은 안개에 묻혀 있어서 바탕에서 스며 나오듯 나타남. turn = 다가오며 풀리는 회전(rad)

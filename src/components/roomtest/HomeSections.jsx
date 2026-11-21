@@ -222,9 +222,13 @@ function News() {
   }, []);
 
   return (
-    <section data-hs-section data-bg="ink" className="relative px-[var(--gutter)] pt-[clamp(6rem,18vh,14rem)] text-(--cream)" aria-labelledby="news-title">
+    <section data-hs-section data-bg="ink" className="relative px-[var(--gutter)] text-(--cream)" aria-labelledby="news-title">
+      {/* 헤더 밑 띠: Home 헤더는 투명이라 기사 줄이 메뉴 글자 밑으로 지나가면 겹쳐 읽힘 → 섹션 바탕색을 헤더 높이만큼 깔고 아래로 옅어지게 (New Vinyls 의 띠와 같은 방식) */}
+      <div aria-hidden="true" className="pointer-events-none sticky top-0 z-10 -mx-[var(--gutter)] h-0">
+        <div className="h-[calc(var(--ct-header-h,106px)+2rem)]" style={{ background: "linear-gradient(to bottom, var(--ink) 0%, var(--ink) 68%, transparent 100%)" }} />
+      </div>
       {/* 가운데 한 단: 화면이 넓어도 줄이 너무 길어지지 않게 */}
-      <div ref={wrapRef} className="mx-auto w-full max-w-[1080px]">
+      <div ref={wrapRef} className="mx-auto w-full max-w-[1080px] pt-[clamp(6rem,18vh,14rem)]">
         <div className="flex flex-col items-center pb-[clamp(2rem,5vh,3.5rem)] text-center">
           <Reveal as="p" className={`${KICKER} opacity-60`}>Side B · Journal</Reveal>
           {/* 제목: 굵은 글자가 커서 근처에서만 가늘어짐 (반대 방향) */}

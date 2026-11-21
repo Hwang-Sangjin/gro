@@ -417,7 +417,11 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
 
     rig.rotation.set((S.pose.rotX - s.tilt.y * S.pose.rowHover) * (1 - oe), (S.pose.rotY + s.tilt.x * S.pose.rowHover) * (1 - oe), 0);
     const visW = 2 * Math.tan(THREE.MathUtils.degToRad(s.fov / 2)) * (s.dist - O.forward) * s.aspect;
-    const openScale = Math.min(O.scale, (visW * O.fitW) / (S.jacket.size * (1 + S.pull.out)));
+    // 높이 한도: 열린 재킷이 아래 글(아티스트 · 제목 · 버튼, 약 O.clearPx)을 덮지 않게. 화면이 낮을수록 덜 커짐
+    //  (닫힌 크기보다 작아지지는 않음 — (dist - forward) / dist 가 닫힌 재킷과 같은 겉보기 크기)
+    const fitH = Math.max(0.3, 1 - (2 * O.clearPx) / Math.max(1, innerHeight));
+    const capH = Math.max((s.dist - O.forward) / s.dist, ((visW / s.aspect) * fitH) / S.jacket.size);
+    const openScale = Math.min(O.scale, capH, (visW * O.fitW) / (S.jacket.size * (1 + S.pull.out)));
     const hoverK = 1 - (1 - O.hover) * oe;
     const gap = s.narrow ? R.gapNarrow : R.gap;
     const lean = Math.max(-B.leanMax, Math.min(B.leanMax, -s.vel * B.lean));
