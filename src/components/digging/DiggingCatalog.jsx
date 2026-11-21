@@ -141,9 +141,8 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
       <GenreBar genre={genre} counts={counts} onPick={selectGenre}
         hrefFor={(slug) => (slug ? `/digging?genre=${slug}` : "/digging")}
         query={query} onQueryChange={setQuery} searchId="digging-search"
-        extra={<>
-          <ViewToggle view={view} onChange={setView} className="mr-1" />
-          {/* 다시 섞기 · (로그인하면) 내가 가진 판 빼고 보기 */}
+        /* 다시 섞기 · (로그인하면) 내가 가진 판 빼고 보기: 장르 줄 위 작은 줄(판 수 옆)에 — 장르 목록의 폭을 뺏지 않게 (2026-11-21) */
+        meta={<>
           <button type="button" className={styles.tool} onClick={shuffle} disabled={switching} aria-label="Shuffle the crate again">
             <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4.5h2.6c1.4 0 2.3.6 3 1.7l1.8 3.1c.7 1.1 1.6 1.7 3 1.7H14M11.8 9.4 14 11l-2.2 1.6M2 11h2.6c.9 0 1.6-.3 2.2-.8M14 4.5h-1.6c-.9 0-1.6.3-2.2.8M11.8 2.9 14 4.5l-2.2 1.6" /></svg>
             Shuffle
@@ -155,6 +154,9 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
               Not owned
             </button>
           )}
+        </>}
+        extra={<>
+          <ViewToggle view={view} onChange={setView} className="mr-2" />
           <button className={styles.request} onClick={() => request.current?.open({ title: query.trim() })}>+ Request</button>
           <span className={styles.separator} aria-hidden="true" />
         </>} />

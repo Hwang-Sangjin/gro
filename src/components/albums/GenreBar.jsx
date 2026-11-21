@@ -1,7 +1,7 @@
 "use client";
 // 장르 인덱스 바 — Digging·Collection 공용
 // - 장르를 세리프로 크게 나열, 고른 장르만 진하게 + 장르 색 밑줄, 개수는 위첨자
-// - 늘 한 줄 (넘치면 옆으로 넘겨 봄, 오른쪽 끝은 옅어짐 — 2026-11-20 두 줄로 넘치던 것 정리)
+// - 데스크톱은 넘치면 두 줄로 (장르가 모두 보이게 — 2026-11-21 한 줄로 했다가 넓은 화면에서도 4개가 가려져 되돌림), 휴대폰은 한 줄로 넘겨 봄
 // - 스크롤해서 헤더 아래에 붙으면 작게 접힘
 // - 오른쪽: (선택) extra 슬롯 + 검색
 //
@@ -25,7 +25,7 @@ const PAPER = "before:pointer-events-none before:absolute before:inset-0 before:
 export default function GenreBar({
   genre = null, counts = null, onPick, hrefFor = () => "#",
   query = "", onQueryChange, label = "Browse by genre", searchId = "album-search",
-  extra = null, topRule = "thick", className = "",
+  extra = null, meta = null, topRule = "thick", className = "",
 }) {
   const barRef = useRef(null);
   const [filtersRef, filtersRevealed] = useReveal();
@@ -73,13 +73,17 @@ export default function GenreBar({
       <div className={`grid grid-rows-[1fr] overflow-hidden ${topRule === "thick" ? "border-t-[3px]" : "border-t"} border-(--ink) transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[stuck=true]/bar:grid-rows-[0fr]`}>
         <div className="flex min-h-0 items-center justify-between overflow-hidden pt-3 transition-opacity duration-300 group-data-[stuck=true]/bar:opacity-0 text-[10px] font-medium uppercase tracking-[0.3em] text-(--ink)/60">
           <span>{label}</span>
-          <span className="tabular-nums">{total != null ? `${total} record${total === 1 ? "" : "s"}` : ""}</span>
+          {/* meta: 판 수 앞에 붙는 작은 글자 버튼들 (Digging: Shuffle · Not owned) — 장르 줄의 폭을 뺏지 않게 이 줄에 (2026-11-21) */}
+          <span className="flex items-center gap-[clamp(1rem,2vw,1.75rem)]">
+            {meta}
+            <span className="tabular-nums">{total != null ? `${total} record${total === 1 ? "" : "s"}` : ""}</span>
+          </span>
         </div>
       </div>
       {/* 모바일: 버튼들(Grid/Crate·Request·검색)은 위 줄 오른쪽, 장르는 아래 줄 전체 폭 — 한 줄에 몰아 장르가 가려지지 않게 */}
       <div className="flex items-center gap-6 max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-2 border-b border-(--ink)/60 py-[clamp(0.75rem,1.4vw,1.25rem)] transition-[padding] duration-500 group-data-[stuck=true]/bar:py-2">
         <nav ref={filtersRef} data-revealed={filtersRevealed} aria-label="Genres"
-          className={`${styles.filterReveal} flex min-w-0 [&_sup]:transition-opacity group-data-[stuck=true]/bar:[&_sup]:opacity-0 flex-1 flex-nowrap items-baseline gap-x-[clamp(0.5rem,0.9vw,1.1rem)] gap-y-1 overflow-x-auto [scrollbar-width:none] pr-12 [mask-image:linear-gradient(to_right,#000_calc(100%-3.5rem),transparent)] max-md:order-2 max-md:basis-full max-md:-my-2.5 max-md:py-2.5`}>
+          className={`${styles.filterReveal} flex min-w-0 [&_sup]:transition-opacity group-data-[stuck=true]/bar:[&_sup]:opacity-0 flex-1 flex-nowrap items-baseline gap-x-[clamp(0.5rem,0.9vw,1.1rem)] gap-y-1 overflow-x-auto [scrollbar-width:none] max-md:order-2 max-md:basis-full max-md:-my-2.5 max-md:py-2.5 md:flex-wrap group-data-[stuck=true]/bar:flex-nowrap`}>
           {GENRE_ITEMS.map((it, i) => {
             const on = (genre ?? null) === it.slug;
             const n = counts ? (counts[it.slug ?? "all"] ?? 0) : null;
