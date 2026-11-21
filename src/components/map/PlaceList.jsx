@@ -27,7 +27,7 @@ export default function PlaceList({ places, all, kind, setKind, area, setArea, a
           return (
             <span key={t.key} className="flex items-baseline">
               <button type="button" role="tab" aria-selected={kind === t.key} onClick={() => setKind(t.key)}
-                className={`${SERIF} min-h-8 border-b-[3px] border-transparent text-[1.25rem] leading-none text-(--ink)/35 transition-colors hover:text-(--ink)/70 aria-selected:border-(--accent) aria-selected:text-(--ink)`}>
+                className={`${SERIF} min-h-8 border-b-[3px] border-transparent text-[1.25rem] leading-none text-(--ink)/60 transition-colors hover:text-(--ink)/85 aria-selected:border-(--accent) aria-selected:text-(--ink)`}>
                 {t.label}<sup className="ml-0.5 text-[10px] font-normal tracking-normal text-(--ink)/45">{n}</sup>
               </button>
               {i < tabs.length - 1 && <span aria-hidden="true" className="mx-2 text-[1rem] text-(--ink)/20">/</span>}

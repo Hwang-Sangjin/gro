@@ -10,7 +10,8 @@ export const metadata = {
 export default function BrickPage() {
   return (
     <PageShell className="paper-textured [&>.page-content]:gap-0! [&>.page-content]:p-0!">
-      <BrickStudio />
+      {/* 본문이 한국어 (화면 낭독기가 한국어로 읽게). contents: 레이아웃에는 없는 상자 */}
+      <div lang="ko" className="contents"><BrickStudio /></div>
     </PageShell>
   );
 }

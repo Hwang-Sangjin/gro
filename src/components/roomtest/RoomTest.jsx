@@ -2394,7 +2394,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       {/* 효과음 켜기 · 끄기 (처음엔 꺼짐) */}
       <button type="button" aria-pressed={soundOn}
         onClick={() => { const on = !soundOn; setSoundOn(on); apiRef.current?.sound?.setEnabled(on); }}
-        className="absolute bottom-5 right-12 z-20 text-[11px] uppercase tracking-[0.22em] text-white mix-blend-difference transition-opacity duration-500"
+        className="absolute bottom-5 right-12 z-20 text-[11px] uppercase tracking-[0.22em] text-white mix-blend-difference transition-opacity duration-500 before:absolute before:-inset-x-3 before:-inset-y-3.5 before:content-['']"   /* before: 누를 자리 (글자 높이가 17px 뿐이라) */
         style={{ opacity: heroOn ? 0 : 0.8, pointerEvents: heroOn ? "none" : "auto" }}>
         Sound {soundOn ? "on" : "off"}
       </button>
@@ -2470,7 +2470,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
           {[-1, 1].map((d) => (
             <button key={d} type="button" aria-label={d < 0 ? "Previous album" : "Next album"} onClick={() => apiRef.current?.sleeve?.step(d)}
               disabled={d < 0 ? sleeveAt <= 0 : sleeveAt >= albums.length - 1}
-              className={`${d > 0 ? "order-3" : ""} ${sleeveOpen ? "invisible" : ""} pointer-events-auto rounded-full border border-current/30 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] transition-opacity hover:opacity-70 disabled:pointer-events-none disabled:opacity-25`}>
+              className={`${d > 0 ? "order-3" : ""} ${sleeveOpen ? "invisible" : ""} pointer-events-auto min-h-11 min-w-11 rounded-full border border-current/30 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] transition-opacity hover:opacity-70 disabled:pointer-events-none disabled:opacity-25`}>
               {d < 0 ? "←" : "→"}
             </button>
           ))}

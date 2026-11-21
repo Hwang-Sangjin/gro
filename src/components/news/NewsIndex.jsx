@@ -58,7 +58,7 @@ export default function NewsIndex() {
             const on = tab === t.key;
             return (
               <button key={t.key} type="button" role="tab" aria-selected={on} onClick={() => pick(t.key)}
-                className={`group/t relative ${SERIF} text-[clamp(1.4rem,2.4vw,2.6rem)] uppercase leading-[1.05] transition-colors duration-500 ${on ? "text-(--ink)" : "text-(--ink)/25 hover:text-(--ink)/70"}`}>
+                className={`group/t relative ${SERIF} text-[clamp(1.4rem,2.4vw,2.6rem)] uppercase leading-[1.05] transition-colors duration-500 ${on ? "text-(--ink)" : "text-(--ink)/60 hover:text-(--ink)/85"}`}>
                 <span className="relative">
                   {t.name}
                   <span aria-hidden="true" className={`absolute -bottom-[0.06em] left-0 h-[0.08em] min-h-[2px] bg-(--accent) transition-[width] duration-500 ease-[cubic-bezier(.22,1,.36,1)] ${on ? "w-full" : "w-0 group-hover/t:w-full"}`} />
@@ -82,7 +82,7 @@ export default function NewsIndex() {
                   {/* 밑줄: 글자 박스 맨 아래가 아니라 기준선 바로 밑에 (줄마다 그려져 다음 줄 글자를 가리지 않게) */}
                   <span className="box-decoration-clone bg-[linear-gradient(currentColor,currentColor)] bg-[length:0%_0.045em] bg-[position:0_calc(100%-0.16em)] bg-no-repeat transition-[background-size] duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover:bg-[length:100%_0.045em]">{lead.title}</span>
                 </h2>
-                <p className="mt-5 max-w-lg break-keep text-[16px] leading-7 text-(--ink)/75">{lead.dek}</p>
+                <p lang="ko" className="mt-5 max-w-lg break-keep text-[16px] leading-7 text-(--ink)/75">{lead.dek}</p>
                 <span className="mt-8 inline-flex items-center gap-3 text-[12px] font-medium uppercase tracking-[0.2em]">
                   Read story <span aria-hidden="true" className="transition-transform duration-500 group-hover:translate-x-1.5">→</span>
                 </span>
@@ -99,7 +99,7 @@ export default function NewsIndex() {
                   <StoryCover name={s.cover} className="aspect-square rounded-sm [&_svg]:transition-transform [&_svg]:duration-[1200ms] [&_svg]:ease-[cubic-bezier(.22,1,.36,1)] group-hover:[&_svg]:scale-105" />
                   <div className="mt-5"><Meta s={s} /></div>
                   <h3 className={`${MONOTON} mt-3 text-[clamp(1.25rem,1.75vw,1.75rem)] leading-[1.15]`}>{s.title}</h3>
-                  <p className="mt-3 break-keep text-[14px] leading-6 text-(--ink)/70">{s.dek}</p>
+                  <p lang="ko" className="mt-3 break-keep text-[14px] leading-6 text-(--ink)/70">{s.dek}</p>
                 </Link>
               </Reveal>
             ))}

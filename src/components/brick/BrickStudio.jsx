@@ -204,7 +204,7 @@ export default function BrickStudio() {
               {[["albums", "Albums"], ["upload", "Upload"]].map(([v, l], i) => (
                 <span key={v} className="flex items-baseline">
                   <button type="button" role="tab" aria-selected={tab === v} onClick={() => setTab(v)}
-                    className={`${SERIF} min-h-9 border-b-[3px] border-transparent text-[1.7rem] leading-none text-(--ink)/35 transition-colors hover:text-(--ink)/70 aria-selected:border-(--accent) aria-selected:text-(--ink)`}>{l}</button>
+                    className={`${SERIF} min-h-9 border-b-[3px] border-transparent text-[1.7rem] leading-none text-(--ink)/60 transition-colors hover:text-(--ink)/85 aria-selected:border-(--accent) aria-selected:text-(--ink)`}>{l}</button>
                   {i === 0 && <span aria-hidden="true" className="mx-3 text-[1.4rem] text-(--ink)/20">/</span>}
                 </span>
               ))}

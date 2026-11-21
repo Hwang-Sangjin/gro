@@ -257,7 +257,7 @@ function News() {
                       <span className={`${SERIF} block text-[clamp(1.35rem,2.4vw,2.4rem)] leading-[1.08] tracking-[-0.01em] transition-[translate] duration-(--dur-enter-title) [word-break:keep-all] motion-reduce:transition-none`}
                         style={{ translate: arrived ? "0 0" : "0 110%", transitionTimingFunction: ease, ...at(d) }}>{post.title}</span>
                     </span>
-                    {post.dek && <span className="mt-1.5 block max-w-[60ch] truncate text-[0.82rem] transition-opacity duration-700 max-md:hidden" style={{ opacity: arrived ? 0.55 : 0, ...at(d + 160) }}>{post.dek}</span>}
+                    {post.dek && <span lang="ko" className="mt-1.5 block max-w-[60ch] truncate text-[0.82rem] transition-opacity duration-700 max-md:hidden" style={{ opacity: arrived ? 0.55 : 0, ...at(d + 160) }}>{post.dek}</span>}
                   </span>
                   <span className={`${KICKER} hidden text-[10px] transition-opacity duration-700 md:block`} style={{ opacity: arrived ? 0.6 : 0, ...at(d + 120) }}>{categoryName(post.category)}</span>
                   <span className={`${KICKER} hidden text-[10px] tabular-nums transition-opacity duration-700 md:block`} style={{ opacity: arrived ? 0.6 : 0, ...at(d + 160) }}>{shortDate(post.date)}</span>

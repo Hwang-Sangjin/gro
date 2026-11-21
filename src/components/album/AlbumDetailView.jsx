@@ -204,7 +204,7 @@ export default function AlbumDetailView({ album }) {
                 <Rise show={discReady} delay={340}>{album.artistNames || "Unknown artist"}</Rise>
               </p>
               {album.description && <Fade show={discReady} delay={460}>
-                <p className="mt-6 max-w-xl whitespace-pre-line text-[15px] leading-7 text-[var(--album-muted)]">{album.description}</p>
+                <p lang="ko" className="mt-6 max-w-xl whitespace-pre-line text-[15px] leading-7 text-[var(--album-muted)]">{album.description}</p>
               </Fade>}
               <Fade show={discReady} delay={500}>
                 <ShelfButtons albumId={album.id} slug={album.slug} ink={ink} color={color} />

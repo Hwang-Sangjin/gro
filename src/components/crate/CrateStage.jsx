@@ -189,7 +189,10 @@ export default function CrateStage({children}) {
     ignoreClick.current=true;setTimeout(()=>ignoreClick.current=false,0);
     if(T.current)animate(d.release);
   }
+  // 본문 건너뛰기: 키보드로 들어오면 맨 처음 Tab 에 보임 → 메뉴(링크 20여 개)를 지나지 않고 지금 페이지 본문으로
+  const skip=(e)=>{e.preventDefault();const el=document.querySelector(".ct-page:not([inert]) .page-content")??document.querySelector(".page-content");if(!el)return;el.setAttribute("tabindex","-1");el.focus({preventScroll:true});};
   return <>
+    <a href="#content" onClick={skip} className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-full focus:bg-(--ink) focus:px-5 focus:py-3 focus:text-[12px] focus:font-semibold focus:uppercase focus:tracking-[0.2em] focus:text-(--cream)">Skip to content</a>
     <main ref={stage} className="ct-stage" data-crate-stage onPointerDown={down} onPointerMove={move} onPointerUp={release} onPointerCancel={release}>
       {[0,1,2].map(i=><div key={i} ref={el=>sleeves.current[i]=el} className="ct-sleeve" aria-hidden="true" />)}
       {entries.map(entry=><CratePage key={entry.key} entry={entry} ref={el=>{if(el)nodes.current.set(entry.key,el);else nodes.current.delete(entry.key);}} />)}

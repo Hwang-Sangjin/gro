@@ -184,7 +184,7 @@ export default function Navbar({path}){
               <span className="flex min-w-0 flex-col">
                 <span className="text-[11px] tabular-nums tracking-[.14em] opacity-55">{num(gi)}.{k+1}{c.soon&&<span className="ml-3 rounded-full border border-current/30 px-2 py-0.5 text-[9px] uppercase tracking-[.2em]">Soon</span>}</span>
                 <span className="mt-2 text-[clamp(32px,3.4vw,52px)] font-black leading-[.95] tracking-[-0.012em]" style={BODONI}>{c.label}</span>
-                <span className="mt-3 text-[14px] leading-6 opacity-70">{c.desc}</span>
+                <span lang="ko" className="mt-3 text-[14px] leading-6 opacity-70">{c.desc}</span>
                 <span className="mt-4 flex items-center gap-3 text-[11px] uppercase tracking-[.18em] opacity-55"><span className="h-px w-10 bg-current"/>{count??(c.soon?'Coming soon':'Open')}</span>
               </span>
               <span className={`pointer-events-none flex h-[clamp(96px,9vw,128px)] shrink-0 items-center justify-end ${group.children.length>2?'w-[clamp(96px,10vw,170px)]':'w-[clamp(140px,14vw,200px)]'}`}>
@@ -260,7 +260,7 @@ export default function Navbar({path}){
                     :<Link href={c.href} onClick={()=>setOpen(false)} aria-current={isCurrent(path,c.href)?'page':undefined} className="flex items-baseline gap-3 py-1.5">
                       <span className="text-[10px] tabular-nums opacity-50">{num(i)}.{k+1}</span>
                       <span className="text-[22px] font-black" style={BODONI}>{c.label}</span>
-                      <span className="truncate text-[12px] opacity-60">{c.desc}</span>
+                      <span lang="ko" className="truncate text-[12px] opacity-60">{c.desc}</span>
                       {isCurrent(path,c.href)&&<span aria-hidden="true" className="ml-auto size-2 shrink-0 self-center rounded-full bg-current"/>}
                     </Link>}
                 </li>)}
