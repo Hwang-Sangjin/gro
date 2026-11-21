@@ -7,17 +7,11 @@
 import { processCover } from "@/lib/admin/cover";
 import { adminGuard, serviceClient } from "@/lib/admin/auth";
 import { revalidateAlbum } from "@/lib/revalidateAlbum";
+import { slugify } from "@/lib/slug";
 
 export const runtime = "nodejs";
 
 const supabase = serviceClient();
-
-const slugify = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9가-힣]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 
 // side 로 disc 추정: A,B -> 1 / C,D -> 2 / E,F -> 3 ...
 const discFromSide = (side: string) =>
@@ -51,10 +45,14 @@ function toVideoId(value?: string | null) {
   }
 }
 
-async function upsertArtist(name: string) {
+async function upsertArtist(rawName: string) {
+  const name = String(rawName ?? "").trim();
+  const slug = slugify(name);
+  // 슬러그가 비면 서로 다른 아티스트가 한 줄로 합쳐지므로 저장하지 않는다
+  if (!slug) throw new Error(`Couldn’t make a slug for artist “${name}”. Use letters, numbers or Hangul.`);
   const { data, error } = await supabase
     .from("artists")
-    .upsert({ slug: slugify(name), name }, { onConflict: "slug" })
+    .upsert({ slug, name }, { onConflict: "slug" })
     .select("id")
     .single();
   if (error) throw new Error(`Couldn’t save artist (${name}): ${error.message}`);
@@ -73,6 +71,14 @@ export async function POST(req: Request) {
     if (!payload.slug || !payload.title || !payload.artists?.length) {
       return Response.json(
         { error: "Slug, title and artist are required." },
+        { status: 400 },
+      );
+    }
+    // 앨범을 저장하기 전에 막는다 (뒤에서 실패하면 앨범만 반쯤 저장됨)
+    const badArtist = payload.artists.find((n: string) => !slugify(String(n ?? "")));
+    if (badArtist !== undefined) {
+      return Response.json(
+        { error: `Check the artist name “${badArtist}”. Use letters, numbers or Hangul.` },
         { status: 400 },
       );
     }

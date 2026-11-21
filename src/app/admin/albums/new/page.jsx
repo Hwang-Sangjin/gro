@@ -6,10 +6,9 @@ import { AdminHeader } from "@/components/admin/AdminShell";
 import AlbumForm from "@/components/admin/AlbumForm";
 import { btnGhost } from "@/components/admin/ui";
 import { getRequest } from "@/lib/admin/data";
+import { slugify } from "@/lib/slug";
 
 export const dynamic = "force-dynamic";
-
-const slugify = (s) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9가-힣]+/g, "-").replace(/^-+|-+$/g, "");
 
 export default async function NewAlbumPage({ searchParams }) {
   const { title = "", artists = "", slug = "", request = "" } = await searchParams;
