@@ -2,7 +2,7 @@
 // Collection 의 Shelf 보기 — 화면을 덮는 3D 무대 (Grid · Crate 에 이은 세 번째 보기. Crate 처럼 그리드 위를 덮음)
 //  - 화면 가운데에 나무 칸막이장(LP 가 얇게 꽂힘)과, 그 옆(좁은 화면은 위)에 "지금 꺼낸 판"
 //  - 휠 · 화살표 키 · 드래그로 한 장씩 꺼내 봄. 꺼낸 판을 누르면 앨범 상세로 (재킷이 그대로 날아가는 전환)
-//  - 표시: 꺼낸 판이 꽂혀 있던 자리의 점 · 번호(07 / 28) · 아래 위치 줄
+//  - 표시: 꺼낸 판이 꽂혀 있던 자리 위의 삼각형(▼) · 번호(07 / 28) · 아래 위치 줄
 //  (2026-11-22 세 번째 판: ① DOM 의 넓은 책등 → ② 3D 선반 + 마우스 올리기 — 책등이 얇아 짚기 어렵고 선반이 작고 잘림 → ③ 가운데 무대 + 한 장씩)
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
@@ -95,11 +95,14 @@ export default function ShelfView({ albums, grouped = false, label = "Shelf", vi
           <ViewToggle view={view} onChange={onViewChange} views={views} className="bg-(--bg)" />
         </div>
 
-        {/* 표시: 꺼낸 판이 꽂혀 있던 자리 (칸 바닥 턱 위의 점) */}
-        {picked && (
-          <span aria-hidden="true" className="pointer-events-none absolute size-[9px] -translate-x-1/2 translate-y-[3px] rounded-full bg-(--accent) shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_25%,transparent)] transition-[left,top] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
-            style={{ left: picked.marker.left, top: picked.marker.top }} />
-        )}
+        {/* 표시: 꺼낸 판이 꽂혀 있던 자리 위에서 아래를 가리키는 삼각형 (재킷 윗변과 칸 천장 사이). 판을 넘기면 그 자리로 미끄러져 감 */}
+        {picked && (() => {
+          const h = Math.max(7, Math.min(12, picked.marker.room * 0.42));   // 삼각형 높이: 빈 틈에 맞춤
+          return (
+            <span aria-hidden="true" className="pointer-events-none absolute -translate-x-1/2 -translate-y-full transition-[left,top] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+              style={{ left: picked.marker.left, top: picked.marker.top - 3, width: 0, height: 0, borderLeft: `${h * 0.62}px solid transparent`, borderRight: `${h * 0.62}px solid transparent`, borderTop: `${h}px solid var(--accent)`, filter: "drop-shadow(0 1px 1px rgb(0 0 0 / 0.35))" }} />
+          );
+        })()}
 
         {/* 꺼낸 판의 정보: 그 판 바로 아래 */}
         {a && spot && (

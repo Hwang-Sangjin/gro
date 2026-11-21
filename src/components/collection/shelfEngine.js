@@ -245,8 +245,8 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
   function report() {
     const s = slots[sel];
     if (!s) { onSelect?.(null); return; }
-    // 표시: 그 판이 꽂혀 있던 자리 — 칸 바닥 널빤지의 앞 턱 (z=0 평면이라 화면 px 그대로)
-    onSelect?.({ index: sel, total: slots.length, album: s.album, marker: { left: W / 2 + s.x, top: H / 2 - s.yb } });
+    // 표시: 그 판이 꽂혀 있던 자리의 바로 위 — 재킷 윗변 (z=0 평면이라 화면 px 그대로). 칸 천장까지 재킷 한 변의 10% 가 비어 있어 그 사이에 들어감
+    onSelect?.({ index: sel, total: slots.length, album: s.album, marker: { left: W / 2 + s.x, top: H / 2 - (s.yb + S), room: S * 0.1 } });
   }
   function select(i) {
     const n = clampN(0, Math.round(i), slots.length - 1);
