@@ -11,7 +11,8 @@ import { createClient } from "@/utils/supabase/client";
 import { fetchDiggingPage } from "@/lib/albums";
 
 // exclude: 빼고 보여 줄 앨범 id 모음 (로그인 사용자의 "Not owned" — 내가 가진 판)
-export default function DiggingGrid({ initial, genreId = null, query = "", onRequest, lead = null, exclude = null }) {
+// loadAll: 스크롤을 기다리지 않고 남은 묶음을 끝까지 받음 (Crate 보기 — 그리드가 덮여 있어 스크롤로는 더 안 받아짐)
+export default function DiggingGrid({ initial, genreId = null, query = "", onRequest, lead = null, exclude = null, loadAll = false }) {
   const supabase = useMemo(() => createClient(), []);
 
   const [items, setItems] = useState(initial.items);
@@ -61,6 +62,9 @@ export default function DiggingGrid({ initial, genreId = null, query = "", onReq
   useEffect(() => {
     if (term && hasMore && !loading && !error) loadMore();
   }, [term, hasMore, loading, error, loadMore]);
+  useEffect(() => {
+    if (loadAll && hasMore && !loading && !error) loadMore();
+  }, [loadAll, hasMore, loading, error, loadMore]);
   const filtered = items.filter(album => (!exclude || !exclude.has(album.id)) && (!term ||
     `${album.title} ${album.artist_names}`.toLocaleLowerCase().includes(term)));
   // 빼고 나니 보이는 판이 적으면 다음 묶음을 바로 이어서 받음 (화면이 비어 보이지 않게)

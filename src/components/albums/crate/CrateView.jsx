@@ -49,8 +49,9 @@ function readCards(root) {
 /**
  * gridRef: 그리드 카드들을 감싼 요소 · view / onViewChange: 'grid' | 'crate' (페이지가 상태를 가짐)
  * title: 크레이트 왼쪽 위 큰 글자 (예: DIGGING, OWNED)
+ * total: 이 목록의 전체 판 수 (그리드가 아직 다 받지 못했어도 번호 옆에 전체 수를 보여 주려고). 없으면 지금 꽂힌 수
  */
-export default function CrateView({ gridRef, view, onViewChange, title }) {
+export default function CrateView({ gridRef, view, onViewChange, title, total = null }) {
   const hostRef = useRef(null);
   const engineRef = useRef(null);
   const sourceRef = useRef(null);
@@ -166,6 +167,28 @@ export default function CrateView({ gridRef, view, onViewChange, title }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 크레이트에 있는 동안 그리드에 판이 더 붙으면(다음 묶음) 크레이트 뒤에도 이어 꽂음
+  //  예전: 크레이트는 들어올 때 그리드에 있던 판(첫 묶음 24장)만 담아서, 39장인데 "003 / 024" 로 나오고 25번째부터는 볼 수 없었음
+  useEffect(() => {
+    if (view !== "crate" || !gridRef.current) return;
+    let raf = 0;
+    const sync = () => {
+      raf = 0;
+      const eng = engineRef.current;
+      if (!eng || modeRef.current !== "crate") return;
+      const cards = readCards(gridRef.current);
+      if (cards.length <= cardsRef.current.length) return;
+      if (eng.busy) { raf = requestAnimationFrame(sync); return; }   // 날아오는 중이면 끝난 뒤에
+      // 이미 꽂힌 판은 그대로 두고(같은 물체) 새 판만 뒤에
+      const next = [...cardsRef.current, ...cards.slice(cardsRef.current.length)];
+      if (eng.extend(next)) cardsRef.current = next;
+    };
+    const mo = new MutationObserver(() => { if (!raf) raf = requestAnimationFrame(sync); });
+    mo.observe(gridRef.current, { childList: true, subtree: true });
+    sync();
+    return () => { mo.disconnect(); cancelAnimationFrame(raf); };
+  }, [view, gridRef]);
+
   // Esc → 그리드
   useEffect(() => {
     if (view !== "crate") return;
@@ -204,7 +227,7 @@ export default function CrateView({ gridRef, view, onViewChange, title }) {
               <p key={front.slug} className={`${SERIF} min-w-0 flex-1 truncate text-[clamp(1.9rem,5.6vw,6rem)] font-black uppercase leading-none tracking-[-0.02em] animate-[crate-title_.8s_cubic-bezier(.22,1,.36,1)_both]`}
                 style={{ color: `color-mix(in oklab, ${front.color || "var(--ink)"} 55%, var(--ink))` }}>{front.title}</p>
               <div className="shrink-0 text-right max-md:text-left">
-                <p className={`${SERIF} text-[clamp(1.6rem,3vw,2.75rem)] font-bold tabular-nums leading-none`}>{front.divider ? "—" : String(front.i + 1).padStart(3, "0")} / {String(front.n).padStart(3, "0")}</p>
+                <p className={`${SERIF} text-[clamp(1.6rem,3vw,2.75rem)] font-bold tabular-nums leading-none`}>{front.divider ? "—" : String(front.i + 1).padStart(3, "0")} / {String(Math.max(front.n, total ?? 0)).padStart(3, "0")}</p>
                 <p className="mt-2 max-w-[22rem] truncate text-[12px] uppercase tracking-[0.24em] text-(--ink)/70">{front.artist}</p>
               </div>
             </div>

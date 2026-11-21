@@ -1,5 +1,6 @@
 "use client";
 // 공개 컬렉션 화면 — 내 Collection 과 같은 머리말·탭·장르 바·그리드, 읽기 전용
+import { useMemo } from "react";
 import Link from "next/link";
 import SplitTitle from "@/components/digging/SplitTitle";
 
@@ -13,7 +14,11 @@ const EMPTY = { owned: "No records on this shelf yet", wishlist: "Nothing on the
 
 export default function PublicCollectionView({ data }) {
   const [titleRef, titleRevealed] = useReveal();
-  const shelves = { owned: data.owned, wishlist: data.wishlist };
+  // created_at 은 "선반에 담은 날" → added_at 으로 옮김. 그대로 두면 카드가 "새로 들어온 판"으로 읽어 모든 카드에 NEW IN 스티커가 붙었음
+  const shelves = useMemo(() => {
+    const shelved = (list) => (list ?? []).map(({ created_at, ...album }) => ({ ...album, added_at: created_at }));
+    return { owned: shelved(data.owned), wishlist: shelved(data.wishlist) };
+  }, [data]);
   return (
     <PageShell className={`${styles.page} paper-textured`}>
       <header className={styles.header}>

@@ -349,6 +349,15 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
       anim = { from: m, to: 1, t0: performance.now() / 1000, dur: reduced ? 0.01 : CRATE.DUR };
       run();
     },
+    /** 크레이트에 있는 동안 판이 더 들어옴 (다음 묶음을 받아 옴). list = 지금까지의 판 + 뒤에 붙은 새 판 (앞쪽 순서는 그대로여야 함)
+     *  맨 앞 판은 그대로 두고 뒤에만 이어 붙임. 돌려 넘기던 자리(pos)는 새 장수 기준으로 다시 맞춤 */
+    extend(list) {
+      if (mode !== 'crate' || anim || list.length <= N()) return false;
+      const r = Math.round(pos), f = wrap(r);
+      cards = list; pos += f - r; target += f - r; shownFront = -1;
+      run();
+      return true;
+    },
     get front() { return wrap(Math.round(pos)); },
     get busy() { return !!anim; },
     setFog(hex) { scene.fog.color.set(hex); },

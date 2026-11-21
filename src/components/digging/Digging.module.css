@@ -260,21 +260,23 @@
   gap: 0.3rem;
   min-height: 4.5rem;
   padding-top: 1rem;
-  opacity: 0.55; /* 평소에도 제목·아티스트가 보여서 훑어보기 쉬움. 마우스를 올리면 진해짐 */
+  opacity: 0.85; /* 평소에도 제목·아티스트가 또렷이 읽힘 (예전 0.55 는 대비 2.7:1 로 기준 미달). 마우스를 올리면 더 진해짐 */
   transform: none;
   transition:
     opacity 0.2s,
     transform 0.2s;
 }
 .caption strong {
+  /* 본문 글꼴(Hahmlet)로: 예전 Georgia 는 한글이 없어 한글 제목만 기기 기본 글꼴로 나왔음 */
   font:
-    600 clamp(1rem, 1.5vw, 1.35rem) Georgia,
+    700 clamp(1rem, 1.5vw, 1.35rem) "Hahmlet",
+    Georgia,
     serif;
   overflow-wrap: anywhere;
 }
 .caption > span:last-child {
   font-size: 0.82rem;
-  opacity: 0.65;
+  opacity: 0.92; /* 위 0.85 와 곱해 0.78 → 대비 약 4.5:1 (예전 0.36 → 1.9:1) */
 }
 .card:focus-visible {
   outline: 2px solid var(--ink);

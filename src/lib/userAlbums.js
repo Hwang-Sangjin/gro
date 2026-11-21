@@ -20,7 +20,7 @@ export async function fetchShelves() {
   const shelves = { owned: [], wishlist: [] };
   for (const row of data ?? []) {
     const { album_genres: links = [], ...album } = row.albums;
-    shelves[row.kind]?.push({ ...album, genres: links.map(l => slugById[String(l.genre_id)]).filter(Boolean) });
+    shelves[row.kind]?.push({ ...album, added_at: row.created_at, genres: links.map(l => slugById[String(l.genre_id)]).filter(Boolean) });
   }
   return shelves;
 }

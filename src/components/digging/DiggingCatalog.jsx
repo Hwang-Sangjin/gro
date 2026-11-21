@@ -144,11 +144,11 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
       {/* 장르를 바꾸면 지금 판들이 접혀 사라진 뒤, 그리드만 새로 그려짐 (카드가 다시 펼쳐지며 등장) */}
       <div ref={gridWrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         <DiggingGrid key={`${current.key}:${current.seed ?? ""}:${notOwned}`} initial={current.initial} genreId={current.genreId} query={query} onRequest={() => request.current?.open({ title: query.trim() })}
-          exclude={notOwned ? owned : null}
+          exclude={notOwned ? owned : null} loadAll={view === "crate"}
           lead={query.trim() ? null : <GenreDivider slug={current.key === "all" ? null : current.key} count={counts?.[current.key] ?? null} notOwned={notOwned} leaving={switching} />} />
       </div>
       {/* Crate 보기: 그리드 위를 덮는 3D 크레이트 (Grid / Crate 버튼으로 전환) */}
-      <CrateView gridRef={gridWrapRef} view={view} onViewChange={setView} title="Digging" />
+      <CrateView gridRef={gridWrapRef} view={view} onViewChange={setView} title="Digging" total={notOwned || query.trim() ? null : counts?.[current.key] ?? null} />
       {/* 없는 판 요청 (로그인 사용자) — 검색 결과가 없을 때도 여기로 */}
       <RequestDialog ref={request} />
     </>
