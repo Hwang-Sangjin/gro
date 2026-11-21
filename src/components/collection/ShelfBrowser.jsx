@@ -9,6 +9,9 @@ import useReveal from "@/components/digging/useReveal";
 import styles from "@/components/digging/Digging.module.css";
 import closeGrid from "@/components/digging/closeGrid";
 import CrateView, { ViewToggle } from "@/components/albums/crate/CrateView";
+import ShelfView from "@/components/collection/ShelfView";
+
+const VIEWS = ["grid", "crate", "shelf"];   // Shelf: 판을 책등처럼 선반에 꽂은 보기 (Collection 에만 — Digging 은 가게의 상자, 여기는 집의 선반)
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 export const SHELF_TABS = [
@@ -109,14 +112,17 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
       <GenreBar genre={view.genre} counts={counts} onPick={(slug) => change({ genre: slug })}
         hrefFor={(slug) => `${basePath}?${new URLSearchParams({ ...(view.tab === "wishlist" && { tab: "wishlist" }), ...(slug && { genre: slug }) })}`}
         query={query} onQueryChange={setQuery} searchId="collection-search"
-        extra={items.length ? <ViewToggle view={crateView} onChange={setCrateView} className="mr-1" /> : null} />
+        extra={items.length ? <ViewToggle view={crateView} onChange={setCrateView} views={VIEWS} className="mr-1" /> : null} />
 
-      <CrateView gridRef={wrapRef} view={crateView} onViewChange={setCrateView} title={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} />
+      {/* Crate 는 그리드의 판이 날아와 꽂히는 보기 → Shelf 일 때는 그리드로 알려 둠 (Shelf 에서 Crate 를 누르면 그리드가 먼저 그려지고 거기서 날아옴) */}
+      <CrateView gridRef={wrapRef} view={crateView === "crate" ? "crate" : "grid"} onViewChange={setCrateView} title={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} />
       <div ref={wrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         {error ? (
           <p className={styles.empty} role="status">{errorText}</p>
         ) : !shelves ? (
           <p className={styles.status} role="status">Loading…</p>
+        ) : items.length && crateView === "shelf" ? (
+          <ShelfView key={`shelf:${key}`} albums={items} grouped={!shown.genre && !term} onGenre={(slug) => change({ genre: slug })} />
         ) : items.length ? (
           <AlbumGrid key={key} role="tabpanel" albums={items} />
         ) : term && inGenre.length ? (

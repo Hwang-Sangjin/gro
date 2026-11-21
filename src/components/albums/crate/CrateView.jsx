@@ -17,16 +17,19 @@ import CratePanel from "./CratePanel";
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const EASE = "ease-[cubic-bezier(0.22,1,0.36,1)]";
+const VIEWS = ["grid", "crate"];
 const storeKey = () => `grooves:crate:${location.pathname}`;
 // 정보 패널에 쓰는 판 상세 (그리드 카드에는 제목 · 아티스트 · 색만 있음)
 const DETAIL = "id, slug, release_year, format, rpm, description, youtube_playlist_id, album_genres(genres(name)), tracks(count)";
 
-/** Grid / Crate 스위치 (그리드 위·크레이트 위 같은 모양) */
-export function ViewToggle({ view, onChange, className = "" }) {
+/** Grid / Crate 스위치 (그리드 위·크레이트 위 같은 모양). views 로 보기를 더 넣을 수 있음 (Collection 의 Shelf) */
+export function ViewToggle({ view, onChange, className = "", views = VIEWS }) {
+  const at = Math.max(0, views.indexOf(view));
   return (
     <div role="group" aria-label="View" className={`relative inline-flex shrink-0 rounded-full border border-(--ink)/30 p-[3px] ${className}`}>
-      <span aria-hidden="true" className={`absolute inset-y-[3px] left-[3px] w-[calc(50%-3px)] rounded-full bg-(--ink) transition-transform duration-500 ${EASE} ${view === "crate" ? "translate-x-full" : ""}`} />
-      {["grid", "crate"].map((v) => (
+      <span aria-hidden="true" className={`absolute inset-y-[3px] left-[3px] rounded-full bg-(--ink) transition-transform duration-500 ${EASE}`}
+        style={{ width: `calc((100% - 6px) / ${views.length})`, transform: `translateX(${at * 100}%)` }} />
+      {views.map((v) => (
         <button key={v} type="button" aria-pressed={view === v} onClick={() => onChange(v)}
           className={`relative z-[1] min-h-8 w-[4.6rem] rounded-full text-[11px] font-medium uppercase tracking-[0.2em] transition-colors duration-500 ${view === v ? "text-(--cream)" : "text-(--ink)"}`}>
           {v}
