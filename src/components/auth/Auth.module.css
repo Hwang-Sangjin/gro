@@ -1,0 +1,168 @@
+/* 로그인 = 레코드 가게의 회원 카드 (AuthPanel.jsx, 2026-11-22)
+   Digging 의 칸막이 · Collection 의 메모 판지와 같은 물건: 크래프트 판지 · 다이모 라벨 · 고무 도장 · 마커 손글씨
+   크기는 카드 폭 기준(cqi) — .deck 이 기준 상자. 카드는 테마와 상관없이 같은 색 (실물 종이) */
+.deck {
+  --kraft: #c9a679;
+  --marker: #231c1a;
+  --print: rgb(74 48 22 / .8);
+  --ink-red: rgb(132 42 32 / .82);
+  position: relative;
+  width: min(90vw, 62svh, 600px);
+  container-type: inline-size;
+  isolation: isolate;
+}
+/* 위쪽은 카드 뒤에 꽂힌 재킷들이 올라와 보이는 자리 (cqi 는 기준 상자 자신에게는 안 먹어서 안쪽 상자에 둠) */
+.stack { position: relative; padding-top: 17cqi; }
+
+/* 카드 뒤의 재킷들 (상자에 꽂힌 판 — 로그인하면 내 판) */
+.covers { position: absolute; inset: 0 0 auto 0; height: 46cqi; z-index: -1; pointer-events: none; }
+.covers > span {
+  position: absolute; top: 2cqi; left: calc(5% + var(--i) * 22.5%);
+  width: 27cqi; aspect-ratio: 1; overflow: hidden;
+  rotate: var(--r, 0deg);
+  box-shadow: 0 1.6cqi 3cqi -1.6cqi rgb(20 14 18 / .6);
+  translate: 0 calc(var(--lift, 0) * -1cqi);
+  transition: translate .7s cubic-bezier(.22, 1, .36, 1) calc(var(--i) * 45ms), opacity .6s ease-out calc(var(--i) * 70ms);
+  opacity: 0;
+}
+.covers > span[data-on="true"] { opacity: 1; }
+.covers img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.deck[data-hover="true"] .covers > span { --lift: 2.6; }
+.deck[data-state="done"] .covers > span { --lift: 1.2; }
+
+/* 카드: 탭 + 면. 마우스를 올리면 상자에서 당긴 듯 살짝 기욺 */
+.card { position: relative; transform-origin: 50% 100%; transition: transform .6s cubic-bezier(.22, 1, .36, 1); }
+.deck[data-hover="true"] .card { transform: perspective(1100px) rotateX(5deg); }
+.tab, .face {
+  background-color: var(--kraft);
+  background-image:
+    radial-gradient(60% 40% at 25% 30%, rgb(255 240 210 / .18), transparent 70%),
+    radial-gradient(50% 45% at 80% 75%, rgb(90 60 30 / .12), transparent 70%),
+    var(--paper-texture-image);
+  background-size: 100% 100%, 100% 100%, 180px 180px;
+  background-blend-mode: normal, normal, soft-light;
+}
+.tab {
+  position: absolute; left: 7%; bottom: calc(100% - 1px);
+  display: grid; place-items: center;
+  height: clamp(26px, 6.4cqi, 38px); padding: 0 2.4cqi;
+  border-radius: 10px 10px 0 0;
+  box-shadow: inset 0 1px 0 rgb(255 245 225 / .35), inset 0 0 0 1px rgb(110 80 45 / .18);
+}
+.dymo {
+  display: inline-block; padding: .3em .8em .32em;
+  background: linear-gradient(to bottom, #2a2a2c, #111113 55%, #1b1b1d);
+  color: #f2f2ee;
+  font: 700 clamp(10px, 2.3cqi, 14px)/1 "Arial Narrow", "Roboto Condensed", "Helvetica Neue", system-ui, sans-serif;
+  letter-spacing: .18em; text-transform: uppercase; white-space: nowrap;
+  text-shadow: 0 -1px 0 rgb(0 0 0 / .9), 0 1px 0 rgb(255 255 255 / .22);
+  clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%);
+  rotate: -1.2deg;
+}
+.face {
+  position: relative; aspect-ratio: 3 / 2;
+  padding: 5.4cqi 6cqi 4.4cqi;
+  border-radius: 3px 9px 9px 9px;
+  color: var(--print); text-align: left;
+  box-shadow:
+    inset 0 0 0 1px rgb(110 80 45 / .22),
+    inset 0 0 20px rgb(90 60 30 / .26),
+    inset 0 -26px 32px -22px rgb(70 45 20 / .25),
+    0 4cqi 6cqi -4cqi rgb(20 14 18 / .6);
+}
+.face::after {   /* 닳아서 밝아진 아래 모서리 */
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: radial-gradient(12% 10% at 0 100%, rgb(255 238 205 / .35), transparent 70%), radial-gradient(12% 10% at 100% 100%, rgb(255 238 205 / .3), transparent 70%);
+}
+
+/* 고무 도장: 가게 이름 */
+.club {
+  display: inline-block; padding: .5em .75em;
+  border: 2px solid currentColor; border-radius: 3px;
+  color: var(--ink-red);
+  font: 800 clamp(9px, 2.3cqi, 14px)/1.25 "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  letter-spacing: .22em; text-transform: uppercase;
+  rotate: -3.5deg; mix-blend-mode: multiply;
+  -webkit-mask-image: var(--paper-texture-image); mask-image: var(--paper-texture-image);
+  -webkit-mask-size: 120px 120px; mask-size: 120px 120px;
+}
+/* 사진 칸: 로그인하면 프로필 사진이 테이프로 붙음 */
+.photo {
+  position: absolute; top: 4.6cqi; right: 6cqi;
+  width: 15cqi; aspect-ratio: 4 / 5; display: grid; place-items: center;
+  border: 1.5px dashed rgb(74 48 22 / .45);
+  font: 600 clamp(8px, 1.7cqi, 10px)/1.2 ui-sans-serif, system-ui, sans-serif; letter-spacing: .18em; text-transform: uppercase; text-align: center;
+  rotate: 2.5deg;
+}
+.photo[data-filled="true"] { border: 0; background: #f6f1e6; padding: .9cqi .9cqi 2.2cqi; box-shadow: 0 1cqi 1.6cqi -1cqi rgb(20 14 18 / .55); }
+.photo[data-filled="true"]::before {   /* 테이프 */
+  content: ""; position: absolute; top: -1.6cqi; left: 50%; width: 7cqi; height: 3cqi; translate: -50% 0; rotate: -4deg;
+  background: rgb(246 236 200 / .78); box-shadow: 0 1px 2px rgb(0 0 0 / .18);
+}
+.photo img { display: block; width: 100%; height: 100%; object-fit: cover; filter: saturate(.92); }
+
+/* 적는 줄: 인쇄된 작은 글자 + 점선 + 마커 손글씨 */
+.rows { display: grid; gap: 1.5cqi; margin-top: 4.2cqi; width: 56%; }
+.rows > div { display: grid; grid-template-columns: 9.5cqi minmax(0, 1fr); align-items: end; column-gap: 1.6cqi; border-bottom: 1.5px dotted rgb(74 48 22 / .55); min-height: 8.2cqi; padding-bottom: .5cqi; }
+.rows dt { font: 600 clamp(8.5px, 1.75cqi, 11px)/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .2em; text-transform: uppercase; padding-bottom: .9cqi; }
+.rows dd {
+  margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--marker); opacity: .9;
+  font: 400 clamp(16px, 5.2cqi, 30px)/1.05 "Permanent Marker", "Nanum Pen Script", "Comic Sans MS", cursive;
+  rotate: -1.5deg; transform-origin: left bottom;
+}
+.rows dd[data-pencil="true"] { color: rgb(74 48 22 / .5); font: italic 400 clamp(11px, 2.5cqi, 14px)/1.6 Georgia, serif; rotate: none; }
+.deck[data-state="done"] .rows dd { animation: write .8s cubic-bezier(.55, 0, .3, 1) both; }
+.deck[data-state="done"] .rows > div:nth-child(2) dd { animation-delay: .25s; }
+.deck[data-state="done"] .rows > div:nth-child(3) dd { animation-delay: .5s; }
+@keyframes write { from { clip-path: inset(-20% 100% -20% -5%); } to { clip-path: inset(-20% -10% -20% -5%); } }
+
+.fine { position: absolute; left: 6cqi; bottom: 3.6cqi; width: 54%; font: 500 clamp(7.5px, 1.5cqi, 9.5px)/1.5 ui-sans-serif, system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; opacity: .7; }
+
+/* 도장 자리 = 로그인 버튼. 누르면 도장이 쿵 찍히고(inked) Google 로 넘어감 */
+.seal {
+  position: absolute; right: 5.4cqi; bottom: 4.6cqi;
+  width: clamp(104px, 29cqi, 176px); aspect-ratio: 1; border-radius: 50%;
+  display: grid; place-items: center; text-align: center;
+  color: var(--marker); cursor: pointer;
+  border: 2px dashed rgb(74 48 22 / .55);
+  background: rgb(255 248 232 / .34);
+  transition: scale .5s cubic-bezier(.22, 1, .36, 1), background-color .3s, border-color .3s;
+}
+.seal:hover, .seal:focus-visible { scale: 1.04; background: rgb(255 248 232 / .6); border-color: rgb(74 48 22 / .85); }
+.seal:active { scale: .97; }
+.seal:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+.seal:disabled { cursor: wait; }
+.sealBody { display: grid; justify-items: center; gap: 1.1cqi; padding: 0 1.5cqi; }
+.sealG { display: grid; place-items: center; width: clamp(26px, 6.6cqi, 38px); aspect-ratio: 1; border-radius: 50%; background: #fff; box-shadow: 0 1px 0 rgb(0 0 0 / .1); }
+.sealText { font: 600 clamp(10.5px, 2.5cqi, 14.5px)/1.25 "Hahmlet", Georgia, serif; letter-spacing: .01em; }
+.sealHint { font: 600 clamp(7.5px, 1.5cqi, 9.5px)/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .22em; text-transform: uppercase; opacity: .6; }
+/* 찍힌 도장 */
+.inked {
+  position: absolute; inset: -1px; border-radius: 50%; display: grid; place-items: center; align-content: center; gap: .6cqi;
+  color: var(--ink-red); border: 3px solid currentColor; outline: 1.5px solid currentColor; outline-offset: -1.6cqi;
+  background: var(--kraft);
+  font: 800 clamp(13px, 4.1cqi, 24px)/1 "Arial Narrow", "Roboto Condensed", system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase;
+  rotate: -11deg;
+  -webkit-mask-image: var(--paper-texture-image); mask-image: var(--paper-texture-image);
+  -webkit-mask-size: 140px 140px; mask-size: 140px 140px;
+  animation: slam .5s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+.inked small { font-size: clamp(7.5px, 1.55cqi, 10px); letter-spacing: .2em; font-weight: 700; }
+@keyframes slam { from { opacity: 0; scale: 1.7; } 55% { opacity: 1; } to { opacity: 1; scale: 1; } }
+
+/* 좁은 화면: 카드가 조금 더 높고, 줄이 더 넓음 */
+@media (max-width: 520px) {
+  .deck { width: min(92vw, 56svh); }
+  .stack { padding-top: 20cqi; }
+  .face { aspect-ratio: 4 / 3.25; }
+  .rows { width: 58%; gap: 1.2cqi; }
+  .rows > div { grid-template-columns: 1fr; min-height: 10.5cqi; }
+  .rows dt { padding-bottom: .4cqi; }
+  .fine { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card, .covers > span, .seal { transition: none; }
+  .deck[data-hover="true"] .card { transform: none; }
+  .inked, .deck[data-state="done"] .rows dd { animation: none; }
+}

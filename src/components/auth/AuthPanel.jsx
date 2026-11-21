@@ -1,30 +1,26 @@
 "use client";
-/* 로그인 — 턴테이블 라벨형
-   가운데 판이 33⅓ rpm 으로 돌고, 판 라벨이 곧 "Continue with Google" 버튼.
-   - 라벨에 올리면 판이 45 rpm 으로 빨라지고 톤암이 판 쪽으로 다가옴
-   - 누르면 바늘이 바깥 홈에 내려앉은 뒤 Google 로그인으로 이동 (처음이면 그 자리에서 계정이 만들어짐)
-   - 로그인한 상태면 바늘이 판 위에 있고 라벨에 프로필 사진 → My collection / Log out
+/* 로그인 — 레코드 가게의 회원 카드 (2026-11-22 다시 만듦. 예전: 판이 돌고 라벨이 버튼인 턴테이블)
+   Digging 의 칸막이 · Collection 의 메모 판지와 같은 물건(크래프트 판지 · 다이모 라벨 · 고무 도장 · 마커 손글씨)으로 만든 카드 한 장.
+   - 카드 오른쪽 아래 "도장 자리"가 곧 "Continue with Google" 버튼. 누르면 도장이 쿵 찍힌 뒤 Google 로그인으로 이동 (처음이면 그 자리에서 계정이 만들어짐)
+   - 카드 뒤에는 상자에 꽂힌 재킷 몇 장: 로그인 전에는 새로 들어온 판, 로그인하면 내 판
+   - 로그인한 상태면 카드가 채워져 있음: 이름(손글씨) · 가입한 달 · 내 판 수 · 프로필 사진 · 찍힌 도장 → My collection / Log out
    ?next=/collection 처럼 넘어오면 로그인 후 그 페이지로 돌아감. ?error= 가 있으면 실패 안내
-   글자는 모두 영어 (Bodoni 제목 + 본문 산세리프) */
+   모양은 Auth.module.css (카드 폭 기준 크기) */
 import { MONOTON } from "@/lib/fonts";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import "@fontsource/permanent-marker/400.css";
 import PageShell from "@/components/layout/PageShell";
-import useAuthUser, { profileOf, signInWithGoogle, signOut } from "@/lib/useAuthUser";
+import useAuthUser, { authClient, profileOf, signInWithGoogle, signOut } from "@/lib/useAuthUser";
+import { fetchShelves } from "@/lib/userAlbums";
+import { coverUrl } from "@/lib/albums";
+import styles from "./Auth.module.css";
 
-const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
-const EASE = "ease-[cubic-bezier(.45,0,.2,1)]";
-const NEEDLE_MS = 950;        // 바늘이 내려앉는 시간 → 그다음 Google 로 이동
-const RPM = { idle: 33.333, hover: 45, playing: 33.333, done: 33.333 };
-
-// 홈: 첫 로딩 판과 같은 규칙 (바깥 → 안쪽, 끊긴 호, 굵기·농도 조금씩 다르게)
-// [반지름, 시작 각도, 그려지는 비율, 굵기, 농도]
-const GROOVES = [
-  [166, -8, 0.996, 4.2, 1], [154, 74, 0.975, 2.1, 0.9], [142, 152, 0.94, 2.3, 1], [130, 35, 0.985, 2, 0.85],
-  [118, 218, 0.95, 2.3, 1], [106, 112, 0.97, 2.1, 0.92], [94, 295, 0.93, 2.4, 1], [84, 176, 0.98, 2, 0.88],
-];
-const RIM = "GROOVES · SIDE A · 33⅓ RPM · LOG IN TO YOUR SHELF · ";
-const RIM_LENGTH = Math.floor(2 * Math.PI * 178) - 2;   // 글자가 놓이는 원(반지름 178)의 둘레 — 두 번 쓴 글이 이 길이에 딱 맞게 펴짐
+const STAMP_MS = 750;        // 도장이 찍히는 시간 → 그다음 Google 로 이동
+const TILT = [-7, 4, -3, 6]; // 카드 뒤 재킷들의 기울기(도)
+const monthOf = (d) => { const t = d ? new Date(d) : new Date(); return `${String(t.getMonth() + 1).padStart(2, "0")}.${t.getFullYear()}`; };
+// 회원 번호: 계정 id 에서 뽑은 네 자리 (늘 같은 번호)
+const memberNo = (id = "") => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return String((h >>> 0) % 9000 + 1000); };
 
 function GoogleMark({ className = "" }) {
   return (
@@ -41,11 +37,10 @@ export default function AuthPanel() {
   const user = useAuthUser();                 // undefined = 확인 중
   const [next, setNext] = useState("/");
   const [error, setError] = useState(false);
-  const [phase, setPhase] = useState("idle"); // idle → playing(바늘 내려감) → Google / done(로그인됨)
+  const [phase, setPhase] = useState("idle"); // idle → stamping(도장 찍는 중) → Google / done(로그인됨)
   const [hover, setHover] = useState(false);
-  const spinRef = useRef(null);
-  const live = useRef({ phase: "idle", hover: false });
-  live.current = { phase: user ? "done" : phase, hover };
+  const [crate, setCrate] = useState([]);     // 로그인 전: 새로 들어온 판 몇 장
+  const [shelf, setShelf] = useState(null);   // 로그인 후: { owned, wishlist }
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -54,125 +49,105 @@ export default function AuthPanel() {
     if (q.get("error")) setError(true);
   }, []);
 
-  // 판 회전 (속도는 부드럽게 따라감). 움직임 줄이기면 멈춰 있음
+  // 카드 뒤에 꽂을 재킷: 새로 들어온 판 네 장 (못 받으면 빈 채로 — 카드만 보임)
   useEffect(() => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let raf = 0, angle = 0, speed = 0, last = performance.now();
-    const frame = (now) => {
-      const dt = Math.min((now - last) / 1000, 0.05); last = now;
-      const { phase: p, hover: h } = live.current;
-      const goal = (h && p === "idle" ? RPM.hover : RPM[p]) * 6;      // rpm → 도/초
-      speed += (goal - speed) * (1 - Math.exp(-dt / 0.6));
-      angle = (angle + speed * dt) % 360;
-      spinRef.current?.setAttribute("transform", `rotate(${angle.toFixed(2)} 200 200)`);
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
+    let alive = true;
+    authClient().from("albums").select("slug, thumb_path, cover_color").eq("status", "published").order("created_at", { ascending: false }).limit(4)
+      .then(({ data }) => { if (alive && data) setCrate(data); }, () => {});
+    return () => { alive = false; };
   }, []);
+  // 로그인했으면 내 판 (수 · 재킷)
+  useEffect(() => {
+    if (!user) { setShelf(null); return; }
+    let alive = true;
+    fetchShelves().then((s) => { if (alive) setShelf(s); }, () => {});
+    return () => { alive = false; };
+  }, [user]);
 
   const state = user ? "done" : phase;
   const p = profileOf(user);
+  const first = p.name ? p.name.split(" ")[0] : "";
+  const mine = shelf ? [...shelf.owned, ...shelf.wishlist].slice(0, 4) : [];
+  const covers = state === "done" && mine.length ? mine : crate;
+  const dest = next !== "/" ? next : "/collection";
 
-  function drop() {
+  function stamp() {
     if (state !== "idle" || user === undefined) return;
-    setPhase("playing"); setHover(false); setError(false);
-    const wait = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : NEEDLE_MS;
+    setPhase("stamping"); setError(false);
+    const wait = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : STAMP_MS;
     setTimeout(async () => {
       const { error: e } = await signInWithGoogle(next);   // 성공하면 Google 화면으로 넘어감
       if (e) { setError(true); setPhase("idle"); }
     }, wait);
   }
 
-  const status = error ? "Couldn’t finish signing in. Tap the label to try again."
-    : state === "playing" ? "Dropping the needle… heading to Google"
+  const status = error ? "Couldn’t finish signing in. Stamp the card to try again."
+    : state === "stamping" ? "Stamped — heading to Google…"
     : state === "done" ? p.email
-    : "Tap the label to drop the needle";
+    : "Stamp the card to log in";
+  const shelfText = !shelf ? "…" : `${shelf.owned.length} record${shelf.owned.length === 1 ? "" : "s"}${shelf.wishlist.length ? ` · ${shelf.wishlist.length} wished` : ""}`;
+  const lift = { onPointerEnter: () => setHover(true), onPointerLeave: () => setHover(false), onFocus: () => setHover(true), onBlur: () => setHover(false) };
 
   return (
     <PageShell className="paper-textured [&>.page-content]:gap-0! [&>.page-content]:p-0!" footer={false}>
-      <section className="flex min-h-svh w-full overflow-x-clip flex-col items-center justify-center gap-[clamp(12px,2.2svh,28px)] px-5 pb-[clamp(20px,4svh,44px)] pt-[calc(var(--ct-header-h,106px)+clamp(4px,1.5svh,20px))] text-center font-['Hahmlet',Georgia,serif] text-(--ink)">
+      <section className="flex min-h-svh w-full overflow-x-clip flex-col items-center justify-center gap-[clamp(12px,2.2svh,26px)] px-5 pb-[clamp(20px,4svh,44px)] pt-[calc(var(--ct-header-h,106px)+clamp(4px,1.5svh,20px))] text-center font-['Hahmlet',Georgia,serif] text-(--ink)">
         <p className="text-[11px] font-medium uppercase tracking-[0.3em] opacity-60">Login</p>
         <h1 className={`${MONOTON} -mt-1 text-[clamp(30px,min(4.4vw,6.4svh),56px)] leading-[1.1]`}>
-          {state === "done" ? <>Welcome back{p.name ? <>, <span className="whitespace-nowrap">{p.name.split(" ")[0]}</span></> : ""}</> : "Drop the needle"}
+          {state === "done" ? <>Welcome back{first ? <>, <span className="whitespace-nowrap">{first}</span></> : ""}</> : "Join the club"}
         </h1>
 
-        {/* 턴테이블 */}
-        <div data-state={state} data-hover={hover && state === "idle"}
-          className="group/deck relative aspect-square w-[min(74vw,47svh,540px)] [--size:min(74vw,47svh,540px)]">
-          <svg viewBox="0 0 400 400" aria-hidden="true" className="absolute inset-0 size-full overflow-visible">
-            <defs><path id="login-rim" d="M200,200 m-178,0 a178,178 0 1,1 356,0 a178,178 0 1,1 -356,0" /></defs>
-            <g ref={spinRef}>
-              {GROOVES.map(([r, rot, len, w, o]) => (
-                <circle key={r} cx="200" cy="200" r={r} fill="none" stroke="currentColor" strokeLinecap="round"
-                  strokeWidth={w} opacity={o} pathLength="1" strokeDasharray={`${len} ${1 - len + 0.0001}`}
-                  transform={`rotate(${rot} 200 200)`} />
+        {/* 상자에 꽂힌 회원 카드 */}
+        <div className={styles.deck} data-state={state} data-hover={hover && state !== "stamping"}>
+          <div className={styles.stack}>
+            <div aria-hidden="true" className={styles.covers}>
+              {covers.map((a, i) => (
+                <span key={a.slug} data-on="true" style={{ "--i": i, "--r": `${TILT[i % TILT.length]}deg`, backgroundColor: a.cover_color || "#bbcbda" }}>
+                  {a.thumb_path && <img src={coverUrl(a.thumb_path)} alt="" loading="lazy" decoding="async" />}
+                </span>
               ))}
-              <text className="fill-current text-[9px] font-medium opacity-55">
-                <textPath href="#login-rim" textLength={RIM_LENGTH} lengthAdjust="spacing">{RIM + RIM}</textPath>
-              </text>
-            </g>
-          </svg>
-          {/* 판이 종이에 드리우는 그림자 */}
-          <span aria-hidden="true" className="pointer-events-none absolute inset-[7%] -z-10 rounded-full shadow-[0_calc(var(--size)*.07)_calc(var(--size)*.09)_calc(var(--size)*-.045)_rgba(30,20,28,.5)]" />
-          {/* 반사광: 판은 돌아도 빛은 제자리 */}
-          <span aria-hidden="true" className="pointer-events-none absolute inset-[9%] rounded-full opacity-45 mix-blend-soft-light"
-            style={{
-              background: "conic-gradient(from 20deg, transparent 0 8%, rgba(255,255,255,.9) 13%, transparent 19% 52%, rgba(255,255,255,.75) 60%, transparent 66%)",
-              WebkitMask: "radial-gradient(circle, transparent 0 28%, #000 29% 70%, transparent 71%)",
-              mask: "radial-gradient(circle, transparent 0 28%, #000 29% 70%, transparent 71%)",
-            }} />
+            </div>
 
-          {/* 톤암: 쉬는 자리(판 밖) → 라벨에 올리면 다가옴 → 누르면 바깥 홈에 내려앉음 */}
-          <span aria-hidden="true"
-            className={`pointer-events-none absolute -right-[9%] -top-[4%] h-[86%] w-[34%] origin-[74%_9%] rotate-[-12deg] transition-[rotate] duration-[950ms] ${EASE} group-data-[hover=true]/deck:rotate-[-6deg] group-data-[state=playing]/deck:rotate-[6deg] group-data-[state=done]/deck:rotate-[6deg] motion-reduce:transition-none`}>
-            <svg viewBox="0 0 100 300" className="size-full overflow-visible">
-              {/* 무게추(축 뒤) · 축 · 팔 · 헤드셸(손잡이가 달린 카트리지) */}
-              <path d="M74 27 L74 -4" fill="none" stroke="currentColor" strokeWidth="9" strokeLinecap="round" />
-              <circle cx="74" cy="27" r="13" fill="var(--cream)" stroke="currentColor" strokeWidth="2.4" />
-              <circle cx="74" cy="27" r="4" fill="currentColor" />
-              <path d="M74 27 L74 210 Q74 236 52 258" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
-              <g transform="rotate(38 49 267)">
-                <rect x="38" y="252" width="22" height="30" rx="3" fill="currentColor" />
-                <path d="M60 258 L72 254" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
-              </g>
-            </svg>
-          </span>
+            <div className={styles.card}>
+              <span aria-hidden="true" className={styles.tab}><span className={styles.dymo}>Member card</span></span>
+              <div className={styles.face}>
+                <span aria-hidden="true" className={styles.club}>Grooves<br />Record club</span>
+                <span aria-hidden="true" className={styles.photo} data-filled={state === "done" && !!p.avatar}>
+                  {state === "done" && p.avatar ? <img src={p.avatar} alt="" referrerPolicy="no-referrer" /> : "Photo"}
+                </span>
 
-          {/* 라벨 = 로그인 버튼 (로그인 상태면 내 컬렉션으로) */}
-          {state === "done" ? (
-            <Link href={next !== "/" ? next : "/collection"} aria-label="Open my collection"
-              className="absolute left-1/2 top-1/2 grid aspect-square w-[clamp(36%,128px,46%)] -translate-1/2 place-items-center rounded-full bg-[#bbcbda] text-[#4c404a] shadow-[0_0_0_calc(var(--size)*.008)_var(--ink),0_10px_30px_-12px_rgba(30,20,28,.45)] transition-[scale] duration-500 hover:scale-[1.035] focus-visible:outline-3 focus-visible:outline-offset-6 focus-visible:outline-(--accent)">
-              <span className="grid justify-items-center gap-[calc(var(--size)*.014)]">
-                {p.avatar
-                  ? <img src={p.avatar} alt="" referrerPolicy="no-referrer" className="size-[calc(var(--size)*.11)] rounded-full object-cover" />
-                  : <span className={`${SERIF} grid size-[calc(var(--size)*.11)] place-items-center rounded-full bg-[#4c404a] text-[calc(var(--size)*.05)] text-[#f4e7cd]`}>{(p.name || "G").slice(0, 1).toUpperCase()}</span>}
-                <span className="text-[clamp(8px,calc(var(--size)*.019),10px)] uppercase tracking-[0.26em] opacity-60">Now playing · Your shelf</span>
-              </span>
-            </Link>
-          ) : (
-            <button type="button" onClick={drop} disabled={user === undefined}
-              onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)} onFocus={() => setHover(true)} onBlur={() => setHover(false)}
-              aria-label="Continue with Google"
-              className="absolute left-1/2 top-1/2 grid aspect-square w-[clamp(36%,128px,46%)] -translate-1/2 cursor-pointer place-items-center rounded-full bg-[#bbcbda] text-[#4c404a] shadow-[0_0_0_calc(var(--size)*.008)_var(--ink),0_10px_30px_-12px_rgba(30,20,28,.45)] transition-[scale] duration-500 ease-[cubic-bezier(.22,1,.36,1)] hover:scale-[1.035] active:scale-[.98] disabled:cursor-wait focus-visible:outline-3 focus-visible:outline-offset-6 focus-visible:outline-(--accent)">
-              <span className="grid justify-items-center gap-[calc(var(--size)*.012)]">
-                <span className="grid size-[calc(var(--size)*.075)] place-items-center rounded-full bg-white shadow-[0_1px_0_rgba(0,0,0,.08)]">
-                  <GoogleMark className="size-[58%]" />
-                </span>
-                <span className="whitespace-nowrap text-[clamp(10px,calc(var(--size)*.03),15px)] font-semibold tracking-[0.02em]">
-                  {state === "playing" ? "Connecting…" : "Continue with Google"}
-                </span>
-                <span className="text-[clamp(8px,calc(var(--size)*.018),10px)] uppercase tracking-[0.26em] opacity-60">Side A · Login</span>
-              </span>
-            </button>
-          )}
+                {/* 적는 줄: 로그인 전에는 연필로 적힌 안내, 로그인하면 마커 손글씨 */}
+                <dl className={styles.rows}>
+                  <div><dt>Name</dt>{state === "done" ? <dd>{first || "Digger"}</dd> : <dd data-pencil="true">filled in by Google</dd>}</div>
+                  <div><dt>Since</dt>{state === "done" ? <dd>{monthOf(user.created_at)}</dd> : <dd data-pencil="true">today</dd>}</div>
+                  <div><dt>{state === "done" ? `No. ${memberNo(user.id)}` : "Shelf"}</dt>{state === "done" ? <dd>{shelfText}</dd> : <dd data-pencil="true">set up automatically</dd>}</div>
+                </dl>
+                <p aria-hidden="true" className={styles.fine}>Admits one digger · Non-transferable</p>
+
+                {/* 도장 자리 = 로그인 버튼 (로그인 상태면 찍힌 도장 → 내 컬렉션으로) */}
+                {state === "done" ? (
+                  <Link href={dest} aria-label="Open my collection" className={styles.seal} {...lift}>
+                    <span className={styles.inked}>Member<small>Valid · {monthOf(user.created_at)}</small></span>
+                  </Link>
+                ) : (
+                  <button type="button" onClick={stamp} disabled={user === undefined} aria-label="Continue with Google" className={styles.seal} {...lift}>
+                    <span className={styles.sealBody}>
+                      <span className={styles.sealG}><GoogleMark className="size-[58%]" /></span>
+                      <span className={styles.sealText}>Continue with Google</span>
+                      <span className={styles.sealHint}>Stamp here</span>
+                    </span>
+                    {state === "stamping" && <span className={styles.inked}>Member<small>Valid · {monthOf()}</small></span>}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         <p role="status" className={`min-h-[1.6em] text-[14px] tracking-[0.02em] ${error ? "text-(--danger)" : "opacity-80"}`}>{user === undefined ? "" : status}</p>
 
         {state === "done" ? (
           <div className="flex flex-wrap justify-center gap-2.5">
-            <Link href={next !== "/" ? next : "/collection"} className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
+            <Link href={dest} className="inline-flex min-h-12 items-center rounded-full bg-(--ink) px-7 text-[12px] font-medium uppercase tracking-[0.18em] text-(--cream) transition-colors hover:bg-(--accent)">
               {next !== "/" ? "Continue" : "My collection"}
             </Link>
             <button type="button" onClick={() => { setPhase("idle"); signOut(); }}
@@ -182,7 +157,7 @@ export default function AuthPanel() {
           </div>
         ) : (
           <p className="max-w-[58ch] text-balance text-[12px] leading-[1.75] opacity-65">
-            First time here? Your shelf is set up automatically.<br className="max-sm:hidden" /> We only receive your name, email and profile photo.<br className="max-sm:hidden" />{" "}
+            First time here? Your card and shelf are set up automatically.<br className="max-sm:hidden" /> We only receive your name, email and profile photo.<br className="max-sm:hidden" />{" "}
             By continuing you agree to our <Link href="/terms" className="relative underline underline-offset-4 before:absolute before:-inset-x-1 before:-inset-y-3.5 before:content-[''] hover:opacity-100">Terms</Link> and <Link href="/privacy" className="relative whitespace-nowrap underline underline-offset-4 before:absolute before:-inset-x-1 before:-inset-y-3.5 before:content-[''] hover:opacity-100">Privacy Policy</Link>.
           </p>
         )}
