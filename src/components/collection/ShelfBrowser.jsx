@@ -116,13 +116,16 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
 
       {/* Crate 는 그리드의 판이 날아와 꽂히는 보기 → Shelf 일 때는 그리드로 알려 둠 (Shelf 에서 Crate 를 누르면 그리드가 먼저 그려지고 거기서 날아옴) */}
       <CrateView gridRef={wrapRef} view={crateView === "crate" ? "crate" : "grid"} onViewChange={setCrateView} title={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} />
+      {/* Shelf: 그리드 위를 덮는 3D 무대 (Crate 와 같은 방식 — 그리드는 밑에 그대로 있어서 Grid · Crate 로 바로 넘어갈 수 있음) */}
+      {crateView === "shelf" && items.length > 0 && (
+        <ShelfView key={`shelf:${key}`} albums={items} grouped={!shown.genre && !term}
+          label={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} view={crateView} onViewChange={setCrateView} views={VIEWS} />
+      )}
       <div ref={wrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         {error ? (
           <p className={styles.empty} role="status">{errorText}</p>
         ) : !shelves ? (
           <p className={styles.status} role="status">Loading…</p>
-        ) : items.length && crateView === "shelf" ? (
-          <ShelfView key={`shelf:${key}`} albums={items} grouped={!shown.genre && !term} onGenre={(slug) => change({ genre: slug })} />
         ) : items.length ? (
           <AlbumGrid key={key} role="tabpanel" albums={items} />
         ) : term && inGenre.length ? (

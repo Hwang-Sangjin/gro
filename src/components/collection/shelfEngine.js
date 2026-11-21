@@ -1,22 +1,26 @@
 import * as THREE from 'three';
 
-/* Collection 의 Shelf 보기 3D 엔진 (ShelfView.jsx 가 씀)
-   - 나무 선반에 LP 재킷이 책등을 앞으로 하고 얇게 꽂혀 있음 (재킷은 두께가 있는 3D 상자)
-   - 책등 위에 마우스를 두면 그 판이 앞으로 미끄러져 나온 뒤, 책등을 축으로 돌아 앞면을 보여 줌 (천천히 · 스프링)
-     옆으로 쓸면 판들이 잇달아 나왔다 들어감. 누르면 그 앨범을 엶
-   단위 = 화면 px: 카메라 거리를 맞춰서 z=0 평면(책등이 놓인 면)의 1 = 화면의 1px, 원점 = 캔버스 가운데
-   → 위에 얹는 HTML(장르 라벨)과 마우스 좌표를 변환 없이 맞출 수 있음 */
+/* Collection 의 Shelf 보기 3D 엔진 (ShelfView.jsx 가 씀) — 화면을 덮는 무대
+   - 화면 가운데에 나무 칸막이장(칸마다 LP 가 얇게 꽂힘)과, 그 옆(좁은 화면은 위)에 "지금 꺼낸 판" 자리
+   - 휠 · 화살표 키 · 드래그로 한 장씩: 고른 판이 칸에서 앞으로 미끄러져 나와 자리로 가며 앞면을 보여 줌 (천천히 · 스프링)
+     책등이 얇아 마우스로 한 장을 짚기 어려워서, 짚는 대신 차례로 꺼내 보는 방식 (2026-11-22 사용자 요청)
+   - 판이 많으면 칸이 늘어남 (가로 · 세로로). 전체가 화면에 들어오게 재킷 크기를 맞춤 → 잘리지 않음
+   단위 = 화면 px: 카메라 거리를 맞춰서 z=0 평면(책등이 놓인 면)의 1 = 화면의 1px, 원점 = 캔버스 가운데 */
 
 export const SHELF = {
-  THICK: [5.5, 5.5, 5.5, 6.5, 8],   // 재킷 두께(px) — 대부분 얇고 가끔 두꺼운 판 (게이트폴드 · 2LP)
-  GAP: 1.2,                         // 재킷 사이 틈
-  BOARD: 18,                        // 선반 널빤지 두께
+  THICK: 0.02,                      // 재킷 두께 (재킷 한 변 대비). 4.5~9px 로 자름
+  THICK_MUL: [1, 1, 1, 1.2, 1.45],  // 대부분 얇고 가끔 두꺼운 판 (게이트폴드 · 2LP)
+  GAP: 1.2,                         // 재킷 사이 틈(px)
   DIST: 5.2,                        // 카메라 거리 (재킷 한 변의 배수). 클수록 원근이 약해짐
-  OUT: 1.04,                        // 뽑혀 나오는 거리 (재킷 한 변의 배수) — 다 빠져나와야 옆 판을 뚫지 않고 돌 수 있음
-  FACE: 0.07,                       // 다 나왔을 때 남는 기울기(rad) — 완전히 정면이면 납작해 보임
+  OUT: 1.06,                        // 뽑혀 나오는 거리 (재킷 한 변의 배수) — 다 빠져나와야 옆 판을 뚫지 않고 돌 수 있음
+  FACE: 0.06,                       // 다 나왔을 때 남는 기울기(rad) — 완전히 정면이면 납작해 보임
   SPRING: 4.6,                      // 나오고 들어가는 빠르기 (클수록 빠름). 4.6 ≈ 1.3초
+  MAX: 440,                         // 재킷 한 변의 최대(px)
+  WHEEL: { step: 36, cooldown: 240, idle: 180 },   // 휠: 이만큼 쌓이면 한 장 · 넘긴 뒤 쉬는 시간 · 입력이 끊겼다고 보는 간격 (트랙패드 관성으로 여러 장 넘어가지 않게)
+  DRAG: 30,                         // 드래그: 이만큼(px) 끌 때마다 한 장
 };
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
+const clampN = (lo, x, hi) => Math.min(hi, Math.max(lo, x));
 const ss = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const lerp = (a, b, t) => a + (b - a) * t;
 const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
@@ -25,37 +29,39 @@ const WOOD = { top: '#b98d5c', front: '#a47a4b', side: '#8d6740', inner: '#7a573
 const PAPER = '#efe6d2';
 
 /**
- * host: 캔버스가 들어갈 요소 (폭은 host 를 따르고, 높이는 엔진이 정함)
- * items: [{ divider: slug, name } | { album: { slug, title, artist_names, cover_color, image } }] — 꽂는 순서
- * onActive(album | null): 지금 뽑힌 판 · onLabels([{ slug, name, left, top }]): 장르 라벨 자리 (캔버스 px)
- * onOpen(album, rect): 판을 누름 (rect = 화면 기준 재킷 자리)
+ * host: 캔버스가 들어갈 요소 (화면을 덮는 무대)
+ * items: [{ divider: slug } | { album: { slug, title, artist_names, cover_color, image } }] — 꽂는 순서
+ * onLayout({ spot: { left, top, size }, narrow }): 꺼낸 판 자리 (캔버스 px) — 그 아래에 글을 놓으려고
+ * onSelect({ index, total, album, marker: { left, top } }): 고른 판 · 그 판이 꽂혀 있던 자리
+ * onOpen(album, rect): 꺼낸 판을 누름 (rect = 화면 기준 재킷 자리)
  */
-export function createShelfEngine({ host, items, onActive, onLabels, onOpen }) {
+export function createShelfEngine({ host, items, onLayout, onSelect, onOpen }) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setClearColor(0x000000, 0);
   const canvas = renderer.domElement;
-  canvas.style.cssText = 'display:block;width:100%;touch-action:pan-y;outline:none';
+  canvas.style.cssText = 'position:absolute;inset:0;display:block;width:100%;height:100%;touch-action:none;outline:none';
   host.prepend(canvas);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(20, 1, 10, 50000);
   const aniso = renderer.capabilities.getMaxAnisotropy();
-  const box = new THREE.BoxGeometry(1, 1, 1);
+  const box = new THREE.BoxGeometry(1, 1, 1), plane = new THREE.PlaneGeometry(1, 1);
   const flat = (hex) => new THREE.MeshBasicMaterial({ color: hex });
-  // 나온 재킷 뒤에 깔리는 부드러운 그림자 (가장자리가 흐린 검은 사각형 한 장을 모든 재킷이 같이 씀)
+  // 꺼낸 재킷 뒤에 깔리는 부드러운 그림자 (가장자리가 흐린 검은 사각형 한 장을 모든 재킷이 같이 씀)
   const shadowTex = (() => {
-    const c = document.createElement("canvas"); c.width = c.height = 128;
-    const g = c.getContext("2d");
-    g.shadowColor = "rgba(0,0,0,1)"; g.shadowBlur = 22; g.fillStyle = "#000"; g.fillRect(30, 30, 68, 68);
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    g.shadowColor = 'rgba(0,0,0,1)'; g.shadowBlur = 22; g.fillStyle = '#000'; g.fillRect(30, 30, 68, 68);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
     return t;
   })();
-  const plane = new THREE.PlaneGeometry(1, 1);
 
-  let disposed = false, W = 1, H = 1, S = 300, D = 1500, raf = 0, prev = 0;
-  let slots = [], rows = [], built = [], active = null, hoverBy = 'mouse';
+  const mag = SHELF.DIST / (SHELF.DIST - SHELF.OUT);   // 다 나온 재킷이 화면에서 커지는 비율 (원근)
+  let disposed = false, W = 1, H = 1, S = 300, D = 1500, raf = 0, prev = 0, narrow = false;
+  let slots = [], cubes = [], built = [], sel = -1;
+  const spot = { x: 0, y: 0 };   // 꺼낸 판의 화면 자리 (가운데, 캔버스 가운데 기준 px · 위가 +)
   const pointer = { x: 0, y: 0, on: false, tx: 0, ty: 0 };
 
   /* ---- 커버 그림: 받기 전에는 대표 색 ---- */
@@ -77,75 +83,99 @@ export function createShelfEngine({ host, items, onActive, onLabels, onOpen }) {
     }, undefined, () => {});
   }
 
-  /* ---- 짓기: 폭이 바뀌면 다시 ---- */
+  /* ---- 자리 잡기 ---- */
+  // 칸에 차례로 꽂기: 칸이 차면 다음 칸. x = 칸 안쪽 왼쪽 벽부터의 거리
+  function placeAt(size, k) {
+    const t0 = clampN(4.5, size * SHELF.THICK, 9) * k, inner = size * 1.04, padIn = Math.max(6, size * 0.035);
+    const out = []; let cube = 0, x = padIn;
+    for (const it of items) {
+      const t = it.divider ? Math.max(3.5, t0 * 0.8) : t0 * SHELF.THICK_MUL[hash(it.album.slug) % SHELF.THICK_MUL.length];
+      const lead = it.divider && x > padIn ? size * 0.022 * k : 0;   // 칸막이 앞은 조금 띄움 (장르 사이)
+      if (x + lead + t > inner - padIn) { cube++; x = padIn; } else x += lead;
+      out.push({ it, cube, x: x + t / 2, t });
+      x += t + SHELF.GAP * k;
+    }
+    return { out, n: cube + 1, fill: (x - padIn) / (inner - 2 * padIn) };   // fill: 마지막 칸이 찬 정도
+  }
+  // 마지막 칸에 몇 장만 넘어가면(3분의 1 미만) 조금씩 좁혀 꽂아 한 칸을 줄임 — 거의 빈 칸 하나 때문에 전체가 작아지지 않게
+  function place(size) {
+    const base = placeAt(size, 1);
+    if (base.n > 1 && base.fill < 0.34) for (const k of [0.94, 0.88, 0.82, 0.76]) { const tight = placeAt(size, k); if (tight.n < base.n) return tight; }
+    return base;
+  }
+  // 칸 수 → 가로 · 세로 칸 수 (가로로 조금 더 넓게)
+  const gridOf = (n) => { const cols = narrow ? Math.min(n, 2) : n <= 2 ? n : Math.ceil(Math.sqrt(n * 1.5)); return { cols, rows: Math.ceil(n / cols) }; };
+
   const add = (mesh) => { scene.add(mesh); built.push(mesh); return mesh; };
-  function board(w, h, d, x, y, z, faces) {
-    // faces: [+x, -x, +y, -y, +z, -z] 색
+  function board(w, h, d, x, y, z, faces) {   // faces: [+x, -x, +y, -y, +z, -z] 색
     const m = new THREE.Mesh(box, faces.map(flat));
     m.scale.set(w, h, d); m.position.set(x, y, z);
     return add(m);
   }
+
   function build() {
     // 재킷은 축(pivot) 안에 들어 있으므로 축째로 뺌
     for (const m of built) { scene.remove(m.parent && m.parent !== scene ? m.parent : m); for (const mat of [m.material].flat()) mat.dispose(); }
-    built = []; slots = []; rows = [];
-    W = Math.max(1, host.clientWidth);
-    const narrow = W < 768, B = SHELF.BOARD;
-    S = Math.round(narrow ? Math.min(240, Math.max(180, innerHeight * 0.3)) : Math.min(360, Math.max(220, innerHeight * 0.42)));
-    const depth = S * 1.06, inH = S * 1.1, pitchY = inH + B;
-    const side = B, pad = narrow ? 10 : 16;
-    const x0 = -W / 2 + side + pad, x1 = W / 2 - side - pad;
-
-    // 1) 자리 잡기: 왼쪽부터 꽂고, 줄이 차면 다음 칸으로
-    const placed = []; let row = 0, x = x0;
-    const labels = [];
-    for (const it of items) {
-      const t = it.divider ? 5 : SHELF.THICK[hash(it.album.slug) % SHELF.THICK.length];
-      const lead = it.divider ? (x > x0 ? 12 : 0) : 0;   // 칸막이 앞은 조금 띄움 (장르 사이)
-      if (x + lead + t > x1) { row++; x = x0; }
-      else x += lead;
-      placed.push({ it, row, x: x + t / 2, t });
-      x += t + SHELF.GAP;
-    }
-    const nRows = row + 1;
-    const padTop = Math.round(S * 0.2), padBottom = Math.round(S * 0.16);   // 앞으로 나온 재킷은 원근 때문에 조금 커짐 → 위아래 여유
-    H = padTop + B + nRows * pitchY + padBottom;
+    built = []; slots = []; cubes = [];
+    W = Math.max(1, host.clientWidth); H = Math.max(1, host.clientHeight); narrow = W < 820;
     renderer.setSize(W, H, false);
-    canvas.style.height = `${H}px`;
+
+    // 1) 무대: 헤더 아래 ~ 아래 안내 줄 위. 그 안에 [칸막이장 + 꺼낸 판 + 글]이 다 들어오는 가장 큰 재킷 크기를 고름
+    const head = parseFloat(getComputedStyle(host).getPropertyValue('--ct-header-h')) || (narrow ? 72 : 106);
+    const top = head + (narrow ? 50 : 58), bottom = H - (narrow ? 62 : 80), info = narrow ? 126 : 138;
+    const availW = W - 2 * clampN(16, W * 0.04, 56), availH = bottom - top;
+    const bk = 0.05;   // 널빤지 두께 (재킷 한 변 대비)
+    let size = Math.min(SHELF.MAX, availH * 0.5), placed, grid;
+    for (let i = 0; i < 3; i++) {
+      placed = place(size); grid = gridOf(placed.n);
+      const cabWu = grid.cols * (1.04 + bk) + bk, cabHu = grid.rows * (1.1 + bk) + bk;
+      const fitW = narrow ? availW / Math.max(cabWu, mag) : availW / (cabWu + 0.24 + mag);
+      const fitH = narrow ? (availH - info) / (mag + 0.1 + cabHu) : (availH - info) / Math.max(cabHu, mag);
+      const next = Math.floor(Math.max(120, Math.min(SHELF.MAX, fitW, fitH)));
+      if (Math.abs(next - size) < 1) break;
+      size = next;
+    }
+    S = size; placed = place(S); grid = gridOf(placed.n);
+    const B = clampN(8, S * bk, 22), cubeW = S * 1.04 + B, cubeH = S * 1.1 + B, depth = S * 1.06;
+    const cabW = grid.cols * cubeW + B, cabH = grid.rows * cubeH + B, cover = S * mag;
+
     D = S * SHELF.DIST;
     camera.aspect = W / H; camera.fov = (2 * Math.atan(H / 2 / D) * 180) / Math.PI;
-    camera.position.set(0, 0, D); camera.near = D * 0.2; camera.far = D + depth * 4;
+    camera.position.set(0, 0, D); camera.near = D * 0.15; camera.far = D + depth * 4;
     camera.updateProjectionMatrix();
 
-    // 선반 틀의 폭: 한 줄에 다 들어가면 판이 꽂힌 만큼 + 조금 (빈 선반이 화면 끝까지 이어지지 않게). 나온 재킷은 틀 밖 종이 위로 펼쳐짐
-    const contentRight = Math.max(x0, ...placed.map((q) => q.x + q.t / 2));
-    const cabW = nRows > 1 ? W : Math.min(W, Math.max(S * 1.5, contentRight + W / 2 + pad + side + S * 0.32));
-    const cabX = -W / 2 + cabW / 2;
-    // 2) 선반 틀: 위 판 · 칸마다 바닥 판 · 양 옆 판 · 뒤판
-    const top = H / 2 - padTop;                       // 틀 맨 위 (y)
-    const bottomOf = (r) => top - B - (r + 1) * pitchY + B;   // r 번째 칸의 바닥(재킷이 서는 면) y
-    const unitH = B + nRows * pitchY, midY = top - unitH / 2, zc = -depth / 2 + 6;
-    board(cabW, B, depth + 12, cabX, top - B / 2, zc, [WOOD.side, WOOD.side, WOOD.top, WOOD.under, WOOD.front, WOOD.back]);
-    for (let r = 0; r < nRows; r++) {
-      const yb = bottomOf(r);
-      rows.push({ yb, slots: [] });
-      board(cabW, B, depth + 12, cabX, yb - B / 2, zc, [WOOD.side, WOOD.side, WOOD.top, WOOD.under, WOOD.front, WOOD.back]);
+    // 2) 배치: 넓은 화면 = [칸막이장][꺼낸 판] 을 가로로 나란히, 좁은 화면 = 꺼낸 판 위 · 칸막이장 아래. 둘 다 무대 가운데
+    let cabX, cabY;   // 칸막이장 가운데
+    if (narrow) {
+      const total = cover + info + cabH, y0 = H / 2 - (top + (availH - total) / 2);   // 묶음의 위 끝 (y)
+      spot.x = 0; spot.y = y0 - cover / 2;
+      cabX = 0; cabY = y0 - cover - info - cabH / 2;
+    } else {
+      const total = cabW + S * 0.24 + cover, left = -total / 2, block = Math.max(cabH, cover);
+      const cy = H / 2 - (top + (availH - info - block) / 2 + block / 2);
+      cabX = left + cabW / 2; cabY = cy;
+      spot.x = left + cabW + S * 0.24 + cover / 2; spot.y = cy;
     }
-    for (const sx of [-1, 1]) board(side, unitH, depth + 12, cabX + sx * (cabW / 2 - side / 2), midY, zc, [WOOD.inner, WOOD.inner, WOOD.top, WOOD.under, WOOD.front, WOOD.back]);
-    board(cabW - 2 * side, unitH - 2 * B, 2, cabX, midY, -depth, [WOOD.back, WOOD.back, WOOD.back, WOOD.back, WOOD.back, WOOD.back]);
+    onLayout?.({ narrow, spot: { left: W / 2 + spot.x - cover / 2, top: H / 2 - spot.y - cover / 2, size: cover } });
 
-    // 3) 재킷 · 칸막이
-    for (const p of placed) {
-      const yb = rows[p.row].yb;
+    // 3) 칸막이장: 가로 판(칸 줄마다) · 세로 판(칸마다) · 뒤판
+    const cabLeft = cabX - cabW / 2, cabTop = cabY + cabH / 2, zc = -depth / 2 + B * 0.3, dz = depth + B * 0.6;
+    for (let r = 0; r <= grid.rows; r++) board(cabW, B, dz, cabX, cabTop - B / 2 - r * cubeH, zc, [WOOD.side, WOOD.side, WOOD.top, WOOD.under, WOOD.front, WOOD.back]);
+    for (let c = 0; c <= grid.cols; c++) board(B, cabH, dz, cabLeft + B / 2 + c * cubeW, cabY, zc, [WOOD.inner, WOOD.inner, WOOD.top, WOOD.under, WOOD.front, WOOD.back]);
+    board(cabW - 2 * B, cabH - 2 * B, 2, cabX, cabY, -depth, Array(6).fill(WOOD.back));
+    for (let i = 0; i < grid.cols * grid.rows; i++) {
+      const c = i % grid.cols, r = Math.floor(i / grid.cols);
+      cubes.push({ left: cabLeft + B + c * cubeW, floor: cabTop - (r + 1) * cubeH, slots: [] });
+    }
+
+    // 4) 재킷 · 칸막이
+    const lastInCube = new Map();
+    for (const p of placed.out) {
+      const cube = cubes[p.cube], x = cube.left + p.x, yb = cube.floor;
+      lastInCube.set(p.cube, x + p.t / 2);
       if (p.it.divider) {
         const h = S * 1.045, kraft = '#c9a679', edge = '#a9865a';
-        const m = board(p.t, h, S * 0.98, p.x, yb + h / 2, -S * 0.49, [kraft, kraft, edge, edge, '#d6b58a', edge]);
-        m.userData.divider = true;
-        // 라벨: 선반 턱에 붙임. 판이 몇 장 없는 장르가 이어지면 라벨끼리 겹치므로, 겹치면 턱 아래로 한 단씩 내려 닮 (최대 두 단)
-        const left = W / 2 + p.x, width = p.it.name.length * 6.4 + 16;
-        let level = 0;
-        while (level < 2 && labels.some((l) => l.row === p.row && l.level === level && left < l.left + l.width + 6 && l.left < left + width + 6)) level++;
-        labels.push({ slug: p.it.divider, name: p.it.name, row: p.row, level, width, left, top: H / 2 - (yb - B / 2) + level * 14 });
+        board(p.t, h, S * 0.98, x, yb + h / 2, -S * 0.49, [kraft, kraft, edge, edge, '#d6b58a', edge]);
         continue;
       }
       const a = p.it.album, c = new THREE.Color(a.cover_color || '#bbcbda');
@@ -158,71 +188,72 @@ export function createShelfEngine({ host, items, onActive, onLabels, onOpen }) {
       const pivot = new THREE.Group();   // 축 = 책등
       pivot.add(mesh); scene.add(pivot); built.push(mesh);
       // 그림자: 재킷 바로 뒤 · 조금 아래 (재킷과 같이 돎). 꽂혀 있을 때는 안 보임
-      const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0, depthWrite: false });
-      const shadow = new THREE.Mesh(plane, shadowMat);
+      const shadow = new THREE.Mesh(plane, new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0, depthWrite: false }));
       shadow.scale.set(S * 1.9, S * 1.9, 1); shadow.position.set(S / 2 + S * 0.03, -S * 0.07, -p.t / 2 - 3); shadow.visible = false;
       pivot.add(shadow); built.push(shadow);
-      const slot = { album: a, row: p.row, x: p.x, yc: yb + S / 2, t: p.t, pivot, mesh, front, spine, shadow, base: spine.color.clone(), p: 0, v: 0 };
-      slots.push(slot); rows[p.row].slots.push(slot);
-      pose(slot);
+      const slot = { i: slots.length, album: a, cube: p.cube, x, yb, yc: yb + S / 2, t: p.t, pivot, mesh, front, shadow, p: 0, v: 0 };
+      slots.push(slot); cube.slots.push(slot);
       loadCover(slot);
     }
-    // 마지막 판 옆 북엔드
-    const last = slots[slots.length - 1];
-    if (last && last.x + last.t / 2 + 14 < x1) {
-      board(4, S * 0.52, S * 0.46, last.x + last.t / 2 + 4, rows[last.row].yb + S * 0.26, -S * 0.23, ['#3d3439', '#2c2529', '#4a4046', '#2c2529', '#4a4046', '#2c2529']);
+    // 덜 찬 칸마다 마지막 판 옆에 북엔드
+    for (const [ci, right] of lastInCube) {
+      const cube = cubes[ci];
+      if (right + 14 < cube.left + S * 1.04 - 4) board(4, S * 0.52, S * 0.46, right + 5, cube.floor + S * 0.26, -S * 0.23, ['#3d3439', '#2c2529', '#4a4046', '#2c2529', '#4a4046', '#2c2529']);
     }
-    onLabels?.(labels);
-    if (active) active = slots.find((s) => s.album.slug === active.album.slug) ?? null;
+    for (const s of slots) { if (s.i === sel) s.p = 1; pose(s); }
+    if (sel >= 0) report();
     run();
   }
 
-  /* ---- 자세: p = 0 꽂혀 있음 → 1 다 나와서 앞면을 보임 ---- */
-  // 앞으로 미끄러져 나오고(0~0.6) → 책등을 축으로 돌아 앞면이 보임(0.42~1). 들어갈 때는 거꾸로
+  /* ---- 자세: p = 0 꽂혀 있음 → 1 자리에 나와 앞면을 보임 ---- */
+  // 앞으로 미끄러져 나오고(0~0.42) → 자리로 가며 책등을 축으로 돌아 앞면이 보임(0.38~1). 들어갈 때는 거꾸로
   function pose(s) {
-    const p = clamp01(s.p), out = ss(0, 0.6, p), turn = ss(0.42, 1, p);
-    const z = S * SHELF.OUT * out;
-    const mag = D / (D - S * SHELF.OUT);   // 다 나왔을 때 화면에서 커지는 비율
-    // 다 나왔을 때 재킷이 캔버스 밖으로 나가지 않게 자리를 조금 옮김 (오른쪽 끝의 판 · 맨 위/아래 칸)
-    const fx = Math.min(s.x, (W / 2 - 10) / mag - S), fy = Math.min((H / 2 - 10) / mag - S / 2, Math.max((-H / 2 + 10) / mag + S / 2, s.yc));
-    const k = ss(0.7, 1, p);   // 다 나온 뒤에만 마우스를 따라 살짝 기욺
-    s.pivot.position.set(lerp(s.x, fx, turn), lerp(s.yc, fy, turn), z);
+    const p = clamp01(s.p), out = ss(0, 0.42, p), go = ss(0.38, 1, p), turn = ss(0.42, 1, p);
+    const k = ss(0.75, 1, p);   // 다 나온 뒤에만 마우스를 따라 살짝 기욺
+    // 자리의 화면 좌표 → 그 깊이(z)에서의 좌표: 원근 때문에 mag 로 나눔. 축은 책등이므로 재킷 반 폭만큼 왼쪽
+    const fx = spot.x / mag - (S / 2) * Math.cos(SHELF.FACE), fy = spot.y / mag;
+    s.pivot.position.set(lerp(s.x, fx, go), lerp(s.yc, fy, go) + Math.sin(go * Math.PI) * S * 0.03, S * SHELF.OUT * out);
     s.pivot.rotation.set(-pointer.ty * 0.05 * k, lerp(Math.PI / 2, SHELF.FACE, turn) + pointer.tx * 0.07 * k, 0);
-    s.shadow.visible = turn > 0.02; s.shadow.material.opacity = 0.42 * ss(0.3, 1, turn);
+    s.shadow.visible = turn > 0.02; s.shadow.material.opacity = 0.4 * ss(0.3, 1, turn);
   }
 
   /* ---- 그리기: 움직이는 동안만 ---- */
   function frame(now) {
     raf = 0;
     const dt = Math.min(0.05, (now - prev) / 1000 || 0.016); prev = now;
-    let busy = false, lift = 0;
+    let busy = false;
     const w = SHELF.SPRING;
     for (const s of slots) {
-      const to = s === active ? 1 : 0;
+      const to = s.i === sel ? 1 : 0;
       if (reduced) { s.p = to; s.v = 0; }
       else if (s.p !== to || s.v !== 0) {
         s.v += (w * w * (to - s.p) - 2 * w * s.v) * dt;   // 임계 감쇠 스프링: 부드럽게 출발해 넘치지 않고 멈춤
         s.p += s.v * dt;
         if (Math.abs(to - s.p) < 0.0008 && Math.abs(s.v) < 0.004) { s.p = to; s.v = 0; } else busy = true;
       }
-      lift = Math.max(lift, s.p);
     }
-    // 마우스 기울기 (나온 재킷)
-    const gx = pointer.on && active ? pointer.x : 0, gy = pointer.on && active ? pointer.y : 0;
-    pointer.tx += (gx - pointer.tx) * (reduced ? 1 : 1 - Math.exp(-dt / 0.18));
-    pointer.ty += (gy - pointer.ty) * (reduced ? 1 : 1 - Math.exp(-dt / 0.18));
+    const gx = pointer.on ? pointer.x : 0, gy = pointer.on ? pointer.y : 0, f = reduced ? 1 : 1 - Math.exp(-dt / 0.2);
+    pointer.tx += (gx - pointer.tx) * f; pointer.ty += (gy - pointer.ty) * f;
     if (Math.abs(gx - pointer.tx) > 0.002 || Math.abs(gy - pointer.ty) > 0.002) busy = true;
-    for (const s of slots) {
-      pose(s);
-      // 한 장이 나오면 나머지 책등은 살짝 물러남
-      s.spine.color.copy(s.base).multiplyScalar(1 - 0.22 * lift * (1 - clamp01(s.p * 2)));
-    }
+    for (const s of slots) pose(s);
     renderer.render(scene, camera);
     if (busy && !disposed) raf = requestAnimationFrame(frame);
   }
   function run() { if (!raf && !disposed) { prev = performance.now(); raf = requestAnimationFrame(frame); } }
 
-  /* ---- 입력 ---- */
+  /* ---- 고르기 ---- */
+  function report() {
+    const s = slots[sel];
+    if (!s) { onSelect?.(null); return; }
+    // 표시: 그 판이 꽂혀 있던 자리 — 칸 바닥 널빤지의 앞 턱 (z=0 평면이라 화면 px 그대로)
+    onSelect?.({ index: sel, total: slots.length, album: s.album, marker: { left: W / 2 + s.x, top: H / 2 - s.yb } });
+  }
+  function select(i) {
+    const n = clampN(0, Math.round(i), slots.length - 1);
+    if (!slots.length || n === sel) return;
+    sel = n; report(); run();
+  }
+
   const corner = new THREE.Vector3();
   // 재킷이 지금 화면에서 차지하는 사각형 (캔버스 px)
   function rectOf(s) {
@@ -235,79 +266,99 @@ export function createShelfEngine({ host, items, onActive, onLabels, onOpen }) {
     }
     return { left: l, top: t, width: r - l, height: b - t };
   }
-  // 캔버스 px → 그 자리의 책등 (z=0 평면이 곧 화면 px). reach: 얇은 책등도 잡히게 좌우로 넉넉히
-  function slotAt(cx, cy, reach) {
-    const x = cx - W / 2, y = H / 2 - cy;
-    const row = rows.find((r) => y >= r.yb - 4 && y <= r.yb + S + 6);
-    if (!row) return null;
-    let best = null, bd = Infinity;
-    for (const s of row.slots) { const d = Math.abs(x - s.x); if (d < bd) { bd = d; best = s; } }
-    return best && bd <= Math.max(reach, best.t) ? best : null;
-  }
   const inside = (r, cx, cy) => cx >= r.left && cx <= r.left + r.width && cy >= r.top && cy <= r.top + r.height;
-  function setActive(s, by) {
-    if (by) hoverBy = by;
-    if (s === active) return;
-    active = s;
-    canvas.style.cursor = s ? 'pointer' : '';
-    onActive?.(s ? s.album : null);
-    run();
+  // 캔버스 px → 그 칸에서 가장 가까운 책등
+  function slotAt(cx, cy) {
+    const x = cx - W / 2, y = H / 2 - cy;
+    const cube = cubes.find((c) => c.slots.length && x >= c.left - 4 && x <= c.left + S * 1.04 + 4 && y >= c.floor - 4 && y <= c.floor + S * 1.1);
+    if (!cube) return null;
+    let best = null, bd = Infinity;
+    for (const s of cube.slots) { const d = Math.abs(x - s.x); if (d < bd) { bd = d; best = s; } }
+    return best;
   }
   const local = (e) => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top, r]; };
-  function pick(e, reach) {
-    const [cx, cy] = local(e);
-    pointer.x = (cx / W) * 2 - 1; pointer.y = (cy / H) * 2 - 1; pointer.on = true;
-    const hit = slotAt(cx, cy, reach);
-    if (hit) return hit;
-    // 책등이 아닌 곳: 나와 있는 재킷 위면 그대로 둠 (재킷을 누르러 가는 동안 들어가 버리지 않게)
-    return active && active.p > 0.5 && inside(rectOf(active), cx, cy) ? active : null;
+  function openSelected() {
+    const s = slots[sel];
+    if (!s || s.p < 0.6) return;
+    const r = canvas.getBoundingClientRect(), q = rectOf(s);
+    onOpen?.(s.album, { left: r.left + q.left, top: r.top + q.top, width: q.width, height: q.height });
   }
-  const onMove = (e) => {
-    if (e.pointerType === 'touch' && !touching) return;
-    setActive(pick(e, e.pointerType === 'touch' ? 26 : 7), e.pointerType);
-    run();
+
+  /* ---- 입력 ---- */
+  const wheel = { acc: 0, last: 0, until: 0 };
+  const onWheel = (e) => {
+    e.preventDefault();
+    const now = performance.now(), Wh = SHELF.WHEEL;
+    if (now - wheel.last > Wh.idle) wheel.acc = 0;
+    wheel.last = now;
+    if (now < wheel.until) return;
+    wheel.acc += (Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX) * (e.deltaMode === 1 ? 32 : 1);
+    if (Math.abs(wheel.acc) < Wh.step) return;
+    select(sel + Math.sign(wheel.acc));
+    wheel.acc = 0; wheel.until = now + Wh.cooldown;
   };
-  let touching = false, down = null;
+  let drag = null;
   const onDown = (e) => {
     if (e.button !== 0) return;
     const [cx, cy] = local(e);
-    down = { x: cx, y: cy, was: active };
-    if (e.pointerType === 'touch') { touching = true; setActive(pick(e, 26), 'touch'); }
+    drag = { id: e.pointerId, x: cx, y: cy, from: sel, moved: false };
+    canvas.setPointerCapture?.(e.pointerId);
+  };
+  const onMove = (e) => {
+    const [cx, cy] = local(e);
+    pointer.x = (cx / W) * 2 - 1; pointer.y = (cy / H) * 2 - 1; pointer.on = true;
+    const s = slots[sel];
+    canvas.style.cursor = drag?.moved ? 'grabbing' : (s && s.p > 0.6 && inside(rectOf(s), cx, cy)) || slotAt(cx, cy) ? 'pointer' : 'grab';
+    if (drag && e.pointerId === drag.id) {
+      const dx = cx - drag.x, dy = cy - drag.y;
+      if (Math.hypot(dx, dy) > 10) drag.moved = true;
+      // 왼쪽(또는 위)으로 끌면 다음 판
+      if (drag.moved) select(drag.from - Math.trunc((Math.abs(dx) >= Math.abs(dy) ? dx : dy) / SHELF.DRAG));
+    }
+    run();
   };
   const onUp = (e) => {
-    const d = down; down = null; touching = false;
-    if (!d) return;
-    const [cx, cy, r] = local(e);
-    if (Math.hypot(cx - d.x, cy - d.y) > 10 || !active) return;   // 끌었으면 누르기가 아님
-    // 터치: 처음 누르면 뽑기만, 이미 나와 있던 판을 다시 누르면 엶
-    if (e.pointerType === 'touch' && d.was !== active) return;
-    const q = rectOf(active);
-    onOpen?.(active.album, { left: r.left + q.left, top: r.top + q.top, width: q.width, height: q.height });
+    const d = drag; drag = null;
+    if (!d || e.pointerId !== d.id || d.moved) return;
+    const [cx, cy] = local(e), s = slots[sel];
+    if (s && s.p > 0.6 && inside(rectOf(s), cx, cy)) { openSelected(); return; }   // 꺼낸 판을 누르면 열기
+    const hit = slotAt(cx, cy);                                                   // 칸의 책등을 누르면 그 판을 꺼냄
+    if (hit) select(hit.i);
   };
-  const onLeave = (e) => { pointer.on = false; if (e.pointerType !== 'touch') setActive(null); run(); };
-  canvas.addEventListener('pointermove', onMove);
+  const onLeave = () => { pointer.on = false; run(); };
+  const onKey = (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey || (e.target instanceof Element && e.target.closest('input, textarea, select, button, a, [contenteditable="true"]'))) return;
+    if (['ArrowRight', 'ArrowDown', 'PageDown'].includes(e.key)) select(sel + 1);
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) select(sel - 1);
+    else if (e.key === 'Home') select(0);
+    else if (e.key === 'End') select(slots.length - 1);
+    else if (e.key === 'Enter') openSelected();
+    else return;
+    e.preventDefault();
+  };
+  const onCancel = () => { drag = null; };
+  host.addEventListener('wheel', onWheel, { passive: false });
   canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerup', onUp);
-  canvas.addEventListener('pointercancel', () => { down = null; touching = false; });
+  canvas.addEventListener('pointercancel', onCancel);
   canvas.addEventListener('pointerleave', onLeave);
+  window.addEventListener('keydown', onKey);
 
-  const ro = new ResizeObserver(() => { if (Math.abs(host.clientWidth - W) > 1) build(); });
+  const ro = new ResizeObserver(() => { if (Math.abs(host.clientWidth - W) > 1 || Math.abs(host.clientHeight - H) > 1) build(); });
   ro.observe(host);
   build();
+  // 들어오면 잠깐 뒤 첫 판이 나옴 (선반이 먼저 보이고 → 한 장이 나오는 순서)
+  const first = setTimeout(() => { if (!disposed && sel < 0) select(0); }, reduced ? 0 : 450);
 
   return {
-    /** 키보드(목록의 링크에 초점) · 바깥에서 고르기 */
-    setActive(slug) { setActive(slug ? slots.find((s) => s.album.slug === slug) ?? null : null, 'key'); },
-    /** 지금 나와 있는 재킷의 화면 자리 (앨범 상세로 날아가는 전환의 출발점) */
-    rectOf(slug) {
-      const s = slots.find((x) => x.album.slug === slug);
-      if (!s) return null;
-      const r = canvas.getBoundingClientRect(), q = rectOf(s);
-      return { left: r.left + q.left, top: r.top + q.top, width: q.width, height: q.height };
-    },
+    step(d) { select(sel + d); },
+    select,
+    openSelected,
     dispose() {
       disposed = true;
-      cancelAnimationFrame(raf); ro.disconnect();
+      clearTimeout(first); cancelAnimationFrame(raf); ro.disconnect();
+      host.removeEventListener('wheel', onWheel); window.removeEventListener('keydown', onKey);
       for (const m of built) for (const mat of [m.material].flat()) mat.dispose();
       for (const t of textures.values()) t.dispose();
       box.dispose(); plane.dispose(); shadowTex.dispose(); renderer.dispose(); canvas.remove();
