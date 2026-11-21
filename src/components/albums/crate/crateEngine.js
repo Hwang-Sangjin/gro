@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { drawDividerFace, drawDividerTab } from './crateDivider';
+import { createSleeveFx, PEEL, STICKER } from '../sleeveFx';
 
 /* Crate 보기 3D 엔진 (Digging · Collection 공용, DOM 그리드 위에 덮는 캔버스)
    - 크레이트: 맨 앞 판은 정면, 뒤의 판들은 오른쪽으로 비스듬히 줄지어 꽂힘. 스크롤·드래그·키로 끝없이 넘어감
@@ -45,6 +46,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
 
   let CARD = 3.2, W = 1, H = 1, narrow = false, FX = 0, FY = 0;
   const geo = new THREE.BoxGeometry(1, 1, 0.022);
+  // 재킷 디테일 (sleeveFx.js): 앞면의 광택 · 종이 모서리 + 새로 들어온 판의 떼어지는 스티커 (NEW IN)
+  const fx = createSleeveFx({ aniso });
   // 장르 칸막이(card.divider)일 때만 보이는 탭: 판 위로 솟은 크래프트 조각 + 다이모 라벨 (판의 자식 → 같이 움직임)
   const TAB = { w: 0.46, h: 0.12, x: -0.18 };
   const KRAFT = new THREE.Color('#c9a679'), KRAFT_EDGE = new THREE.Color('#a9865a');
@@ -59,8 +62,12 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     const tab = new THREE.Mesh(geo, [tabEdge, tabEdge, tabEdge, tabEdge, tabFront, tabBack]);
     tab.scale.set(TAB.w, TAB.h, 1); tab.position.set(TAB.x, 0.5 + TAB.h / 2, 0); tab.visible = false;
     mesh.add(tab);
+    const finish = fx.finish(); finish.mesh.position.z = 0.0114; mesh.add(finish.mesh);
+    const sticker = fx.sticker();
+    sticker.mesh.scale.setScalar(STICKER.size); sticker.mesh.position.set(STICKER.at, STICKER.at, 0.0126); sticker.mesh.rotation.z = STICKER.tilt;
+    mesh.add(sticker.mesh);
     scene.add(mesh);
-    return { mesh, edge, front, back, tab, tabFront, tabEdge, tabBack, card: null, edgeBase: new THREE.Color() };
+    return { mesh, edge, front, back, tab, tabFront, tabEdge, tabBack, finish, sticker, peel: PEEL.rest, d: 0, card: null, edgeBase: new THREE.Color() };
   });
 
   /* ---- 커버 텍스처: 불러오는 동안은 대표 색 ---- */
@@ -112,7 +119,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   function setSlot(slot, idx) {
     const card = cards[idx];
     if (slot.card === card) return;
-    slot.card = card;
+    slot.card = card; slot.peel = PEEL.rest;
     if (!card) return;
     if (card.divider) {
       const t = dividerTex(card);
@@ -166,11 +173,21 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     m.visible = p.o > 0.003 && !!slot.card;
     slot.tab.visible = !!slot.card?.divider;
     m.renderOrder = Math.round(p.z * 100) + (fly ? 5000 : 0);
+    // 디테일: 칸막이(판지)에는 없음. 광택은 맨 앞 판에서 가장 세고, 판이 앞으로 넘어오는 동안 띠가 쓸고 지나감 (+ 마우스를 따라 조금)
+    const plain = !!slot.card && !slot.card.divider, near = Math.abs(slot.d);
+    const f = slot.finish, st = slot.sticker;
+    f.mesh.visible = plain; f.mesh.renderOrder = m.renderOrder + 1;
+    f.u.uOpacity.value = p.o; f.u.uGloss.value = 1 - ss(0.3, 1.8, near);
+    f.u.uLight.value.set(hover.x * 0.55 + slot.d * 0.9, hover.y * 0.3);
+    st.mesh.visible = plain && !!slot.card.isNew; st.mesh.renderOrder = m.renderOrder + 2;
+    st.u.uOpacity.value = p.o; st.u.uShade.value = p.c; st.u.uPeel.value = slot.peel;
   }
 
   /* ---- 상태 ---- */
   let mode = 'grid', m = 1, anim = null, cardOff = 0, running = false;
   let pos = 0, target = 0, lastInput = 0, drag = null, touch = null;
+  // 마우스 자리 (-1~1, 부드럽게 따라감): 광택이 따라 움직이고, 맨 앞 판 위에 있으면 스티커가 더 말려 올라감
+  const hover = { on: false, nx: 0, ny: 0, x: 0, y: 0 };
   const hidden = new Set();   // 3D가 대신하는 동안 숨긴 그리드 커버
   function hideArt(el, on) {
     if (!el) return;
@@ -197,6 +214,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     canvas.setPointerCapture?.(e.pointerId);
   };
   const onMove = (e) => {
+    if (e.pointerType === 'mouse') { hover.on = true; hover.nx = ((e.clientX - hostRect.left) / hostRect.width) * 2 - 1; hover.ny = -((e.clientY - hostRect.top) / hostRect.height) * 2 + 1; }
     if (!drag || e.pointerId !== drag.id) return;
     const dx = drag.x - e.clientX, dy = drag.y - e.clientY;
     if (Math.hypot(dx, dy) > 10) drag.moved = true;   // 클릭하며 손이 조금 움직여도 클릭으로
@@ -235,6 +253,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
   host.addEventListener('pointermove', onMove);
   host.addEventListener('pointerup', onUp);
   host.addEventListener('pointercancel', () => { drag = null; });
+  host.addEventListener('pointerleave', () => { hover.on = false; });
   host.addEventListener('touchmove', (e) => { if (mode === 'crate' && e.cancelable) e.preventDefault(); }, { passive: false });
   window.addEventListener('keydown', onKey);
 
@@ -302,6 +321,16 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     if (Math.abs(target - pos) < 0.0005) pos = target;
     const front = wrap(Math.round(pos));
     if (front !== shownFront && N()) { shownFront = front; onFront?.(front, cards[front]); }
+    // 마우스: 부드럽게 따라감 · 맨 앞 판 위에 있는지 (지난 프레임의 자리로 잼)
+    const hk = 1 - Math.exp(-dt / 0.18);
+    hover.x += ((hover.on ? hover.nx : 0) - hover.x) * hk; hover.y += ((hover.on ? hover.ny : 0) - hover.y) * hk;
+    let over = null;
+    if (hover.on && live() && !drag) {
+      const fs = frontSlot();
+      ndc.set(hover.nx, hover.ny); raycaster.setFromCamera(ndc, camera);
+      if (fs.mesh.visible && raycaster.intersectObject(fs.mesh, false).length) over = fs;
+    }
+    for (const s of slots) s.peel += ((s === over ? PEEL.hover : PEEL.rest) - s.peel) * (1 - Math.exp(-dt / 0.16));
 
     // 그리드 칸과 짝: cardOff(맨 앞과 짝인 칸)부터 화면 안에 보이는 칸들
     if (m > 0) syncRect();
@@ -318,6 +347,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
     slots.forEach((slot, j) => {
       const idx = wrap(base + j - 1);
       setSlot(slot, idx);
+      slot.d = j - 1 - frac;
       cratePose(j - 1 - frac, from);
       // 판이 적으면 같은 판이 뒤에 또 보이지 않게 (끝없이 넘기는 건 그대로)
       if (j - 1 >= N()) from.o *= 1 - ss(N() - 1, N(), j - 1 - frac);
@@ -392,7 +422,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled }) {
       host.removeEventListener('pointerup', onUp);
       window.removeEventListener('keydown', onKey);
       textures.forEach((t) => t.dispose()); geo.dispose();
-      slots.forEach((s) => { s.edge.dispose(); s.front.dispose(); s.back.dispose(); s.tabEdge.dispose(); s.tabFront.dispose(); s.tabBack.dispose(); });
+      slots.forEach((s) => { s.edge.dispose(); s.front.dispose(); s.back.dispose(); s.tabEdge.dispose(); s.tabFront.dispose(); s.tabBack.dispose(); s.finish.mesh.material.dispose(); s.sticker.mesh.material.dispose(); });
+      fx.dispose();
       renderer.dispose(); canvas.remove();
     },
   };

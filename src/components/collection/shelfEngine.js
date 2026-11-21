@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createSleeveFx, isNewIn, PEEL, STICKER } from '../albums/sleeveFx';
 
 /* Collection 의 Shelf 보기 3D 엔진 (ShelfView.jsx 가 씀) — 화면을 덮는 무대
    - 화면 가운데에 나무 칸막이장(칸마다 LP 가 얇게 꽂힘)과, 그 옆(좁은 화면은 위)에 "지금 꺼낸 판" 자리
@@ -50,6 +51,8 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen, sta
   const aniso = renderer.capabilities.getMaxAnisotropy();
   const box = new THREE.BoxGeometry(1, 1, 1), plane = new THREE.PlaneGeometry(1, 1);
   const flat = (hex) => new THREE.MeshBasicMaterial({ color: hex });
+  // 재킷 디테일 (sleeveFx.js): 꺼낸 판 앞면의 광택 · 종이 모서리 + 새로 들어온 판(created_at 이 최근)의 떼어지는 스티커
+  const fx = createSleeveFx({ aniso });
   // 꺼낸 재킷 뒤에 깔리는 부드러운 그림자 (가장자리가 흐린 검은 사각형 한 장을 모든 재킷이 같이 씀)
   const shadowTex = (() => {
     const c = document.createElement('canvas'); c.width = c.height = 128;
@@ -113,7 +116,7 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen, sta
   // 보기 전환(useViewSwitch): 커버가 날아오는 · 날아가는 동안 그 판들은 선반에서 숨겨 둠 (held) — 그동안은 첫 판도 꺼내지 않음
   let held = false, later = 0; const hidden = new Set();
   const spot = { x: 0, y: 0 };   // 꺼낸 판의 화면 자리 (가운데, 캔버스 가운데 기준 px · 위가 +)
-  const pointer = { x: 0, y: 0, on: false, tx: 0, ty: 0 };
+  const pointer = { x: 0, y: 0, on: false, tx: 0, ty: 0, cx: 0, cy: 0, mouse: false };
 
   /* ---- 커버 그림: 받기 전에는 대표 색 ---- */
   const textures = new Map();
@@ -257,7 +260,18 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen, sta
       shadow.scale.set(S * 1.9, S * 1.9, 1); shadow.position.set(S / 2 + S * 0.03, -S * 0.07, -p.t / 2 - 3); shadow.visible = false;
       pivot.add(shadow); built.push(shadow);
       pivot.visible = !hidden.has(a.slug);
-      const slot = { i: slots.length, album: a, cube: p.cube, x, yb, yc: yb + S / 2, t: p.t, pivot, mesh, front, shadow, p: 0, v: 0 };
+      // 앞면 위의 마감 판 · 스티커: 축(pivot)에 붙임 — 재킷 상자는 두께만 얇게 늘린 것이라 그 자식으로 두면 말림이 납작해짐
+      const finish = fx.finish();
+      finish.mesh.scale.set(S, S, 1); finish.mesh.position.set(S / 2, 0, p.t / 2 + 0.4); finish.mesh.visible = false;
+      pivot.add(finish.mesh); built.push(finish.mesh);
+      let sticker = null;
+      if (isNewIn(a.created_at)) {
+        sticker = fx.sticker();
+        sticker.mesh.scale.setScalar(S * STICKER.size); sticker.mesh.position.set(S / 2 + S * STICKER.at, S * STICKER.at, p.t / 2 + 1); sticker.mesh.rotation.z = STICKER.tilt;
+        sticker.mesh.visible = false;
+        pivot.add(sticker.mesh); built.push(sticker.mesh);
+      }
+      const slot = { i: slots.length, album: a, cube: p.cube, x, yb, yc: yb + S / 2, t: p.t, pivot, mesh, front, shadow, finish, sticker, peel: PEEL.rest, p: 0, v: 0 };
       slots.push(slot); cube.slots.push(slot);
       loadCover(slot);
     }
@@ -287,6 +301,10 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen, sta
     s.pivot.position.set(lerp(s.x, fx, go), lerp(s.yc, fy, go) + Math.sin(go * Math.PI) * S * 0.03, S * SHELF.OUT * out);
     s.pivot.rotation.set(-pointer.ty * 0.05 * k, lerp(Math.PI / 2, SHELF.FACE, turn) + pointer.tx * 0.07 * k, 0);
     s.shadow.visible = turn > 0.02; s.shadow.material.opacity = 0.4 * ss(0.3, 1, turn);
+    // 디테일: 앞면이 보일 때만. 광택 띠는 판이 돌아 나오는 동안 쓸고 지나가고, 다 나온 뒤에는 마우스(기울기)를 따라 움직임
+    s.finish.mesh.visible = turn > 0.05; s.finish.u.uOpacity.value = ss(0.15, 0.9, turn);
+    s.finish.u.uLight.value.set(pointer.tx * 0.7 + (1 - turn) * 1.3, -pointer.ty * 0.4);
+    if (s.sticker) { s.sticker.mesh.visible = turn > 0.3; s.sticker.u.uOpacity.value = ss(0.3, 0.8, turn); s.sticker.u.uPeel.value = s.peel; }
   }
 
   /* ---- 그리기: 움직이는 동안만 ---- */
@@ -307,6 +325,13 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen, sta
     const gx = pointer.on ? pointer.x : 0, gy = pointer.on ? pointer.y : 0, f = reduced ? 1 : 1 - Math.exp(-dt / 0.2);
     pointer.tx += (gx - pointer.tx) * f; pointer.ty += (gy - pointer.ty) * f;
     if (Math.abs(gx - pointer.tx) > 0.002 || Math.abs(gy - pointer.ty) > 0.002) busy = true;
+    // 스티커: 꺼낸 판 위에 마우스가 있으면 더 말려 올라감
+    const out = slots[sel], over = pointer.on && pointer.mouse && out?.sticker && out.p > 0.6 && inside(rectOf(out), pointer.cx, pointer.cy);
+    for (const s of slots) {
+      if (!s.sticker) continue;
+      const to = s === out && over ? PEEL.hover : PEEL.rest;
+      if (reduced || Math.abs(to - s.peel) < 0.001) s.peel = to; else { s.peel += (to - s.peel) * (1 - Math.exp(-dt / 0.16)); busy = true; }
+    }
     for (const s of slots) pose(s);
     renderer.render(scene, camera);
     if (busy && !disposed) raf = requestAnimationFrame(frame);
@@ -402,6 +427,7 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen, sta
   const onMove = (e) => {
     const [cx, cy] = local(e);
     pointer.x = (cx / W) * 2 - 1; pointer.y = (cy / H) * 2 - 1; pointer.on = true;
+    pointer.cx = cx; pointer.cy = cy; pointer.mouse = e.pointerType === 'mouse';
     const s = slots[sel];
     canvas.style.cursor = drag?.moved ? 'grabbing' : (s && s.p > 0.6 && inside(rectOf(s), cx, cy)) || slotAt(cx, cy) ? 'pointer' : 'grab';
     if (drag && e.pointerId === drag.id) {
@@ -458,7 +484,7 @@ export function createShelfEngine({ host, items, onLayout, onSelect, onOpen, sta
       for (const m of built) for (const mat of [m.material].flat()) mat.dispose();
       for (const t of textures.values()) t.dispose();
       for (const t of grains) t.dispose();
-      box.dispose(); boardGeo.dispose(); plane.dispose(); shadowTex.dispose(); woodTex.dispose(); shadeTex.dispose(); renderer.dispose(); canvas.remove();
+      fx.dispose(); box.dispose(); boardGeo.dispose(); plane.dispose(); shadowTex.dispose(); woodTex.dispose(); shadeTex.dispose(); renderer.dispose(); canvas.remove();
     },
   };
 }
