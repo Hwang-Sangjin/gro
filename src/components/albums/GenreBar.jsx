@@ -9,6 +9,7 @@
 //   hrefFor={slug => "/digging?genre=…"} query={q} onQueryChange={setQ} label="Browse by genre" extra={<button/>} />
 import { useEffect, useRef, useState } from "react";
 import { GENRES } from "@/lib/genres";
+import { hasRecords } from "@/lib/genreCounts";
 import { GENRE_LOOK } from "@/components/home/stage/homeGenres";
 import useReveal from "@/components/digging/useReveal";
 import styles from "@/components/digging/Digging.module.css";
@@ -84,7 +85,7 @@ export default function GenreBar({
       <div className="flex items-center gap-6 max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-2 border-b border-(--ink)/60 py-[clamp(0.75rem,1.4vw,1.25rem)] transition-[padding] duration-500 group-data-[stuck=true]/bar:py-2">
         <nav ref={filtersRef} data-revealed={filtersRevealed} aria-label="Genres"
           className={`${styles.filterReveal} flex min-w-0 [&_sup]:transition-opacity group-data-[stuck=true]/bar:[&_sup]:opacity-0 flex-1 flex-nowrap items-baseline gap-x-[clamp(0.5rem,0.9vw,1.1rem)] gap-y-1 overflow-x-auto [scrollbar-width:none] max-md:order-2 max-md:basis-full max-md:-my-2.5 max-md:py-2.5 md:flex-wrap group-data-[stuck=true]/bar:flex-nowrap`}>
-          {GENRE_ITEMS.map((it, i) => {
+          {GENRE_ITEMS.filter((it) => hasRecords(counts, it.slug, genre)).map((it, i, items) => {
             const on = (genre ?? null) === it.slug;
             const n = counts ? (counts[it.slug ?? "all"] ?? 0) : null;
             return (
@@ -97,7 +98,7 @@ export default function GenreBar({
                   <span aria-hidden="true" className={`absolute -bottom-[0.06em] left-0 h-[0.1em] min-h-[2px] bg-[var(--line)] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${on ? "w-full" : "w-0 group-hover/g:w-full group-focus-visible/g:w-full"}`} />
                 </span>
                 {n != null && <sup className="ml-[0.15em] align-[1.1em] font-sans text-[max(0.3em,9px)] font-semibold tracking-normal tabular-nums">{n}</sup>}
-                {i < GENRE_ITEMS.length - 1 && <span aria-hidden="true" className="ml-[clamp(0.5rem,0.9vw,1.1rem)] font-normal text-(--ink)/18">/</span>}
+                {i < items.length - 1 && <span aria-hidden="true" className="ml-[clamp(0.5rem,0.9vw,1.1rem)] font-normal text-(--ink)/18">/</span>}
               </a>
             );
           })}

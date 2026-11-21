@@ -10,6 +10,7 @@ import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl } from "@/lib/albums";
 import { GENRES } from "@/lib/genres";
+import { getGenreCounts, hasRecords } from "@/lib/genreCounts";
 import { GENRE_LOOK } from "@/components/home/stage/homeGenres";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
 import Reveal, { RiseText } from "@/components/story/Reveal";
@@ -57,6 +58,7 @@ function NewVinyls({ albums }) {
   const [shown, setShown] = useState({ genre: null, list: null });   // 갤러리에 펼친 판 (사라진 뒤 바뀜)
   const [fading, setFading] = useState(false);
   const wanted = useRef(null);
+  const [counts, setCounts] = useState(null);   // 장르별 판 수 — 0장인 장르는 버튼에서 뺌
   const transition = useAlbumTransition();
   const list = shown.list ?? albums;   // 전체 목록을 받기 전에는 최신 7장으로
   const look = shown.genre ? GENRE_LOOK[shown.genre] : null;
@@ -64,6 +66,7 @@ function NewVinyls({ albums }) {
 
   useEffect(() => {   // 전체(최신 30장)
     let off = false;
+    getGenreCounts(createClient()).then((c) => { if (!off) setCounts(c); });
     fetchShelf(null).then((rows) => { if (!off && rows.length && wanted.current == null) setShown({ genre: null, list: rows }); });
     return () => { off = true; };
   }, []);
@@ -114,7 +117,7 @@ function NewVinyls({ albums }) {
           <div className="relative flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2 px-[var(--gutter)]">
             <div className="flex items-baseline gap-4">
               <RiseText as="h2" lines={["New Vinyls"]} className={`${SERIF} ink-grain text-[clamp(1.6rem,2.6vw,2.8rem)] font-black uppercase leading-none tracking-[-0.01em]`} />
-              <Reveal as="p" delay={120} className={`${KICKER} opacity-55`}>{list.length ? `${list.length} records` : "Fresh in the crate"}</Reveal>
+              <Reveal as="p" delay={120} className={`${KICKER} opacity-55`}>{list.length ? (shown.genre ? `${list.length} record${list.length === 1 ? "" : "s"}` : `Latest ${list.length}`) : "Fresh in the crate"}</Reveal>
             </div>
             <Reveal delay={200} className="pointer-events-auto">
               <Link href={shown.genre ? `/digging?genre=${shown.genre}` : "/digging"} className={`${KICKER} group/dig border-b border-current/30 pb-1 transition-colors duration-300 hover:border-(--accent) hover:text-(--accent)`}>
@@ -123,7 +126,7 @@ function NewVinyls({ albums }) {
             </Reveal>
           </div>
           <Reveal delay={260} role="group" aria-label="Genre" className="pointer-events-auto relative mt-3 flex gap-x-1 gap-y-1 overflow-x-auto px-[calc(var(--gutter)-0.4rem)] [scrollbar-width:none] md:flex-wrap md:overflow-visible [&::-webkit-scrollbar]:hidden" data-lenis-prevent-touch>
-            {[{ slug: null, name: "All" }, ...GENRES].map((g) => (
+            {[{ slug: null, name: "All" }, ...GENRES].filter((g) => hasRecords(counts, g.slug, genre)).map((g) => (
               <button key={g.slug ?? "all"} type="button" aria-pressed={genre === g.slug} onClick={() => pick(g.slug)}
                 className="group/g shrink-0 whitespace-nowrap px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.16em] opacity-50 transition-opacity duration-300 hover:opacity-100 aria-pressed:opacity-100">
                 <span aria-hidden="true">[ </span><span className="underline-offset-4 group-aria-pressed/g:underline">{g.name}</span><span aria-hidden="true"> ]</span>
