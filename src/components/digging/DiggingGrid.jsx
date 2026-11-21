@@ -9,7 +9,7 @@ import AlbumList from "@/components/albums/AlbumList";
 import styles from "./Digging.module.css";
 
 import { createClient } from "@/utils/supabase/client";
-import { fetchDiggingPage } from "@/lib/albums";
+import { fetchDiggingPage, fetchSortedPage } from "@/lib/albums";
 
 // exclude: 빼고 보여 줄 앨범 id 모음 (로그인 사용자의 "Not owned" — 내가 가진 판)
 // loadAll: 스크롤을 기다리지 않고 남은 묶음을 끝까지 받음 (Crate 보기 — 그리드가 덮여 있어 스크롤로는 더 안 받아짐)
@@ -34,7 +34,8 @@ export default function DiggingGrid({ initial, genreId = null, query = "", onReq
     setError(null);
 
     try {
-      const next = await fetchDiggingPage(supabase, { cursor, genreId, seed: initial.seed });
+      // 정렬해서 받은 목록(initial.sort)이면 다음 묶음도 같은 순서로
+      const next = initial.sort ? await fetchSortedPage(supabase, { sort: initial.sort, cursor, genreId }) : await fetchDiggingPage(supabase, { cursor, genreId, seed: initial.seed });
       setItems((prev) => [...prev, ...next.items]);
       setCursor(next.cursor);
       setHasMore(next.hasMore);
@@ -44,7 +45,7 @@ export default function DiggingGrid({ initial, genreId = null, query = "", onReq
       busyRef.current = false;
       setLoading(false);
     }
-  }, [supabase, cursor, genreId, hasMore, initial.seed]);
+  }, [supabase, cursor, genreId, hasMore, initial.seed, initial.sort]);
 
   // 바닥 600px 전에 미리 다음 페이지를 요청한다
   useEffect(() => {

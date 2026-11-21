@@ -31,6 +31,28 @@ export async function countNewIn(supabase) {
   return count ?? 0;
 }
 
+// Digging 의 정렬 (2026-11-22): 기본은 섞은 순서(shuffle). 나머지는 표에서 바로 순서대로 읽음 (fetchSortedPage)
+export const DIGGING_SORTS = [
+  { key: "shuffle", name: "Shuffled" },
+  { key: "new", name: "Newest in" },
+  { key: "year", name: "Release year" },
+  { key: "artist", name: "Artist A–Z" },
+];
+// 정렬된 한 묶음: fetchDiggingPage 와 같은 모양 (cursor = 몇 개째부터) + sort (DiggingGrid 가 다음 묶음을 같은 순서로 받으려고)
+export async function fetchSortedPage(supabase, { sort, cursor = null, genreId = null } = {}) {
+  const from = typeof cursor === "number" ? cursor : 0;
+  let q = supabase.from("albums").select(genreId == null ? CARD_COLUMNS : `${CARD_COLUMNS}, album_genres!inner(genre_id)`).eq("status", "published");
+  if (genreId != null) q = q.eq("album_genres.genre_id", genreId);
+  if (sort === "new") q = q.order("created_at", { ascending: false });
+  else if (sort === "year") q = q.order("release_year", { ascending: false, nullsFirst: false }).order("title");
+  else q = q.order("artist_names").order("title");
+  const { data, error } = await q.order("id").range(from, from + PAGE_SIZE);   // PAGE_SIZE + 1 개 (다음 묶음이 있는지 보려고)
+  if (error) throw error;
+  const hasMore = data.length > PAGE_SIZE;
+  const items = (hasMore ? data.slice(0, PAGE_SIZE) : data).map(({ album_genres, ...a }) => a);
+  return { items, hasMore, cursor: from + items.length, seed: null, sort };
+}
+
 // PAGE_SIZE + 1 개를 요청해서 "다음 페이지가 있는지" 를 판단한다
 // - seed 가 있으면 무작위 순서(digging_shuffle, cursor = 몇 개째부터)
 // - 그 함수가 아직 DB 에 없으면 예전 순서(digging_page, cursor = 날짜·id)로 자동 전환 → 결과의 seed 가 null

@@ -39,8 +39,10 @@ export default async function Image({ params }) {
           <div style={{ display: "flex", fontSize: 40, fontWeight: 900, letterSpacing: -1 }}>Grooves</div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", fontSize: 22, fontWeight: 500, letterSpacing: 6, textTransform: "uppercase", color: ACCENT }}>Collection</div>
-            <div style={{ display: "flex", fontSize: handle.length > 14 ? 58 : 76, fontWeight: 900, lineHeight: 1, letterSpacing: -2, marginTop: 14 }}>
-              {data ? `@${data.handle}’s shelf` : "A shelf on Grooves"}
+            {/* 아이디 줄이 글자 칸(약 470px)을 넘지 않게 크기를 맞춤 (2026-11-22: 10자 아이디가 76px 로는 커버 뒤로 잘렸음). "shelf" 는 다음 줄 */}
+            <div style={{ display: "flex", flexDirection: "column", fontSize: data ? Math.round(Math.max(40, Math.min(76, 470 / ((handle.length + 3) * 0.56)))) : 66, fontWeight: 900, lineHeight: 1.02, letterSpacing: -2, marginTop: 14 }}>
+              <div style={{ display: "flex" }}>{data ? `@${data.handle}’s` : "A shelf"}</div>
+              <div style={{ display: "flex" }}>{data ? "shelf" : "on Grooves"}</div>
             </div>
             <div style={{ display: "flex", fontSize: 28, fontWeight: 500, marginTop: 22, opacity: 0.7 }}>
               {data ? `${owned.length} owned · ${wishlist.length} on the wishlist` : "Records, people, culture"}
@@ -57,7 +59,7 @@ export default async function Image({ params }) {
             return (
               <div key={i} style={{
                 position: "absolute", display: "flex", width: card, height: card,
-                left: 120 + k * 74, top: 160 + Math.abs(k) * 14,
+                left: 168 + k * 70, top: 160 + Math.abs(k) * 14,
                 transform: `rotate(${k * 7}deg)`,
                 background: a?.cover_color || [INK, ACCENT, "#bbcbda", "#4f6d93", "#e3b04b"][i % 5],
                 boxShadow: "0 24px 40px rgba(42,34,42,0.28)", borderRadius: 4, overflow: "hidden",
