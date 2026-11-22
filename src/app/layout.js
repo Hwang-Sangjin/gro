@@ -24,12 +24,20 @@ export const metadata = {
   verification: { google: "gkGSd-Emi1jRvFxJaebRQs9tqtp_0agkk0H9HmNOHP0" },
 };
 
+const SUPABASE_ORIGIN = (() => { try { return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin; } catch { return null; } })();
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* 저장된 테마(다크)를 첫 화면부터 — React 보다 먼저 실행 */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
+        {/* 미리 받기 · 미리 연결 (2026-11-22 최적화)
+            - 제목 글꼴(Grooves Display): 모든 페이지의 워드마크 · Home 의 큰 제목이 씀. CSS 를 다 읽은 뒤에야 받기 시작하던 것을 처음부터
+            - Supabase: 앨범 커버(그림)와 데이터 요청이 가는 곳. 첫 요청 전에 연결(DNS · TLS)을 맺어 둠 — 그림용(쿠키 포함 연결)과 fetch 용(anonymous) 둘 다 */}
+        <link rel="preload" href="/fonts/gloock-latin-400-normal.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        {SUPABASE_ORIGIN && <link rel="preconnect" href={SUPABASE_ORIGIN} />}
+        {SUPABASE_ORIGIN && <link rel="preconnect" href={SUPABASE_ORIGIN} crossOrigin="anonymous" />}
       </head>
       <body>
         {/* ReactLenis / Navbar / Preloader 는 전부 Providers 안으로 이동 */}

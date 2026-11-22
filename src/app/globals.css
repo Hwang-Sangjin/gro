@@ -455,6 +455,9 @@ html[data-crate-transition="true"] .ct-page{will-change:transform,opacity;user-s
 @media(max-width:720px){.ct-handle{min-height:44px}}
 /* 헤더 높이 = --ct-header-h (Navbar가 이 높이로 고정. Digging 고정 바·Home 스테이지가 같은 값을 씀) */
 @media(max-width:767px){:root{--ct-header-h:72px}}
+/* 태블릿 (터치 화면 · 가로 768~1366px — iPad 가로/세로): 화면 세로가 짧아서 데스크톱 높이(106px)가 화면을 너무 차지함 → 모바일과 같은 72px (2026-11-22 사용자 요청)
+   마우스만 쓰는 노트북 · 데스크톱은 그대로 106px */
+@media(min-width:768px) and (max-width:1366px) and (any-pointer:coarse){:root{--ct-header-h:72px}}
 
 /* Resolve the home palette locally too: frozen outgoing pages retain their color. */
 .page.home {

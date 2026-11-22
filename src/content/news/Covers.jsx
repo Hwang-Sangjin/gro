@@ -119,9 +119,11 @@ function Series({ n, art, box = [70, 60, 260, 260], arts }) {
   );
 }
 // 회차가 늘면 여기에 한 줄씩 (번호, 그림)
-const AtoZ01 = () => <Series n="01" art="/images/news/what-is-vinyl/lathe-disc.webp" />;
+//  판 그림은 표지 전용 사본(lathe-disc-mask.webp · 78KB)을 씀 (2026-11-22 최적화): 표지에서는 알파만 마스크로 쓰는데 원본(322KB)은 색까지 담고 있음.
+//  SVG <image> 는 늦게 받기(lazy)가 안 돼서 Home · News · 메뉴를 열 때마다 바로 받음. 같은 크기(900px) · 색만 비움 · 알파 품질 60 — 원본을 고치면 다시 만들 것
+const DISC = "/images/news/what-is-vinyl/lathe-disc-mask.webp";
+const AtoZ01 = () => <Series n="01" art={DISC} />;
 // 02: 판 한 장을 Home 히어로와 같은 각도로 눕혀 가운데에 (2화 히어로와 같은 구도)
-const DISC = "/images/news/what-is-vinyl/lathe-disc.webp";
 function AtoZ02() {
   const id = `az2${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const stack = [[200, 200, 300]];   // [가운데 x, y, 지름]
