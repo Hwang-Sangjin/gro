@@ -40,6 +40,7 @@ import { createRoomMusic } from "./roomMusic";
 import { setupRoomProps } from "./roomProps";
 import { useRouter } from "next/navigation";
 import { makeEnvironment, drawLabel } from "./sleeveParts";
+import { getSoundPref, setSoundPref, untilGesture } from "@/lib/soundPref";
 
 const MODEL_URL = "/models/room/grooves_room_blockout_reveal.glb";
 const VINYL_URL = "/models/vinyl.glb";
@@ -341,7 +342,16 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
   const [stats, setStats] = useState({ fps: 0, calls: 0, tris: 0 });
   const [section, setSection] = useState(0);   // 0 방 · 1 New Vinyls · 2 News
   const [flyer, setFlyer] = useState(null);   // { rect, animate, landed, closing }
-  const [soundOn, setSoundOn] = useState(false);   // 효과음은 사용자가 켤 때만 (브라우저 자동 재생 규칙)
+  // 효과음: 기본으로 켜짐 (사용자가 껐으면 꺼 둠 — lib/soundPref.js). 브라우저가 첫 누름 · 키 입력 전에는 소리를 막아서, 실제로는 그 첫 입력 때 켜짐
+  const [soundOn, setSoundOn] = useState(false);
+  const soundWait = useRef(null);
+  useEffect(() => {
+    if (!getSoundPref()) return;
+    setSoundOn(true);
+    // 소리 장치(apiRef.current.sound)는 방을 짓는 중에 만들어짐 → 아직 없으면 다음 누름에 다시 시도
+    soundWait.current = untilGesture(() => { const snd = apiRef.current?.sound; if (!snd) return false; snd.setEnabled(true); return true; });
+    return () => soundWait.current?.();
+  }, []);
   const tipRef = useRef(null);                      // 방 안 물체 위에 뜨는 이름표
   const router = useRouter();
   const routerRef = useRef(router);
@@ -2392,9 +2402,9 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
 
       {/* 방 안 물체 이름표 (턴테이블 Play/Stop · 램프 Light on/off) — 위치는 효과에서 직접 */}
       <div ref={tipRef} aria-hidden className="pointer-events-none fixed left-0 top-0 z-30 rounded-full bg-black/55 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white opacity-0 backdrop-blur-sm transition-opacity duration-150" />
-      {/* 효과음 켜기 · 끄기 (처음엔 꺼짐) */}
+      {/* 효과음 켜기 · 끄기 (처음엔 켜짐) */}
       <button type="button" aria-pressed={soundOn}
-        onClick={() => { const on = !soundOn; setSoundOn(on); apiRef.current?.sound?.setEnabled(on); }}
+        onClick={() => { const on = !soundOn; soundWait.current?.(); setSoundPref(on); setSoundOn(on); apiRef.current?.sound?.setEnabled(on); }}
         className="absolute bottom-5 right-12 z-20 text-[11px] uppercase tracking-[0.22em] text-white mix-blend-difference transition-opacity duration-500 before:absolute before:-inset-x-3 before:-inset-y-3.5 before:content-['']"   /* before: 누를 자리 (글자 높이가 17px 뿐이라) */
         style={{ opacity: heroOn ? 0 : 0.8, pointerEvents: heroOn ? "none" : "auto" }}>
         Sound {soundOn ? "on" : "off"}
