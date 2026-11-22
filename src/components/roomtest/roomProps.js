@@ -3,12 +3,13 @@
 //  움직임은 메시(조각)의 지역 변환만 바꿈 — pivot 은 Blender reveal 클립이 움직이므로 건드리지 않음
 //  늘 남는 상태(커튼 · 창문 · 벽 그림)는 부드럽게 따라가는 값(0…1), 한 번 하는 동작(톡 튀기 · 한 모금)은 시간(초)
 import * as THREE from "three";
+import { makeTriVision } from "./triVision";
 
 export const PROPS = {
   hop: { dur: 0.36, h: 0.035 },              // 상자 · 책 · 거치대: 누르면 톡 튀고 메뉴 카드가 뜸
   curtain: { cover: 0.42, rate: 2.6 },       // 커튼: 닫으면 창 폭의 이만큼까지 펼쳐짐 · 따라가는 빠르기
   city: { off: 0.28, rate: 2.2 },            // 창문: 바깥 불을 끄면 이 밝기로
-  art: { rate: 4, glow: 0.78 },              // 벽 그림: 지금 듣는 판 커버로 바뀌는 빠르기 · 밝기
+  art: { glow: 0.78 },                       // 벽 그림: 커버의 밝기 (바뀌는 움직임은 triVision.js 의 TRI)
   beat: { bpm: 112, amp: 0.045 },            // 스피커 우퍼: 음악이 나오는 동안 이 박자로 펌핑 (실제 소리 분석은 YouTube 에서 못 함)
 };
 const follow = (cur, want, dt, rate) => cur + (want - cur) * (1 - Math.exp(-dt * rate));
@@ -103,9 +104,10 @@ export function setupRoomProps({ st, root, makeCoverFace, sound, camera }) {
     click: () => { city.want = city.want < 1 ? 1 : PROPS.city.off; sound.click?.(); },
   });
 
-  // ── 벽 그림: 지금 듣는 판 커버로 바꿔 걸기 ↔ 원래 그림. 구운 그림은 두고 그 위에 커버 판을 띄움 (액자 비율에 맞춰 가운데를 잘라 씀)
+  // ── 벽 그림: 지금 듣는 판 커버로 바꿔 걸기 ↔ 원래 그림. 그림 면이 세로 슬랫(삼각기둥)으로 나뉘어 차례로 돌며 바뀜 (triVision.js)
+  //  (2026-11-22 예전: 원래 그림 위에 커버 판이 서서히 나타남) 듣는 판이 바뀌면 다음 커버도 같은 방식으로 넘어감
   const artMesh = root.getObjectByName("wall_art_1");
-  const art = { k: 0, want: 0, face: null, album: null };
+  const art = { want: 0, tri: null, album: null, slot: 0, loading: null };
   if (artMesh) {
     add("wall_art", [artMesh, root.getObjectByName("wall_art_2")], {
       lift: 0, tip: () => (art.want ? "Original art" : "Hang this record"),
@@ -113,30 +115,32 @@ export function setupRoomProps({ st, root, makeCoverFace, sound, camera }) {
     });
   }
   const loader = new THREE.TextureLoader().setCrossOrigin("anonymous");
+  // 슬랫은 처음 걸 때 만듦 (방이 다 지어지고 구운 재질이 입혀진 뒤라야 원래 그림을 그대로 옮길 수 있음)
+  const triOf = () => {
+    if (art.tri || !artMesh) return art.tri;
+    const { face, mat } = makeCoverFace(artMesh, st.roomCenter);   // 그림 면의 자리 · 방향만 빌림
+    const b = boxOf(artMesh).getSize(new THREE.Vector3());
+    const dims = [b.x, b.y, b.z].sort((a, c) => c - a);            // 그림 판: 두 큰 값 = 세로 · 가로
+    art.tri = makeTriVision({ artMesh, face, w: dims[1] * 0.98, h: dims[0] * 0.98, glow: PROPS.art.glow, reduced: R });
+    face.removeFromParent(); face.geometry.dispose(); mat.dispose();
+    return art.tri;
+  };
+  // 이 앨범의 커버를 지금 정면이 아닌 커버 칸에 붙이고 그 면으로 돌림
   const showArt = (album) => {
-    if (!artMesh || !album?.image || art.album === album) return;
-    art.album = album;
-    if (!art.face) {
-      const { face, mat } = makeCoverFace(artMesh, st.roomCenter);
-      const b = boxOf(artMesh).getSize(new THREE.Vector3());
-      const dims = [b.x, b.y, b.z].sort((a, c) => c - a);    // 그림 판: 두 큰 값 = 세로 · 가로
-      const side = face.geometry.parameters.width;
-      art.h = dims[0]; art.w = dims[1];
-      face.scale.set(art.w / side * 0.98, art.h / side * 0.98, 1);
-      face.material = new THREE.MeshBasicMaterial({ color: new THREE.Color().setScalar(PROPS.art.glow), transparent: true, opacity: 0, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8 });
-      mat.dispose();
-      face.visible = false;
-      art.face = face;
-    }
+    if (!album?.image || art.album === album || art.loading === album) return;
+    const tri = triOf();
+    if (!tri || tri.busy) return;                                   // 도는 중이면 끝난 뒤 다음 프레임에 다시
+    art.loading = album;
+    const slot = tri.face === 1 ? 2 : 1;
     loader.load(album.image, (tex) => {
-      if (art.album !== album) { tex.dispose(); return; }
+      if (art.loading !== album) { tex.dispose(); return; }
+      art.loading = null;
+      if (!art.want) { tex.dispose(); return; }
       tex.colorSpace = THREE.SRGBColorSpace;
-      // 정사각 커버를 세로로 긴 액자에: 높이에 맞추고 좌우를 잘라 가운데만
-      const r = art.w / art.h;
-      tex.repeat.set(r, 1); tex.offset.set((1 - r) / 2, 0);
-      const m = art.face.material;
-      m.map?.dispose(); m.map = tex; m.needsUpdate = true;
-    });
+      tri.setCover(slot, tex);
+      art.album = album; art.slot = slot;
+      tri.go(slot);
+    }, undefined, () => { if (art.loading === album) art.loading = null; });
   };
 
   // ── 컵: 늘 피어오르는 김 (2026-11-20 사용자: 들어 올리는 동작 말고 연기로) — makeSteam 아래
@@ -177,10 +181,12 @@ export function setupRoomProps({ st, root, makeCoverFace, sound, camera }) {
       for (const { m, c } of city.mats) m.color.copy(c).multiplyScalar(city.k);
     }
     st.cityMul = city.k;
-    // 벽 그림: 지금 듣는 판이 바뀌면 그 커버로
+    // 벽 그림: 걸어 두었으면 지금 듣는 판의 커버로 (판이 바뀌면 다음 커버로 넘어감), 아니면 원래 그림으로
     if (art.want && st.nowPlaying) showArt(st.nowPlaying);
-    art.k = R ? art.want : follow(art.k, art.want, dt, PROPS.art.rate);
-    if (art.face) { art.face.visible = art.k > 0.01; art.face.material.opacity = art.k; }
+    if (art.tri) {
+      if (!art.want) { art.album = null; art.loading = null; art.tri.go(0); }
+      art.tri.tick(dt);
+    }
     // 컵 김: 시간을 흘리고(동작 줄이기면 멈춘 한 장면), 카메라 쪽을 보게 (세로축으로만)
     if (steam) {
       if (!R) steam.uniforms.uTime.value = time;
