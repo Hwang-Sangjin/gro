@@ -59,9 +59,11 @@ export function applyTurntableLook({ root, envMap, key, renderer, casters = [] }
   peel.repeat.set(18, 18);
   const made = new Map(), mats = [], owned = [paint, satin, rubberG, peel, hair];
   const P = (o) => new THREE.MeshPhysicalMaterial(o);
-  // 재질 이름(뒤의 _bakedColor · __source 는 떼고 봄) → 새 재질. src = 원래 재질 (그림 · 투명도를 이어받을 때)
+  // 재질 이름(뒤의 _bakedColor · __source · _live 는 떼고 봄) → 새 재질. src = 원래 재질 (그림 · 투명도를 이어받을 때)
+  //  _live: 이 함수가 한 번 바꾼 재질 — 구운 그림이 도착한 뒤 다시 부를 때(RoomTest liveTurntable) 같은 이름으로 다시 만들 수 있게
+  const bare = (name) => name.replace(/_bakedColor$|_baked$|__source$/, "").replace(/_live$/, "");
   const make = (name, src) => {
-    const n = name.replace(/_bakedColor$|_baked$|__source$/, "");
+    const n = bare(name);
     const map = src.isMeshBasicMaterial ? null : src.map ?? null;     // 구운 그림은 버림, 원래 그림(플래터 무늬)은 씀
     switch (n) {
       // 본체: 무광 크림 도장 (2026-11-16 사용자 선택. 처음의 주황빛 호두나무 결 + 래커는 촌스럽다고 함 → 사이트 크림색에 가까운 무광, 60년대 오디오 느낌)
@@ -89,7 +91,7 @@ export function applyTurntableLook({ root, envMap, key, renderer, casters = [] }
     const src = o.material, k = src.uuid;
     if (!made.has(k)) {
       const m = make(src.name || "", src);
-      if (m) { m.name = (src.name || "").replace(/_bakedColor$|_baked$|__source$/, "") + "_live"; m.envMap = envMap; m.envMapIntensity = TT_LOOK.env; mats.push(m); }
+      if (m) { m.name = bare(src.name || "") + "_live"; m.envMap = envMap; m.envMapIntensity = TT_LOOK.env; mats.push(m); }
       made.set(k, m);
     }
     const m = made.get(k);

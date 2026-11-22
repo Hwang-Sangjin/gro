@@ -1089,11 +1089,16 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
           if (shown != null) st.disc.root.visible = shown;
         }
       };
-      // 턴테이블만은 구운 그림 대신 실시간 재질 + 움직이는 빛 (turntableLook.js). 구운 그림을 입힌 뒤에 바꿈. ?ttlive=0 이면 예전 그대로 (비교용)
-      const liveTurntable = () => {
-        if (st.disposed || st.ttLook || new URLSearchParams(location.search).get("ttlive") === "0") return;
-        st.ttEnv = st.sleeve?.envMap ?? makeEnvironment(renderer);
-        st.ttLook = applyTurntableLook({ root: st.ttRise, envMap: st.ttEnv, key, renderer, casters: [st.disc.root] });
+      // 턴테이블만은 구운 그림 대신 실시간 재질 + 움직이는 빛 (turntableLook.js). ?ttlive=0 이면 예전 그대로 (비교용)
+      //  두 번 부름 (2026-11-22): ① 모델을 받자마자 — 예전에는 구운 그림(약 6.8MB)을 다 받은 뒤에만 입혀서, 그 전에 판을 내려놓으면
+      //  원래 재질이 무대 조명에 그대로 드러나 본체가 음영 없이 하얗게 떠 보였음 ② 구운 그림을 입힌 뒤 다시(again) — 구운 재질로 덮인 것을 되돌리고 틈새 그늘(aoMap)을 받음
+      const liveTurntable = (again = false) => {
+        if (st.disposed || new URLSearchParams(location.search).get("ttlive") === "0") return;
+        if (st.ttLook) { if (!again) return; st.ttLook.dispose(); st.ttLook = null; }
+        try {
+          st.ttEnv ??= st.sleeve?.envMap ?? makeEnvironment(renderer);
+          st.ttLook = applyTurntableLook({ root: st.ttRise, envMap: st.ttEnv, key, renderer, casters: [st.disc.root] });
+        } catch { /* 아직 부품이 준비되지 않았으면 구운 그림 뒤에 다시 */ }
       };
       // 같은 면에 겹쳐 있는 판재: 이웃 옥상 벤치의 널(등받이 · 앉는 판)이 기둥과 같은 깊이라 조각조각 번갈아 보였음(z-fighting)
       //  → 널을 카메라 쪽으로 살짝 당겨 늘 기둥 앞에 보이게. 재질은 다른 물체와 같이 쓰므로 복제해서 이 메시에만 (구운 재질의 셰이더 훅도 같이 넘김)
@@ -1118,7 +1123,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       };
       // 구운 빛 (?bake=0 이면 끄고 실시간 조명으로 비교). 재질이 바뀌니 다 입힌 뒤 한 번 더 미리 데움
       const lit = new URLSearchParams(location.search).get("bake") !== "0"
-        ? applyLightmaps(root, renderer).then((n) => { liveTurntable(); frontFaces(); st.baked = n; st.setupInteract(); }).catch(() => { liveTurntable(); frontFaces(); st.setupInteract(); })
+        ? (liveTurntable(), applyLightmaps(root, renderer).then((n) => { liveTurntable(true); frontFaces(); st.baked = n; st.setupInteract(); }).catch(() => { liveTurntable(); frontFaces(); st.setupInteract(); }))
         : Promise.resolve().then(() => { liveTurntable(); frontFaces(); st.setupInteract(); });
       // 방 · 바깥 배경 · 구운 빛이 다 붙은 뒤 한 번에 데우고 → 준비 끝
       Promise.all([lit, st.env.ready.catch(() => {})]).then(prewarm).finally(() => { st.release(); st.warmAt = performance.now(); gateRef.current.room.resolve(); });
