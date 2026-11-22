@@ -248,10 +248,22 @@ function stickerTexture(label, aniso) {
 }
 
 export const WRAP = { maps: WRAP_MAPS, size: WRAP_SIZE };
+// 주름 지도 데이터는 모듈에 한 번만 만들어 둠 (엔진을 다시 만들어도 · Home hero 와 같이 써도 다시 계산하지 않음)
+//  (2026-11-23) Digging 에서 Crate 를 처음 열면 엔진이 그때 만들어지고 주름을 0.06~0.6초 뒤에 채워서, 날아가는 도중에 비닐이 툭 생겼음
+//  → prewarmWraps() 로 페이지가 한가할 때 미리 만들어 둠. 그래도 늦게 오면 wrapReady 가 0 → 1 로 서서히 올림
+const wrapCache = new Map();
+const wrapData = (i) => { let d = wrapCache.get(i); if (!d) { d = wrapMap(7 + i * 3); wrapCache.set(i, d); } return d; };
+export function prewarmWraps() {
+  if (typeof window === 'undefined') return;
+  const idle = window.requestIdleCallback ? (f) => window.requestIdleCallback(f, { timeout: 2000 }) : (f) => setTimeout(f, 200);
+  const next = (i) => { if (i >= WRAP_MAPS) return; if (wrapCache.has(i)) { next(i + 1); return; } idle(() => { wrapData(i); next(i + 1); }); };
+  next(0);
+}
+const WRAP_FADE_MS = 450;
 /** 주름 지도 i 번째(0 ~ WRAP.maps-1)를 노멀 그림(RGBA, 접선 공간)으로 — Home hero 의 재킷이 코팅 층의 요철로 씀 (sleeveParts.js)
  *  k = 기울기를 얼마나 살릴지 (1 = 가장 가파른 주름이 45°) */
 export function wrapNormalData(i, k = 0.6) {
-  const g = wrapMap(7 + i * 3), n = g.length / 4, out = new Uint8Array(g.length);
+  const g = wrapData(i), n = g.length / 4, out = new Uint8Array(g.length);
   for (let p = 0; p < n; p++) {
     const x = -(g[p * 4] / 127.5 - 1) * k, y = -(g[p * 4 + 1] / 127.5 - 1) * k, l = Math.hypot(x, y, 1);
     out[p * 4] = Math.round((x / l * 0.5 + 0.5) * 255); out[p * 4 + 1] = Math.round((y / l * 0.5 + 0.5) * 255); out[p * 4 + 2] = Math.round((1 / l * 0.5 + 0.5) * 255); out[p * 4 + 3] = 255;
@@ -269,12 +281,13 @@ export function createSleeveFx({ aniso = 1 } = {}) {
   const wraps = Array.from({ length: WRAP_MAPS }, (_, i) => {
     const t = new THREE.DataTexture(new Uint8Array([128, 128, 0, 255]), 1, 1, THREE.RGBAFormat);
     t.needsUpdate = true;
-    setTimeout(() => {
-      if (!alive) return;
-      t.image = { data: wrapMap(7 + i * 3), width: WRAP_SIZE, height: WRAP_SIZE };
+    const fill = (at) => {
+      t.image = { data: wrapData(i), width: WRAP_SIZE, height: WRAP_SIZE };
       t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.anisotropy = aniso;
-      t.needsUpdate = true;
-    }, 60 + i * 90);
+      t.needsUpdate = true; t.userData.readyAt = at;
+    };
+    if (wrapCache.has(i)) fill(-Infinity);     // 미리 만들어 둔 것: 처음부터 다 보임
+    else setTimeout(() => { if (alive) fill(performance.now()); }, 60 + i * 90);
     return t;
   });
   const dir = (PEEL.dir * Math.PI) / 180;
@@ -302,6 +315,11 @@ export function createSleeveFx({ aniso = 1 } = {}) {
       return { mesh: new THREE.Mesh(planeGeo, material), u: material.uniforms };
     },
     /** 이 판의 비닐: n(판마다 다른 정수)으로 주름 지도와 뒤집는 방향을 고름 · tone = 커버의 밝기 0~1 (어두우면 빛 띠를 줄임) */
+    /** 이 재킷의 주름 지도가 준비된 정도 0~1 (아직 없으면 0, 막 생겼으면 WRAP_FADE_MS 동안 서서히 1) → uWrap 에 곱함 */
+    wrapReady(finish) {
+      const at = finish.u.uWrapMap.value?.userData?.readyAt;
+      return at == null ? 0 : Math.min(1, Math.max(0, (performance.now() - at) / WRAP_FADE_MS));
+    },
     wrapFor(finish, n, tone = 0.5) {
       finish.u.uTone.value = tone;
       finish.u.uWrapMap.value = wraps[n % WRAP_MAPS];

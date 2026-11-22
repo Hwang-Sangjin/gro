@@ -101,6 +101,12 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
     bump((n) => n + 1);
   }, []);
 
+  // 비닐 주름 지도를 페이지가 한가할 때 미리 만들어 둠 → Crate 를 처음 열 때 날아가는 재킷에 비닐이 툭 생기지 않게 (2026-11-23)
+  useEffect(() => {
+    const go = () => import("../sleeveFx").then((m) => m.prewarmWraps()).catch(() => {});
+    const id = window.requestIdleCallback ? window.requestIdleCallback(go, { timeout: 3000 }) : setTimeout(go, 1500);
+    return () => (window.cancelIdleCallback ? window.cancelIdleCallback(id) : clearTimeout(id));
+  }, []);
   // ── 내 선반: 로그인했으면 한 번 받아 둠 (앨범 id → owned | wishlist)
   const [kinds, setKinds] = useState(null);
   useEffect(() => {

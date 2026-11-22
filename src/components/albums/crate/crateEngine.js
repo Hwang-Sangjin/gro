@@ -203,7 +203,9 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     const plain = !!slot.card && !slot.card.divider, near = Math.abs(slot.d);
     const f = slot.finish, st = slot.sticker;
     f.mesh.visible = plain; f.mesh.renderOrder = m.renderOrder + 1;
-    f.u.uOpacity.value = p.o; f.u.uGloss.value = 1 - ss(0.3, 1.8, near);
+    // (2026-11-23) 그리드 카드에는 비닐 · 마감이 없음 → 카드 자리에 가까울수록 옅게 (Grid ↔ Crate 전환에서 비닐이 툭 생기거나 사라지지 않게)
+    //  + 주름 지도가 늦게 준비되면 그때부터 서서히
+    f.u.uOpacity.value = p.o * (1 - (slot.gridK || 0)); f.u.uWrap.value = fx.wrapReady(f); f.u.uGloss.value = 1 - ss(0.3, 1.8, near);
     f.u.uLight.value.set(hover.x * 0.55 + slot.d * 0.9, hover.y * 0.3);
     st.mesh.visible = plain && !!slot.card.isNew && !isPeeled(slot.card.slug); st.mesh.renderOrder = m.renderOrder + 2;
     // 떼어져 떨어지는 동안(fly 0→1): 당긴 쪽으로 밀려나며 아래로 떨어지고 · 돌고 · 옅어짐
@@ -450,11 +452,13 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
         const e = easeIO(clamp01((m - k * ST) / SPAN));
         rectPose(cards[idx].art.getBoundingClientRect(), to);
         lerpPose(from, to, e, out);
+        slot.gridK = e;   // 그리드 카드 자리에 가까운 정도 → 비닐 · 마감이 그만큼 옅어짐 (applyPose)
         out.z += Math.sin(Math.PI * e) * 1.2;
         out.rz += Math.sin(Math.PI * e) * 0.07 * (k % 2 ? 1 : -1);
         if (m < 1) toHide.push(cards[idx].art);
         applyPose(slot, out, e > 0 && e < 1);
       } else {
+        slot.gridK = 0;
         from.o *= 1 - ss(0, 0.3, m);
         applyPose(slot, from, false);
       }
