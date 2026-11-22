@@ -353,6 +353,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     return () => soundWait.current?.();
   }, []);
   const tipRef = useRef(null);                      // 방 안 물체 위에 뜨는 이름표
+  const buildCueRef = useRef(null);                 // 방이 지어지는 동안 안내 (문구 + 진행 막대)
   const router = useRouter();
   const routerRef = useRef(router);
   routerRef.current = router;
@@ -2035,6 +2036,14 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       // 맨 위(Hero)인지: 종이 결 · 목차 01
       const atTop = k < 0.04 && st.tr === 0 && st.ts === 0;
       if (atTop !== st.atTop) { st.atTop = atTop; st.onHero?.(atTop); }
+      // 방이 지어지는 동안 안내: 판이 앉은 뒤(ts) → 방 짓기(tr)가 스크롤이 풀리는 FREE_P 에 닿을 때까지의 진행
+      const cue = buildCueRef.current;
+      if (cue) {
+        const trFree = T * (FREE_P - b0) / (b1 - b0), S = st.settleDur ?? 0;
+        const on = !st.free && !st.reduced && (st.ts > 0 || st.tr > 0) && st.tr < trFree;
+        if (on !== st.cueOn) { st.cueOn = on; cue.style.opacity = on ? "1" : "0"; }
+        if (on) cue.querySelector("[data-bar]").style.transform = `scaleX(${clamp01((st.ts + st.tr) / (S + trFree)).toFixed(3)})`;
+      }
     }
     st.frame = frame;
     tick();
@@ -2411,6 +2420,13 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       <div ref={hostRef} className="absolute inset-0 origin-[50%_42%] overflow-hidden will-change-transform"
         style={{ touchAction: free || scrollFlow ? "pan-y" : "none", scale: "calc(1 - var(--frame) * 0.12)", translate: "0 var(--nty, 0px)", borderRadius: "calc(var(--frame) * 28px)" }} />
 
+      {/* 방이 지어지는 동안 안내 (2026-11-22): 이 몇 초 동안은 아래 스크롤을 일부러 막으므로, 휴대폰에서 '멈췄다'로 느끼지 않게
+          문구 + 진행 막대 (판이 앉은 뒤 → 스크롤이 풀리는 FREE_P 까지). 투명도 · 막대 길이는 flowStep 에서 직접 */}
+      <div ref={buildCueRef} aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-[max(4.5rem,calc(env(safe-area-inset-bottom)+3.5rem))] z-20 flex flex-col items-center gap-2 text-[10px] font-medium uppercase tracking-[0.28em] text-white opacity-0 mix-blend-difference transition-opacity duration-500 motion-reduce:transition-none">
+        <span>Building the room</span>
+        <span className="block h-px w-24 bg-white/30"><span data-bar className="block h-full w-full origin-left bg-white" style={{ transform: "scaleX(0)" }} /></span>
+      </div>
       {/* 방 안 물체 이름표 (턴테이블 Play/Stop · 램프 Light on/off) — 위치는 효과에서 직접 */}
       <div ref={tipRef} aria-hidden className="pointer-events-none fixed left-0 top-0 z-30 rounded-full bg-black/55 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white opacity-0 backdrop-blur-sm transition-opacity duration-150" />
       {/* 효과음 켜기 · 끄기 (처음엔 켜짐) */}
