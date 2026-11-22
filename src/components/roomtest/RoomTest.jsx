@@ -1550,7 +1550,10 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       st.propsTick?.(dt, time);
       for (const k in st.lampK) st.lampK[k] += (st.lampUser[k] - st.lampK[k]) * (1 - Math.exp(-dt * 9));
       // 늦은 밤: 바늘은 들려 있다가 "drop the needle" 에서 내려감 (판은 계속 돎). 소리를 켰으면 바늘 소리
-      const needleWant = (!st.lateNight || st.nightDrop) && !(st.swap && !st.swap.dropped);
+      //  (2026-11-22 피드백: News → 늦은 밤에서 바늘이 들리며 음악이 끊겼다 다시 나와 둘러보기가 망설여짐)
+      //  → 음악이 이미 나오고 있으면 늦은 밤에도 바늘을 들지 않음 = 사용자가 멈추거나 판을 바꾸기 전까지 계속. 바늘 연출은 음악이 꺼져 있을 때만
+      const keepNeedle = st.musicWas && !st.musicOff;
+      const needleWant = (!st.lateNight || st.nightDrop || keepNeedle) && !(st.swap && !st.swap.dropped);
       if (st.lateNight && needleWant !== st.needleWas && st.playing && !st.covered) { if (needleWant) st.sound.needleDown(); else st.sound.needleUp(); }
       st.needleWas = needleWant;
       st.armK += ((st.playing && needleWant ? 1 : 0) - st.armK) * (1 - Math.exp(-dt * (st.reduced ? 60 : 5)));
@@ -1559,7 +1562,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
       const needleK = st.sleeve ? easeInOut(clamp01(st.ts / SLEEVE_HERO.needle)) : easeInOut(seg(p, [STORY.spinAt, STORY.armDur]));
       const playingNow = (st.sleeve ? st.ts >= SLEEVE_HERO.needle * 0.8 : p >= STORY.spinAt) && st.playing;
       st.sound.setPlaying(playingNow && needleWant && p <= STORY.roomHold + 0.05 && !st.reduced && !st.covered);
-      // 음악 (YouTube): 판이 돌고 바늘이 내려가 있는 동안만. 아래 섹션으로 내려가도 계속 (늦은 밤에서는 "drop the needle" 에서 다시)
+      // 음악 (YouTube): 판이 돌고 바늘이 내려가 있는 동안만. 아래 섹션으로 내려가도 계속 (늦은 밤에서도 끊기지 않음 · 위 keepNeedle)
       //  카드를 닫았으면(musicOff) 턴테이블을 다시 누를 때까지 틀지 않음
       const musicOn = playingNow && needleWant && !st.musicOff && !st.inHero;
       if (musicOn !== st.musicWas || st.nowPlaying !== st.musicAlbum) {
@@ -2493,12 +2496,25 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
           <div className="order-2 min-w-0 text-center" aria-live="polite">
             <p className="truncate text-[11px] font-medium uppercase tracking-[0.3em] opacity-70">{albums[sleeveAt]?.artist || " "}</p>
             <p className="mt-1 truncate font-['Grooves_Display','Hahmlet',Georgia,serif] text-[clamp(1.4rem,2.6vw,2.4rem)] leading-tight">{albums[sleeveAt]?.title || " "}</p>
-            <button type="button" onClick={() => apiRef.current?.sleeve?.setOpen(!sleeveOpen)}
-              className={`pointer-events-auto mt-3 min-h-11 rounded-full border px-6 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] transition-[opacity,background-color,color,border-color] duration-300 hover:opacity-80 ${sleeveOpen ? "border-current/30" : "border-(--ink) bg-(--ink) text-(--cream)"}`}>
-              {/* 닫혀 있을 때는 채운 버튼: 여기를 눌러야 방으로 내려갈 수 있다는 걸 첫 화면에서 알 수 있게 */}
-              {sleeveOpen ? "Close" : "Open the record"}
-            </button>
-            <p className="mt-2 text-[11px] tracking-[0.06em] opacity-60">{sleeveOpen ? "Click the record or scroll to play it" : "Scroll or drag to browse · open a record to step into the room"}</p>
+            {/* 닫혀 있을 때는 채운 "Open the record": 여기를 눌러야 방으로 내려갈 수 있다는 걸 첫 화면에서 알 수 있게
+                열린 뒤에는 채운 "Play" (2026-11-22 피드백: 재생까지 어디까지 내려야 하는지 모름) — 누르면 판을 눌렀을 때처럼 턴테이블까지 대신 내려 줌.
+                은은하게 퍼지는 고리로 다음 할 일을 가리킴 · 닫기는 옆의 작은 글자 버튼 */}
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <span className="relative inline-flex">
+                {sleeveOpen && <span aria-hidden="true" className="absolute inset-0 rounded-full bg-(--ink) opacity-30 animate-ping [animation-duration:1.8s] motion-reduce:hidden" />}
+                <button type="button" onClick={() => { const st = apiRef.current; if (!st) return; if (sleeveOpen) st.onSleeveRecord?.(); else st.sleeve?.setOpen(true); }}
+                  className="pointer-events-auto relative min-h-11 rounded-full border border-(--ink) bg-(--ink) px-6 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-(--cream) transition-opacity duration-300 hover:opacity-80">
+                  {sleeveOpen ? "Play ▸" : "Open the record"}
+                </button>
+              </span>
+              {sleeveOpen && (
+                <button type="button" onClick={() => apiRef.current?.sleeve?.setOpen(false)}
+                  className="pointer-events-auto min-h-11 rounded-full border border-current/30 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] transition-opacity hover:opacity-70">
+                  Close
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-[11px] tracking-[0.06em] opacity-60">{sleeveOpen ? "Tap Play or the record — or keep scrolling" : "Scroll or drag to browse · open a record to step into the room"}</p>
           </div>
         </div>
       )}

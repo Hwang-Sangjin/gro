@@ -21,18 +21,20 @@ export const SLEEVE_HERO = {
   landNear: 0.006,           // 착지까지 이만큼 남았으면 앉은 것으로 보고 톤암을 시작 (클수록 톤암이 일찍 움직임)
   // 내려앉는 구간 [시작, 길이]: center 가 끝나기(0.21) 전에 시작 (예전엔 0.15 에 가운데에서 멈췄다가 0.24 부터 내려갔음 — 사용자: 멈추지 말고 그대로 안착)
   land: [0.12, 0.22],
-  landAuto: 0.13, landAutoSec: 3.0,     // 이 진행도를 지나 내려가면 착지 자리까지 스크롤을 대신 내려 줌 (걸리는 시간 · 초)
+  // 2026-11-22 피드백 (판을 고르고 재생까지 스크롤이 김): 자동 착지를 더 일찍(0.13 → 0.07) · 걸리는 시간은 남은 거리만큼 조금 늘림(3.0 → 3.4)
+  landAuto: 0.07, landAutoSec: 3.4,     // 이 진행도를 지나 내려가면 착지 자리까지 스크롤을 대신 내려 줌 (걸리는 시간 · 초)
   landFrom: 0.12,             // 이 진행도부터 '착지 구간'
-  needle: 2.4,               // 톤암이 판 위로 올라가는 시간(초)
+  needle: 1.6,               // 톤암이 판 위로 올라가는 시간(초) (2026-11-22: 2.4 → 1.6, 앉은 뒤 소리가 나기까지 더 빨리)
   lidGap: 0.3,               // 톤암이 다 올라간 뒤 덮개가 닫히기 시작할 때까지(초)
   buildSpeed: 1.2,           // 방이 지어지는 빠르기 (Blender 클립 시간의 몇 배속 — 순서 · 간격의 비율은 그대로)   // 사라지며 물러나는 거리 · 내려가는 거리 (m)
   fade: [1.6, 3.2],          // 가운데에서 이만큼(장) 떨어진 재킷부터 옅어져 → 안 보임
   //  land: 열린 뒤 판이 턴테이블까지 내려가는 구간에서 휠 한 칸에 곱하는 값 (작을수록 천천히 · 많이 굴려야 함)
   swipeOpen: 48,             // 터치: 위로 이만큼(px) 밀면 가운데 재킷을 엶
-  wheel: { step: 36, cooldown: 300, idle: 160, land: 0.3 },   // 휠로 넘기기: 한 장 넘기는 양(px) · 넘긴 뒤 쉬는 시간(ms) · 입력이 끊겼다고 보는 간격(ms)
+  wheel: { step: 36, cooldown: 300, idle: 160, land: 0.55 },   // land: 0.3 → 0.55 (2026-11-22, 착지까지 휠을 덜 굴리게)
+  // wheel: 휠로 넘기기 한 장 넘기는 양(px) · 넘긴 뒤 쉬는 시간(ms) · 입력이 끊겼다고 보는 간격(ms)
   // 판이 턴테이블로 가는 길 (2026-11-16 사용자 요청): 재킷 옆에서 곧장 비스듬히 가지 않고, 먼저 화면 가운데(턴테이블 바로 위)로 온 뒤 위에서 아래로 내려앉음
   center: [0.03, 0.18],      // 판이 화면 가운데로 오는 진행도 [시작, 길이]
-  landMs: 4800,              // 열린 판을 눌렀을 때 착지 자리까지 스크롤을 대신 내려 주는 시간 (예전 2.6초는 너무 빨랐음)
+  landMs: 3600,              // 열린 판을 눌렀을 때 착지 자리까지 스크롤을 대신 내려 주는 시간 (2.6초는 너무 빨랐음 · 4.8초는 기다림이 길다는 피드백 → 3.6)
   pullOut: [0.008, 0.04], pullFull: 0.9,   // 스크롤 진행도 이 구간에서 판이 재킷 밖으로 다 나옴 (재킷 폭의 pullFull 배)
   flat: [0.06, 0.08],        // 판이 수평으로 눕기 시작하는 진행도 [시작, 길이] (재킷이 물러난 뒤)
   // "Grooves" 제목: 재킷이 다가온 뒤(delay 초) 글자가 하나씩 올라옴 · 스크롤을 내리면 위로 걷히며 옅어짐(out 진행도 구간, lift = 화면 높이 대비)
@@ -130,7 +132,7 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
     pull: 0, wantOpen: false, clickOpen: false, recAt: -1, open: 0, openV: 0, playing: -1,
     introT: reduced ? 99 : -1, dist: 1, dirty: true, p: 0, leave: 0,
   };
-  const drag = { id: null, active: false, moved: false, locked: false, x0: 0, pos0: 0, lastX: 0, lastT: 0, v: 0 };
+  const drag = { id: null, active: false, moved: false, mouse: false, x0: 0, y0: 0, pos0: 0, lastX: 0, lastT: 0, v: 0 };
   const cur = { mouse: new THREE.Vector2(-100, -100), ring: new THREE.Vector2(-100, -100), visible: false, overLink: false, state: "", on: null };
   const finePointer = matchMedia("(hover: hover) and (pointer: fine)").matches;
   const h = { frame, s, dirty: true, envMap };     // envMap: 턴테이블 재질도 같은 환경을 씀 (turntableLook.js)
@@ -217,19 +219,33 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
     return ((s.narrow ? S.row.gapNarrow : S.row.gap) / visH) * renderer.domElement.clientHeight * Math.cos(S.pose.rotY);
   };
   const isControl = (e) => e.target instanceof Element && !!e.target.closest("a, button, [role='button']");
+  // 2026-11-22 피드백 (스와이프 · 커버 회전 · 커버 열기가 서로 충돌해 의도대로 안 넘어갈 때가 있음):
+  //  A. 터치는 처음 DIR_LOCK px 움직인 방향으로 이번 손짓을 정함 — 가로면 넘기기만, 세로면 (아래 touch 처리의) 열기만
+  //  B. 손 위치를 따라 기우는 회전은 마우스에서만. 터치 기기는 가만히 있을 때 살짝 흔들리는 자동 연출(SWAY)로 회전을 보여 줌
+  //  D. 열린 상태에서도 가로로 밀면 닫히면서 옆 앨범으로 (예전: 열려 있으면 끌기가 잠겨 아무 일도 없었음)
+  const DIR_LOCK = 12;
   const onDown = (e) => {
     if (drag.id != null || e.button !== 0 || !items.length || introBusy() || !hero() || isControl(e)) return;
-    Object.assign(drag, { id: e.pointerId, active: true, moved: false, locked: s.clickOpen || s.open > 0.05, x0: e.clientX, pos0: s.pos, lastX: e.clientX, lastT: performance.now(), v: 0 });
+    Object.assign(drag, { id: e.pointerId, active: true, moved: false, mouse: e.pointerType === "mouse", x0: e.clientX, y0: e.clientY, pos0: s.pos, lastX: e.clientX, lastT: performance.now(), v: 0 });
   };
   const onMove = (e) => {
-    s.pointer.copy(ndcOf(e));
-    if (e.pointerType === "mouse") { cur.mouse.set(e.clientX, e.clientY); if (!cur.visible) { cur.ring.copy(cur.mouse); cur.visible = true; } }
+    if (e.pointerType === "mouse") {
+      s.mouseSeen = true;
+      s.pointer.copy(ndcOf(e));
+      cur.mouse.set(e.clientX, e.clientY); if (!cur.visible) { cur.ring.copy(cur.mouse); cur.visible = true; }
+    }
     cur.overLink = isControl(e);
-    if (!drag.active || e.pointerId !== drag.id || drag.locked) return;
+    if (!drag.active || e.pointerId !== drag.id) return;
     const dx = e.clientX - drag.x0;
     if (!drag.moved) {
-      if (Math.abs(dx) < S.browse.dragStart) return;
+      if (drag.mouse) { if (Math.abs(dx) < S.browse.dragStart) return; }
+      else {
+        const dy = e.clientY - drag.y0;
+        if (Math.hypot(dx, dy) < DIR_LOCK) return;
+        if (Math.abs(dx) <= Math.abs(dy)) { drag.id = null; drag.active = false; return; }   // 세로 손짓: 넘기기는 손을 뗌 (열기 · 스크롤 쪽)
+      }
       drag.moved = true;
+      if (s.clickOpen) setOpen(false);   // D: 열려 있으면 닫으면서 넘김
       stage.setPointerCapture?.(e.pointerId);
     }
     const per = pxPerItem(), now = performance.now(), dtm = Math.max(8, now - drag.lastT);
@@ -248,12 +264,12 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
     //  (예전: 5px 만 흔들려도 끌기가 되고 순간 속도가 던지는 속도가 돼서, 첫 앨범을 눌렀는데 옆 앨범으로 넘어갔음)
     const tapped = drag.moved && (drag.far ?? 0) < S.browse.tap;
     if (tapped) { s.target = Math.min(items.length - 1, Math.max(0, Math.round(drag.pos0))); s.vel = 0; }
-    const moved = drag.moved && !tapped, still = performance.now() - drag.lastT > 90, locked = drag.locked;
+    const moved = drag.moved && !tapped, still = performance.now() - drag.lastT > 90;
     drag.far = 0;
     drag.id = null; drag.active = false;
     if (stage.hasPointerCapture?.(e.pointerId)) stage.releasePointerCapture(e.pointerId);
-    if (e.pointerType !== "mouse") s.pointer.set(0, 0);     // 터치: 손을 떼면 기울기를 풂
     if (moved) { go(s.pos + (still ? 0 : drag.v * S.browse.flick)); return; }
+    if (e.type === "pointercancel") return;   // 브라우저가 손짓을 가져감(세로 스크롤 등) = 누르기 아님
     if (!hero()) return;
     ray.setFromCamera(ndcOf(e), camera);
     // 보이는 재킷만 대상으로 (Raycaster 는 visible 을 보지 않음). 예전: 멀어서 숨겨 둔 재킷은 자리를 갱신하지 않아 줄 한가운데(처음 자리)에 남아 있었고,
@@ -262,7 +278,7 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
     if (!hit) return;
     const i = items.findIndex((it) => it.jacket.mesh === hit.object);
     if (i < 0) { if (s.open > 0.9) onRecord?.(s.recAt); return; }     // 판 → 턴테이블로
-    if (i !== Math.round(s.pos)) { if (!locked) go(i); }
+    if (i !== Math.round(s.pos)) go(i);     // 열려 있어도 옆 재킷을 누르면 닫히며 그리로 (D)
     else setOpen(!s.clickOpen);
   };
   const onLeave = () => { s.pointer.set(0, 0); cur.visible = false; };
@@ -297,15 +313,17 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
   const onTouchStart = (e) => {
     const t = e.changedTouches[0];
     if (e.touches.length !== 1 || !hero() || s.clickOpen || introBusy() || isControl(e)) { swipe.id = null; return; }
-    swipe.id = t.identifier; swipe.x = t.clientX; swipe.y = t.clientY;
+    swipe.id = t.identifier; swipe.x = t.clientX; swipe.y = t.clientY; swipe.dir = null;
   };
   const onTouchMove = (e) => {
     if (swipe.id == null) return;
     const t = [...e.changedTouches].find((c) => c.identifier === swipe.id);
     if (!t) return;
     const dx = t.clientX - swipe.x, up = swipe.y - t.clientY;
-    if (Math.abs(dx) > S.browse.dragStart && Math.abs(dx) > up) { swipe.id = null; return; }     // 가로 끌기 = 넘기기
-    if (up > SLEEVE_HERO.swipeOpen && up > Math.abs(dx) * 1.5) { swipe.id = null; if (hero() && !s.clickOpen && items.length) setOpen(true); }
+    // A: 처음 DIR_LOCK px 의 방향으로 정함 (넘기기 쪽 판정과 같은 기준) — 가로면 이번 손짓은 열기 없음
+    if (!swipe.dir) { if (Math.hypot(dx, up) < DIR_LOCK) return; swipe.dir = Math.abs(dx) > Math.abs(up) ? "x" : "y"; }
+    if (swipe.dir === "x") { swipe.id = null; return; }
+    if (up > SLEEVE_HERO.swipeOpen) { swipe.id = null; if (hero() && !s.clickOpen && items.length) setOpen(true); }
   };
   const onTouchEnd = () => { swipe.id = null; };
   stage.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -397,7 +415,7 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
         if (hit) {
           const i = items.findIndex((it) => it.jacket.mesh === hit.object), front = Math.round(s.pos);
           if (i < 0) { if (s.open > 0.9) { state = "play"; text = LABEL.play; } }
-          else if (i !== front) { if (!s.clickOpen) { state = "go"; text = i < front ? "←" : "→"; } }
+          else if (i !== front) { state = "go"; text = i < front ? "←" : "→"; }
           else if (s.clickOpen) { state = "close"; text = LABEL.close; }
           else { state = "open"; text = LABEL.open; }
         }
@@ -433,6 +451,12 @@ export function createSleeveHero({ st, renderer, scene, camera, disc, stage, red
     s.gone = false;
     const n = items.length, B = S.browse, R = S.row, I = S.intro, O = S.open, H = SLEEVE_HERO;     // (H 는 아래 pullAll 에서도 씀)
     if (s.introT >= 0 && s.introT < 90) s.introT += dt;
+    // B: 마우스가 없는 기기(터치)는 가만히 있을 때 천천히 흔들리며 기울어짐 (손가락으로는 기울이지 않음 · 끄는 동안은 바로 섬)
+    if (!s.mouseSeen) {
+      s.swayT = (s.swayT ?? 0) + dt;
+      const k = drag.active && drag.moved ? 0 : 1, t = s.swayT;
+      s.pointer.set(Math.sin(t * 0.55) * 0.45 * k, Math.sin(t * 0.37 + 1.1) * 0.25 * k);
+    }
     if (reduced) s.tilt.set(0, 0);     // 모션 줄이기: 마우스를 따라 기울지 않음
     else s.tilt.lerp(s.pointer, 1 - Math.exp(-dt * S.pose.follow));
     if (!hero() && drag.active) { drag.id = null; drag.active = false; go(s.pos); }     // 스크롤이 시작되면 끌던 것은 놓음
