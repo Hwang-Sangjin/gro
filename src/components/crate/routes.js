@@ -38,7 +38,8 @@ export const MENU = [
   { label: 'Lab', href: '/lab/map', children: [
     { href: '/lab/map', label: 'Map', desc: '레코드숍과 LP바를 지도에서', preview: 'map' },
     { href: '/lab/brick', label: 'Brick', desc: '앨범 커버를 브릭 모자이크로', preview: 'brick' },
-    { href: '/lab/spin', label: 'Spin', desc: '도는 판 위에서 움직이는 그림', preview: 'spin' },
+    // Spin(/lab/spin)은 2026-11-23 사용자 요청으로 헤더에서만 뺌 — 페이지는 그대로 있고 주소로 들어갈 수 있음
+    //  { href: '/lab/spin', label: 'Spin', desc: '도는 판 위에서 움직이는 그림', preview: 'spin' },
   ] },
   { href: '/news', label: 'News' },
 ];

@@ -1,11 +1,11 @@
 // src/lib/admin/data.ts — 서버 전용. 관리자 화면에서 읽는 데이터 (숨김 앨범까지 모두)
-// 반드시 getAdmin()/layout 의 관리자 확인을 통과한 화면에서만 부를 것
-import { serviceClient } from "./auth";
+// 모든 함수가 adminDb() 로 관리자인지 직접 확인 (layout 확인과 별개)
+import { adminDb } from "./auth";
 
 const LIST = "id, slug, title, artist_names, thumb_path, cover_color, status, release_year, format, created_at";
 
 export async function getDashboard() {
-  const db = serviceClient();
+  const db = await adminDb();
   const count = (q: any) => q.then((r: any) => r.count ?? 0).catch(() => 0);
   const [published, draft, users, owned, wishlist, recent, pending] = await Promise.all([
     count(db.from("albums").select("id", { count: "exact", head: true }).eq("status", "published")),
@@ -20,7 +20,7 @@ export async function getDashboard() {
 }
 
 export async function listAlbums() {
-  const { data, error } = await serviceClient()
+  const { data, error } = await (await adminDb())
     .from("albums").select(LIST).order("created_at", { ascending: false }).limit(2000);
   if (error) throw new Error(error.message);
   return data ?? [];
@@ -28,7 +28,7 @@ export async function listAlbums() {
 
 // 수정 화면: 앨범 + 아티스트(순서대로) + 장르 slug + 트랙
 export async function getAlbumForEdit(slug: string) {
-  const db = serviceClient();
+  const db = await adminDb();
   const { data: album, error } = await db.from("albums")
     .select("id, slug, title, release_date, release_year, format, label, catalog_no, is_reissue, description, youtube_playlist_id, status, thumb_path, cover_color")
     .eq("slug", slug).maybeSingle();
@@ -50,13 +50,13 @@ export async function getAlbumForEdit(slug: string) {
 
 // 앨범 등록 요청 — 대기 수 (메뉴·대시보드 숫자), 목록 (요청한 사람 이메일·이름 포함)
 export async function pendingRequestCount() {
-  const { count } = await serviceClient()
+  const { count } = await (await adminDb())
     .from("album_requests").select("id", { count: "exact", head: true }).eq("status", "pending");
   return count ?? 0;
 }
 
 export async function listRequests() {
-  const { data, error } = await serviceClient()
+  const { data, error } = await (await adminDb())
     .from("album_requests")
     .select(`${REQUEST_COLS}, profiles(email, display_name)`)
     .order("created_at", { ascending: false }).limit(500);
@@ -68,21 +68,21 @@ const REQUEST_COLS = "id, title, artist, link, note, status, album_slug, admin_n
 
 // "Add album" 에서 등록 폼을 채울 요청 한 건
 export async function getRequest(id: number) {
-  const { data } = await serviceClient().from("album_requests").select(REQUEST_COLS).eq("id", id).maybeSingle();
+  const { data } = await (await adminDb()).from("album_requests").select(REQUEST_COLS).eq("id", id).maybeSingle();
   return data;
 }
 
 // 바이닐 장소 (Lab · Map) — 숨김 포함 전체
 const PLACE_LIST = "id, slug, name, name_en, kind, also, area, address, lat, lng, status, starts_on, ends_on, updated_at";
 export async function listPlaces() {
-  const { data, error } = await serviceClient()
+  const { data, error } = await (await adminDb())
     .from("places").select(PLACE_LIST).order("updated_at", { ascending: false }).limit(2000);
   if (error) throw new Error(error.message);
   return data ?? [];
 }
 
 export async function getPlaceForEdit(slug: string) {
-  const { data, error } = await serviceClient().from("places").select("*").eq("slug", slug).maybeSingle();
+  const { data, error } = await (await adminDb()).from("places").select("*").eq("slug", slug).maybeSingle();
   if (error) throw new Error(error.message);
   return data;
 }

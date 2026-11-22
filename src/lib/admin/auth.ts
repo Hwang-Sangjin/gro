@@ -3,6 +3,8 @@
 // - 관리자 페이지(layout)와 /api/admin/* 가 같이 씀
 // - 예전 ADMIN_SECRET(관리자 키 입력) 방식을 대신함
 
+import { cache } from "react";
+import { notFound } from "next/navigation";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient as createSessionClient } from "@/utils/supabase/server";
 
@@ -20,7 +22,8 @@ export type AdminCheck = {
   admin: boolean;
 };
 
-export async function getAdmin(): Promise<AdminCheck> {
+// 한 요청 안에서는 한 번만 확인 (layout · page · data 함수가 같이 불러도 Supabase 왕복 1번)
+export const getAdmin = cache(async function getAdmin(): Promise<AdminCheck> {
   const session = await createSessionClient();
   const { data: { user } } = await session.auth.getUser();
   if (!user) return { user: null, admin: false };
@@ -30,6 +33,15 @@ export async function getAdmin(): Promise<AdminCheck> {
     .eq("id", user.id)
     .maybeSingle();
   return { user, admin: data?.role === "admin" };
+});
+
+// 관리자 화면 데이터용 서비스 클라이언트: 부를 때마다 관리자인지 다시 확인 (아니면 404)
+//  (2026-11-23) layout 의 확인만 믿지 않음 — App Router 는 layout 과 page 를 따로 그려서,
+//  페이지 조각만 요청하면 layout 을 건너뛸 수 있음. 그래서 숨김 앨범 · 요청 · 이메일을 읽는 곳마다 여기서 막음
+export async function adminDb() {
+  const { admin } = await getAdmin();
+  if (!admin) notFound();
+  return serviceClient();
 }
 
 // API 라우트 맨 앞에서: 관리자가 아니면 바로 돌려줄 응답, 관리자면 null
