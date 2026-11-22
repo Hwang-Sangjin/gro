@@ -4,6 +4,7 @@
 import { useId } from "react";
 import Disc from "@/components/story/Disc";
 import { RELEASES, findRow, coverOf, useCaesar } from "./daniel-caesar-korean-vinyl/albums";
+import { ALBUM_SLUG as SAKAMOTO_SLUG, coverOf as coverOfSakamoto, useSakamoto } from "./ryuichi-sakamoto-1996/album";
 
 function Fair() {
   return (
@@ -87,6 +88,50 @@ function Caesar() {
     </div>
   );
 }
+// 류이치 사카모토 1996 — 썸네일 후보 세 가지 (index.js 의 cover 에서 고름)
+// A sakamoto-1996: 실제 커버(Grooves DB) + 오른쪽으로 빠져나온 판. 못 찾으면 판만
+function Sakamoto() {
+  const row = useSakamoto()?.find((a) => a.slug === SAKAMOTO_SLUG);
+  const src = coverOfSakamoto(row);
+  return (
+    <div className="absolute inset-0 bg-(--cover-bg)">
+      <div className="absolute inset-y-0 left-0 aspect-square max-w-full">
+        <Disc label="#e9e4da" className="absolute left-[30%] top-[22%] w-[52%] drop-shadow-[0_10px_14px_rgba(0,0,0,.28)]" />
+        {src && <img src={src} alt="" loading="lazy" decoding="async" draggable={false} className="absolute left-[8%] top-[20%] aspect-square h-auto w-[54%] select-none rounded-[2px] object-cover shadow-[0_12px_22px_-8px_rgba(0,0,0,.55)]" style={{ background: row.cover_color || "#181818" }} />}
+      </div>
+      <p className="absolute left-[7%] top-[7%] z-10 font-['Hahmlet',sans-serif] font-semibold tracking-[0.24em] text-(--accent)" style={{ fontSize: "3.2cqw" }}>NEWS · REISSUE</p>
+      <p className="absolute bottom-[6%] right-[6%] z-10 text-right font-['Grooves_Display','Hahmlet',serif] leading-[0.9] text-(--ink)" style={{ fontSize: "10.5cqw" }}>Sakamoto<br />1996</p>
+    </div>
+  );
+}
+// B sakamoto-type: 잉크 바탕에 큰 1996 + 세 악기를 뜻하는 세 줄(굵기가 다른 현)
+function SakamotoType() {
+  return (
+    <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
+      <rect width="400" height="400" fill="#181818" />
+      {[[150, 4], [178, 2.4], [202, 1.2]].map(([y, w], i) => (
+        <path key={i} d={`M0 ${y} C110 ${y - 26} 250 ${y + 26} 400 ${y}`} fill="none" stroke="#f4e7cd" strokeWidth={w} opacity={0.85 - i * 0.2} />
+      ))}
+      <text x="28" y="44" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" fill="#7fc1bd">PIANO · CELLO · VIOLIN</text>
+      <text x="374" y="350" textAnchor="end" fontFamily="Grooves Display, Hahmlet, Georgia, serif" fontWeight="900" fontSize="120" letterSpacing="-2" fill="#f4e7cd">1996</text>
+      <text x="374" y="378" textAnchor="end" fontFamily="Hahmlet, Arial, sans-serif" fontSize="14" letterSpacing="2.4" fill="#f4e7cd" opacity=".7">RYUICHI SAKAMOTO</text>
+    </svg>
+  );
+}
+// C sakamoto-frame: 시네마스코프 프레임(별밤) + 영화 자막
+function SakamotoFrame() {
+  return (
+    <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
+      <rect width="400" height="400" fill="#0d0b0c" />
+      <rect y="116" width="400" height="168" fill="#1b1619" />
+      <g fill="#f4e7cd">{Array.from({ length: 60 }, (_, i) => <circle key={i} cx={(i * 67) % 400} cy={124 + ((i * 41) % 110)} r={i % 7 === 0 ? 1.4 : 0.7} opacity={0.3 + (i % 4) * 0.15} />)}</g>
+      <path d="M0 262 Q100 246 200 258 T400 252 V284 H0z" fill="#120f11" />
+      <text x="200" y="272" textAnchor="middle" fontFamily="Hahmlet, serif" fontSize="17" fontWeight="600" fill="#f6e9a8">“Merry Christmas, Mr. Lawrence.”</text>
+      <text x="28" y="60" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" fill="#7fc1bd">SCORES &amp; SCENES</text>
+      <text x="372" y="360" textAnchor="end" fontFamily="Grooves Display, Hahmlet, Georgia, serif" fontWeight="900" fontSize="52" fill="#f4e7cd">Sakamoto, 1996</text>
+    </svg>
+  );
+}
 function Record() {
   return (
     <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
@@ -143,7 +188,7 @@ function AtoZ02() {
   );
 }
 
-const COVERS = { caesar: Caesar, "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, "sse-poster": SsePoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
+const COVERS = { "sakamoto-1996": Sakamoto, "sakamoto-type": SakamotoType, "sakamoto-frame": SakamotoFrame, caesar: Caesar, "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, "sse-poster": SsePoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
 export default function StoryCover({ name, className = "" }) {
   const C = COVERS[name] ?? Record;
   // 위치(position)는 부르는 쪽이 정하면 그대로 — 기본 relative 를 같이 두면 CSS 순서상 relative 가 이겨서

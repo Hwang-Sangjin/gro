@@ -9,7 +9,18 @@ export const CATEGORIES = [
 ];
 export const categoryName = (key) => CATEGORIES.find((c) => c.key === key)?.name ?? key;
 
+// 목록·Next story·Home 모두 최신순 (배열에 넣는 순서와 상관없이 날짜로 정렬)
 export const STORIES = [
+  {
+    slug: "ryuichi-sakamoto-1996",
+    category: "news",
+    title: "Ryuichi Sakamoto, 1996",
+    dek: "피아노·첼로·바이올린으로 다시 연주한 사카모토의 영화음악, 1996이 30주년 2LP로 다시 나와요. 곡마다 흐르던 영화 장면과 그의 음악 인생까지.",
+    date: "2026-11-22",
+    read: "7 min",
+    cover: "sakamoto-1996",
+    homeArt: "reissue",
+  },
   {
     slug: "sse-pbr-fest",
     category: "news",
@@ -70,7 +81,7 @@ export const STORIES = [
     cover: "a-to-z-01",
     homeArt: "care",
   },
-];
+].sort((a, b) => b.date.localeCompare(a.date));
 
 export const getStory = (slug) => STORIES.find((s) => s.slug === slug) ?? null;
 export const nextStory = (slug) => {
