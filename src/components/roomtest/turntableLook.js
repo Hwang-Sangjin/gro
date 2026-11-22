@@ -5,6 +5,7 @@
 //  - 움직이는 빛: 마우스를 따라 반사가 돌고(envTurn), 턴테이블을 비추는 조명이 조금 움직임(keyShift) · 그 조명이 그림자를 만듦(판 · 톤암 → 플래터 · 데크)
 //  - 방이 지어진 뒤에는 반사 세기를 낮춤(room) → 구운 방 안에서 혼자 번쩍이지 않게
 import * as THREE from "three";
+import { addTurntableDetails } from "./turntableDetails";
 
 export const TT_LOOK = {
   body: "#c9bca0",               // 본체 색 (무광 크림. 무대 조명을 받으면 하얗게 날아가서 사이트 크림 #f4e7cd 보다 꽤 낮춤)
@@ -69,6 +70,8 @@ export function applyTurntableLook({ root, envMap, key, renderer, casters = [] }
     if (m) o.material = m;
     if (!o.material.transparent) { o.castShadow = true; o.receiveShadow = true; }
   });
+  // 덧붙이는 부품 (노브 · 버튼 · 인쇄 · 스트로브 · 피치 · 명판 — turntableDetails.js). 같은 반사 · 그림자 규칙을 받음
+  const details = addTurntableDetails({ root, P, track: (m) => { m.envMap = envMap; m.envMapIntensity = TT_LOOK.env; mats.push(m); } });
   // 조명 하나가 그림자를 만듦 (턴테이블 부품 · 판만 드리움 — 방의 구운 재질은 그림자를 받지 않음)
   if (key) {
     renderer.shadowMap.enabled = true;
@@ -92,6 +95,6 @@ export function applyTurntableLook({ root, envMap, key, renderer, casters = [] }
         key.target.position.copy(seat);
       }
     },
-    dispose() { for (const m of mats) m.dispose(); for (const t of owned) t.dispose(); },
+    dispose() { details.dispose(); for (const m of mats) m.dispose(); for (const t of owned) t.dispose(); },
   };
 }
