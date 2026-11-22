@@ -8,7 +8,8 @@ import * as THREE from "three";
 import { addTurntableDetails } from "./turntableDetails";
 
 export const TT_LOOK = {
-  body: "#c9bca0",               // 본체 색 (무광 크림. 무대 조명을 받으면 하얗게 날아가서 사이트 크림 #f4e7cd 보다 꽤 낮춤)
+  body: "#b9ad93",               // 본체 색 (무광 크림. 무대 조명을 받으면 하얗게 날아가서 사이트 크림 #f4e7cd 보다 꽤 낮춤)
+                                 //  (2026-11-22 #c9bca0 → 8% 낮춤. 더 낮추면(#a99c80) 따뜻한 조명 아래에서 크림이 아니라 황갈색으로 보였음)
   env: 1.7, room: 0.5,           // 반사 세기: 어두운 무대(턴테이블만 있을 때) → 방이 지어진 뒤
   envTurn: 0.7,                  // 마우스를 따라 반사가 도는 정도 (rad)
   keyShift: 0.35,                // 마우스를 따라 조명이 움직이는 거리 (m)
@@ -16,6 +17,23 @@ export const TT_LOOK = {
 };
 const hash = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
 const canvasOf = (w, h) => Object.assign(document.createElement("canvas"), { width: w, height: h });
+
+// 헤어라인: 가로로 긴 가는 줄 (아노다이징한 금속 데크) — 거칠기 · 요철에 같이 씀
+function hairlineMap() {
+  const N = 256, c = canvasOf(N, N), x = c.getContext("2d");
+  x.fillStyle = "rgb(118,118,118)"; x.fillRect(0, 0, N, N);
+  for (let y = 0; y < N; y++) {
+    let px = 0;
+    while (px < N) {
+      const len = 30 + hash(px, y) * 160, v = 80 + hash(px + 7, y * 3.1) * 90;
+      x.fillStyle = `rgba(${v},${v},${v},0.55)`; x.fillRect(px, y, len, 1);
+      px += len;
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1.5, 5);
+  return t;
+}
 
 // 잔 결(거칠기): 미세한 얼룩 · 먼지 — 매끈한 면이 플라스틱처럼 보이지 않게
 function grainMap(base, spread) {
@@ -37,7 +55,9 @@ function grainMap(base, spread) {
  */
 export function applyTurntableLook({ root, envMap, key, renderer, casters = [] }) {
   const paint = grainMap(176, 16), satin = grainMap(118, 26), rubberG = grainMap(214, 22);     // paint: 무광 도장 (거칠기 ≈ 0.66 ~ 0.72)
-  const made = new Map(), mats = [], owned = [paint, satin, rubberG];
+  const peel = grainMap(128, 120), hair = hairlineMap();   // peel: 도장면의 잔 요철 (귤껍질 결) · hair: 데크의 헤어라인
+  peel.repeat.set(18, 18);
+  const made = new Map(), mats = [], owned = [paint, satin, rubberG, peel, hair];
   const P = (o) => new THREE.MeshPhysicalMaterial(o);
   // 재질 이름(뒤의 _bakedColor · __source 는 떼고 봄) → 새 재질. src = 원래 재질 (그림 · 투명도를 이어받을 때)
   const make = (name, src) => {
@@ -45,8 +65,14 @@ export function applyTurntableLook({ root, envMap, key, renderer, casters = [] }
     const map = src.isMeshBasicMaterial ? null : src.map ?? null;     // 구운 그림은 버림, 원래 그림(플래터 무늬)은 씀
     switch (n) {
       // 본체: 무광 크림 도장 (2026-11-16 사용자 선택. 처음의 주황빛 호두나무 결 + 래커는 촌스럽다고 함 → 사이트 크림색에 가까운 무광, 60년대 오디오 느낌)
-      case "mat_tt_walnut": return P({ color: TT_LOOK.body, roughness: 1, roughnessMap: paint, metalness: 0, sheen: 0.25, sheenRoughness: 0.6, sheenColor: "#fff6e2" });
-      case "mat_tt_deck_black": return P({ color: "#101012", roughness: 1, roughnessMap: satin, metalness: 0.55, clearcoat: 0.12, clearcoatRoughness: 0.5 });
+      //  (2026-11-22 디테일) 도장면의 잔 요철 + 얇은 반광 코팅(모서리 · 윗면 가장자리에 빛이 한 줄 걸림) + 구운 그림을 틈새 그늘로만 다시 씀(aoMap — 발 · 데크 둘레가 어두워짐)
+      case "mat_tt_walnut": return P({
+        color: TT_LOOK.body, roughness: 1, roughnessMap: paint, metalness: 0, sheen: 0.25, sheenRoughness: 0.6, sheenColor: "#fff6e2",
+        bumpMap: peel, bumpScale: 0.35, clearcoat: 0.22, clearcoatRoughness: 0.42,
+        ...(src.isMeshBasicMaterial && src.map ? { aoMap: src.map, aoMapIntensity: 0.85 } : {}),
+      });
+      //  데크: 순검정 무광 → 아노다이징한 금속. 헤어라인을 따라 빛이 가로로 늘어지고, 조금 밝혀서 면이 읽히게
+      case "mat_tt_deck_black": return P({ color: "#17171a", roughness: 1, roughnessMap: hair, metalness: 0.78, bumpMap: hair, bumpScale: 0.18, clearcoat: 0.18, clearcoatRoughness: 0.38 });
       case "mat_tt_rubber": return P({ color: "#0b0b0c", map, roughness: 1, roughnessMap: rubberG, metalness: 0 });
       // (처음엔 얼룩 거칠기 그림 + 결 방향 반사를 줬는데, 큰 노브 윗면이 깨진 무늬처럼 지글거려 z-fighting 으로 보였음 → 고른 거칠기로)
       case "mat_tt_alu_brushed": return P({ color: map ? "#ffffff" : "#b4b7bc", map, roughness: 0.34, metalness: 1 });

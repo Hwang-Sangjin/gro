@@ -149,10 +149,17 @@ export function addTurntableDetails({ root, P, track }) {
     x.font = `900 ${0.0086 * px}px "Grooves Display", "Hahmlet", Georgia, serif`; x.fillText("Grooves", W / 2, H * 0.36);
     x.font = `700 ${0.0021 * px}px ${SANS}`; spaced(x, "DIRECT DRIVE  ·  STEREO TURNTABLE  ·  G-33", W / 2, H * 0.84, 0.0006 * px);
   });
-  const plate = add(new THREE.BoxGeometry(0.056, 0.0105, 0.0009), M({ color: "#b3b6bb", roughness: 0.38, metalness: 1 }), -0.146, 0.056, 0.1767 + 0.0003);
-  const plateInk = M({ map: keep(printed(0.056, 0.0105, (x, W, H, px) => { x.fillStyle = "#1b1b1d"; x.font = `700 ${0.0036 * px}px ${SANS}`; spaced(x, "GROOVES  G-33", W / 2, H / 2 + 1, 0.0011 * px); })), transparent: true, depthWrite: false, roughness: 0.5, metalness: 0.2 });
+  const plate = add(new THREE.BoxGeometry(0.056, 0.0105, 0.0009), M({ color: "#19191b", roughness: 0.4, metalness: 0.55, clearcoat: 0.3, clearcoatRoughness: 0.35 }), -0.146, 0.056, 0.1767 + 0.0003);   // 검은 아노다이징 판에 밝은 글자 (은색 판 + 어두운 글자는 어두운 방을 비춰 글자가 안 읽혔음)
+  const plateInk = M({ map: keep(printed(0.056, 0.0105, (x, W, H, px) => { x.font = `700 ${0.0036 * px}px ${SANS}`; spaced(x, "GROOVES  G-33", W / 2, H / 2 + 1, 0.0011 * px); })), transparent: true, depthWrite: false, roughness: 0.5, metalness: 0.2 });
   const plateFace = add(new THREE.PlaneGeometry(0.056, 0.0105), plateInk, 0, 0, 0.00052, plate);
   plateFace.castShadow = false;
+
+  // ── 이음 틈: 데크 둘레를 따라 가는 어두운 홈 (본체에 끼워진 판으로 보이게)
+  {
+    const hx = 0.2082, hz = 0.1599, t = 0.0011, y = DECK - 0.0002;
+    for (const [w, d, x, z] of [[hx * 2 + t, t, 0, hz], [hx * 2 + t, t, 0, -hz], [t, hz * 2 + t, hx, 0], [t, hz * 2 + t, -hx, 0]])
+      add(new THREE.BoxGeometry(w, 0.0008, d), slot, x, y, z).castShadow = false;
+  }
 
   // ── 나사: 데크 네 귀퉁이 (일자 홈)
   const screw = M({ color: "#6f7176", roughness: 0.3, metalness: 1 });
