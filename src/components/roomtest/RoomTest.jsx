@@ -643,7 +643,10 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
     // 한 장면 흐름: 방이 지어지는 동안은 착지 지점 아래로 못 내려감 (위로는 그대로 → 역재생). 다 지어지면(FREE_P) 풀림
     //  예전 칸 방식은 방이 다 지어질 때까지 페이지 스크롤 자체를 잠갔음 → 같은 느낌
     const landY = () => FLOW.travel * (pageRef.current?.clientHeight || innerHeight);
-    const holdDown = () => st.scrollFlow && st.ready && !st.free && st.k >= 1 - 1e-3 && pageTop() >= landY() - 2;
+    //  (2026-11-22 고침: 휴대폰에서 턴테이블이 보인 뒤 더 안 내려가던 것 — 휴대폰은 화소 비율이 소수(3배 등)라 scrollTop 이 착지 자리보다
+    //   1px 안쪽(예: 811.67/812)에 멈추면, 방 짓기(fwd)는 k >= 1 을 못 넘어 시작하지 않는데 여기 막기는 2px 여유로 걸려서 영영 막혔음
+    //   → 착지 판정을 같은 여유(landedAt)로 맞추고, 막기는 방이 실제로 지어지는 중(ts · tr 이 흐르는 중)일 때만)
+    const holdDown = () => st.scrollFlow && st.ready && !st.free && pageTop() >= landY() - 2 && (st.ts > 0 || st.tr > 0);
     const blockDown = (e) => { if (e.cancelable) e.preventDefault(); e.stopPropagation(); };
     const onWheel = (e) => {
       if (st.scrollFlow) {   // 휠은 페이지가 그대로 (장면은 스크롤 위치를 읽음)
@@ -2004,7 +2007,7 @@ export default function RoomTest({ heroMode = "engine", flow = "steps" } = {}) {
         st.kWas = k;
       }
       const landed = st.pPre >= b0 - (st.sleeve ? SLEEVE_HERO.landNear : 1e-4);
-      const fwd = k >= 1 && landed;
+      const fwd = (page?.scrollTop ?? 0) >= FLOW.travel * vh - 2 && landed;   // 착지 자리 2px 안쪽이면 앉은 것 (holdDown 과 같은 여유 · 소수 화소 비율)
       if (st.sleeve) {
         // sleeve Hero: 판이 앉으면 먼저 '앉은 뒤 시간'(ts: 톤암 → 덮개)이 흐르고, 그게 끝난 뒤에 방이 buildSpeed 배속으로 지어짐. 되돌리면 거꾸로
         const H = SLEEVE_HERO, lidDur = st.lid ? st.lid.closeEnd : 0;
