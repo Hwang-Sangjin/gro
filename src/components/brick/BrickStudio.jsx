@@ -92,7 +92,7 @@ export default function BrickStudio() {
   const [adj, setAdj] = useState(NO_ADJ);
   const [adjOpen, setAdjOpen] = useState(false);
   const [hover, setHover] = useState(null);
-  const [tone, setTone] = useState("brick");     // brick: 팔레트 색 / free: 이 이미지에서 뽑은 색 / true: 보정한 원래 색
+  const [tone, setTone] = useState("true");      // 기본은 원본 색. brick: 팔레트 색 / free: 이 이미지에서 뽑은 색 / true: 보정한 원래 색
   const [replay, setReplay] = useState({ color: null, nonce: 0 });
   const [cropping, setCropping] = useState(null);   // 올린 이미지 (자르기 전)
   const fileRef = useRef(null);
