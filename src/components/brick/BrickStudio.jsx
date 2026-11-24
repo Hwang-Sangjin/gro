@@ -92,6 +92,7 @@ export default function BrickStudio() {
   const [adj, setAdj] = useState(NO_ADJ);
   const [adjOpen, setAdjOpen] = useState(false);
   const [hover, setHover] = useState(null);
+  const [tone, setTone] = useState("brick");     // brick: 팔레트 색 / true: 보정한 원래 색
   const [replay, setReplay] = useState({ color: null, nonce: 0 });
   const [cropping, setCropping] = useState(null);   // 올린 이미지 (자르기 전)
   const fileRef = useRef(null);
@@ -119,6 +120,8 @@ export default function BrickStudio() {
   }, [source]);
 
   const mosaic = useMemo(() => (pixels ? buildMosaic(pixels, N, adj) : null), [pixels, adj]);
+  // 판에 그릴 색 — 개수(counts)는 늘 브릭 색 기준
+  const board = useMemo(() => (mosaic ? { ...mosaic, colors: tone === "true" ? mosaic.trueColors : mosaic.colors } : null), [mosaic, tone]);
   const total = N * N;
   const countOf = (index) => mosaic?.counts.find((c) => c.index === index)?.count ?? 0;
 
@@ -154,18 +157,26 @@ export default function BrickStudio() {
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-10">
           <section aria-label="Brick board" className="min-w-0">
             <div data-on={shown} className="mx-auto w-full max-w-[min(100%,calc(100svh-var(--ct-header-h,106px)-190px))] min-w-[260px] opacity-0 transition-opacity duration-300 data-[on=true]:opacity-100">
-              <BrickCanvas className="aspect-square w-full" show={shown} mosaic={mosaic} sourceKey={source?.key} hover={hover} replay={replay} n={N} />
-              <div className="mt-4 flex items-center justify-between gap-4">
+              <BrickCanvas className="aspect-square w-full" show={shown} mosaic={board} sourceKey={source?.key} hover={hover} replay={replay} n={N} />
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
                 {/* 색 목록에서 가리킨 색 / 아니면 지금 이미지 */}
-                <p aria-live="polite" className="min-w-0 truncate text-[13px] text-(--ink)/65">
+                <p aria-live="polite" className="min-w-48 flex-1 basis-0 truncate text-[13px] text-(--ink)/65">
                   {hp ? (
                     <span className="inline-flex items-center gap-2.5"><Swatch hex={hp.hex} className="size-[18px]" /><span className="font-medium text-(--ink)">{hp.name}</span><span className="tabular-nums">{countOf(hover)}개</span></span>
                   ) : source ? (
                     <><span className="font-medium text-(--ink)">{source.title}</span>{source.sub ? ` — ${source.sub}` : ""}</>
                   ) : null}
                 </p>
-                <button type="button" onClick={() => setReplay((r) => ({ color: null, nonce: r.nonce + 1 }))}
-                  className="min-h-11 shrink-0 rounded-full border border-(--ink)/40 px-5 text-[12px] font-medium uppercase tracking-[0.18em] transition-colors hover:border-(--ink)">↻ 다시 끼우기</button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <div role="radiogroup" aria-label="판 색" className="inline-flex rounded-full border border-(--ink)/40 p-1">
+                    {[["brick", "브릭 색"], ["true", "원본 색"]].map(([v, l]) => (
+                      <button key={v} type="button" role="radio" aria-checked={tone === v} onClick={() => setTone(v)}
+                        className="min-h-9 rounded-full px-3.5 text-[12px] font-medium tracking-[0.04em] aria-checked:bg-(--ink) aria-checked:text-(--cream)">{l}</button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => setReplay((r) => ({ color: null, nonce: r.nonce + 1 }))}
+                    className="min-h-11 rounded-full border border-(--ink)/40 px-5 text-[12px] font-medium uppercase tracking-[0.18em] transition-colors hover:border-(--ink)">↻ 다시 끼우기</button>
+                </div>
               </div>
               {error && <p role="alert" className="mt-2 text-[13px] text-(--accent)">{error}</p>}
             </div>
@@ -173,7 +184,7 @@ export default function BrickStudio() {
 
           {/* 필요한 브릭 — 판 아래, 여러 줄로 */}
           <section aria-label="Bricks needed">
-            <Heading n="03" title="Bricks" note="1×1 플레이트 · 색마다 예비 5%" />
+            <Heading n="03" title="Bricks" note={tone === "true" ? "원본 색으로 보는 중 · 개수는 브릭 색 기준" : "1×1 플레이트 · 색마다 예비 5%"} />
             <Reveal as="ul" i={1} className="grid grid-cols-[repeat(auto-fill,minmax(228px,1fr))] gap-x-8" onPointerLeave={() => setHover(null)}>
               {mosaic?.counts.map(({ index, count }) => {
                 const p = PALETTE[index];

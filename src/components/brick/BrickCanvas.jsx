@@ -1,11 +1,11 @@
 "use client";
 // Brick 2D 판 — 32×32 칸을 평평한 브릭으로 그림 (네모 + 가운데 둥근 스터드, 위는 밝게 · 아래는 그림자)
 // - 처음/새 이미지: 많은 색부터 브릭이 위에서 눌러 끼워지듯 톡 나타남 (새 이미지면 이전 그림 위에 덮임)
-// - 보정만 바뀜: 색이 바뀐 칸만 다시 끼워짐
+// - mosaic: { cells(팔레트 번호), counts, colors(칸마다 그릴 hex — 브릭 색 또는 원본 색) }
+// - 보정이나 색 보기만 바뀜: 색이 바뀐 칸만 다시 끼워짐
 // - hover(팔레트 번호): 그 색 브릭만 살짝 떠오르고 나머지는 어두워짐
 // - replay: { color: 번호 | null(전체), nonce } — 다시 끼우기 (판 자체는 마우스에 반응하지 않음)
 import { useEffect, useRef } from "react";
-import { PALETTE } from "@/lib/brick/palette";
 
 const DROP = 0.38;          // 브릭 하나가 끼워지는 시간(초)
 const PLATE = "#2b242b";    // 빈 판(아직 브릭이 없는 칸)
@@ -74,7 +74,7 @@ export default function BrickCanvas({ mosaic, sourceKey, hover = null, replay, n
   const cv = useRef(null);
   const st = useRef(null);
   if (!st.current) st.current = {
-    cells: null, under: new Int16Array(n * n).fill(-1), start: new Float32Array(n * n).fill(-1),
+    cells: null, colors: null, under: new Array(n * n).fill(null), start: new Float32Array(n * n).fill(-1),
     lift: new Float32Array(n * n), dim: new Float32Array(n * n), hover: null,
     size: 0, dpr: 1, tile: null, raf: 0, lastKey: null, waiting: false,
   };
@@ -123,14 +123,14 @@ export default function BrickCanvas({ mosaic, sourceKey, hover = null, replay, n
         const start = s.start[i];
         const k = !s.cells ? 0 : start === -2 ? 1 : start < 0 ? 0 : Math.min(1, Math.max(0, (t - start) / DROP));
         if (k < 1) {
-          drawBrick(x, y, u < 0 ? PLATE : PALETTE[u].hex, 1, 1, 0);
+          drawBrick(x, y, u ?? PLATE, 1, 1, 0);
           if (start >= 0) busy = true;
         }
         if (k > 0) {
           const e = easeOutBack(k);
           const scale = 1 + (1 - e) * 0.55 + s.lift[i] * 0.07;
-          drawBrick(x, y, PALETTE[s.cells[i]].hex, scale, Math.min(1, k * 2.5), Math.max(s.lift[i], (scale - 1) * 2.2));
-          if (k >= 1 && start !== -2) { s.start[i] = -2; s.under[i] = s.cells[i]; }
+          drawBrick(x, y, s.colors[i], scale, Math.min(1, k * 2.5), Math.max(s.lift[i], (scale - 1) * 2.2));
+          if (k >= 1 && start !== -2) { s.start[i] = -2; s.under[i] = s.colors[i]; }
         }
         const dim = s.dim[i];
         if (dim > 0.01) { g.globalAlpha = dim; g.fillStyle = GAP; g.fillRect(x, y, cell, cell); g.globalAlpha = 1; }
@@ -161,7 +161,7 @@ export default function BrickCanvas({ mosaic, sourceKey, hover = null, replay, n
   useEffect(() => {
     if (!mosaic) return;
     const s = st.current;
-    const { cells, counts } = mosaic;
+    const { cells, counts, colors } = mosaic;
     const t = now();
     const red = reduced.current;
     const settled = () => new Float32Array(cells.length).fill(-2);
@@ -170,16 +170,17 @@ export default function BrickCanvas({ mosaic, sourceKey, hover = null, replay, n
       s.start = red ? settled() : s.waiting ? new Float32Array(cells.length).fill(-1) : schedule(cells, counts, t + 0.35);
     } else if (s.lastKey !== sourceKey) {
       // 다른 이미지 → 지금 그림 위로 새 브릭이 덮임
-      if (s.cells) for (let i = 0; i < cells.length; i++) if (s.start[i] === -2) s.under[i] = s.cells[i];
+      if (s.colors) for (let i = 0; i < cells.length; i++) if (s.start[i] === -2) s.under[i] = s.colors[i];
       s.start = red ? settled() : schedule(cells, counts, t + 0.05);
     } else {
-      // 보정만 바뀜 → 바뀐 칸만
-      const changed = s.cells ? cells.map((c, i) => (c !== s.cells[i] ? 1 : 0)) : null;
-      if (s.cells) for (let i = 0; i < cells.length; i++) if (changed?.[i]) s.under[i] = s.cells[i];
+      // 보정·색 보기만 바뀜 → 색이 바뀐 칸만
+      const changed = s.colors ? colors.map((c, i) => (c !== s.colors[i] ? 1 : 0)) : null;
+      if (s.colors) for (let i = 0; i < cells.length; i++) if (changed?.[i]) s.under[i] = s.colors[i];
       s.start = red ? settled() : schedule(cells, counts, t, null, changed);
     }
-    if (red) s.under = Int16Array.from(cells);
+    if (red) s.under = colors.slice();
     s.cells = cells;
+    s.colors = colors;
     s.lastKey = sourceKey;
     kick.current();
   }, [mosaic]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -200,7 +201,7 @@ export default function BrickCanvas({ mosaic, sourceKey, hover = null, replay, n
     const start = schedule(s.cells, mosaic.counts, now() + 0.1, replay.color);
     for (let i = 0; i < start.length; i++) {
       if (replay.color != null && s.cells[i] !== replay.color) start[i] = s.start[i] === -2 ? -2 : s.start[i];
-      else s.under[i] = -1;
+      else s.under[i] = null;
     }
     s.start = start;
     kick.current();
