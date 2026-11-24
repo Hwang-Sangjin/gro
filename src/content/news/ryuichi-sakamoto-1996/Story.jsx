@@ -259,22 +259,24 @@ const MOTIF = {
     </g>
   ),
 };
-// img 가 있으면 사용자가 준 장면 그림(16:9 손그림). 그림은 선만 남긴 마스크(밝기 → 투명도, *-mask.webp)라
-//  바탕은 페이지색(--cream: 밝은 테마 크림 · 다크 브라운), 선은 --cover-art(밝은 테마 푸른색 · 다크 옅은 하늘색)로 테마를 따라감
+// img 가 있으면 사용자가 준 장면 그림(16:9 손그림). 그림은 선만 남긴 마스크(밝기 → 투명도, *-mask.webp)
+//  스크래치보드 그림(어두운 면에서 밝은 선을 긁어낸 것)이라 바탕이 밝으면 네거티브처럼 보임 → 두 테마 모두 브라운 바탕 + 옅은 하늘색 선
+//  (2026-11-24 사용자 선택 A: 밝은 테마에서도 카드만 어두운 섬으로. 밝은 테마용 그림이 따로 생기면 그때 바꿈)
+const SCENE = { bg: "#4c404a", line: "#bbcbda", text: "#f4e7cd" };
 //  없으면 SVG 모티프(2.39:1, 검은 프레임)
 function SceneArt({ img }) {
   const mask = { maskImage: `url(${img})`, WebkitMaskImage: `url(${img})`, maskSize: "cover", WebkitMaskSize: "cover", maskPosition: "center", WebkitMaskPosition: "center", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" };
   return (
-    <div className="relative aspect-video w-full bg-(--cream)">
-      <div className="absolute inset-0 bg-(--cover-art)" style={mask} />
+    <div className="relative aspect-video w-full" style={{ background: SCENE.bg }}>
+      <div className="absolute inset-0" style={{ ...mask, background: SCENE.line }} />
     </div>
   );
 }
 function Frame({ motif, sub, img }) {
   if (img) return (
-    <div className="relative overflow-hidden rounded-[3px] ring-1 ring-(--ink)/15">
+    <div className="relative overflow-hidden rounded-[3px] shadow-[0_30px_60px_-34px_rgba(0,0,0,.55)] ring-1 ring-white/10">
       <SceneArt img={img} />
-      <p aria-hidden="true" className="absolute inset-x-0 bottom-[6%] text-center font-['Hahmlet',serif] text-[clamp(10px,1.2vw,14px)] font-semibold text-(--ink)">{sub}</p>
+      <p aria-hidden="true" className="absolute inset-x-0 bottom-[6%] text-center font-['Hahmlet',serif] text-[clamp(10px,1.2vw,14px)] font-semibold [text-shadow:0_1px_3px_#2a222a]" style={{ color: SCENE.text }}>{sub}</p>
     </div>
   );
   return (
