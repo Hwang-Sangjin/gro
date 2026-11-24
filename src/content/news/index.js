@@ -10,9 +10,11 @@ export const CATEGORIES = [
 export const categoryName = (key) => CATEGORIES.find((c) => c.key === key)?.name ?? key;
 
 // 목록·Next story·Home 모두 최신순 (배열에 넣는 순서와 상관없이 날짜로 정렬)
-export const STORIES = [
+// draft: true = 테스트용. 목록 · Home · sitemap · Next story 에는 안 나오고, 주소(/news/<slug>)로만 열림 (검색엔진 noindex)
+const ALL = [
   {
     slug: "how-a-turntable-works",
+    draft: true,   // 2026-11-24 사용자: 아직 공개할 품질이 아님 → 테스트용
     category: "guide",
     title: "How a Turntable Works",
     dek: "플래터, 톤암, 카운터웨이트, 안티스케이팅 — Grooves의 턴테이블을 스크롤하며 부품 하나씩 살펴봐요. Vinyl A to Z 네 번째 이야기.",
@@ -92,8 +94,9 @@ export const STORIES = [
     homeArt: "care",
   },
 ].sort((a, b) => b.date.localeCompare(a.date));
+export const STORIES = ALL.filter((s) => !s.draft);
 
-export const getStory = (slug) => STORIES.find((s) => s.slug === slug) ?? null;
+export const getStory = (slug) => ALL.find((s) => s.slug === slug) ?? null;
 export const nextStory = (slug) => {
   const i = STORIES.findIndex((s) => s.slug === slug);
   return STORIES[(i + 1) % STORIES.length];

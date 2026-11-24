@@ -13,6 +13,7 @@ export async function generateMetadata({ params }) {
   const s = getStory(slug);
   return s ? {
     title: `${s.title} · Grooves`, description: s.dek,
+    ...(s.draft ? { robots: { index: false, follow: false } } : {}),   // 테스트용 글은 검색에 안 나오게
     // 스토리 전용 이미지는 News 개편 때 — 그때까지 사이트 대표 이미지 (openGraph 를 덮어쓰면 상위 이미지가 빠지므로 직접 지정)
     openGraph: { type: "article", siteName: "Grooves", title: s.title, description: s.dek, publishedTime: s.date, images: [{ url: "/opengraph-image", width: 1200, height: 630 }] },
   } : {};
