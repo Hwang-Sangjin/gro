@@ -12,6 +12,16 @@ export const categoryName = (key) => CATEGORIES.find((c) => c.key === key)?.name
 // 목록·Next story·Home 모두 최신순 (배열에 넣는 순서와 상관없이 날짜로 정렬)
 export const STORIES = [
   {
+    slug: "how-a-turntable-works",
+    category: "guide",
+    title: "How a Turntable Works",
+    dek: "플래터, 톤암, 카운터웨이트, 안티스케이팅 — Grooves의 턴테이블을 스크롤하며 부품 하나씩 살펴봐요. Vinyl A to Z 네 번째 이야기.",
+    date: "2026-11-24",
+    read: "5 min",
+    cover: "a-to-z-04",
+    homeArt: "care",
+  },
+  {
     slug: "ryuichi-sakamoto-1996",
     category: "news",
     title: "Ryuichi Sakamoto, 1996",

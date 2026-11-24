@@ -197,7 +197,31 @@ function AtoZ02() {
   );
 }
 
-const COVERS = { "sakamoto-portrait": SakamotoPortrait, "sakamoto-1996": Sakamoto, "sakamoto-type": SakamotoType, "sakamoto-frame": SakamotoFrame, caesar: Caesar, "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, "sse-poster": SsePoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
+// 04: 위에서 내려다본 턴테이블 선화 (본체 · 플래터 · 판 홈 · 톤암 · 카운터웨이트) — 다른 회차처럼 테마 색(--cover-art)으로
+function AtoZ04() {
+  const line = { fill: "none", stroke: "var(--cover-art)", strokeWidth: 3, strokeLinecap: "round", strokeLinejoin: "round" };
+  return (
+    <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
+      <rect width="400" height="400" style={{ fill: "var(--cover-bg)" }} />
+      <g transform="translate(200 205) rotate(-8)">
+        <rect x="-150" y="-112" width="300" height="224" rx="14" style={line} />
+        <circle cx="-30" cy="-4" r="98" style={line} />
+        {[86, 72, 58, 44].map((r) => <circle key={r} cx="-30" cy="-4" r={r} style={{ ...line, strokeWidth: 1.2, opacity: 0.55 }} />)}
+        <circle cx="-30" cy="-4" r="30" style={{ fill: "var(--cover-art)", opacity: 0.85 }} />
+        <circle cx="-30" cy="-4" r="3" style={{ fill: "var(--cover-bg)" }} />
+        <circle cx="104" cy="-66" r="14" style={line} />
+        <path d="M104 -66 L112 -96 M104 -66 L86 20 L58 44" style={{ ...line, strokeWidth: 3.5 }} />
+        <rect x="100" y="-112" width="16" height="20" rx="4" style={line} />
+        <path d="M50 38 l14 14" style={{ ...line, strokeWidth: 5 }} />
+        <circle cx="-122" cy="84" r="9" style={line} /><circle cx="-98" cy="92" r="5" style={line} /><circle cx="-80" cy="92" r="5" style={line} />
+      </g>
+      <text x="28" y="44" fontFamily="Hahmlet, Arial, sans-serif" fontSize="13" fontWeight="600" letterSpacing="3.2" style={{ fill: "var(--accent)" }}>VINYL A TO Z</text>
+      <text x="374" y="376" textAnchor="end" fontFamily="Grooves Display, Hahmlet, Georgia, serif" fontWeight="900" fontSize="88" letterSpacing="-1" style={{ fill: "var(--ink)" }}>04</text>
+    </svg>
+  );
+}
+
+const COVERS = { "sakamoto-portrait": SakamotoPortrait, "sakamoto-1996": Sakamoto, "sakamoto-type": SakamotoType, "sakamoto-frame": SakamotoFrame, caesar: Caesar, "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, "sse-poster": SsePoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02, "a-to-z-04": AtoZ04 };
 export default function StoryCover({ name, className = "" }) {
   const C = COVERS[name] ?? Record;
   // 위치(position)는 부르는 쪽이 정하면 그대로 — 기본 relative 를 같이 두면 CSS 순서상 relative 가 이겨서
