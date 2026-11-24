@@ -259,10 +259,13 @@ const MOTIF = {
     </g>
   ),
 };
-function Frame({ motif, sub }) {
+// img 가 있으면 사용자가 준 장면 그림(16:9, 손그림 톤)을 그대로, 없으면 SVG 모티프(2.39:1)
+function Frame({ motif, sub, img }) {
   return (
     <div className="relative overflow-hidden rounded-[3px] bg-[#141114] shadow-[0_30px_60px_-34px_rgba(0,0,0,.7)]">
-      <svg viewBox="0 0 240 100" className="block h-auto w-full" aria-hidden="true">{MOTIF[motif]}</svg>
+      {img
+        ? <img src={img} alt="" loading="lazy" decoding="async" draggable={false} className="block aspect-video h-auto w-full select-none object-cover" />
+        : <svg viewBox="0 0 240 100" className="block h-auto w-full" aria-hidden="true">{MOTIF[motif]}</svg>}
       <span aria-hidden="true" className="absolute inset-x-0 top-0 h-[7%] bg-black" />
       <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[7%] bg-black" />
       <p aria-hidden="true" className="absolute inset-x-0 bottom-[11%] text-center font-['Hahmlet',serif] text-[clamp(10px,1.2vw,14px)] font-semibold text-[#f6e9a8] [text-shadow:0_1px_2px_#000]">{sub}</p>
@@ -270,25 +273,26 @@ function Frame({ motif, sub }) {
   );
 }
 
-// 추천 4곡. v: 공식 "Ryuichi Sakamoto - Topic" 채널 영상 ID
+// 추천 4곡. v: 공식 "Ryuichi Sakamoto - Topic" 채널 영상 ID · img: 사용자가 준 장면 그림 (2026-11-24, 1280px webp)
+const FILM_IMG = (name) => `/images/news/ryuichi-sakamoto-1996/films/${name}.webp`;
 const PICKS = [
   {
-    motif: "stars", side: "B2", track: "Merry Christmas Mr. Lawrence", film: "전장의 크리스마스 · 1983", sub: "“Merry Christmas, Mr. Lawrence.”", v: "1OZDaRhHHyM",
+    motif: "stars", side: "B2", track: "Merry Christmas Mr. Lawrence", film: "전장의 크리스마스 · 1983", sub: "“Merry Christmas, Mr. Lawrence.”", v: "1OZDaRhHHyM", img: FILM_IMG("merry-christmas"),
     scene: "처형을 앞둔 하라 상사가 로렌스에게 웃으며 인사를 건네는 마지막 장면.",
     listen: "신시사이저 대신 피아노가 멜로디를 쥐어 더 느리고 쓸쓸해요.",
   },
   {
-    motif: "rain", side: "A2", track: "Rain", film: "마지막 황제 · 1987", sub: "♪ Rain", v: "PY5LQQlvWLE",
+    motif: "rain", side: "A2", track: "Rain", film: "마지막 황제 · 1987", sub: "♪ Rain", v: "PY5LQQlvWLE", img: FILM_IMG("last-emperor"),
     scene: "후궁 원슈가 푸이를 떠나 빗속으로 걸어 나가는 장면.",
     listen: "현이 빗줄기처럼 몰아치는, 앨범에서 가장 숨 가쁜 곡.",
   },
   {
-    motif: "dunes", side: "B4", track: "The Sheltering Sky", film: "The Sheltering Sky · 1990", sub: "♪ The Sheltering Sky", v: "5kY57A4DYO8",
+    motif: "dunes", side: "B4", track: "The Sheltering Sky", film: "The Sheltering Sky · 1990", sub: "♪ The Sheltering Sky", v: "5kY57A4DYO8", img: FILM_IMG("sheltering-sky"),
     scene: "북아프리카 사막, 끝없는 모래 언덕과 넓은 하늘.",
     listen: "첼로가 길게 끄는 첫 음부터 사막의 열기가 느껴져요.",
   },
   {
-    motif: "city", side: "A3", track: "Bibo no Aozora", film: "바벨 · 2006", sub: "♪ Bibo no Aozora", v: "wku3rL_Tf4A",
+    motif: "city", side: "A3", track: "Bibo no Aozora", film: "바벨 · 2006", sub: "♪ Bibo no Aozora", v: "wku3rL_Tf4A", img: FILM_IMG("babel"),
     scene: "도쿄의 발코니에서 아버지와 딸이 서로를 안는 마지막 장면.",
     listen: "바이올린이 노래하듯 멜로디를 이끌어요.",
   },
@@ -299,7 +303,7 @@ function Pick({ p, i, playing, onPlay }) {
   return (
     <Reveal as="li" delay={(i % 2) * 140}>
       <button type="button" onClick={() => onPlay(on ? null : p)} aria-label={`${p.track} ${on ? "멈추기" : "재생"}`} className="group relative block w-full text-left">
-        <Frame motif={p.motif} sub={p.sub} />
+        <Frame motif={p.motif} sub={p.sub} img={p.img} />
         <span aria-hidden="true" className={`absolute right-3 top-[12%] grid size-11 place-items-center rounded-full text-(--ink) shadow-lg transition-[scale,background-color] duration-300 group-hover:scale-110 ${on ? "bg-[#7fc1bd]" : "bg-(--cream)"}`}>
           {on ? <svg viewBox="0 0 16 16" className="size-4" fill="currentColor"><rect x="4" y="3" width="3" height="10" /><rect x="9" y="3" width="3" height="10" /></svg>
             : <svg viewBox="0 0 16 16" className="ml-0.5 size-4" fill="currentColor"><path d="M4 2.5v11l9-5.5z" /></svg>}
@@ -432,7 +436,7 @@ export default function Story() {
           <Link href="/collection" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-(--cream) px-8 text-[12px] font-medium uppercase tracking-[0.2em] text-(--ink) transition-colors hover:bg-(--accent) hover:text-(--cream)">Open Collection <span aria-hidden="true">→</span></Link>
         </div>
       </section>
-      <p className={`${WRAP} pb-10 pt-8 text-center text-[11px] text-(--ink)/45`}>발매 정보 출처: 예스24. 앨범 정보: Milan Records 30주년 에디션 소개, 원반 크레딧. 발매 일정과 가격은 바뀔 수 있으니 판매처를 확인하세요. 영화 장면 그림은 Grooves가 그린 일러스트예요.</p>
+      <p className={`${WRAP} pb-10 pt-8 text-center text-[11px] text-(--ink)/45`}>발매 정보 출처: 예스24. 앨범 정보: Milan Records 30주년 에디션 소개, 원반 크레딧. 발매 일정과 가격은 바뀔 수 있으니 판매처를 확인하세요. 영화 장면 그림은 Grooves의 일러스트예요.</p>
     </>
   );
 }
