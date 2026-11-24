@@ -8,7 +8,7 @@ import useLabReveal from "@/components/lab/useLabReveal";
 import GrooveText from "@/components/lab/GrooveText";
 import { SERIF, LABEL, ShownCtx, Reveal, Heading } from "@/components/lab/LabUI";
 import { PALETTE } from "@/lib/brick/palette";
-import { sampleImage, buildMosaic } from "@/lib/brick/mosaic";
+import { sampleImage, buildMosaic, FREE_DEFAULT } from "@/lib/brick/mosaic";
 import BrickCanvas from "./BrickCanvas";
 import CropDialog from "./CropDialog";
 
@@ -92,7 +92,7 @@ export default function BrickStudio() {
   const [adj, setAdj] = useState(NO_ADJ);
   const [adjOpen, setAdjOpen] = useState(false);
   const [hover, setHover] = useState(null);
-  const [tone, setTone] = useState("brick");     // brick: 팔레트 색 / true: 보정한 원래 색
+  const [tone, setTone] = useState("brick");     // brick: 팔레트 색 / free: 이 이미지에서 뽑은 색 / true: 보정한 원래 색
   const [replay, setReplay] = useState({ color: null, nonce: 0 });
   const [cropping, setCropping] = useState(null);   // 올린 이미지 (자르기 전)
   const fileRef = useRef(null);
@@ -120,10 +120,15 @@ export default function BrickStudio() {
   }, [source]);
 
   const mosaic = useMemo(() => (pixels ? buildMosaic(pixels, N, adj) : null), [pixels, adj]);
-  // 판에 그릴 색 — 개수(counts)는 늘 브릭 색 기준
-  const board = useMemo(() => (mosaic ? { ...mosaic, colors: tone === "true" ? mosaic.trueColors : mosaic.colors } : null), [mosaic, tone]);
+  // 판에 그릴 칸·색과 목록 — 자유 색이면 이미지에서 뽑은 색, 원본 색이면 그림만 원래 색이고 개수는 브릭 색 기준
+  const board = useMemo(() => {
+    if (!mosaic) return null;
+    if (tone === "free") return mosaic.free;
+    return { cells: mosaic.cells, counts: mosaic.counts, colors: tone === "true" ? mosaic.trueColors : mosaic.colors, swatches: PALETTE };
+  }, [mosaic, tone]);
+  useEffect(() => setHover(null), [tone]);   // 색 번호가 보기마다 달라서
   const total = N * N;
-  const countOf = (index) => mosaic?.counts.find((c) => c.index === index)?.count ?? 0;
+  const countOf = (index) => board?.counts.find((c) => c.index === index)?.count ?? 0;
 
   const onFile = async (file) => {
     if (!file || !file.type.startsWith("image/")) return;
@@ -134,7 +139,7 @@ export default function BrickStudio() {
   // 자르기 창을 닫으면 임시 주소는 버려요 (이미지는 이미 읽혀 있어서 판에는 영향 없음)
   const closeCrop = () => { if (cropping?.url) URL.revokeObjectURL(cropping.url); setCropping(null); };
   const set = (k) => (v) => setAdj((a) => ({ ...a, [k]: v }));
-  const hp = hover != null ? PALETTE[hover] : null;
+  const hp = hover != null ? board?.swatches[hover] : null;
 
   return (
     <ShownCtx.Provider value={shown}>
@@ -148,7 +153,7 @@ export default function BrickStudio() {
         <p className="max-w-[46ch] break-keep text-[13px] leading-6 text-(--ink)/70 max-md:hidden">앨범 커버나 내 사진을 브릭 판으로 만들고, 어떤 색이 몇 개 필요한지 바로 확인해요.</p>
         <p className="text-right text-[11px] uppercase tracking-[0.2em] text-(--ink)/65 tabular-nums">
           <span className={`${SERIF} mr-3 text-[clamp(1.4rem,2.2vw,2rem)] normal-case tracking-normal text-(--ink)`}>32 × 32</span>
-          {total.toLocaleString()} bricks{mosaic ? ` · ${mosaic.counts.length} colors` : ""}
+          {total.toLocaleString()} bricks{board ? ` · ${board.counts.length} colors` : ""}
         </p>
       </header>
 
@@ -169,7 +174,7 @@ export default function BrickStudio() {
                 </p>
                 <div className="flex shrink-0 items-center gap-2">
                   <div role="radiogroup" aria-label="판 색" className="inline-flex rounded-full border border-(--ink)/40 p-1">
-                    {[["brick", "브릭 색"], ["true", "원본 색"]].map(([v, l]) => (
+                    {[["brick", "브릭 색"], ["free", "자유 색"], ["true", "원본 색"]].map(([v, l]) => (
                       <button key={v} type="button" role="radio" aria-checked={tone === v} onClick={() => setTone(v)}
                         className="min-h-9 rounded-full px-3.5 text-[12px] font-medium tracking-[0.04em] aria-checked:bg-(--ink) aria-checked:text-(--cream)">{l}</button>
                     ))}
@@ -184,17 +189,17 @@ export default function BrickStudio() {
 
           {/* 필요한 브릭 — 판 아래, 여러 줄로 */}
           <section aria-label="Bricks needed">
-            <Heading n="03" title="Bricks" note={tone === "true" ? "원본 색으로 보는 중 · 개수는 브릭 색 기준" : "1×1 플레이트 · 색마다 예비 5%"} />
+            <Heading n="03" title="Bricks" note={tone === "true" ? "원본 색으로 보는 중 · 개수는 브릭 색 기준" : tone === "free" ? "이 이미지에서 뽑은 색 · 실제 브릭 색은 아니에요" : "1×1 플레이트 · 색마다 예비 5%"} />
             <Reveal as="ul" i={1} className="grid grid-cols-[repeat(auto-fill,minmax(228px,1fr))] gap-x-8" onPointerLeave={() => setHover(null)}>
-              {mosaic?.counts.map(({ index, count }) => {
-                const p = PALETTE[index];
+              {board?.counts.map(({ index, count }) => {
+                const p = board.swatches[index];
                 return (
                   <li key={index} className="border-b border-dashed border-(--ink)/25">
                     <button type="button" onPointerEnter={() => setHover(index)} onFocus={() => setHover(index)} onBlur={() => setHover(null)}
                       onClick={() => setReplay((r) => ({ color: index, nonce: r.nonce + 1 }))} aria-pressed={hover === index}
                       className="grid w-full grid-cols-[22px_1fr_auto] items-center gap-3 border-l-[3px] border-transparent py-2.5 pl-2.5 text-left transition-colors hover:border-(--accent) aria-pressed:border-(--accent)">
                       <Swatch hex={p.hex} className="size-[22px]" />
-                      <span className="truncate text-[14px] leading-none">{p.name}</span>
+                      <span className={`truncate text-[14px] leading-none ${tone === "free" ? "font-mono text-[13px] tracking-[0.04em]" : ""}`}>{p.name}</span>
                       <span className="flex items-baseline gap-2 tabular-nums">
                         <span className={`${SERIF} text-[22px] leading-none`}>{count}</span>
                         <span className="w-7 text-[11px] text-(--ink)/45">+{Math.ceil(count * SPARE)}</span>
@@ -208,7 +213,7 @@ export default function BrickStudio() {
               <p className="max-w-[52ch] break-keep text-[12px] leading-5 text-(--ink)/55">색 이름을 가리키면 판에서 그 색 브릭이 떠올라요. 색 이름을 누르면 그 색만 다시 끼워요.</p>
               <div className="flex items-end gap-4">
                 <p className={LABEL}>Total <span className="normal-case tracking-normal text-(--ink)/45">· {total.toLocaleString()} + 예비</span></p>
-                <p className={`${SERIF} text-[2.4rem] leading-none tabular-nums`}>{mosaic ? mosaic.counts.reduce((s, c) => s + withSpare(c.count), 0).toLocaleString() : "—"}</p>
+                <p className={`${SERIF} text-[2.4rem] leading-none tabular-nums`}>{board ? board.counts.reduce((s, c) => s + withSpare(c.count), 0).toLocaleString() : "—"}</p>
               </div>
             </Reveal>
           </section>
@@ -285,7 +290,7 @@ export default function BrickStudio() {
                 <Reveal as="label" i={4} className="grid grid-cols-[56px_1fr] items-center gap-3 border-b border-dashed border-(--ink)/25 py-2.5 text-[13px]">
                   <span className="text-(--ink)/70">색 수</span>
                   <select value={adj.maxColors} onChange={(e) => set("maxColors")(Number(e.target.value))} className="h-8 border-b border-(--ink)/35 bg-transparent text-[13px] outline-none focus:border-(--ink)">
-                    <option value={0}>제한 없음 ({PALETTE.length}색 중)</option>
+                    <option value={0}>{tone === "free" ? `기본 (${FREE_DEFAULT}색)` : `제한 없음 (${PALETTE.length}색 중)`}</option>
                     {[6, 8, 12, 16, 20].map((v) => <option key={v} value={v}>최대 {v}색</option>)}
                   </select>
                 </Reveal>

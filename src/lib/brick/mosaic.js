@@ -1,10 +1,11 @@
 // 이미지 → N×N 브릭 모자이크 (팔레트 색 번호 배열 + 색별 개수)
 // 1) 정사각형으로 잘라 N×N 으로 줄임 — 빛 세기(선형) 기준 평균이라 칸 색이 어두워지거나 탁해지지 않음
 // 2) 밝기·대비·채도 보정 → OKLab 으로 옮기고 채도를 살짝 올림(브릭 색으로 옮기면 빠지는 만큼)
-// 3) 가장 가까운 팔레트 색: OKLab 거리 + "색이 있는 칸이 회색으로 바뀌면" 벌점 → 회색 남발을 막음
+// 3) 가장 가까운 팔레트 색: OKLab 밝기 + 채도(빠지는 쪽을 무겁게) + 색상 → 회색 남발·색상 어긋남을 막음
 // 4) 색 수 제한: 전체 오차를 가장 많이 줄이는 색부터 하나씩 고름 → 작아도 중요한 색(눈·입술·로고)이 남음
 // 5) 디더링(선택): Floyd–Steinberg (OKLab 오차 확산)
-// 결과에 colors(팔레트 hex) 와 trueColors(보정한 원래 색 hex) 를 같이 담음 — "원본 색" 보기용
+// 결과에 colors(팔레트 hex) · trueColors(보정한 원래 색) · free(이 이미지에서 뽑은 색으로 칠한 판) 를 같이 담음
+// 6) 자유 색: 팔레트 대신 이미지에서 k 색(기본 24)을 OKLab k-means 로 뽑아 칠함 — 원본에 가깝지만 실제 브릭 색은 아님
 import { PALETTE } from "./palette";
 
 const CHROMA_BOOST = 1.1;    // 맞추기 전에 채도를 올리는 정도
@@ -42,12 +43,6 @@ function dist(src, i) {
   const dH2 = Math.max(0, da * da + db * db - dC * dC);
   return dL * dL + (dC > 0 ? W_LOSE : W_GAIN) * dC * dC + W_HUE * dH2;
 }
-function nearest(lab, allowed) {
-  let best = allowed[0], bd = Infinity;
-  for (const i of allowed) { const d = dist(lab, i); if (d < bd) { bd = d; best = i; } }
-  return best;
-}
-
 // 보정: brightness/contrast/saturation 은 -0.5..0.5 (0 = 그대로), sRGB 0..255 기준
 function adjust([r, g, b], { brightness = 0, contrast = 0, saturation = 0 }) {
   const c = 1 + contrast, s = 1 + saturation, add = brightness * 255 * 0.5;
@@ -102,7 +97,53 @@ function pickColors(labs, k) {
   return chosen;
 }
 
-// pixels(sampleImage 결과) → { cells, counts: [{index, count}] (많은 순), colors, trueColors }
+// 칠하기: 각 칸을 고른 색(allowed: labOf 의 번호들) 중 가장 가까운 색으로. 디더링이면 OKLab 오차를 이웃 칸에 나눠 줌
+function paint(labs, n, allowed, labOf, d, dither) {
+  const near = (lab) => { let best = allowed[0], bd = Infinity; for (const i of allowed) { const v = d(lab, i); if (v < bd) { bd = v; best = i; } } return best; };
+  const cells = new Uint8Array(n * n);
+  if (!dither) { for (let i = 0; i < n * n; i++) cells[i] = near(labs[i]); return cells; }
+  const err = labs.map((l) => l.slice());
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = y * n + x, want = err[i], got = near(want);
+    cells[i] = got;
+    const e = want.map((v, k) => (v - labOf[got][k]) * 0.75);   // 0.75: 너무 거칠지 않게
+    const push = (xx, yy, w) => { if (xx < 0 || xx >= n || yy >= n) return; const t = err[yy * n + xx]; for (let k = 0; k < 3; k++) t[k] += e[k] * w; };
+    push(x + 1, y, 7 / 16); push(x - 1, y + 1, 3 / 16); push(x, y + 1, 5 / 16); push(x + 1, y + 1, 1 / 16);
+  }
+  return cells;
+}
+
+// 자유 색: 이 이미지에서 k 색을 직접 뽑음 (OKLab k-means). 시작점은 고정된 난수라 보정을 바꿔도 색이 덜 흔들림
+const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+function kmeans(labs, k) {
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const n = labs.length;
+  const cs = [labs[Math.floor(rnd() * n)].slice()];
+  const dd = new Float32Array(n).fill(Infinity);
+  while (cs.length < k) {   // k-means++: 이미 고른 색에서 먼 칸일수록 뽑힐 확률이 큼
+    const last = cs[cs.length - 1];
+    let sum = 0;
+    for (let i = 0; i < n; i++) { dd[i] = Math.min(dd[i], d2(labs[i], last)); sum += dd[i]; }
+    if (sum <= 1e-9) break;
+    let r = rnd() * sum, i = 0;
+    while (i < n - 1 && (r -= dd[i]) > 0) i++;
+    cs.push(labs[i].slice());
+  }
+  const asg = new Int32Array(n);
+  for (let it = 0; it < 12; it++) {
+    for (let i = 0; i < n; i++) { let b = 0, bd = Infinity; for (let j = 0; j < cs.length; j++) { const v = d2(labs[i], cs[j]); if (v < bd) { bd = v; b = j; } } asg[i] = b; }
+    const acc = cs.map(() => [0, 0, 0, 0]);
+    for (let i = 0; i < n; i++) { const a = acc[asg[i]]; a[0] += labs[i][0]; a[1] += labs[i][1]; a[2] += labs[i][2]; a[3]++; }
+    acc.forEach((a, j) => { if (a[3]) cs[j] = [a[0] / a[3], a[1] / a[3], a[2] / a[3]]; });
+  }
+  return cs;
+}
+export const FREE_DEFAULT = 24;
+
+// pixels(sampleImage 결과) →
+//   { cells, counts: [{index, count}] (많은 순), colors(팔레트 hex), trueColors(보정한 원래 색 hex),
+//     free: { cells, counts, colors, swatches: [{name, hex}] } — 이미지에서 뽑은 색 }
 export function buildMosaic(pixels, n = 32, { brightness = 0, contrast = 0, saturation = 0, dither = false, maxColors = 0 } = {}) {
   const labs = [];
   for (let i = 0; i < n * n; i++) {
@@ -111,22 +152,16 @@ export function buildMosaic(pixels, n = 32, { brightness = 0, contrast = 0, satu
     labs.push([L, A * CHROMA_BOOST, B * CHROMA_BOOST]);
   }
   const allowed = maxColors > 0 && maxColors < PALETTE.length ? pickColors(labs, maxColors) : PALETTE.map((_, i) => i);
-  const cells = new Uint8Array(n * n);
-  if (!dither) { for (let i = 0; i < n * n; i++) cells[i] = nearest(labs[i], allowed); }
-  else {
-    const err = labs.map((l) => l.slice());
-    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-      const i = y * n + x, want = err[i], got = nearest(want, allowed);
-      cells[i] = got;
-      const e = want.map((v, k) => (v - PALETTE_LAB[got][k]) * 0.75);   // 0.75: 너무 거칠지 않게
-      const push = (xx, yy, w) => { if (xx < 0 || xx >= n || yy >= n) return; const t = err[yy * n + xx]; for (let k = 0; k < 3; k++) t[k] += e[k] * w; };
-      push(x + 1, y, 7 / 16); push(x - 1, y + 1, 3 / 16); push(x, y + 1, 5 / 16); push(x + 1, y + 1, 1 / 16);
-    }
-  }
+  const cells = paint(labs, n, allowed, PALETTE_LAB, dist, dither);
+
+  const fk = kmeans(labs, maxColors > 0 ? maxColors : FREE_DEFAULT);
+  const fcells = paint(labs, n, fk.map((_, i) => i), fk, (lab, i) => d2(lab, fk[i]), dither);
+  const fhex = fk.map(oklabToHex);
   return {
     cells, counts: countCells(cells),
     colors: Array.from(cells, (c) => PALETTE[c].hex),
     trueColors: labs.map(oklabToHex),
+    free: { cells: fcells, counts: countCells(fcells), colors: Array.from(fcells, (c) => fhex[c]), swatches: fhex.map((hex) => ({ name: hex.toUpperCase(), hex })) },
   };
 }
 
