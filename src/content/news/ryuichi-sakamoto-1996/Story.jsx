@@ -259,13 +259,27 @@ const MOTIF = {
     </g>
   ),
 };
-// img 가 있으면 사용자가 준 장면 그림(16:9, 손그림 톤)을 그대로, 없으면 SVG 모티프(2.39:1)
+// img 가 있으면 사용자가 준 장면 그림(16:9 손그림). 그림은 선만 남긴 마스크(밝기 → 투명도, *-mask.webp)라
+//  바탕은 페이지색(--cream: 밝은 테마 크림 · 다크 브라운), 선은 --cover-art(밝은 테마 푸른색 · 다크 옅은 하늘색)로 테마를 따라감
+//  없으면 SVG 모티프(2.39:1, 검은 프레임)
+function SceneArt({ img }) {
+  const mask = { maskImage: `url(${img})`, WebkitMaskImage: `url(${img})`, maskSize: "cover", WebkitMaskSize: "cover", maskPosition: "center", WebkitMaskPosition: "center", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" };
+  return (
+    <div className="relative aspect-video w-full bg-(--cream)">
+      <div className="absolute inset-0 bg-(--cover-art)" style={mask} />
+    </div>
+  );
+}
 function Frame({ motif, sub, img }) {
+  if (img) return (
+    <div className="relative overflow-hidden rounded-[3px] ring-1 ring-(--ink)/15">
+      <SceneArt img={img} />
+      <p aria-hidden="true" className="absolute inset-x-0 bottom-[6%] text-center font-['Hahmlet',serif] text-[clamp(10px,1.2vw,14px)] font-semibold text-(--ink)">{sub}</p>
+    </div>
+  );
   return (
     <div className="relative overflow-hidden rounded-[3px] bg-[#141114] shadow-[0_30px_60px_-34px_rgba(0,0,0,.7)]">
-      {img
-        ? <img src={img} alt="" loading="lazy" decoding="async" draggable={false} className="block aspect-video h-auto w-full select-none object-cover" />
-        : <svg viewBox="0 0 240 100" className="block h-auto w-full" aria-hidden="true">{MOTIF[motif]}</svg>}
+      <svg viewBox="0 0 240 100" className="block h-auto w-full" aria-hidden="true">{MOTIF[motif]}</svg>
       <span aria-hidden="true" className="absolute inset-x-0 top-0 h-[7%] bg-black" />
       <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[7%] bg-black" />
       <p aria-hidden="true" className="absolute inset-x-0 bottom-[11%] text-center font-['Hahmlet',serif] text-[clamp(10px,1.2vw,14px)] font-semibold text-[#f6e9a8] [text-shadow:0_1px_2px_#000]">{sub}</p>
@@ -273,8 +287,8 @@ function Frame({ motif, sub, img }) {
   );
 }
 
-// 추천 4곡. v: 공식 "Ryuichi Sakamoto - Topic" 채널 영상 ID · img: 사용자가 준 장면 그림 (2026-11-24, 1280px webp)
-const FILM_IMG = (name) => `/images/news/ryuichi-sakamoto-1996/films/${name}.webp`;
+// 추천 4곡. v: 공식 "Ryuichi Sakamoto - Topic" 채널 영상 ID · img: 사용자가 준 장면 그림의 선 마스크 (2026-11-24, 1280px webp — 원본 검은 바탕 그림에서 밝기를 투명도로)
+const FILM_IMG = (name) => `/images/news/ryuichi-sakamoto-1996/films/${name}-mask.webp`;
 const PICKS = [
   {
     motif: "stars", side: "B2", track: "Merry Christmas Mr. Lawrence", film: "전장의 크리스마스 · 1983", sub: "“Merry Christmas, Mr. Lawrence.”", v: "1OZDaRhHHyM", img: FILM_IMG("merry-christmas"),
