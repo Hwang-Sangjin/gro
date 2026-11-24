@@ -1,12 +1,14 @@
 "use client";
 // 스토리 히어로용 LP 한 장 (3D): Home Hero 의 재킷 · 판 부품(sleeveParts.js)을 그대로 써서 재킷 한 장만 세움
-//  - 마우스를 따라 재킷이 기울고 빛이 흐름 (Home 과 같은 값 S.pose)
+//  - 마우스를 따라 재킷이 기울고 · 살짝 따라 움직이고 · 빛이 흐름 (Home 과 같은 값 S.pose). 마우스는 화면 어디에 있든 재킷 가운데 기준으로 봄
+//  - 비닐 포장: Home · Crate 와 같은 주름 지도를 코팅 층에 끼우고 wrap.fade 초 동안 서서히 깊어지게
 //  - 누르면 판이 재킷 입구(오른쪽)로 빠져나오며 돌기 시작 · 다시 누르면 들어감 (Home 의 열기와 같은 스프링 S.open)
 //  - 줄 넘기기 · 턴테이블 착지는 없음 (방이 없는 페이지)
 //  - WebGL 을 못 쓰거나 모션 줄이기면 fallback(평면 커버)을 그대로 보여 줌
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { scrollerOf } from "./scroll";
+import { WRAP, wrapNormalData } from "@/components/albums/sleeveFx";
 import { S, makeEnvironment, makePaperMaps, makeJacket, makeRecord, drawFront, drawBack, drawLabel } from "@/components/roomtest/sleeveParts";
 
 const V = {
@@ -14,6 +16,9 @@ const V = {
   spin: 0.55,       // 열린 판이 도는 빠르기 (바퀴/초 — 33⅓ 보다 느리게, 보기 좋게)
   fitW: 0.86,       // 열린 모양(재킷 + 나온 판)이 화면 폭에서 차지하는 비율
   env: 1.0, discEnv: 0.42,
+  shift: 0.022,     // 마우스를 따라 재킷이 옮겨 가는 거리 (m, 화면 끝까지 갔을 때)
+  reach: 0.6,       // 마우스가 재킷 가운데에서 화면 크기의 이만큼 떨어지면 끝까지 기욺
+  wrapAfter: 900,   // 비닐 주름을 만들기 시작하기까지(ms) — 첫 장면을 먼저 그림
 };
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const loadImage = (src) => new Promise((done) => { if (!src) return done(null); const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => done(im); im.onerror = () => done(null); im.src = src; });
@@ -93,11 +98,41 @@ export default function SleeveHero3D({ album, image, color = "#181818", fallback
       record.setLabel(drawLabel(album, color));
     });
 
-    const ndc = (e) => { const r = host.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1)]; };
-    const onMove = (e) => { if (e.pointerType === "mouse") s.pointer.set(...ndc(e)); };
+    // 비닐 주름: 앨범 이름으로 주름 지도 한 장과 뒤집는 방향을 고름 (Home hero 와 같은 방식)
+    const wrap = { tex: null, timer: 0, raf: 0 };
+    wrap.timer = setTimeout(() => {
+      if (!alive) return;
+      let n = 2166136261; const key = `${album?.title}|${album?.artist_names}`;
+      for (let i = 0; i < key.length; i++) n = Math.imul(n ^ key.charCodeAt(i), 16777619);
+      n >>>= 0;
+      const fx = (n >> 3) & 1 ? -1 : 1, fy = (n >> 4) & 1 ? -1 : 1;
+      const t = new THREE.DataTexture(wrapNormalData(n % WRAP.maps), WRAP.size, WRAP.size, THREE.RGBAFormat);
+      t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
+      t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(fx, fy); t.offset.set(fx < 0 ? 1 : 0, fy < 0 ? 1 : 0);
+      t.needsUpdate = true;
+      wrap.tex = t;
+      const t0 = performance.now();
+      const step = () => {
+        if (!alive) return;
+        const x = Math.min(1, (performance.now() - t0) / (S.wrap.fade * 1000));
+        jacket.setWrap(t, fx, fy, x * x * (3 - 2 * x));
+        if (x < 1) wrap.raf = requestAnimationFrame(step);
+      };
+      step();
+    }, V.wrapAfter);
+
+    // 마우스: 화면 어디에 있든 재킷 가운데에서 얼마나 떨어졌는지로 기울기를 정함 (Home hero 처럼 화면 전체가 무대)
+    const onMove = (e) => {
+      if (e.pointerType !== "mouse") return;
+      const r = host.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const k = (v) => Math.max(-1, Math.min(1, v));
+      s.pointer.set(k((e.clientX - cx) / (innerWidth * V.reach)), k(-(e.clientY - cy) / (innerHeight * V.reach)));
+    };
     const onLeave = () => s.pointer.set(0, 0);
-    host.addEventListener("pointermove", onMove);
-    host.addEventListener("pointerleave", onLeave);
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.documentElement.addEventListener("pointerleave", onLeave);
 
     apiRef.current = { setOpen: (v) => { s.want = v ? 1 : 0; } };
 
@@ -119,7 +154,7 @@ export default function SleeveHero3D({ album, image, color = "#181818", fallback
       // 열리면 덜 기울고, 모양이 가운데 오도록 재킷을 왼쪽으로
       const hoverK = 1 - (1 - O.hover) * pk;
       rig.rotation.set(S.pose.rotX * 0.4 - s.tilt.y * S.pose.hover * hoverK, S.pose.rotY * 0.5 + s.tilt.x * S.pose.hover * hoverK, 0);
-      holder.position.x = -pull * S.jacket.size * 0.5;
+      holder.position.set(-pull * S.jacket.size * 0.5 + s.tilt.x * V.shift, s.tilt.y * V.shift, 0);
       s.spin += dt * V.spin * Math.PI * 2 * clamp01((s.open - 0.4) / 0.6);
       discArm.position.set(pull * S.jacket.size, 0, 0);
       discArm.rotation.set(Math.PI / 2, s.spin, 0);
@@ -137,8 +172,9 @@ export default function SleeveHero3D({ album, image, color = "#181818", fallback
       alive = false;
       cancelAnimationFrame(raf);
       ro.disconnect(); io.disconnect();
-      host.removeEventListener("pointermove", onMove);
-      host.removeEventListener("pointerleave", onLeave);
+      window.removeEventListener("pointermove", onMove);
+      document.documentElement.removeEventListener("pointerleave", onLeave);
+      clearTimeout(wrap.timer); cancelAnimationFrame(wrap.raf); wrap.tex?.dispose();
       apiRef.current = null;
       scene.traverse((o) => {
         if (!o.isMesh) return;
