@@ -154,9 +154,9 @@ export default function BrickStudio() {
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-10">
           <section aria-label="Brick board" className="min-w-0">
             <div data-on={shown} className="mx-auto w-full max-w-[min(100%,calc(100svh-var(--ct-header-h,106px)-190px))] min-w-[260px] opacity-0 transition-opacity duration-300 data-[on=true]:opacity-100">
-              <BrickCanvas className="aspect-square w-full" show={shown} mosaic={mosaic} sourceKey={source?.key} hover={hover} replay={replay} n={N} onHoverColor={setHover} />
+              <BrickCanvas className="aspect-square w-full" show={shown} mosaic={mosaic} sourceKey={source?.key} hover={hover} replay={replay} n={N} />
               <div className="mt-4 flex items-center justify-between gap-4">
-                {/* 판이나 색 목록에서 가리킨 색 / 아니면 지금 이미지 */}
+                {/* 색 목록에서 가리킨 색 / 아니면 지금 이미지 */}
                 <p aria-live="polite" className="min-w-0 truncate text-[13px] text-(--ink)/65">
                   {hp ? (
                     <span className="inline-flex items-center gap-2.5"><Swatch hex={hp.hex} className="size-[18px]" /><span className="font-medium text-(--ink)">{hp.name}</span><span className="tabular-nums">{countOf(hover)}개</span></span>
@@ -194,7 +194,7 @@ export default function BrickStudio() {
               })}
             </Reveal>
             <Reveal i={3} className="mt-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-t-[3px] border-(--ink) pt-3">
-              <p className="max-w-[52ch] break-keep text-[12px] leading-5 text-(--ink)/55">판이나 색 이름을 가리키면 그 색 브릭이 떠올라요. 색 이름을 누르면 그 색만 다시 끼워요.</p>
+              <p className="max-w-[52ch] break-keep text-[12px] leading-5 text-(--ink)/55">색 이름을 가리키면 판에서 그 색 브릭이 떠올라요. 색 이름을 누르면 그 색만 다시 끼워요.</p>
               <div className="flex items-end gap-4">
                 <p className={LABEL}>Total <span className="normal-case tracking-normal text-(--ink)/45">· {total.toLocaleString()} + 예비</span></p>
                 <p className={`${SERIF} text-[2.4rem] leading-none tabular-nums`}>{mosaic ? mosaic.counts.reduce((s, c) => s + withSpare(c.count), 0).toLocaleString() : "—"}</p>

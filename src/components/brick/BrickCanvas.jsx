@@ -3,8 +3,7 @@
 // - 처음/새 이미지: 많은 색부터 브릭이 위에서 눌러 끼워지듯 톡 나타남 (새 이미지면 이전 그림 위에 덮임)
 // - 보정만 바뀜: 색이 바뀐 칸만 다시 끼워짐
 // - hover(팔레트 번호): 그 색 브릭만 살짝 떠오르고 나머지는 어두워짐
-// - replay: { color: 번호 | null(전체), nonce } — 다시 끼우기
-// - onHoverColor: 판 위에서 가리킨 칸의 색 번호 (밖으로 나가면 null)
+// - replay: { color: 번호 | null(전체), nonce } — 다시 끼우기 (판 자체는 마우스에 반응하지 않음)
 import { useEffect, useRef } from "react";
 import { PALETTE } from "@/lib/brick/palette";
 
@@ -70,14 +69,14 @@ function shadeTile(s) {
   return c;
 }
 
-export default function BrickCanvas({ mosaic, sourceKey, hover = null, replay, n = 32, show = true, onHoverColor, className = "" }) {
+export default function BrickCanvas({ mosaic, sourceKey, hover = null, replay, n = 32, show = true, className = "" }) {
   const wrap = useRef(null);
   const cv = useRef(null);
   const st = useRef(null);
   if (!st.current) st.current = {
     cells: null, under: new Int16Array(n * n).fill(-1), start: new Float32Array(n * n).fill(-1),
     lift: new Float32Array(n * n), dim: new Float32Array(n * n), hover: null,
-    size: 0, dpr: 1, tile: null, raf: 0, lastKey: null, waiting: false, lastCell: -1,
+    size: 0, dpr: 1, tile: null, raf: 0, lastKey: null, waiting: false,
   };
   const reduced = useRef(false);
   const kick = useRef(() => {});
@@ -209,21 +208,9 @@ export default function BrickCanvas({ mosaic, sourceKey, hover = null, replay, n
 
   useEffect(() => { st.current.hover = hover; kick.current(); }, [hover]);
 
-  const onMove = (e) => {
-    const s = st.current;
-    if (!onHoverColor || !s.cells || e.pointerType === "touch") return;
-    const r = e.currentTarget.getBoundingClientRect();
-    const x = Math.floor(((e.clientX - r.left) / r.width) * n), y = Math.floor(((e.clientY - r.top) / r.height) * n);
-    const i = x >= 0 && y >= 0 && x < n && y < n ? y * n + x : -1;
-    if (i === s.lastCell) return;
-    s.lastCell = i;
-    onHoverColor(i < 0 ? null : s.cells[i]);
-  };
-
   return (
     <div ref={wrap} className={className}>
-      <canvas ref={cv} role="img" aria-label={`${n}×${n} 브릭 모자이크`} onPointerMove={onMove}
-        onPointerLeave={() => { st.current.lastCell = -1; onHoverColor?.(null); }}
+      <canvas ref={cv} role="img" aria-label={`${n}×${n} 브릭 모자이크`}
         className="block size-full rounded-[4px] shadow-[0_24px_40px_-24px_rgba(0,0,0,.6),0_2px_0_rgba(0,0,0,.25)]" />
     </div>
   );
