@@ -1,7 +1,7 @@
 "use client";
-// /lab/brick — 앨범 커버나 내 사진을 32×32 브릭 판으로. 왼쪽 고르기·보정 / 가운데 3D 판 / 오른쪽 필요한 브릭
+// /lab/brick — 앨범 커버나 내 사진을 32×32 브릭 판으로
+// 왼쪽: 2D 브릭 판 + 아래에 필요한 브릭(색별 개수) / 오른쪽(고정): 고르기 · 보정(접고 펴기)
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import { createClient } from "@/utils/supabase/client";
 import { coverUrl } from "@/lib/albums";
 import useLabReveal from "@/components/lab/useLabReveal";
@@ -9,12 +9,13 @@ import GrooveText from "@/components/lab/GrooveText";
 import { SERIF, LABEL, ShownCtx, Reveal, Heading } from "@/components/lab/LabUI";
 import { PALETTE } from "@/lib/brick/palette";
 import { sampleImage, buildMosaic } from "@/lib/brick/mosaic";
+import BrickCanvas from "./BrickCanvas";
 import CropDialog from "./CropDialog";
 
-const BrickBoard = dynamic(() => import("./BrickBoard"), { ssr: false, loading: () => <div className="size-full animate-pulse rounded-[6px] bg-(--ink)/8" /> });
-
 const N = 32;
-const SPARE = 0.05;   // 예비 브릭 5%
+const SPARE = 0.05;   // 예비 브릭 5% (색마다 올림)
+const withSpare = (c) => c + Math.ceil(c * SPARE);
+const NO_ADJ = { brightness: 0, contrast: 0, saturation: 0, dither: false, maxColors: 0 };
 // 스크롤 목록 아래쪽을 살짝 페이드 — 더 있다는 표시
 const FADE = "[mask-image:linear-gradient(to_bottom,#000_calc(100%-28px),transparent)]";
 
@@ -63,7 +64,7 @@ function useAlbums(q) {
 
 function Slider({ label, value, onChange, i = 0 }) {
   return (
-    <Reveal as="label" i={i} className="grid grid-cols-[56px_1fr_34px] items-center gap-3 border-b border-dashed border-(--ink)/25 py-3 text-[13px]">
+    <Reveal as="label" i={i} className="grid grid-cols-[56px_1fr_34px] items-center gap-3 border-b border-dashed border-(--ink)/25 py-2.5 text-[13px]">
       <span className="text-(--ink)/70">{label}</span>
       <input type="range" min="-0.5" max="0.5" step="0.05" value={value} onChange={(e) => onChange(Number(e.target.value))} className="h-1 w-full cursor-pointer accent-(--accent)" />
       <span className="text-right text-[11px] tabular-nums text-(--ink)/55">{value > 0 ? "+" : ""}{Math.round(value * 100)}</span>
@@ -88,10 +89,10 @@ export default function BrickStudio() {
   const [source, setSource] = useState(null);       // { key, title, sub, img, crop }
   const [pixels, setPixels] = useState(null);
   const [error, setError] = useState("");
-  const [adj, setAdj] = useState({ brightness: 0, contrast: 0, saturation: 0, dither: false, maxColors: 0 });
+  const [adj, setAdj] = useState(NO_ADJ);
+  const [adjOpen, setAdjOpen] = useState(false);
   const [hover, setHover] = useState(null);
   const [replay, setReplay] = useState({ color: null, nonce: 0 });
-  const [view, setView] = useState("3d");
   const [cropping, setCropping] = useState(null);   // 올린 이미지 (자르기 전)
   const fileRef = useRef(null);
   const loading = useRef("");
@@ -119,14 +120,18 @@ export default function BrickStudio() {
 
   const mosaic = useMemo(() => (pixels ? buildMosaic(pixels, N, adj) : null), [pixels, adj]);
   const total = N * N;
+  const countOf = (index) => mosaic?.counts.find((c) => c.index === index)?.count ?? 0;
 
   const onFile = async (file) => {
     if (!file || !file.type.startsWith("image/")) return;
     const url = URL.createObjectURL(file);
-    try { const img = await loadImage(url); setCropping({ img, name: file.name.replace(/\.[^.]+$/, "") }); }
-    catch { setError("이미지를 열 수 없어요."); }
+    try { const img = await loadImage(url); setCropping({ img, url, name: file.name.replace(/\.[^.]+$/, "") }); }
+    catch { URL.revokeObjectURL(url); setError("이미지를 열 수 없어요."); }
   };
+  // 자르기 창을 닫으면 임시 주소는 버려요 (이미지는 이미 읽혀 있어서 판에는 영향 없음)
+  const closeCrop = () => { if (cropping?.url) URL.revokeObjectURL(cropping.url); setCropping(null); };
   const set = (k) => (v) => setAdj((a) => ({ ...a, [k]: v }));
+  const hp = hover != null ? PALETTE[hover] : null;
 
   return (
     <ShownCtx.Provider value={shown}>
@@ -144,60 +149,63 @@ export default function BrickStudio() {
         </p>
       </header>
 
-      <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[300px_minmax(0,1fr)_300px] lg:items-start">
-        {/* 가운데: 3D 판 */}
-        <section aria-label="Brick board" className="lg:order-2">
-          <div data-on={shown} className="relative mx-auto aspect-square w-full max-w-[min(100%,calc(100svh-290px))] min-w-[280px] opacity-0 transition-opacity duration-300 data-[on=true]:opacity-100">
-            <BrickBoard className="absolute inset-0" show={shown} mosaic={mosaic} sourceKey={source?.key} hover={hover} replay={replay} view={view} n={N} />
-          </div>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-            <div role="radiogroup" aria-label="View" className="inline-flex rounded-full border border-(--ink)/40 p-1">
-              {[["3d", "3D"], ["flat", "Flat"]].map(([v, l]) => (
-                <button key={v} type="button" role="radio" aria-checked={view === v} onClick={() => setView(v)}
-                  className="min-h-9 rounded-full px-4 text-[12px] font-medium uppercase tracking-[0.18em] aria-checked:bg-(--ink) aria-checked:text-(--cream)">{l}</button>
-              ))}
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)] lg:items-start xl:gap-14">
+        {/* 왼쪽: 브릭 판 + 필요한 브릭 */}
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-10">
+          <section aria-label="Brick board" className="min-w-0">
+            <div data-on={shown} className="mx-auto w-full max-w-[min(100%,calc(100svh-var(--ct-header-h,106px)-190px))] min-w-[260px] opacity-0 transition-opacity duration-300 data-[on=true]:opacity-100">
+              <BrickCanvas className="aspect-square w-full" show={shown} mosaic={mosaic} sourceKey={source?.key} hover={hover} replay={replay} n={N} onHoverColor={setHover} />
+              <div className="mt-4 flex items-center justify-between gap-4">
+                {/* 판이나 색 목록에서 가리킨 색 / 아니면 지금 이미지 */}
+                <p aria-live="polite" className="min-w-0 truncate text-[13px] text-(--ink)/65">
+                  {hp ? (
+                    <span className="inline-flex items-center gap-2.5"><Swatch hex={hp.hex} className="size-[18px]" /><span className="font-medium text-(--ink)">{hp.name}</span><span className="tabular-nums">{countOf(hover)}개</span></span>
+                  ) : source ? (
+                    <><span className="font-medium text-(--ink)">{source.title}</span>{source.sub ? ` — ${source.sub}` : ""}</>
+                  ) : null}
+                </p>
+                <button type="button" onClick={() => setReplay((r) => ({ color: null, nonce: r.nonce + 1 }))}
+                  className="min-h-11 shrink-0 rounded-full border border-(--ink)/40 px-5 text-[12px] font-medium uppercase tracking-[0.18em] transition-colors hover:border-(--ink)">↻ 다시 끼우기</button>
+              </div>
+              {error && <p role="alert" className="mt-2 text-[13px] text-(--accent)">{error}</p>}
             </div>
-            <button type="button" onClick={() => setReplay((r) => ({ color: null, nonce: r.nonce + 1 }))}
-              className="min-h-11 rounded-full border border-(--ink)/40 px-5 text-[12px] font-medium uppercase tracking-[0.18em] transition-colors hover:border-(--ink)">↻ 다시 끼우기</button>
-          </div>
-          {source && <p className="mt-3 text-center text-[13px] text-(--ink)/65"><span className="font-medium text-(--ink)">{source.title}</span>{source.sub ? ` — ${source.sub}` : ""}</p>}
-          {error && <p role="alert" className="mt-2 text-center text-[13px] text-(--accent)">{error}</p>}
-        </section>
+          </section>
 
-        {/* 오른쪽: 필요한 브릭 — 뉴스 글처럼 번호 + 굵은 줄 + 점선 줄 */}
-        <section aria-label="Bricks needed" className="lg:order-3">
-          <Heading n="03" title="Bricks" note="1×1 플레이트" />
-          <Reveal as="ul" i={1} data-lenis-prevent data-crate-ignore className={`${FADE} max-h-[min(54svh,540px)] overflow-y-auto overscroll-contain pb-5 max-lg:flex max-lg:max-h-none max-lg:gap-5 max-lg:overflow-x-auto max-lg:pb-3 max-lg:[mask-image:none]`} onPointerLeave={() => setHover(null)}>
-            {mosaic?.counts.map(({ index, count }) => {
-              const p = PALETTE[index];
-              return (
-                <li key={index} className="border-b border-dashed border-(--ink)/25 max-lg:shrink-0 max-lg:border-b-0">
-                  <button type="button" onPointerEnter={() => setHover(index)} onFocus={() => setHover(index)} onBlur={() => setHover(null)}
-                    onClick={() => setReplay((r) => ({ color: index, nonce: r.nonce + 1 }))} aria-pressed={hover === index}
-                    className="group grid w-full grid-cols-[22px_1fr_auto] items-center gap-3.5 border-l-[3px] border-transparent py-2.5 pl-2.5 text-left transition-colors hover:border-(--accent) aria-pressed:border-(--accent) max-lg:w-auto max-lg:grid-cols-[22px_auto_auto]">
-                    <Swatch hex={p.hex} className="size-[22px]" />
-                    <span className="truncate text-[14px] leading-none">{p.name}</span>
-                    <span className="flex items-baseline gap-2 tabular-nums">
-                      <span className={`${SERIF} text-[22px] leading-none`}>{count}</span>
-                      <span className="w-8 text-[11px] text-(--ink)/45">+{Math.ceil(count * SPARE)}</span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </Reveal>
-          <Reveal i={3} className="mt-2 border-t-[3px] border-(--ink) pt-3">
-            <div className="flex items-end justify-between gap-4">
-              <p className={LABEL}>Total <span className="normal-case tracking-normal text-(--ink)/45">· {total.toLocaleString()} + 예비 5%</span></p>
-              <p className={`${SERIF} text-[2.4rem] leading-none tabular-nums`}>{mosaic ? mosaic.counts.reduce((s, c) => s + count5(c.count), 0).toLocaleString() : "—"}</p>
-            </div>
-            <p className="mt-3 break-keep text-[12px] leading-5 text-(--ink)/55">색 이름에 마우스를 올리면 판에서 그 색이 떠올라요. 누르면 그 색만 다시 끼워요.</p>
-          </Reveal>
-        </section>
+          {/* 필요한 브릭 — 판 아래, 여러 줄로 */}
+          <section aria-label="Bricks needed">
+            <Heading n="03" title="Bricks" note="1×1 플레이트 · 색마다 예비 5%" />
+            <Reveal as="ul" i={1} className="grid grid-cols-[repeat(auto-fill,minmax(228px,1fr))] gap-x-8" onPointerLeave={() => setHover(null)}>
+              {mosaic?.counts.map(({ index, count }) => {
+                const p = PALETTE[index];
+                return (
+                  <li key={index} className="border-b border-dashed border-(--ink)/25">
+                    <button type="button" onPointerEnter={() => setHover(index)} onFocus={() => setHover(index)} onBlur={() => setHover(null)}
+                      onClick={() => setReplay((r) => ({ color: index, nonce: r.nonce + 1 }))} aria-pressed={hover === index}
+                      className="grid w-full grid-cols-[22px_1fr_auto] items-center gap-3 border-l-[3px] border-transparent py-2.5 pl-2.5 text-left transition-colors hover:border-(--accent) aria-pressed:border-(--accent)">
+                      <Swatch hex={p.hex} className="size-[22px]" />
+                      <span className="truncate text-[14px] leading-none">{p.name}</span>
+                      <span className="flex items-baseline gap-2 tabular-nums">
+                        <span className={`${SERIF} text-[22px] leading-none`}>{count}</span>
+                        <span className="w-7 text-[11px] text-(--ink)/45">+{Math.ceil(count * SPARE)}</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </Reveal>
+            <Reveal i={3} className="mt-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-t-[3px] border-(--ink) pt-3">
+              <p className="max-w-[52ch] break-keep text-[12px] leading-5 text-(--ink)/55">판이나 색 이름을 가리키면 그 색 브릭이 떠올라요. 색 이름을 누르면 그 색만 다시 끼워요.</p>
+              <div className="flex items-end gap-4">
+                <p className={LABEL}>Total <span className="normal-case tracking-normal text-(--ink)/45">· {total.toLocaleString()} + 예비</span></p>
+                <p className={`${SERIF} text-[2.4rem] leading-none tabular-nums`}>{mosaic ? mosaic.counts.reduce((s, c) => s + withSpare(c.count), 0).toLocaleString() : "—"}</p>
+              </div>
+            </Reveal>
+          </section>
+        </div>
 
-        {/* 왼쪽: 고르기 + 보정 */}
-        <section aria-label="Source" className="grid gap-8 lg:order-1">
-          <div>
+        {/* 오른쪽: 고르기 + 보정 — 넓은 화면에선 화면 높이에 맞춰 고정 */}
+        <aside aria-label="Source and adjust" className="grid gap-8 lg:sticky lg:top-[calc(var(--ct-header-h,106px)+14px)] lg:flex lg:max-h-[calc(100svh-var(--ct-header-h,106px)-32px)] lg:flex-col lg:gap-6">
+          <section aria-label="Source" className="flex min-h-0 flex-col lg:flex-1">
             <Heading n="01" title="Source" />
             {/* 장르 바처럼: 세리프 이름 + 슬래시, 고른 것만 진하게 + 청록 밑줄 */}
             <Reveal i={1} role="tablist" className="flex items-baseline">
@@ -217,7 +225,7 @@ export default function BrickStudio() {
                     className="w-full bg-transparent text-[14px] outline-none placeholder:text-(--ink)/40" />
                 </Reveal>
                 <Reveal as="ul" i={3} data-lenis-prevent data-crate-ignore onScroll={(e) => { const el = e.currentTarget; if (el.scrollTop + el.clientHeight > el.scrollHeight - 160) loadMore(); }}
-                  className={`${FADE} mt-4 grid max-h-[min(44svh,460px)] grid-cols-3 content-start gap-2 overflow-y-auto overscroll-contain px-1 pb-6 pt-1`}>
+                  className={`${FADE} mt-4 grid max-h-[min(44svh,460px)] grid-cols-3 content-start gap-2 overflow-y-auto overscroll-contain px-1 pb-6 pt-1 lg:max-h-none lg:min-h-[180px] lg:flex-1`}>
                   {albums === null && Array.from({ length: 9 }, (_, i) => <li key={i} className="aspect-square animate-pulse bg-(--ink)/8" />)}
                   {albums?.length === 0 && <li className="col-span-3 py-6 text-center text-[13px] text-(--ink)/55">찾는 앨범이 없어요.</li>}
                   {albums?.map((a) => {
@@ -247,37 +255,44 @@ export default function BrickStudio() {
                 <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
               </Reveal>
             )}
-          </div>
+          </section>
 
-          <div>
-            <Heading n="02" title="Adjust" action={<button type="button" onClick={() => setAdj({ brightness: 0, contrast: 0, saturation: 0, dither: false, maxColors: 0 })} className="text-[11px] font-medium uppercase tracking-[0.22em] text-(--ink)/55 hover:text-(--accent)">Reset</button>} />
-            <div className="grid">
-              <Slider i={1} label="밝기" value={adj.brightness} onChange={set("brightness")} />
-              <Slider i={2} label="대비" value={adj.contrast} onChange={set("contrast")} />
-              <Slider i={3} label="채도" value={adj.saturation} onChange={set("saturation")} />
-              <Reveal as="label" i={4} className="grid grid-cols-[56px_1fr] items-center gap-3 border-b border-dashed border-(--ink)/25 py-3 text-[13px]">
-                <span className="text-(--ink)/70">색 수</span>
-                <select value={adj.maxColors} onChange={(e) => set("maxColors")(Number(e.target.value))} className="h-8 border-b border-(--ink)/35 bg-transparent text-[13px] outline-none focus:border-(--ink)">
-                  <option value={0}>제한 없음 ({PALETTE.length}색 중)</option>
-                  {[6, 8, 12, 16, 20].map((v) => <option key={v} value={v}>최대 {v}색</option>)}
-                </select>
-              </Reveal>
-              <Reveal as="label" i={5} className="flex items-center justify-between gap-3 py-3 text-[13px]">
-                <span className="text-(--ink)/70">디더링 <span className="ml-1 text-[11px] text-(--ink)/45">점을 섞어 중간색 표현</span></span>
-                <input type="checkbox" checked={adj.dither} onChange={(e) => set("dither")(e.target.checked)} className="size-4 accent-(--accent)" />
-              </Reveal>
-            </div>
-          </div>
-        </section>
+          {/* 보정 — 접어 두면 앨범 목록이 넓어짐 */}
+          <section aria-label="Adjust" className="shrink-0">
+            <Heading n="02" title="Adjust" action={
+              <span className="flex items-baseline gap-4">
+                {adjOpen && <button type="button" onClick={() => setAdj(NO_ADJ)} className="text-[11px] font-medium uppercase tracking-[0.22em] text-(--ink)/55 hover:text-(--accent)">Reset</button>}
+                <button type="button" aria-expanded={adjOpen} aria-controls="brick-adjust" onClick={() => setAdjOpen((o) => !o)}
+                  className="min-h-8 text-[11px] font-medium uppercase tracking-[0.22em] text-(--ink)/70 hover:text-(--accent)">{adjOpen ? "접기 −" : "열기 +"}</button>
+              </span>
+            } />
+            {adjOpen && (
+              <div id="brick-adjust" className="grid">
+                <Slider i={1} label="밝기" value={adj.brightness} onChange={set("brightness")} />
+                <Slider i={2} label="대비" value={adj.contrast} onChange={set("contrast")} />
+                <Slider i={3} label="채도" value={adj.saturation} onChange={set("saturation")} />
+                <Reveal as="label" i={4} className="grid grid-cols-[56px_1fr] items-center gap-3 border-b border-dashed border-(--ink)/25 py-2.5 text-[13px]">
+                  <span className="text-(--ink)/70">색 수</span>
+                  <select value={adj.maxColors} onChange={(e) => set("maxColors")(Number(e.target.value))} className="h-8 border-b border-(--ink)/35 bg-transparent text-[13px] outline-none focus:border-(--ink)">
+                    <option value={0}>제한 없음 ({PALETTE.length}색 중)</option>
+                    {[6, 8, 12, 16, 20].map((v) => <option key={v} value={v}>최대 {v}색</option>)}
+                  </select>
+                </Reveal>
+                <Reveal as="label" i={5} className="flex items-center justify-between gap-3 py-2.5 text-[13px]">
+                  <span className="text-(--ink)/70">디더링 <span className="ml-1 text-[11px] text-(--ink)/45">점을 섞어 중간색 표현</span></span>
+                  <input type="checkbox" checked={adj.dither} onChange={(e) => set("dither")(e.target.checked)} className="size-4 accent-(--accent)" />
+                </Reveal>
+              </div>
+            )}
+          </section>
+        </aside>
       </div>
 
       {cropping && (
-        <CropDialog img={cropping.img} onCancel={() => setCropping(null)}
-          onDone={(crop) => { setSource({ key: `upload:${Date.now()}`, title: cropping.name || "My image", sub: "", img: cropping.img, crop }); setCropping(null); }} />
+        <CropDialog img={cropping.img} onCancel={closeCrop}
+          onDone={(crop) => { setSource({ key: `upload:${Date.now()}`, title: cropping.name || "My image", sub: "", img: cropping.img, crop }); closeCrop(); }} />
       )}
     </div>
     </ShownCtx.Provider>
   );
 }
-
-const count5 = (c) => c + Math.ceil(c * SPARE);
