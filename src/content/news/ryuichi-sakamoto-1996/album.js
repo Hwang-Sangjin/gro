@@ -9,7 +9,7 @@ export const coverOf = (row) => (row?.thumb_path ? coverUrl(row.thumb_path) : nu
 let cache = null;   // 같은 페이지 안에서 한 번만 요청
 function load() {
   cache ??= createClient().from("albums")
-    .select("slug, title, artist_names, thumb_path, cover_color, release_year")
+    .select("slug, title, artist_names, cover_path, thumb_path, cover_color, release_year")
     .eq("status", "published").ilike("artist_names", "%sakamoto%")
     .then(({ data }) => [...(data ?? [])].sort((a, b) => (a.release_year ?? 0) - (b.release_year ?? 0) || a.title.localeCompare(b.title)),
       () => { cache = null; return []; });

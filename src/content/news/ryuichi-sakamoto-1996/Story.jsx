@@ -10,7 +10,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Reveal, { RiseText } from "@/components/story/Reveal";
 import Disc from "@/components/story/Disc";
-import { seg, useScrollProgress } from "@/components/story/scroll";
+import SleeveHero3D from "@/components/story/SleeveHero3D";
+import { coverUrl } from "@/lib/albums";
 import { ALBUM_SLUG, coverOf, useSakamoto } from "./album";
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.01em]";
@@ -33,30 +34,33 @@ function Head({ n, label, lines, dark, children }) {
 }
 
 /* ───────────── 1 히어로 ───────────── */
-// 커버(DB) 뒤에서 판이 오른쪽으로 반쯤 빠져나와 천천히 돎. 커버를 못 찾으면 판만
-function Sleeve({ row, loading }) {
-  const ref = useRef(null);
-  useScrollProgress(ref, { mode: "pass" });
+// 평면 커버: 3D 가 뜨기 전 · 못 뜰 때(모션 줄이기, WebGL 없음) 보이는 모습. 커버 뒤로 판이 살짝 비침
+function FlatSleeve({ row, loading }) {
   const src = coverOf(row);
   return (
-    <div ref={ref} style={{ "--p": 0 }} className="relative mx-auto aspect-square w-[min(66vw,460px)] lg:mr-[18%]">
-      <div className="absolute inset-[3%] will-change-transform" style={{ transform: `translateX(calc((${src ? `0.22 + ${seg(0, 0.5)} * 0.1` : "0"}) * 100%))` }}>
-        <Disc label="#e9e4da" className="size-full animate-spin [animation-duration:18s] motion-reduce:animate-none" />
-      </div>
+    <div className="absolute inset-[13%_22%_13%_8%]">
+      <Disc label="#e9e4da" className="absolute inset-[3%] size-[94%] translate-x-[24%]" />
       {src ? (
-        <Link href={`/album/${row.slug}`} aria-label="1996 — Grooves에서 보기"
-          className="absolute inset-0 z-10 overflow-hidden rounded-[3px] shadow-[0_34px_70px_-30px_rgba(0,0,0,.65)]" style={{ background: row.cover_color || "#181818" }}>
-          <img src={src} alt="Ryuichi Sakamoto — 1996" loading="eager" decoding="async" draggable={false} className="size-full select-none object-cover" />
-        </Link>
-      ) : loading ? <div className="absolute inset-0 z-10 rounded-[3px] bg-(--ink)/8" /> : null}
+        <img src={src} alt="Ryuichi Sakamoto — 1996" loading="eager" decoding="async" draggable={false}
+          className="absolute inset-0 size-full select-none rounded-[3px] object-cover shadow-[0_34px_70px_-30px_rgba(0,0,0,.65)]" style={{ background: row.cover_color || "#181818" }} />
+      ) : loading ? <div className="absolute inset-0 rounded-[3px] bg-(--ink)/8" /> : null}
     </div>
+  );
+}
+// Home Hero 와 같은 실제 같은 재킷 한 장 (3D) — 누르면 판이 빠져나와 돎
+function Sleeve({ row, loading }) {
+  const flat = <FlatSleeve row={row} loading={loading} />;
+  if (!row) return <div className="relative mx-auto aspect-[6/5] w-full max-w-[640px]">{flat}</div>;
+  return (
+    <SleeveHero3D album={row} image={coverUrl(row.cover_path || row.thumb_path)} color={row.cover_color || "#181818"}
+      fallback={flat} className="mx-auto aspect-[6/5] w-full max-w-[640px]" />
   );
 }
 
 function Hero({ row, loading }) {
   return (
     <section className="relative overflow-hidden pb-[clamp(3rem,8vw,6rem)] pt-[calc(var(--ct-header-h,106px)+56px)]">
-      <div className={`${WRAP} grid items-center gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,600px)]`}>
+      <div className={`${WRAP} grid items-center gap-x-10 gap-y-14 xl:grid-cols-[minmax(0,1fr)_minmax(0,640px)]`}>
         <div>
           <Reveal as="p" className={`${LABEL} text-(--accent)`}>News · Reissue · 30th Anniversary</Reveal>
           <RiseText as="h1" lines={["Ryuichi", "Sakamoto,", "1996"]} delay={120} className={`${MONOTON} mt-5 text-[clamp(2.4rem,5.6vw,5.6rem)] leading-[1.04]`} />
