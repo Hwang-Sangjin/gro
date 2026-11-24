@@ -88,6 +88,15 @@ function Caesar() {
     </div>
   );
 }
+// 류이치 사카모토 1996 — 사용자가 준 손그림 초상 (2026-11-24 확정 썸네일, 900px webp)
+function SakamotoPortrait() {
+  return (
+    <svg viewBox="0 0 400 400" className="size-full" aria-hidden="true">
+      <rect width="400" height="400" fill="#000" />
+      <image href="/images/news/ryuichi-sakamoto-1996/thumb.webp" width="400" height="400" preserveAspectRatio="xMidYMid slice" />
+    </svg>
+  );
+}
 // 류이치 사카모토 1996 — 썸네일 후보 세 가지 (index.js 의 cover 에서 고름)
 // A sakamoto-1996: 실제 커버(Grooves DB) + 오른쪽으로 빠져나온 판. 못 찾으면 판만
 function Sakamoto() {
@@ -188,7 +197,7 @@ function AtoZ02() {
   );
 }
 
-const COVERS = { "sakamoto-1996": Sakamoto, "sakamoto-type": SakamotoType, "sakamoto-frame": SakamotoFrame, caesar: Caesar, "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, "sse-poster": SsePoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
+const COVERS = { "sakamoto-portrait": SakamotoPortrait, "sakamoto-1996": Sakamoto, "sakamoto-type": SakamotoType, "sakamoto-frame": SakamotoFrame, caesar: Caesar, "autumn-doodle": AutumnDoodle, fair: Fair, "fair-poster": FairPoster, "sse-poster": SsePoster, autumn: Autumn, record: Record, "a-to-z-01": AtoZ01, "a-to-z-02": AtoZ02 };
 export default function StoryCover({ name, className = "" }) {
   const C = COVERS[name] ?? Record;
   // 위치(position)는 부르는 쪽이 정하면 그대로 — 기본 relative 를 같이 두면 CSS 순서상 relative 가 이겨서

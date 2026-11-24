@@ -18,7 +18,7 @@ export const STORIES = [
     dek: "피아노·첼로·바이올린으로 다시 연주한 사카모토의 영화음악, 1996이 30주년 2LP로 다시 나와요. 곡마다 흐르던 영화 장면과 그의 음악 인생까지.",
     date: "2026-11-22",
     read: "7 min",
-    cover: "sakamoto-1996",
+    cover: "sakamoto-portrait",
     homeArt: "reissue",
   },
   {
