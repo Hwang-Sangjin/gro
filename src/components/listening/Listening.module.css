@@ -1,0 +1,156 @@
+/* /lab/listening — 무대(재킷 · 판 · 톤암) + 책등 선반 */
+.root {
+  --s: min(40svh, 30vw, 430px);              /* 재킷 한 변 */
+  --shelf-h: clamp(150px, 25svh, 250px);
+  min-height: 100svh;
+  padding: var(--ct-header-h, 106px) clamp(1rem, 3vw, 3rem) 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  color: var(--ink);
+}
+
+/* ── 무대 ── */
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(1rem, 3vw, 3.5rem);
+  padding-block: clamp(1rem, 3svh, 2.5rem);
+}
+
+.info { min-width: 0; align-self: end; padding-bottom: clamp(0.5rem, 3svh, 2.5rem); }
+.kicker, .meta, .playerHead, .playerFoot, .shelfHead {
+  font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.28em;
+  color: color-mix(in srgb, var(--ink) 62%, transparent);
+}
+.kicker { margin-bottom: clamp(0.75rem, 2svh, 1.5rem); }
+.infoIn { animation: infoIn var(--dur-enter, 850ms) var(--ease-groove) both; }
+@keyframes infoIn { from { opacity: 0; transform: translateY(14px); } }
+.artist { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.2em; }
+.title {
+  margin: 0.35rem 0 0.9rem; font-weight: 900; text-transform: uppercase; line-height: 0.98; letter-spacing: -0.012em;
+  font-size: clamp(1.7rem, 3.4vw, 3.6rem); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.meta { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem; margin-top: clamp(1rem, 2.6svh, 1.75rem); }
+.play {
+  min-height: 3rem; padding: 0 1.75rem; border-radius: 999px; background: var(--ink); color: var(--cream);
+  font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; transition: background-color 0.3s;
+}
+.play:hover:not(:disabled) { background: var(--accent); }
+.play:disabled { opacity: 0.35; cursor: not-allowed; }
+.more { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
+.more:hover { color: var(--accent); }
+
+/* 재킷(왼쪽) + 판(오른쪽으로 반쯤 나옴) + 톤암(오른쪽 위에 축) */
+.deck { position: relative; width: calc(var(--s) * 1.66); height: var(--s); }
+.cover {
+  position: absolute; inset: 0 auto 0 0; width: var(--s); z-index: 2; overflow: hidden; border-radius: 2px;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.18) inset, 0 calc(var(--s) * 0.035) calc(var(--s) * 0.09) rgb(30 20 26 / 0.34), 0 2px 5px rgb(30 20 26 / 0.3);
+  animation: coverIn 700ms var(--ease-groove) both;
+}
+.cover img { width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; }
+.cover::after {   /* 종이 재킷의 옅은 빛 */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, rgb(255 255 255 / 0.16), transparent 32%, transparent 70%, rgb(0 0 0 / 0.14));
+}
+@keyframes coverIn { from { opacity: 0; transform: translateY(26%) rotate(-2deg); } }
+
+.disc {
+  position: absolute; top: 3%; left: 0; width: calc(var(--s) * 0.94); height: calc(var(--s) * 0.94); z-index: 1;
+  border-radius: 50%; cursor: pointer; transform: translateX(calc(var(--s) * 0.56));
+  animation: discOut 900ms var(--ease-groove) 260ms backwards;
+  filter: drop-shadow(0 calc(var(--s) * 0.02) calc(var(--s) * 0.04) rgb(30 20 26 / 0.35));
+}
+.disc:disabled { cursor: default; }
+@keyframes discOut { from { transform: translateX(calc(var(--s) * 0.04)); } }
+.disc::after {   /* 빛 띠: 판이 돌아도 제자리 */
+  content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(from 20deg, transparent 0 8%, rgb(255 255 255 / 0.16) 13%, transparent 19% 58%, rgb(255 255 255 / 0.1) 63%, transparent 69%);
+  mask-image: radial-gradient(circle, transparent 0 19%, #000 20%); -webkit-mask-image: radial-gradient(circle, transparent 0 19%, #000 20%);
+}
+.discSpin {
+  position: absolute; inset: 0; border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 36.5%, rgb(255 255 255 / 0.05) 37% 37.6%, transparent 38% 52%, rgb(255 255 255 / 0.05) 52.4% 53%, transparent 53.4%),
+    repeating-radial-gradient(circle, #171317 0 1px, #221c21 1.2px 2.4px);
+  animation: spin 1.8s linear infinite; animation-play-state: paused;
+}
+.deck[data-spinning="true"] .discSpin { animation-play-state: running; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.label {
+  position: absolute; inset: 31%; border-radius: 50%; background-size: cover; background-position: center;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+}
+.label::after { content: ""; position: absolute; inset: 44%; border-radius: 50%; background: var(--cream); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35) inset; }
+
+/* 톤암: 축은 판 오른쪽 위. 쉬는 자리 0deg(판 밖) → 재생 22deg(바늘이 소리골 위) */
+.arm {
+  position: absolute; z-index: 3; left: calc(var(--s) * 1.56); top: calc(var(--s) * 0.06); width: 0; height: 0;
+  transform: rotate(-3deg); transition: transform 900ms var(--ease-groove);
+  filter: drop-shadow(calc(var(--s) * -0.012) calc(var(--s) * 0.02) calc(var(--s) * 0.02) rgb(30 20 26 / 0.3));
+}
+.deck[data-spinning="true"] .arm { transform: rotate(22deg); transition-duration: 1400ms; }
+.armBar { position: absolute; left: calc(var(--s) * -0.009); top: 0; width: calc(var(--s) * 0.018); height: calc(var(--s) * 0.56); border-radius: 999px; background: linear-gradient(90deg, #8d8790, #e9e4e1 45%, #7a747d); }
+.armHead { position: absolute; left: calc(var(--s) * -0.026); top: calc(var(--s) * 0.535); width: calc(var(--s) * 0.052); height: calc(var(--s) * 0.085); border-radius: 3px; background: #2a2228; box-shadow: 0 1px 0 rgb(255 255 255 / 0.25) inset; }
+.armWeight { position: absolute; left: calc(var(--s) * -0.03); top: calc(var(--s) * -0.115); width: calc(var(--s) * 0.06); height: calc(var(--s) * 0.085); border-radius: 4px; background: linear-gradient(90deg, #56505a, #b9b3b6 45%, #4a444e); }
+.armPivot { position: absolute; left: calc(var(--s) * -0.045); top: calc(var(--s) * -0.045); width: calc(var(--s) * 0.09); height: calc(var(--s) * 0.09); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f1ece8, #8d8790 55%, #4a444e); box-shadow: 0 0 0 calc(var(--s) * 0.012) #2a2228; }
+
+/* Now spinning 카드 */
+.player { justify-self: end; align-self: end; margin-bottom: clamp(0.5rem, 3svh, 2.5rem); width: 224px; padding: 12px; border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--cream) 82%, var(--ink) 4%); }
+.playerHead { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 10px; letter-spacing: 0.2em; min-height: 1.4em; }
+.dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: color-mix(in srgb, var(--ink) 35%, transparent); transition: background-color 0.4s; }
+.dot[data-on="true"] { background: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+.screen { position: relative; width: 200px; height: 200px; border-radius: 8px; overflow: hidden; background: #1c171b; }
+.screenHint { position: absolute; inset: 0; display: grid; place-items: center; padding: 1.25rem; text-align: center; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.22em; line-height: 1.8; color: rgb(244 231 205 / 0.55); }
+.host { position: absolute; inset: 0; }
+.host iframe { display: block; }
+.playerFoot { margin-top: 10px; letter-spacing: 0.18em; font-size: 9px; }
+
+/* ── 책등 선반 ── */
+.shelfWrap { position: relative; margin-inline: calc(clamp(1rem, 3vw, 3rem) * -1); }
+.shelfHead { display: flex; justify-content: space-between; gap: 1rem; padding: 0 clamp(1rem, 3vw, 3rem) 0.4rem; }
+.shelf {
+  display: flex; align-items: flex-end; gap: 2px; height: calc(var(--shelf-h) * 1.16);
+  padding: 0 clamp(1rem, 3vw, 3rem); overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+}
+.shelf::-webkit-scrollbar { display: none; }
+.spine {
+  position: relative; flex: none; width: var(--w); height: calc(var(--shelf-h) * var(--h));
+  background: var(--bg); color: var(--fg); border-radius: 2px 2px 0 0; overflow: hidden; cursor: pointer;
+  box-shadow: 1px 0 0 rgb(0 0 0 / 0.22) inset, -1px 0 0 rgb(255 255 255 / 0.14) inset;
+  transition: transform 520ms var(--ease-groove), filter 0.4s;
+}
+.spine::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgb(0 0 0 / 0.18), transparent 30%, rgb(255 255 255 / 0.1) 60%, rgb(0 0 0 / 0.14)); }
+.spine:hover, .spine:focus-visible { transform: translateY(-5%); }
+.spine[aria-current="true"] { transform: translateY(-14%); }
+.shelf:hover .spine:not(:hover):not([aria-current="true"]) { filter: saturate(0.82) brightness(0.94); }
+.spineText {
+  position: absolute; inset: 8px 0 20px; display: flex; align-items: center; gap: 0.7em; white-space: nowrap; overflow: hidden;
+  writing-mode: vertical-rl; text-orientation: sideways; transform: rotate(180deg); justify-content: flex-start;
+  font-size: 10px; line-height: var(--w); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.spineText b { font-weight: 700; }
+.spineText i { font-style: normal; font-weight: 400; opacity: 0.72; }
+.mute { position: absolute; left: 50%; bottom: 7px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; border: 1px solid currentColor; opacity: 0.6; }
+.board { height: 10px; background: var(--ink); box-shadow: 0 6px 14px rgb(30 20 26 / 0.25); }
+
+/* ── 좁은 화면: 정보 → 판 → 플레이어를 세로로 ── */
+@media (max-width: 860px) {
+  .root { --s: min(50vw, 30svh); --shelf-h: clamp(130px, 20svh, 190px); }
+  .stage { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 1.25rem; }
+  .info { align-self: auto; width: 100%; padding-bottom: 0; }
+  .kicker { margin-bottom: 0.6rem; }
+  .title { -webkit-line-clamp: 2; }
+  .player { justify-self: center; align-self: auto; margin-bottom: 0.5rem; }
+  .playerFoot { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cover, .disc, .infoIn { animation: none; }
+  .discSpin { animation-duration: 6s; }
+  .arm, .spine { transition: none; }
+}
