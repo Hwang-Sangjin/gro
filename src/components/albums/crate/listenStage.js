@@ -65,7 +65,7 @@ export async function createListenStage({ renderer }) {
 
   const _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _spin = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
   const ptr = { x: 0, y: 0 };
-  let vel = 0, spin = 0, armK = 0, liftK = 0, disposed = false;
+  let vel = 0, spin = 0, armK = 0, disposed = false;
 
   return {
     /** 고른 앨범의 라벨 */
@@ -73,12 +73,12 @@ export async function createListenStage({ renderer }) {
     /**
      * at: 판의 자리 (CSS px, 캔버스 왼쪽 위 기준) { cx0 재킷 안, cx1 다 나온 자리, cy, d 지름 } · W · H: 캔버스 크기
      * k: 등장 정도 0…1 (판이 재킷에서 나옴 → 톤암이 나타남) · playing: 판이 돌고 바늘이 내려감
-     * lift: 판을 바꾸는 중 0…1…0 (판이 재킷 쪽으로 들어갔다 다시 나옴) · hover: 마우스 (-1…1)
+     * lift: 판을 바꾸는 중 0…1…0 (판이 재킷 안으로 들어갔다 다시 나옴) · hideDisc: 재킷이 자리를 비운 동안 판을 숨김 · hover: 마우스 (-1…1)
      */
-    render(at, W, H, k, dt, { playing, lift = 0, hover }) {
+    render(at, W, H, k, dt, { playing, lift = 0, hideDisc = false, hover }) {
       if (disposed || k <= 0.001) return;
-      liftK += (lift - liftK) * (1 - Math.exp(-dt * 9));
-      const out = ease(ss(0, 0.75, k)) * (1 - ease(Math.min(1, liftK)));   // 판이 나온 정도
+      const out = ease(ss(0, 0.75, k)) * (1 - ease(Math.min(1, lift)));   // 판이 나온 정도 (0 = 재킷 안에 다 들어감)
+      record.group.visible = shadow.visible = !hideDisc;                   // 재킷이 선반을 오가는 동안은 재킷 안에 든 것 → 그리지 않음
       const armIn = ss(0.6, 1, k);                                          // 톤암이 나타난 정도
       // 움직임
       vel += ((playing ? (STAGE.rpm * Math.PI * 2) / 60 : 0) - vel) * (1 - Math.exp(-dt * 1.2));

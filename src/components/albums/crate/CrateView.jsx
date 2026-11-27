@@ -309,6 +309,8 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
   useEffect(() => { listenRef.current = listen; });
   // Listening: 턴테이블의 판 · 바늘은 "이 판을 지금 틀고 있음"을 따라감
   useEffect(() => { engineRef.current?.setPlaying(listening); }, [listening]);
+  // Listening: Now spinning 카드는 선반 오른쪽 끝에 놓임 → 그만큼 선반을 비움
+  useEffect(() => { engineRef.current?.setCardSpace(music.active); }, [music.active]);
   // Listening 에서 책등을 눌러 올린 판: 상세(재생목록)가 도착하면 바로 틂
   useEffect(() => {
     if (mode3d !== "listen" || !front || autoRef.current !== front.slug || info === undefined) return;
@@ -353,7 +355,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
           onOpen={() => engineRef.current?.openFront()} onListen={listen} onShelf={shelve} />
         {/* 듣기 카드 ("Now spinning"): Listen 을 누르면 오른쪽 아래에 뜸. 판을 넘겨도 남고, 상자를 떠나면 닫힘 (좁은 화면에서는 쓰지 않음) */}
         <div role="region" aria-label="Now spinning" inert={!music.active}
-          className={`absolute right-[var(--crate-gut)] z-10 w-[200px] cursor-auto overflow-hidden rounded-xl bg-[#15111a]/90 text-[#f4e7cd] shadow-[0_24px_48px_-20px_rgba(0,0,0,.7)] ring-1 ring-white/10 backdrop-blur-md transition-[opacity,translate,bottom] duration-500 ${EASE} motion-reduce:transition-none ${mode3d === "listen" ? "bottom-[calc(var(--listen-shelf,260px)+1.25rem)]" : "bottom-[clamp(3rem,8vh,4.5rem)] max-[819px]:hidden"} ${music.active ? "opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}>
+          className={`absolute right-[var(--crate-gut)] z-10 w-[200px] cursor-auto overflow-hidden rounded-xl bg-[#15111a]/90 text-[#f4e7cd] shadow-[0_24px_48px_-20px_rgba(0,0,0,.7)] ring-1 ring-white/10 backdrop-blur-md transition-[opacity,translate,bottom] duration-500 ${EASE} motion-reduce:transition-none ${mode3d === "listen" ? "bottom-[calc(var(--listen-board,24px)+8px)] max-[819px]:bottom-[calc(var(--listen-shelf,260px)+1rem)]" : "bottom-[clamp(3rem,8vh,4.5rem)] max-[819px]:hidden"} ${music.active ? "opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}>
           <div ref={musicHostRef} className="size-[200px] bg-black [&_iframe]:block [&_iframe]:size-full" />
           <div className="flex items-center gap-2 px-3 py-2.5">
             <div className="min-w-0 flex-1">

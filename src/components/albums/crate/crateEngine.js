@@ -263,7 +263,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   let mode = 'grid', m = 1, anim = null, cardOff = 0, running = false;
   // Listening: L = 0 Crate … 1 Listening · sel = 무대에 올라간 판 · selK = 그 재킷이 선반(0) ↔ 무대(1) · swap = 판을 바꾸는 중
   let L = 0, animL = null, useSpines = false, sel = 0, selK = 1, swap = null, playing = false, hoverIdx = -1, picked = false;
-  let stage = null, stageLoading = false, LS = null;
+  let stage = null, stageLoading = false, LS = null, cardSpace = false;
   hero.mesh.visible = false;
   let pos = 0, target = 0, lastInput = 0, drag = null, touch = null;
   // 마우스 자리 (-1~1, 부드럽게 따라감): 광택이 따라 움직이고, 맨 앞 판 위에 있으면 스티커가 더 말려 올라감
@@ -391,7 +391,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   }
   function select(i) {
     if (!liveL() || swap || i < 0 || i >= N() || i === sel || cards[i].divider) return;
-    swap = { to: i, t: 0, phase: 0 };
+    swap = { to: i, t: 0, phase: 0, T: stage ? [0.5, 0.42, 0.75, 0.7] : [0.01, 0.42, 0.75, 0.01] };
     lastInput = performance.now();
   }
   const step = (dir) => { let i = sel + dir; while (cards[i]?.divider) i += dir; select(i); };
@@ -466,13 +466,15 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       const pitchPx = shelfPx * 0.022 * SPINE.thick + SPINE.gapPx;
       let top, left, right, bottom = H - boardPx - shelfPx * 1.14 - 14;
       if (narrow) { top = Math.max(H * 0.17, 140); bottom = Math.min(bottom, top + Math.min(W * 0.6, H * 0.28)); left = gut; right = W - gut; }
-      else { top = Math.max(H * 0.14, 110) + 36; left = lay.left; right = W - gut - 224; }   // 오른쪽 224px = Now spinning 카드 자리 (톤암을 가리지 않게)
+      else { top = Math.max(H * 0.14, 110) + 36; left = lay.left; right = W - gut; }
+      // Now spinning 카드는 선반 오른쪽 끝에 놓임 → 그만큼 선반을 줄임 (2026-11-27: 무대 오른쪽을 비워 두었더니 창이 좁을 때 재킷 · 판이 너무 작았음)
+      const shelfRight = W - gut - (cardSpace && !narrow ? 216 : 0);
       const sw = right - left, sh = Math.max(60, bottom - top);
       // 재킷 오른쪽으로 판이 반쯤 나오고 그 오른쪽 위에 톤암 → 재킷 폭의 약 1.85배 자리
       const jPx = Math.max(80, Math.min(sh * (narrow ? 0.9 : 0.86), sw / 1.9));
       LS = {
-        sh: shelfPx * wpp, pitch: pitchPx * wpp, pitchPx, count: Math.max(1, Math.floor((W - 2 * gut) / pitchPx)),
-        x0: (gut - W / 2) * wpp, x1: (W - gut - W / 2) * wpp, y0: -(H / 2 - boardPx) * wpp,
+        sh: shelfPx * wpp, pitch: pitchPx * wpp, pitchPx, count: Math.max(1, Math.floor((shelfRight - gut) / pitchPx)),
+        x0: (gut - W / 2) * wpp, x1: (shelfRight - W / 2) * wpp, y0: -(H / 2 - boardPx) * wpp,
         jx: (left + jPx / 2 - W / 2) * wpp, jy: -((top + bottom) / 2 - H / 2) * wpp, js: jPx * wpp,
         // 판: 재킷 가운데(cx0, 재킷 안)에서 오른쪽(cx1)으로 나옴 · d = 판 지름(px) · tt = 눌러서 재생 / 멈춤하는 구역 (판 + 톤암)
         disc: { cx0: left + jPx * 0.5, cx1: left + jPx * 1.04, cy: (top + bottom) / 2, d: jPx * 0.94 },
@@ -530,16 +532,24 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       L = animL.from + (animL.to - animL.from) * k;
       if (k >= 1) { L = animL.to; animL = null; onSettled?.(mode); }
     }
-    // 판 바꾸기: 무대의 재킷이 선반 제자리로 돌아가고(0) → 새 판이 선반에서 무대로 올라옴(1). 그동안 턴테이블의 판은 떠올라 라벨이 바뀜
-    let swapLift = 0;
+    // 판 바꾸기 (2026-11-27 사용자 요청): ① 판이 재킷 안으로 다 들어가 사라짐 → ② 재킷이 선반 제자리로 → 새 재킷이 선반에서 무대로 → ③ 새 판이 재킷에서 오른쪽으로 나옴
+    //  (처음엔 재킷이 오가는 동안 판이 옆으로만 움직이며 라벨이 바뀌었음)
+    let swapLift = 0, discHidden = false;
     if (swap) {
       swap.t += dt;
+      const T = swap.T;
       if (swap.phase === 0) {
-        selK = 1 - easeIO(clamp01(swap.t / 0.42)); swapLift = clamp01(swap.t / 0.42);
-        if (swap.t >= 0.42) { sel = swap.to; swap.phase = 1; swap.t = 0; selK = 0; picked = true; shownFront = -1; stage?.setAlbum(cards[sel]); }
+        selK = 1; swapLift = clamp01(swap.t / T[0]);
+        if (swap.t >= T[0]) { swap.phase = 1; swap.t = 0; }
+      } else if (swap.phase === 1) {
+        swapLift = 1; discHidden = true; selK = 1 - easeIO(clamp01(swap.t / T[1]));
+        if (swap.t >= T[1]) { sel = swap.to; swap.phase = 2; swap.t = 0; selK = 0; picked = true; shownFront = -1; stage?.setAlbum(cards[sel]); }
+      } else if (swap.phase === 2) {
+        swapLift = 1; discHidden = true; selK = easeIO(clamp01(swap.t / T[2]));
+        if (swap.t >= T[2]) { swap.phase = 3; swap.t = 0; selK = 1; }
       } else {
-        selK = easeIO(clamp01(swap.t / 0.8)); swapLift = 1 - clamp01(swap.t / 0.5);
-        if (swap.t >= 0.8) { selK = 1; swap = null; }
+        selK = 1; swapLift = 1 - clamp01(swap.t / T[3]);
+        if (swap.t >= T[3]) swap = null;
       }
     }
     if (mode === 'listen' && LS) target = clampN(0, target, Math.max(0, N() - LS.count));
@@ -641,7 +651,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     // 판 + 톤암: 제 장면 · 제 카메라로 먼저 그리고, 그 위에 재킷 · 책등들 (판이 재킷 뒤에서 나옴)
     const sk = Le * (1 - clamp01(m * 1.5));
     if (stage && sk > 0.001 && LS) {
-      stage.render(LS.disc, W, H, sk, dt, { playing: playing && !swap, lift: swapLift, hover });
+      stage.render(LS.disc, W, H, sk, dt, { playing: playing && !swap, lift: swapLift, hideDisc: discHidden, hover });
       renderer.clearDepth();
       renderer.setViewport(0, 0, W, H);
     }
@@ -731,6 +741,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     },
     /** Listening: 판이 돌고 바늘이 내려가 있음 */
     setPlaying(v) { playing = !!v; if (mode === 'listen') run(); },
+    /** Now spinning 카드가 떠 있음 → 선반 오른쪽 끝을 그만큼 비움 */
+    setCardSpace(v) { if (cardSpace === !!v) return; cardSpace = !!v; resize(); if (mode !== 'grid') run(); },
     get front() { return L > 0.5 ? sel : wrap(Math.round(pos)); },
     /** 그리드로 돌아갈 때 화면에 보이게 해 둘 칸: Crate = 맨 앞 판 · Listening = 선반 왼쪽 끝 판 */
     get anchor() { return wrap(Math.round(pos)); },

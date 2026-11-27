@@ -9,7 +9,7 @@ const validList = (id) => (typeof id === "string" && /^[\w-]+$/.test(id) ? id : 
 /** @param {HTMLElement} host  @param {(s: { album: any, active: boolean, playing: boolean, buffering: boolean, blocked: boolean, error: boolean }) => void} onState */
 export function createRoomMusic(host, onState) {
   let player = null, ready = false, creating = false, disposed = false;
-  let album = null, list = null, want = false, loaded = null;
+  let album = null, list = null, want = false, loaded = null, failTimer = 0;
   const state = { album: null, active: false, playing: false, buffering: false, blocked: false, error: false };
   const emit = (patch) => { Object.assign(state, patch); onState?.({ ...state }); };
 
@@ -20,15 +20,30 @@ export function createRoomMusic(host, onState) {
   const sync = () => {
     if (!ready || !player) return;
     if (want && list) {
-      if (loaded !== list) { loaded = list; player.loadPlaylist({ list, listType: "playlist" }); }
+      // 판이 바뀌면 플레이어를 새로 만듦 (2026-11-27 고침. 예전: loadPlaylist 로 목록만 갈아 끼웠는데, 새 목록을 YouTube 가 못 불러오면
+      //  — 오류도 안 내고 조용히 실패하는 목록이 있음 — 플레이어에 예전 판이 그대로 남아, 카드에는 새 판 이름이 뜨는데 재생을 누르면 바로 전 판이 나왔음)
+      if (loaded !== list) { rebuild(); return; }
       else if (player.getPlayerState?.() !== 1) player.playVideo();
     } else if (loaded && loaded !== list) { player.stopVideo(); loaded = null; }
     else player.pauseVideo();
   };
   let gen = 0;   // stop() 뒤에 늦게 끝난 스크립트 로딩이 플레이어를 다시 만들지 않게
+  const watch = () => {
+    // 7초 안에 재생이 시작되지 않으면 못 불러온 것으로 표시 (자동 재생이 막혔거나 사용자가 멈춘 경우는 빼고)
+    clearTimeout(failTimer);
+    failTimer = setTimeout(() => { if (!disposed && want && !state.playing && !state.blocked) emit({ error: true, buffering: false }); }, 7000);
+  };
+  const rebuild = () => {
+    gen++;
+    player?.destroy(); player = null; ready = false; creating = false; loaded = null;
+    host?.replaceChildren();
+    emit({ playing: false, buffering: true, error: false });
+    ensure();
+  };
   const ensure = () => {
     if (player || creating || !host) return;
     creating = true;
+    watch();
     const my = ++gen;
     loadYouTubeAPI().then((YT) => {
       if (disposed || my !== gen) return;
@@ -46,8 +61,10 @@ export function createRoomMusic(host, onState) {
             if (state.muted) e.target.mute();
             sync();   // 만드는 사이 앨범이 바뀌었으면 여기서 새 재생목록으로
           },
-          onStateChange(e) { if (!disposed) emit({ playing: e.data === 1, buffering: e.data === 3, blocked: false, error: false }); },
-          onError() { if (!disposed) emit({ error: true, playing: false }); },
+          // 오류 표시는 실제로 재생이 시작될 때만 지움 (예전: 상태가 바뀌기만 해도 지워져 "Paused" 로 보였음)
+          onStateChange(e) { if (disposed) return; if (e.data === 1) clearTimeout(failTimer); emit({ playing: e.data === 1, buffering: e.data === 3, blocked: false, error: e.data === 1 ? false : state.error }); },
+          // 못 불러옴: 재생목록의 다음 곡으로 넘어가 재생되면 그대로 두고, 4초 안에 안 되면 플레이어를 비움 (예전 판이 남아 재생되지 않게)
+          onError() { if (!disposed) emit({ error: true, playing: false, buffering: false }); },
           onAutoplayBlocked() { if (!disposed) emit({ blocked: true, playing: false }); },
         },
       });
@@ -71,11 +88,12 @@ export function createRoomMusic(host, onState) {
     setMuted(on) { if (ready && player) { if (on) player.mute(); else player.unMute(); } emit({ muted: on }); },
     /** 플레이어를 없앰 (카드 닫기) */
     stop() {
+      clearTimeout(failTimer);
       want = false; gen++;
       player?.destroy(); player = null; ready = false; creating = false; loaded = null;
       host?.replaceChildren();
       emit({ active: false, playing: false, buffering: false });
     },
-    dispose() { disposed = true; player?.destroy(); player = null; },
+    dispose() { disposed = true; clearTimeout(failTimer); player?.destroy(); player = null; },
   };
 }
