@@ -409,7 +409,10 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
     const t = setTimeout(() => setSpin(false), 1600);
     return () => clearTimeout(t);
   }, [listening, front?.slug]);
-  useEffect(() => { engineRef.current?.setPlaying(spin && playingRef.current?.slug === front?.slug); }, [spin, front?.slug]);
+  //  (2026-11-27 고침: 판을 바꾼 뒤 노래는 나오는데 바늘이 올라가 있었음 — "지금 트는 판이 이 판인지"(playingRef)를 판이 바뀌는 순간에만 봐서,
+  //   곧이어 새 판을 틀기 시작해도 다시 보지 않았음 → 그릴 때마다 계산해 값이 바뀌면 엔진에 알림)
+  const spinning = spin && !!front && playingRef.current?.slug === front.slug;
+  useEffect(() => { engineRef.current?.setPlaying(spinning); }, [spinning]);
   // Listening: Now spinning 카드는 선반 오른쪽 끝에 놓임 → 그만큼 선반을 비움
   useEffect(() => { engineRef.current?.setCardSpace(music.active); }, [music.active]);
   // Listening 에서 책등을 눌러 올린 판: 상세(재생목록)가 도착하면 바로 틂
@@ -453,7 +456,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
           <div className="absolute inset-0 bg-(--paper-surface,var(--bg)) bg-(image:--paper-texture-image) bg-repeat bg-blend-soft-light opacity-(--paper-texture-opacity) [background-size:var(--paper-texture-size)_var(--paper-texture-size)]" />
         </div>
         {/* 글자: 크레이트를 떠나자마자 빠지고, 돌아오면 판들이 거의 다 꽂힐 때 나타남 (CratePanel) */}
-        <CratePanel spinning={spin && playingRef.current?.slug === front?.slug} marks={marks} onJump={(i) => engineRef.current?.goTo(i)} label={title} front={front} total={total} info={info} kind={kind} listening={listening} mode={mode3d}
+        <CratePanel spinning={spinning} marks={marks} onJump={(i) => engineRef.current?.goTo(i)} label={title} front={front} total={total} info={info} kind={kind} listening={listening} mode={mode3d}
           toggle={<ViewToggle view={is3d(view) ? view : flat} onChange={onViewChange} views={[flat, "crate", "listen"]} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />} sound={SFX ? <SoundToggle /> : null}
           onOpen={() => engineRef.current?.openFront()} onListen={listen} onShelf={shelve} />
         {/* 듣기 카드 ("Now spinning"): Listen 을 누르면 오른쪽 아래에 뜸. 판을 넘겨도 남고, 상자를 떠나면 닫힘 (좁은 화면에서는 쓰지 않음) */}
