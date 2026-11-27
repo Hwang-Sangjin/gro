@@ -16,7 +16,7 @@ export const newShuffleSeed = () => Math.random().toString(36).slice(2, 10);
 const CARD_COLUMNS = "id, slug, title, artist_names, thumb_path, cover_color, created_at, release_year";
 
 // 새로 들어온 판 (NEW IN): 들어온 지 NEW_DAYS 안 — 카드 스티커 · Digging 의 "New in" 탭 · Crate 표시가 같은 기준
-export const NEW_DAYS = 45;
+export const NEW_DAYS = 14;   // (2026-11-27 45 → 14: 판을 매일 올리게 되어 New in 이 너무 커짐. 이 값 한 곳만 바꾸면 됨)
 const newSince = () => new Date(Date.now() - NEW_DAYS * 864e5).toISOString();
 // Digging 의 한 묶음과 같은 모양으로 돌려줌 (최근 들어온 순 · 더 받을 것 없음)
 export async function fetchNewIn(supabase) {

@@ -5,9 +5,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
-import { coverUrl } from "@/lib/albums";
+import { coverUrl, NEW_DAYS } from "@/lib/albums";   // NEW_DAYS: 들어온 지 이 날수 안이면 New (AlbumCard 의 NEW IN 과 같은 기준)
 
-const NEW_DAYS = 45;   // 들어온 지 이 날수 안이면 New (AlbumCard 의 NEW IN 과 같은 기준)
 const COVER = { gap: 28, follow: 0.24 };   // 떠 있는 커버: 커서와의 가로 거리(px) · 따라오는 속도(1 = 바로 붙음)
 const isNew = (a) => a.created_at && Date.now() - new Date(a.created_at).getTime() < NEW_DAYS * 864e5;
 

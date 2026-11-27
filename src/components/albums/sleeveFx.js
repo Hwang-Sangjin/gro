@@ -1,3 +1,4 @@
+import { NEW_DAYS } from "@/lib/albums";
 import * as THREE from 'three';
 
 /* 3D 재킷의 디테일 — Crate(crateEngine) 가 씀. 엔진에 빛 계산이 없어서(MeshBasic) 여기서 셰이더로 그림
@@ -12,7 +13,7 @@ import * as THREE from 'three';
 //  말리는 반지름 · 가운데를 잡았을 때 들리는 쪽(도, 오른쪽 위) · 이만큼 넘게 떼고 놓으면 떨어짐 (지름 대비)
 export const PEEL = { rest: 0, radius: 0.075, dir: 38, off: 0.6 };
 export const STICKER = { size: 0.2, at: 0.35, tilt: 0.21 };                 // 재킷 한 변 대비 지름 · 가운데에서의 거리(오른쪽 위) · 기울기(rad)
-const NEW_MS = 45 * 864e5;   // 들어온 지 45일 안 = NEW IN (lib/albums.js NEW_DAYS 와 같은 기준)
+const NEW_MS = NEW_DAYS * 864e5;   // 들어온 지 NEW_DAYS 일 안 = NEW IN (lib/albums.js 와 같은 값)
 export const isNewIn = (createdAt) => !!createdAt && Date.now() - new Date(createdAt).getTime() < NEW_MS;
 
 const FOG_V = '#include <fog_pars_vertex>', FOG_F = '#include <fog_pars_fragment>';

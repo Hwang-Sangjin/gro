@@ -8,10 +8,9 @@ import { useAlbumTransition } from "@/components/album/AlbumTransitionProvider";
 import useReveal from "@/components/digging/useReveal";
 import styles from "@/components/digging/Digging.module.css";
 import { sleeveColors } from "@/components/album/sleeveDepth";
-import { coverUrl } from "@/lib/albums";
+import { coverUrl, NEW_DAYS } from "@/lib/albums";   // NEW_DAYS: 들어온 지 이 날수 안이면 NEW IN
 import { isPeeled, subscribePeeled } from "./peeled";
 
-const NEW_DAYS = 45;   // 들어온 지 이 날수 안이면 NEW IN
 
 export default function AlbumCard({ album }) {
   // 스티커는 새로 들어온 판에만 (모든 카드에 붙으면 눈에 안 띔)
