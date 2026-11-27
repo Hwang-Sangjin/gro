@@ -350,6 +350,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   //  rise: Listen 에서 책등이 다 꽂힌 뒤, 그중 하나(무작위)가 뽑혀 무대로 올라감 → 그 뒤에 톤암 · 판 (intro)
   let enter = null, rise = null, stageGate = null;
   const hint = { over: -1, ready: -1 };
+  let pulse = null;   // 바로 가기로 고른 묶음 { from, to, until }
   const easeOut = (x) => 1 - (1 - x) ** 3;   // intro = 무대의 톤암 · 판이 나온 정도 0…1
   hero.mesh.visible = false;
   let pos = 0, target = 0, lastInput = 0, drag = null, touch = null;
@@ -645,6 +646,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       }
       if (k >= 1) { L = animL.to; animL = null; onSettled?.(mode); }
     }
+    if (pulse && now > pulse.until) pulse = null;
     if (stageGate && !enter && !anim && !animL) { stageGate(); stageGate = null; }   // 무대 만들기(무거움)는 화면이 멈춰 있을 때
     let en = 1;
     if (enter) {
@@ -732,7 +734,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       // 판이 적으면 같은 판이 뒤에 또 보이지 않게 (끝없이 넘기는 건 그대로)
       if (j - 1 >= N()) from.o *= 1 - ss(N() - 1, N(), j - 1 - frac);
       if (L > 0) {
-        slot.lift += ((idx === hoverIdx ? 1 : 0) - slot.lift) * (1 - Math.exp(-dt / 0.09));
+        const pulsing = !!pulse && raw >= pulse.from && raw < pulse.to && now < pulse.until - 0.45 + Math.min(0.3, (raw - pulse.from) * 0.03) && now > pulse.until - 1.1 + (raw - pulse.from) * 0.03;
+        slot.lift += ((idx === hoverIdx || pulsing ? 1 : 0) - slot.lift) * (1 - Math.exp(-dt / 0.09));
         if (L < 0.45) {
           // 상자의 판들: 조금 가라앉으며 사라짐
           const k = ss(0, 0.4, L);
@@ -928,7 +931,12 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     goTo(i) {
       if (i < 0 || i >= N()) return;
       if (live()) { const r = Math.round(pos); target = r + (i - wrap(r)); lastInput = performance.now(); }
-      else if (liveL()) { target = clampN(0, i, shelfMax()); lastInput = performance.now(); }
+      else if (liveL()) {
+        target = clampN(0, i, shelfMax()); lastInput = performance.now();
+        // 선반에 다 보여서 넘길 것이 없을 때도 눌렀다는 게 보이게: 그 묶음(다음 칸막이 앞까지)의 책등들이 잠깐 솟았다 내려옴
+        let end = i + 1; while (end < N() && !cards[end].divider) end++;
+        pulse = { from: i, to: end, until: performance.now() / 1000 + 1.1 };
+      }
     },
     /** 두꺼운 판들 (2LP · 게이트폴드 · 박스) 의 slug — Listen 선반에서 책등이 더 두꺼움 */
     setThick(slugs) {
