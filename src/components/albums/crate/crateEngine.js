@@ -804,7 +804,9 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     const tt = LS?.tt, hx = (hover.cx ?? -1) - hostRect.left, hy = (hover.cy ?? -1) - hostRect.top;
     const over = liveL() && intro >= 1 && hover.on && !!tt && hx > tt.left && hx < tt.left + tt.width && hy > tt.top && hy < tt.top + tt.height ? 1 : 0;
     const ready = mode === 'listen' && intro >= 1 && !swap ? 1 : 0;
-    if (over !== hint.over) { hint.over = over; host.style.setProperty('--disc-hover', String(over)); canvas.style.cursor = over ? 'pointer' : ''; }
+    // 판 위에서는 마우스 커서 자체가 "Click to play" 동그라미로 바뀜 (CratePanel 이 --disc-mx · --disc-my 자리에 그림) → 원래 커서는 숨김
+    if (over !== hint.over) { hint.over = over; host.style.setProperty('--disc-hover', String(over)); canvas.style.cursor = over ? 'none' : ''; }
+    if (over) { host.style.setProperty('--disc-mx', `${hx.toFixed(1)}px`); host.style.setProperty('--disc-my', `${hy.toFixed(1)}px`); }
     if (ready !== hint.ready) { hint.ready = ready; host.style.setProperty('--stage-ready', String(ready)); }
     // 3D 판이 그 자리에 그려진 뒤에 그리드 커버를 숨김 (한 프레임도 비지 않게)
     for (const el of toHide) hideArt(el, true);

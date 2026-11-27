@@ -146,14 +146,13 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
       )}
 
       {/* 아래: 상자 안에서 지금 어디쯤인지 (넓은 화면은 판 아래에, 좁은 화면은 화면 폭 전체) */}
-      {/* Listening: 판을 누르면 재생된다는 안내 (2026-11-27 사용자 요청 — 판을 눌러야 하는지 모를 수 있음)
-          멈춰 있을 땐 늘 옅게 보이고 마우스를 올리면 또렷해짐 · 재생 중에는 마우스를 올렸을 때만 "Click to pause"
-          자리 · 나타남은 엔진이 넣는 값 (--disc-x · --disc-y · --stage-ready · --disc-hover) */}
+      {/* Listening: 판 위에서는 마우스 커서가 "Click to play" 동그라미로 바뀜 (2026-11-27 사용자 요청 — 처음엔 판 위에 늘 떠 있는 글자였는데, 커서가 바뀌는 쪽이 낫다고 함)
+          재생 중에는 "Click to pause". 자리 · 나타남은 엔진이 넣는 값 (--disc-mx · --disc-my = 마우스 자리, --stage-ready · --disc-hover) */}
       {L && front && !front.divider && canListen && (
         <p aria-hidden="true"
-          className={`absolute left-(--disc-x) top-(--disc-y) -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-(--ink)/85 px-4 py-2 ${KICKER} text-[10px] text-(--cream) shadow-[0_8px_18px_-10px_rgb(0_0_0/0.6)] backdrop-blur-sm transition-[opacity,scale] duration-500 max-[819px]:hidden`}
-          style={{ opacity: `calc(var(--stage-ready, 0) * (${spinning ? "0" : "0.6"} + ${spinning ? "1" : "0.4"} * var(--disc-hover, 0)))`, scale: "calc(0.94 + 0.06 * var(--disc-hover, 0))" }}>
-          {spinning ? "Click to pause" : "▶ Click to play"}
+          className={`absolute left-(--disc-mx,-200px) top-(--disc-my,-200px) grid size-[5.75rem] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-(--ink)/90 text-center ${KICKER} text-[10px] leading-[1.5] tracking-[0.16em] text-(--cream) shadow-[0_10px_22px_-10px_rgb(0_0_0/0.6)] backdrop-blur-sm transition-[opacity,scale] duration-300 max-[819px]:hidden`}
+          style={{ opacity: "calc(var(--stage-ready, 0) * var(--disc-hover, 0))", scale: "calc(0.6 + 0.4 * var(--disc-hover, 0))" }}>
+          <span>{spinning ? <>Click to<br />pause</> : <>Click to<br />play</>}</span>
         </p>
       )}
       {/* Listening: 선반 받침 (책등들이 서 있는 줄) */}
