@@ -16,6 +16,7 @@ import { createRoomMusic } from "@/components/roomtest/roomMusic";
 import CratePanel from "./CratePanel";
 import SoundToggle from "@/components/albums/SoundToggle";
 import { useCrate } from "@/components/crate/CrateProvider";
+import { GENRE_ITEMS } from "@/components/albums/GenreBar";
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const EASE = "ease-[cubic-bezier(0.22,1,0.36,1)]";
@@ -31,7 +32,7 @@ const VIEW_ICON = {
 };
 const storeKey = () => `grooves:crate:${location.pathname}`;
 // 정보 패널에 쓰는 판 상세 (그리드 카드에는 제목 · 아티스트 · 색만 있음)
-const DETAIL = "id, slug, release_year, format, rpm, description, youtube_playlist_id, album_genres(genres(name)), tracks(count)";
+const DETAIL = "id, slug, release_year, format, rpm, description, youtube_playlist_id, album_genres(genres(name, slug)), tracks(count)";
 
 /** Grid / Crate 스위치 (그리드 위·크레이트 위 같은 모양). views 로 보기를 더 넣을 수 있음 (List) */
 export function ViewToggle({ view, onChange, className = "", views = VIEWS }) {
@@ -63,22 +64,44 @@ function letterOf(artist) {
 }
 const LETTER_NOTE = (k) => (k === "#" ? "Numbers & symbols" : k === "ㄱ–ㅎ" ? "Korean names" : `Artists ${k.replace("–", " to ")}`);
 function withLetters(cards) {
-  const out = []; let prev = null;
+  const out = []; let prev = null, rows = 0;
   for (const c of cards) {
     if (!c.divider) {
       const k = letterOf(c.artist);
       if (k !== prev) {
         prev = k;
-        out.push({ divider: true, letter: k, slug: `__letter_${k}_${out.length}`, art: null, image: null, head: k, count: LETTER_NOTE(k), tab: k, dot: "#4c404a", color: "#c9a679", title: k, artist: LETTER_NOTE(k) });
+        out.push({ divider: true, row: rows++ % 2, letter: k, slug: `__letter_${k}_${out.length}`, art: null, image: null, head: k, count: LETTER_NOTE(k), tab: k, dot: "#4c404a", color: "#c9a679", title: k, artist: LETTER_NOTE(k) });
       }
     }
     out.push(c);
   }
   return out;
 }
-function readCards(root, letters = false) {
+// 장르 칸막이 (2026-11-27 사용자 요청): 새로 들어온 판(New in)을 맨 앞에 따로 묶고, 나머지는 장르별로 묶어 묶음마다 칸막이를 꽂음
+//  한 판은 한 곳에만 (여러 장르면 장르 바 순서에서 앞에 있는 장르). 묶음 안의 순서는 그리드 순서 그대로 (섞인 순 · 정렬한 순)
+//  장르는 상세(details: slug → { album_genres })에서 옴 — 아직 못 받은 판은 Others
+//  그리드 맨 앞의 "All records" 칸막이는 여기서는 뺌 (칸막이가 둘 겹침)
+function withGroups(cards, details) {
+  const albums = cards.filter((c) => !c.divider);
+  const order = GENRE_ITEMS.filter((g) => g.slug);
+  const groups = new Map([["__new", { label: "New in", dot: "#d9603b", items: [] }], ...order.map((g) => [g.slug, { label: g.name, dot: "#4c404a", items: [] }]), ["__others", { label: "Others", dot: "#4c404a", items: [] }]]);
+  for (const c of albums) {
+    if (c.isNew) { groups.get("__new").items.push(c); continue; }
+    const mine = (details.get(c.slug)?.album_genres ?? []).map((g) => g.genres?.slug).filter(Boolean);
+    groups.get(order.find((g) => mine.includes(g.slug))?.slug ?? "__others").items.push(c);
+  }
+  const out = []; let rows = 0;
+  for (const [key, g] of groups) {
+    if (!g.items.length) continue;
+    const n = `${g.items.length} record${g.items.length === 1 ? "" : "s"}`;
+    out.push({ divider: true, row: rows++ % 2, letter: g.label, slug: `__group_${key}`, art: null, image: null, head: g.label, count: n, tab: g.label, dot: g.dot, color: "#c9a679", title: g.label, artist: n }, ...g.items);
+  }
+  return out;
+}
+// mode: "letters" (아티스트 A–Z 로 볼 때) | "genre" (그 밖) | null (칸막이 없이 그리드 그대로)
+function readCards(root, mode = null, details = null) {
   const cards = readCardsRaw(root);
-  return letters ? withLetters(cards) : cards;
+  return mode === "letters" ? withLetters(cards) : mode === "genre" && details ? withGroups(cards, details) : cards;
 }
 function readCardsRaw(root) {
   if (!root) return [];
@@ -110,13 +133,13 @@ function readCardsRaw(root) {
 /**
  * gridRef: 그리드 카드들을 감싼 요소 · view / onViewChange: 'grid' | 'crate' | 'listen' (페이지가 상태를 가짐. 'grid' = 3D 가 아닌 보기)
  * flat: 3D 를 닫으면 돌아갈 보기의 이름 ('grid' | 'list') — 덮개 안의 전환 버튼에 그 이름으로 나옴
- * letters: 아티스트 A–Z 순으로 보고 있음 → 글자 칸막이를 꽂음
+ * dividers: 칸막이를 무엇으로 나눌지 — "letters" (아티스트 A–Z 순으로 볼 때 이름 첫 글자) | "genre" (New in + 장르별) | null
  * title: 크레이트 왼쪽 위 큰 글자 (예: DIGGING, OWNED)
  * total: 이 목록의 전체 판 수 (그리드가 아직 다 받지 못했어도 번호 옆에 전체 수를 보여 주려고). 없으면 지금 꽂힌 수
  */
-export default function CrateView({ gridRef, view, onViewChange, title, total = null, flat = "grid", letters = false }) {
-  const lettersRef = useRef(letters);
-  useEffect(() => { lettersRef.current = letters; });
+export default function CrateView({ gridRef, view, onViewChange, title, total = null, flat = "grid", dividers = null }) {
+  const groupRef = useRef(dividers);
+  useEffect(() => { groupRef.current = dividers; });
   const [marks, setMarks] = useState([]);   // 글자 칸막이들 [{ i, label }] — 위쪽의 바로 가기 줄
   const putCards = (cards) => { cardsRef.current = cards; setMarks(cards.flatMap((c, i) => (c.letter ? [{ i, label: c.letter }] : []))); };
   const hostRef = useRef(null);
@@ -244,12 +267,15 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
         if (eng.busy) return;
         if (view === "listen" ? eng.crateToListen() : eng.listenToCrate()) { modeRef.current = view; setMode3d(view); }
       } else if (is3d(view)) {
-        const cards = readCards(gridRef.current, lettersRef.current);
+        const grouped = groupRef.current === "genre";
+        // 장르로 묶으려면 판들의 장르(상세)가 먼저 있어야 함
+        if (grouped) { await loadDetails(readCardsRaw(gridRef.current)); if (!alive) return; }
+        const cards = readCards(gridRef.current, groupRef.current, details.current);
         if (!cards.length) { onViewChange(flat); return; }
         putCards(cards); loadDetails(cards);
-        // 화면에 보이는 첫 판 (헤더 아래)
+        // 화면에 보이는 첫 판 (헤더 아래). 장르로 묶었으면 순서가 그리드와 달라 맨 앞부터
         const topLine = (hostRef.current.getBoundingClientRect().top || 0) + 80;
-        const start = Math.max(0, cards.findIndex((c) => c.art.getBoundingClientRect().bottom > topLine));
+        const start = grouped ? 0 : Math.max(0, cards.findIndex((c) => c.art && c.art.getBoundingClientRect().bottom > topLine));
         modeRef.current = view; setMode3d(view);
         setShown(true); lockPage(true);
         eng.setFog(getComputedStyle(page() || document.body).backgroundColor);
@@ -284,12 +310,13 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
     if (!is3d(saved?.view)) return;
     let done = false;
     const tryOpen = async () => {
-      const cards = readCards(gridRef.current, lettersRef.current);
-      const i = cards.findIndex((c) => c.slug === saved.slug);
-      if (done || i < 0) return false;
+      if (done || !readCardsRaw(gridRef.current).some((c) => c.slug === saved.slug)) return false;
       done = true;
       const eng = await engine();
       if (!eng) return true;
+      if (groupRef.current === "genre") await loadDetails(readCardsRaw(gridRef.current));
+      const cards = readCards(gridRef.current, groupRef.current, details.current);
+      const i = Math.max(0, cards.findIndex((c) => c.slug === saved.slug));
       putCards(cards); loadDetails(cards);
       modeRef.current = saved.view; setMode3d(saved.view);
       setShown(true); lockPage(true);
@@ -316,7 +343,23 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       raf = 0;
       const eng = engineRef.current;
       if (!eng || modeRef.current === "grid") return;
-      const cards = readCards(gridRef.current, lettersRef.current);
+      if (groupRef.current === "genre") {
+        // 장르로 묶었을 땐 새 판이 제 묶음 안으로 들어가야 함 → 뒤에 붙이지 않고 통째로 다시 묶음 (보던 판은 그대로 보이게 엔진이 맞춤)
+        const raw = readCardsRaw(gridRef.current), count = (list) => list.filter((c) => !c.divider).length;
+        if (count(raw) <= count(cardsRef.current)) return;
+        loadDetails(raw).then(() => {
+          const apply = () => {
+            const e = engineRef.current;
+            if (!e || modeRef.current === "grid" || groupRef.current !== "genre") return;
+            const next = withGroups(readCardsRaw(gridRef.current), details.current);
+            if (count(next) <= count(cardsRef.current)) return;
+            if (e.replace(next)) putCards(next); else requestAnimationFrame(apply);   // 움직이는 중이면 끝난 뒤에
+          };
+          apply();
+        });
+        return;
+      }
+      const cards = readCards(gridRef.current, groupRef.current, details.current);
       if (cards.length <= cardsRef.current.length) return;
       if (eng.busy) { raf = requestAnimationFrame(sync); return; }   // 날아오는 중이면 끝난 뒤에
       // 이미 꽂힌 판은 그대로 두고(같은 물체) 새 판만 뒤에

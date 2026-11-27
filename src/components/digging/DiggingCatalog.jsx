@@ -193,7 +193,7 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
           lead={query.trim() ? null : <GenreDivider slug={current.key === "all" ? null : current.key} count={counts?.[current.key] ?? null} notOwned={notOwned} leaving={switching} sort={current.initial.sort ?? null} />} />
       </div>
       {/* Crate 보기: 그리드 위를 덮는 3D 크레이트 (Grid / Crate 버튼으로 전환) */}
-      <CrateView gridRef={gridWrapRef} view={in3d ? view : "grid"} flat={flat} letters={(current.initial.sort ?? null) === "artist" && !query.trim()} onViewChange={setView} title="Digging" total={notOwned || query.trim() ? null : counts?.[current.key] ?? null} />
+      <CrateView gridRef={gridWrapRef} view={in3d ? view : "grid"} flat={flat} dividers={query.trim() ? null : (current.initial.sort ?? null) === "artist" ? "letters" : "genre"} onViewChange={setView} title="Digging" total={notOwned || query.trim() ? null : counts?.[current.key] ?? null} />
       {/* 없는 판 요청 (로그인 사용자) — 검색 결과가 없을 때도 여기로 */}
       <RequestDialog ref={request} />
     </>

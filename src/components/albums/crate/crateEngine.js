@@ -301,7 +301,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       const tex = tabTex(slot.card), t = p.t ?? 1, wT = SPINE.tabH * tex.userData.aspect / t;
       if (lt.material.map !== tex) { lt.material.map = tex; lt.material.needsUpdate = true; }
       lt.scale.set(wT, SPINE.tabH, 1);
-      lt.position.set(-0.52, 0.5 + SPINE.tabH / 2 - 0.004, wT / 2 - 0.011);
+      // 탭은 한 칸 건너 한 단 위로 (row) — 판이 몇 장 없는 묶음이 이어져도 탭끼리 겹치지 않게
+      lt.position.set(-0.52, 0.5 + SPINE.tabH / 2 - 0.004 + (slot.card.row || 0) * SPINE.tabH * 0.92, wT / 2 - 0.011);
       lt.material.opacity = p.o; lt.renderOrder = Math.round(p.z * 100) + 6;
     }
     m.renderOrder = Math.round(p.z * 100) + (fly ? 5000 : 0);
@@ -532,7 +533,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       const gut = clampN(16, W * 0.04, 56), lay = crateLayout(W);
       const shelfPx = clampN(narrow ? 110 : 150, H * 0.22, 230), boardPx = clampN(16, H * 0.035, 32);
       const pitchPx = shelfPx * 0.022 * SPINE.thick + SPINE.gapPx;
-      let top, left, right, bottom = H - boardPx - shelfPx * 1.14 - 14;
+      let top, left, right, bottom = H - boardPx - shelfPx * 1.2 - 14;
       if (narrow) { top = Math.max(H * 0.17, 140); bottom = Math.min(bottom, top + Math.min(W * 0.6, H * 0.28)); left = gut; right = W - gut; }
       else { top = Math.max(H * 0.14, 110) + 36; left = lay.left; right = W - gut; }
       // Now spinning 카드는 선반 오른쪽 끝에 놓임 → 그만큼 선반을 줄임 (2026-11-27: 무대 오른쪽을 비워 두었더니 창이 좁을 때 재킷 · 판이 너무 작았음)
@@ -552,7 +553,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       };
       recum();
       host.style.setProperty('--listen-board', `${boardPx}px`);
-      host.style.setProperty('--listen-shelf', `${(shelfPx * 1.14 + boardPx).toFixed(0)}px`);
+      host.style.setProperty('--listen-shelf', `${(shelfPx * 1.2 + boardPx).toFixed(0)}px`);
       host.style.setProperty('--listen-stage-bottom', `${bottom.toFixed(0)}px`);
     }
   }
@@ -872,6 +873,18 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       swap = null; selK = 1; shownFront = -1;
       mode = 'crate';
       animL = { from: L, to: 0, t0: performance.now() / 1000, dur: reduced ? 0.01 : CRATE.LISTEN_DUR };
+      run();
+      return true;
+    },
+    /** 판 목록을 통째로 바꿈 (다시 묶었을 때). 보던 판(무대의 판 · 맨 앞 판)은 새 목록에서 찾아 그대로 보이게 함. 움직이는 중이면 false */
+    replace(list) {
+      if (mode === 'grid' || anim || animL || pending || enter || rise || swap) return false;
+      const cur = cards[L > 0.5 ? sel : wrap(Math.round(pos))];
+      cards = list; recum();
+      const k = cur ? cards.findIndex((c) => c.slug === cur.slug) : -1;
+      if (L > 0.5) { if (k >= 0) sel = k; else sel = Math.min(sel, N() - 1); }
+      else if (k >= 0) pos = target = k;
+      shownFront = -1;
       run();
       return true;
     },
