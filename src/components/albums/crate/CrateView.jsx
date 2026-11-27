@@ -52,7 +52,35 @@ export function ViewToggle({ view, onChange, className = "", views = VIEWS }) {
   );
 }
 
-function readCards(root) {
+// 글자 칸막이 (2026-11-27): 아티스트 A–Z 로 정렬해 볼 때, 레코드 가게처럼 이름 첫 글자가 바뀌는 자리에 칸막이를 꽂음 (Crate · Listen)
+//  판이 아직 적어서(글자마다 한두 장) 몇 글자씩 묶음. 한글은 한 묶음, 숫자 · 기호는 #
+const LETTER_GROUPS = [["A", "D"], ["E", "K"], ["L", "R"], ["S", "Z"]];
+function letterOf(artist) {
+  const ch = (artist || "").trim().charAt(0).toUpperCase();
+  if (ch >= "A" && ch <= "Z") { const g = LETTER_GROUPS.find(([a, b]) => ch >= a && ch <= b); return `${g[0]}–${g[1]}`; }
+  if (/[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/.test(ch)) return "ㄱ–ㅎ";
+  return "#";
+}
+const LETTER_NOTE = (k) => (k === "#" ? "Numbers & symbols" : k === "ㄱ–ㅎ" ? "Korean names" : `Artists ${k.replace("–", " to ")}`);
+function withLetters(cards) {
+  const out = []; let prev = null;
+  for (const c of cards) {
+    if (!c.divider) {
+      const k = letterOf(c.artist);
+      if (k !== prev) {
+        prev = k;
+        out.push({ divider: true, letter: k, slug: `__letter_${k}_${out.length}`, art: null, image: null, head: k, count: LETTER_NOTE(k), tab: k, dot: "#4c404a", color: "#c9a679", title: k, artist: LETTER_NOTE(k) });
+      }
+    }
+    out.push(c);
+  }
+  return out;
+}
+function readCards(root, letters = false) {
+  const cards = readCardsRaw(root);
+  return letters ? withLetters(cards) : cards;
+}
+function readCardsRaw(root) {
   if (!root) return [];
   const albums = [...root.querySelectorAll("[data-album-card]")].map((a) => ({
     slug: a.dataset.albumSlug, color: a.dataset.albumColor, image: a.dataset.albumImage || null,
@@ -82,10 +110,15 @@ function readCards(root) {
 /**
  * gridRef: 그리드 카드들을 감싼 요소 · view / onViewChange: 'grid' | 'crate' | 'listen' (페이지가 상태를 가짐. 'grid' = 3D 가 아닌 보기)
  * flat: 3D 를 닫으면 돌아갈 보기의 이름 ('grid' | 'list') — 덮개 안의 전환 버튼에 그 이름으로 나옴
+ * letters: 아티스트 A–Z 순으로 보고 있음 → 글자 칸막이를 꽂음
  * title: 크레이트 왼쪽 위 큰 글자 (예: DIGGING, OWNED)
  * total: 이 목록의 전체 판 수 (그리드가 아직 다 받지 못했어도 번호 옆에 전체 수를 보여 주려고). 없으면 지금 꽂힌 수
  */
-export default function CrateView({ gridRef, view, onViewChange, title, total = null, flat = "grid" }) {
+export default function CrateView({ gridRef, view, onViewChange, title, total = null, flat = "grid", letters = false }) {
+  const lettersRef = useRef(letters);
+  useEffect(() => { lettersRef.current = letters; });
+  const [marks, setMarks] = useState([]);   // 글자 칸막이들 [{ i, label }] — 위쪽의 바로 가기 줄
+  const putCards = (cards) => { cardsRef.current = cards; setMarks(cards.flatMap((c, i) => (c.letter ? [{ i, label: c.letter }] : []))); };
   const hostRef = useRef(null);
   const engineRef = useRef(null);
   const sourceRef = useRef(null);
@@ -163,8 +196,9 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
         if (SFX && modeRef.current !== "grid" && !engineRef.current?.busy) sfx?.current?.play("flip");
         if (modeRef.current === "listen" && !c.divider) { try { sessionStorage.setItem(LAST_KEY, c.slug); } catch {} }
         if (picked) autoRef.current = c.slug;   // Listening 에서 책등을 눌러 올린 판은 바로 틂
-        const lead = cardsRef.current[0]?.divider ? 1 : 0;
-        setFront({ i: i - lead, n: cardsRef.current.length - lead, divider: !!c.divider, title: c.title, artist: c.artist, color: c.color, slug: c.slug, isNew: !!c.isNew });
+        // 번호 · 전체 수는 판만 셈 (칸막이들은 빼고)
+        const list = cardsRef.current, before = list.slice(0, i).filter((x) => !x.divider).length;
+        setFront({ i: before, n: list.filter((x) => !x.divider).length, letter: c.letter || null, divider: !!c.divider, title: c.title, artist: c.artist, color: c.color, slug: c.slug, isNew: !!c.isNew });
       },
       onOpen: (i, rect) => openRef.current?.(i, rect),
       onPeel: () => { if (SFX) sfx?.current?.play("flip"); },   // 스티커가 떼어지는 소리
@@ -203,9 +237,9 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
         if (eng.busy) return;
         if (view === "listen" ? eng.crateToListen() : eng.listenToCrate()) { modeRef.current = view; setMode3d(view); }
       } else if (is3d(view)) {
-        const cards = readCards(gridRef.current);
+        const cards = readCards(gridRef.current, lettersRef.current);
         if (!cards.length) { onViewChange(flat); return; }
-        cardsRef.current = cards; loadDetails(cards);
+        putCards(cards); loadDetails(cards);
         // 화면에 보이는 첫 판 (헤더 아래)
         const topLine = (hostRef.current.getBoundingClientRect().top || 0) + 80;
         const start = Math.max(0, cards.findIndex((c) => c.art.getBoundingClientRect().bottom > topLine));
@@ -243,13 +277,13 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
     if (!is3d(saved?.view)) return;
     let done = false;
     const tryOpen = async () => {
-      const cards = readCards(gridRef.current);
+      const cards = readCards(gridRef.current, lettersRef.current);
       const i = cards.findIndex((c) => c.slug === saved.slug);
       if (done || i < 0) return false;
       done = true;
       const eng = await engine();
       if (!eng) return true;
-      cardsRef.current = cards; loadDetails(cards);
+      putCards(cards); loadDetails(cards);
       modeRef.current = saved.view; setMode3d(saved.view);
       setShown(true); lockPage(true);
       eng.setFog(getComputedStyle(page() || document.body).backgroundColor);
@@ -275,12 +309,12 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       raf = 0;
       const eng = engineRef.current;
       if (!eng || modeRef.current === "grid") return;
-      const cards = readCards(gridRef.current);
+      const cards = readCards(gridRef.current, lettersRef.current);
       if (cards.length <= cardsRef.current.length) return;
       if (eng.busy) { raf = requestAnimationFrame(sync); return; }   // 날아오는 중이면 끝난 뒤에
       // 이미 꽂힌 판은 그대로 두고(같은 물체) 새 판만 뒤에
       const next = [...cardsRef.current, ...cards.slice(cardsRef.current.length)];
-      if (eng.extend(next)) { cardsRef.current = next; loadDetails(next); }
+      if (eng.extend(next)) { putCards(next); loadDetails(next); }
     };
     const mo = new MutationObserver(() => { if (!raf) raf = requestAnimationFrame(sync); });
     mo.observe(gridRef.current, { childList: true, subtree: true });
@@ -355,7 +389,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
           <div className="absolute inset-0 bg-(--paper-surface,var(--bg)) bg-(image:--paper-texture-image) bg-repeat bg-blend-soft-light opacity-(--paper-texture-opacity) [background-size:var(--paper-texture-size)_var(--paper-texture-size)]" />
         </div>
         {/* 글자: 크레이트를 떠나자마자 빠지고, 돌아오면 판들이 거의 다 꽂힐 때 나타남 (CratePanel) */}
-        <CratePanel label={title} front={front} total={total} info={info} kind={kind} listening={listening} mode={mode3d}
+        <CratePanel marks={marks} onJump={(i) => engineRef.current?.goTo(i)} label={title} front={front} total={total} info={info} kind={kind} listening={listening} mode={mode3d}
           toggle={<ViewToggle view={is3d(view) ? view : flat} onChange={onViewChange} views={[flat, "crate", "listen"]} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />} sound={SFX ? <SoundToggle /> : null}
           onOpen={() => engineRef.current?.openFront()} onListen={listen} onShelf={shelve} />
         {/* 듣기 카드 ("Now spinning"): Listen 을 누르면 오른쪽 아래에 뜸. 판을 넘겨도 남고, 상자를 떠나면 닫힘 (좁은 화면에서는 쓰지 않음) */}

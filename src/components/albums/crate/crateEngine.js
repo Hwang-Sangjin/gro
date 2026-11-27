@@ -176,6 +176,29 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     return t;
   }
 
+  // 글자 칸막이의 책등 (Listen 선반): 크래프트 판지 + 맨 위에 다이모 라벨. 판들보다 조금 높이 솟아 라벨이 보임
+  function letterSpine(card) {
+    const key = `__letter:${card.tab}`;
+    let t = spines.get(key);
+    if (t) return t;
+    const CW = 52, CH = Math.round(CW / (0.022 * SPINE.thick));
+    const c = document.createElement('canvas'); c.width = CW; c.height = CH;
+    const g = c.getContext('2d');
+    g.fillStyle = '#c9a679'; g.fillRect(0, 0, CW, CH);
+    const sh = g.createLinearGradient(0, 0, CW, 0);
+    sh.addColorStop(0, 'rgba(80,52,25,.3)'); sh.addColorStop(0.35, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(80,52,25,.22)');
+    g.fillStyle = sh; g.fillRect(0, 0, CW, CH);
+    g.font = '800 26px "Arial Narrow", system-ui, sans-serif';
+    const tw = g.measureText(card.tab).width + 22;
+    g.fillStyle = '#17120f'; g.fillRect(8, 10, CW - 16, tw);
+    g.save(); g.translate(CW / 2, 10 + 11); g.rotate(Math.PI / 2);
+    g.fillStyle = '#f6f1e6'; g.textBaseline = 'middle'; g.fillText(card.tab, 0, -1);
+    g.restore();
+    t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso;
+    spines.set(key, t);
+    return t;
+  }
+
   let cards = [];
   const N = () => cards.length;
   const wrap = (i) => (N() ? ((i % N()) + N()) % N() : 0);
@@ -192,7 +215,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     // 판마다 다른 비닐 주름 · 커버의 밝기 (어두운 커버에서는 빛 띠를 줄임)
     tone.set(card.color || '#bbcbda');
     fx.wrapFor(slot.finish, hashOf(card.slug || ''), 0.2126 * tone.r + 0.7152 * tone.g + 0.0722 * tone.b);
-    const sp = useSpines && !card.divider ? spineTex(card) : null;
+    const sp = !useSpines ? null : card.divider ? (card.letter ? letterSpine(card) : null) : spineTex(card);
     if (slot.spine.map !== sp) { slot.spine.map = sp; slot.spine.needsUpdate = true; }
     if (card.divider) {
       const t = dividerTex(card);
@@ -246,7 +269,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     slot.edge.color.copy(slot.edgeBase).multiplyScalar(p.c);
     if (slot.spine.map) slot.spine.color.setScalar(p.c); else slot.spine.color.copy(slot.edge.color);
     m.visible = p.o > 0.003 && !!slot.card;
-    slot.tab.visible = !!slot.card?.divider;
+    slot.tab.visible = !!slot.card?.divider && (p.w ?? 1) > 0.5;   // 선반에 꽂혔을 때(얕은 깊이)는 탭 대신 책등의 라벨
     m.renderOrder = Math.round(p.z * 100) + (fly ? 5000 : 0);
     // 디테일: 칸막이(판지)에는 없음. 광택은 맨 앞 판에서 가장 세고, 판이 앞으로 넘어오는 동안 띠가 쓸고 지나감 (+ 마우스를 따라 조금)
     const plain = !!slot.card && !slot.card.divider, near = Math.abs(slot.d);
@@ -500,7 +523,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   }
   // 선반의 자리: d = 왼쪽 끝에서 몇 번째(소수) · raw = 판 번호(감지 않은 것 — 선반은 끝없이 돌지 않음)
   function shelfPose(d, raw, slot, o) {
-    const hv = slot.card ? 0.93 + 0.07 * (((hashOf(slot.card.slug || '') >>> 5) % 8) / 7) : 1;   // 판마다 키가 조금씩 다름
+    const hv = !slot.card ? 1 : slot.card.letter ? 1.14 : 0.93 + 0.07 * (((hashOf(slot.card.slug || '') >>> 5) % 8) / 7);   // 판마다 키가 조금씩 다름 · 글자 칸막이는 위로 솟음
     const s = (LS.sh / CARD) * hv;
     o.x = LS.x0 + shelfLead() * LS.pitch + (d + 0.5) * LS.pitch;
     o.y = LS.y0 + (LS.sh * hv) / 2 + LS.sh * 0.07 * (slot.lift || 0);
@@ -809,6 +832,12 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       animL = { from: L, to: 0, t0: performance.now() / 1000, dur: reduced ? 0.01 : CRATE.LISTEN_DUR };
       run();
       return true;
+    },
+    /** 그 번호의 판(칸막이)으로 넘김: Crate = 맨 앞으로 · Listen = 선반 왼쪽 끝으로 */
+    goTo(i) {
+      if (i < 0 || i >= N()) return;
+      if (live()) { const r = Math.round(pos); target = r + (i - wrap(r)); lastInput = performance.now(); }
+      else if (liveL()) { target = clampN(0, i, shelfMax()); lastInput = performance.now(); }
     },
     /** Listening: 판이 돌고 바늘이 내려가 있음 */
     setPlaying(v) { playing = !!v; if (mode === 'listen') run(); },

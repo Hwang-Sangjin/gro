@@ -137,7 +137,7 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
         ) : null}
         extra={items.length ? <ViewToggle view={crateView} onChange={setCrateView} views={viewsFor(crateView)} className="mr-1" /> : null} />
 
-      <CrateView gridRef={wrapRef} view={crateView === "crate" || crateView === "listen" ? crateView : "grid"} flat={flat} onViewChange={setCrateView} title={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} />
+      <CrateView gridRef={wrapRef} view={crateView === "crate" || crateView === "listen" ? crateView : "grid"} flat={flat} letters={sort === "artist" && !term} onViewChange={setCrateView} title={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} />
       <div ref={wrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         {error ? (
           <p className={styles.empty} role="status">{errorText}</p>

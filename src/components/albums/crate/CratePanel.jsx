@@ -42,7 +42,7 @@ function facts(info) {
  * info: 맨 앞 판의 상세 (없으면 아직 받는 중) · kind: 내 선반에서의 자리 ("owned" | "wishlist" | null)
  * listening: 이 판을 지금 틀고 있음 · onOpen · onListen · onShelf(kind) · sound: 소리 켜기 버튼 (어디의 상자인지 옆)
  */
-export default function CratePanel({ label, toggle, sound = null, front, total, info, kind, listening, onOpen, onListen, onShelf, mode = "crate" }) {
+export default function CratePanel({ label, toggle, sound = null, front, total, info, kind, listening, onOpen, onListen, onShelf, mode = "crate", marks = [], onJump }) {
   const L = mode === "listen";   // Listening: 아래에 책등 선반이 있어 패널을 짧게 · 좁은 화면에서도 듣기 버튼
   const n = front ? Math.max(front.n, total ?? 0) : 0;
   const rows = front && !front.divider ? facts(info) : [];
@@ -87,17 +87,28 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
         {toggle}
       </div>
 
+      {/* 글자 칸막이로 바로 가기 (아티스트 A–Z 로 볼 때만) */}
+      {marks.length > 1 && (
+        <div role="group" aria-label="Jump to a letter" className={`pointer-events-auto absolute left-1/2 flex min-h-9 -translate-x-1/2 items-center gap-1 rounded-full bg-(--bg)/85 px-1 backdrop-blur-sm ${L ? "top-[calc(var(--ct-header-h,106px)+0.6rem)] max-[819px]:top-[calc(var(--ct-header-h,106px)+3rem)]" : "bottom-[clamp(2.25rem,5.5vh,3.25rem)]"}`}>
+          {marks.map((m) => (
+            <button key={m.i} type="button" onClick={() => onJump?.(m.i)}
+              className={`min-h-8 rounded-full px-3 ${KICKER} tracking-[0.12em] transition-colors duration-300 hover:bg-(--ink) hover:text-(--cream) ${front?.letter === m.label ? "bg-(--ink) text-(--cream)" : "opacity-75"}`}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
       {/* 넓은 화면: 왼쪽 정보 패널 */}
       {front && (
         <div key={front.slug} className="absolute left-[var(--crate-gut)] top-[calc(var(--ct-header-h,106px)+clamp(3.25rem,9vh,6rem))] w-[var(--crate-panel)] max-[819px]:hidden">
           <p className="flex items-center gap-3">
-            <span className={`${KICKER} tabular-nums opacity-70`}>{front.divider ? "Start" : pad3(front.i + 1)} / {pad3(n)}</span>
+            <span className={`${KICKER} tabular-nums opacity-70`}>{front.letter ? "Section" : front.divider ? "Start" : pad3(front.i + 1)} / {pad3(n)}</span>
             {front.isNew && <span className="rounded-full bg-[#d9603b] px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.14em] text-[#fff7ea]">New in</span>}
           </p>
           <h2 className={`${SERIF} mt-2 ${L ? "line-clamp-2" : "line-clamp-3"} text-[clamp(1.9rem,3.1vw,3.4rem)] font-black leading-[1.02] tracking-[-0.015em] [word-break:keep-all] animate-[crate-title_.7s_cubic-bezier(.22,1,.36,1)_both]`} style={tint}>{front.title}</h2>
           <p className="mt-3 truncate text-[clamp(0.95rem,1.15vw,1.15rem)]">{front.artist}</p>
           {front.divider
-            ? <p className={`${KICKER} mt-6 opacity-70`}>Scroll, drag or press → to start digging</p>
+            ? <p className={`${KICKER} mt-6 opacity-70`}>{front.letter ? "Keep flipping →" : "Scroll, drag or press → to start digging"}</p>
             : <>
               {rows.length > 0 && L && <p className="mt-3 truncate text-[12px] tabular-nums opacity-70 transition-opacity duration-500 starting:opacity-0">{rows.map(([, v]) => v).slice(0, 3).join(" · ")}</p>}
               {rows.length > 0 && !L && (
@@ -120,7 +131,7 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
       {front && (
         <div key={`m:${front.slug}`} className={`absolute inset-x-[var(--crate-gut)] min-[820px]:hidden ${L ? "top-[calc(var(--listen-stage-bottom,50dvh)+0.75rem)]" : "top-[calc(max(19dvh,150px)+min(70vw,34dvh)+1.5rem)]"}`}>
           <p className="flex items-center gap-3">
-            <span className={`${KICKER} tabular-nums opacity-70`}>{front.divider ? "Start" : pad3(front.i + 1)} / {pad3(n)}</span>
+            <span className={`${KICKER} tabular-nums opacity-70`}>{front.letter ? "Section" : front.divider ? "Start" : pad3(front.i + 1)} / {pad3(n)}</span>
             {front.isNew && <span className="rounded-full bg-[#d9603b] px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.14em] text-[#fff7ea]">New in</span>}
           </p>
           <h2 className={`${SERIF} mt-1.5 line-clamp-2 text-[clamp(1.6rem,7vw,2.4rem)] font-black leading-[1.04] tracking-[-0.015em] [word-break:keep-all] animate-[crate-title_.7s_cubic-bezier(.22,1,.36,1)_both]`} style={tint}>{front.title}</h2>
