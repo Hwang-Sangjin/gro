@@ -16,9 +16,9 @@ import useReveal from "./useReveal";
 import closeGrid from "./closeGrid";
 import styles from "./Digging.module.css";
 import CrateView, { ViewToggle } from "@/components/albums/crate/CrateView";
-import useViewSwitch from "@/components/albums/useViewSwitch";
+import useViewSwitch, { viewsFor } from "@/components/albums/useViewSwitch";
 
-const VIEWS = ["grid", "crate", "list"];   // (2026-11-22 Shelf 보기를 넣었다가 뺌 — 사용자: 별로)
+// 보기: grid · crate · list · listen (useViewSwitch.viewsFor). (2026-11-22 Shelf 보기를 넣었다가 뺌 — 사용자: 별로)
 // "New in" 탭: 새로 들어온 판만 (최근 들어온 순). 장르가 아니라서 장르 id 없이 따로 받아 옴
 const NEW = "new", PINNED = [{ slug: NEW, name: "New in" }];
 
@@ -133,7 +133,8 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
   const [titleRef, titleRevealed] = useReveal();
   const [query, setQuery] = useState("");
   // 'grid' | 'crate' | 'list' (Crate 는 지금 그리드의 판들로). 보기 사이는 커버가 날아가며 넘어감 · 돌아오면 보던 보기로
-  const { view, setView, arriving } = useViewSwitch(gridWrapRef);
+  const { view, flat, setView, arriving } = useViewSwitch(gridWrapRef);
+  const in3d = view === "crate" || view === "listen";
   const request = useRef(null);
   const [counts, setCounts] = useState(null);
   useEffect(() => {
@@ -181,18 +182,18 @@ export default function DiggingCatalog({ initial, genreId, genre: initialGenre }
           )}
         </>}
         extra={<>
-          <ViewToggle view={view} onChange={setView} views={VIEWS} className="mr-2" />
+          <ViewToggle view={view} onChange={setView} views={viewsFor(view)} className="mr-2" />
           <button className={styles.request} onClick={() => request.current?.open({ title: query.trim() })}>+ Request</button>
           <span className={styles.separator} aria-hidden="true" />
         </>} />
       {/* 장르를 바꾸면 지금 판들이 접혀 사라진 뒤, 그리드만 새로 그려짐 (카드가 다시 펼쳐지며 등장) */}
       <div ref={gridWrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         <DiggingGrid key={`${current.key}:${current.initial.sort ?? ""}:${current.seed ?? ""}:${notOwned}`} initial={current.initial} genreId={current.genreId} query={query} onRequest={() => request.current?.open({ title: query.trim() })}
-          exclude={notOwned ? owned : null} loadAll={view === "crate"} view={view} arriving={arriving}
+          exclude={notOwned ? owned : null} loadAll={in3d} view={flat} arriving={arriving}
           lead={query.trim() ? null : <GenreDivider slug={current.key === "all" ? null : current.key} count={counts?.[current.key] ?? null} notOwned={notOwned} leaving={switching} sort={current.initial.sort ?? null} />} />
       </div>
       {/* Crate 보기: 그리드 위를 덮는 3D 크레이트 (Grid / Crate 버튼으로 전환) */}
-      <CrateView gridRef={gridWrapRef} view={view === "crate" ? "crate" : "grid"} onViewChange={setView} title="Digging" total={notOwned || query.trim() ? null : counts?.[current.key] ?? null} />
+      <CrateView gridRef={gridWrapRef} view={in3d ? view : "grid"} flat={flat} onViewChange={setView} title="Digging" total={notOwned || query.trim() ? null : counts?.[current.key] ?? null} />
       {/* 없는 판 요청 (로그인 사용자) — 검색 결과가 없을 때도 여기로 */}
       <RequestDialog ref={request} />
     </>

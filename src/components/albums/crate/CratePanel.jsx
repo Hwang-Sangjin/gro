@@ -42,7 +42,8 @@ function facts(info) {
  * info: 맨 앞 판의 상세 (없으면 아직 받는 중) · kind: 내 선반에서의 자리 ("owned" | "wishlist" | null)
  * listening: 이 판을 지금 틀고 있음 · onOpen · onListen · onShelf(kind) · sound: 소리 켜기 버튼 (어디의 상자인지 옆)
  */
-export default function CratePanel({ label, toggle, sound = null, front, total, info, kind, listening, onOpen, onListen, onShelf }) {
+export default function CratePanel({ label, toggle, sound = null, front, total, info, kind, listening, onOpen, onListen, onShelf, mode = "crate" }) {
+  const L = mode === "listen";   // Listening: 아래에 책등 선반이 있어 패널을 짧게 · 좁은 화면에서도 듣기 버튼
   const n = front ? Math.max(front.n, total ?? 0) : 0;
   const rows = front && !front.divider ? facts(info) : [];
   // 제목 색: 커버 색을 잉크에 섞음. 35%만 — 흰 커버여도 종이 위에서 대비 3:1 이 나오게 (예전 55% 는 밝은 커버에서 2:1)
@@ -55,12 +56,12 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
       <div className="flex flex-wrap gap-2">
         {/* 듣기: 넓은 화면에서만 (작은 플레이어 카드가 상자 옆에 뜸). 좁은 화면은 상세 페이지에서 */}
         {canListen && (
-          <button type="button" onClick={onListen} aria-pressed={listening} className={`${PILL} max-[819px]:hidden border-(--ink) bg-(--ink) text-(--cream) hover:opacity-85`}>
+          <button type="button" onClick={onListen} aria-pressed={listening} className={`${PILL} ${L ? "" : "max-[819px]:hidden"} border-(--ink) bg-(--ink) text-(--cream) hover:opacity-85`}>
             <Icon name={listening ? "pause" : "play"} />{listening ? "Pause" : "Listen"}
           </button>
         )}
         <button type="button" onClick={onOpen} className={`${PILL} ${canListen ? "border-(--ink)/45 hover:border-(--ink) max-[819px]:border-(--ink) max-[819px]:bg-(--ink) max-[819px]:text-(--cream)" : "border-(--ink) bg-(--ink) text-(--cream) hover:opacity-85"}`}>
-          Open record <span aria-hidden="true">→</span>
+          {L ? "Album page" : "Open record"} <span aria-hidden="true">→</span>
         </button>
       </div>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1" role="group" aria-label="Add to my shelves">
@@ -78,7 +79,7 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
     <div className="pointer-events-none absolute inset-0 text-(--ink)" style={{ opacity: "max(0, 1 - var(--crate-m) * 5)" }}>
       {/* 위: 어디의 상자인지 (예전의 큰 "DIGGING" 제목 대신 — 그리드와 글꼴이 달랐고 상자 탭과 겹쳤음) · 보기 전환 */}
       <div className="absolute left-[var(--crate-gut)] top-[calc(var(--ct-header-h,106px)+0.6rem)] flex min-h-9 items-center gap-5 max-[819px]:gap-3">
-        <p className={`${KICKER} opacity-70`}>{label}<span className="max-[819px]:hidden"> · Crate</span></p>
+        <p className={`${KICKER} opacity-70`}>{label}<span className="max-[819px]:hidden"> · {L ? "Listening" : "Crate"}</span></p>
         {sound}
       </div>
       <div className="pointer-events-auto absolute right-[var(--crate-gut)] top-[calc(var(--ct-header-h,106px)+0.6rem)]">
@@ -93,12 +94,13 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
             <span className={`${KICKER} tabular-nums opacity-70`}>{front.divider ? "Start" : pad3(front.i + 1)} / {pad3(n)}</span>
             {front.isNew && <span className="rounded-full bg-[#d9603b] px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.14em] text-[#fff7ea]">New in</span>}
           </p>
-          <h2 className={`${SERIF} mt-2 line-clamp-3 text-[clamp(1.9rem,3.1vw,3.4rem)] font-black leading-[1.02] tracking-[-0.015em] [word-break:keep-all] animate-[crate-title_.7s_cubic-bezier(.22,1,.36,1)_both]`} style={tint}>{front.title}</h2>
+          <h2 className={`${SERIF} mt-2 ${L ? "line-clamp-2" : "line-clamp-3"} text-[clamp(1.9rem,3.1vw,3.4rem)] font-black leading-[1.02] tracking-[-0.015em] [word-break:keep-all] animate-[crate-title_.7s_cubic-bezier(.22,1,.36,1)_both]`} style={tint}>{front.title}</h2>
           <p className="mt-3 truncate text-[clamp(0.95rem,1.15vw,1.15rem)]">{front.artist}</p>
           {front.divider
             ? <p className={`${KICKER} mt-6 opacity-70`}>Scroll, drag or press → to start digging</p>
             : <>
-              {rows.length > 0 && (
+              {rows.length > 0 && L && <p className="mt-3 truncate text-[12px] tabular-nums opacity-70 transition-opacity duration-500 starting:opacity-0">{rows.map(([, v]) => v).slice(0, 3).join(" · ")}</p>}
+              {rows.length > 0 && !L && (
                 <dl className="mt-[clamp(1rem,2.6vh,1.75rem)] border-b border-(--ink)/25 transition-opacity duration-500 starting:opacity-0">
                   {rows.map(([k, v]) => (
                     <div key={k} className="flex items-baseline justify-between gap-4 border-t border-(--ink)/25 py-2">
@@ -108,7 +110,7 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
                   ))}
                 </dl>
               )}
-              {info?.description && <p lang="ko" className="mt-4 line-clamp-2 text-[13px] leading-6 opacity-75 transition-opacity duration-500 starting:opacity-0 max-[999px]:hidden">{info.description}</p>}
+              {info?.description && !L && <p lang="ko" className="mt-4 line-clamp-2 text-[13px] leading-6 opacity-75 transition-opacity duration-500 starting:opacity-0 max-[999px]:hidden">{info.description}</p>}
               <div className="mt-[clamp(1rem,2.6vh,1.75rem)]">{actions}</div>
             </>}
         </div>
@@ -116,7 +118,7 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
 
       {/* 좁은 화면: 판 바로 아래 한 덩어리 (판의 자리 · 크기는 crateEngine resize 의 좁은 화면 식과 같음) */}
       {front && (
-        <div key={`m:${front.slug}`} className="absolute inset-x-[var(--crate-gut)] top-[calc(max(19dvh,150px)+min(70vw,34dvh)+1.5rem)] min-[820px]:hidden">
+        <div key={`m:${front.slug}`} className={`absolute inset-x-[var(--crate-gut)] min-[820px]:hidden ${L ? "top-[calc(var(--listen-stage-bottom,50dvh)+0.75rem)]" : "top-[calc(max(19dvh,150px)+min(70vw,34dvh)+1.5rem)]"}`}>
           <p className="flex items-center gap-3">
             <span className={`${KICKER} tabular-nums opacity-70`}>{front.divider ? "Start" : pad3(front.i + 1)} / {pad3(n)}</span>
             {front.isNew && <span className="rounded-full bg-[#d9603b] px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.14em] text-[#fff7ea]">New in</span>}
@@ -133,13 +135,15 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
       )}
 
       {/* 아래: 상자 안에서 지금 어디쯤인지 (넓은 화면은 판 아래에, 좁은 화면은 화면 폭 전체) */}
-      {front && n > 1 && (
+      {/* Listening: 선반 받침 (책등들이 서 있는 줄) */}
+      {L && <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[var(--listen-board,24px)] border-t-[6px] border-(--ink) bg-(--bg)" />}
+      {front && n > 1 && !L && (
         <div aria-hidden="true" className="absolute bottom-[clamp(1rem,3vh,1.75rem)] left-[var(--crate-gut)] right-[var(--crate-gut)] h-px bg-(--ink)/30 min-[820px]:left-[calc(var(--crate-gut)+var(--crate-panel)+var(--crate-gap))]">
           <span className="absolute top-1/2 size-[11px] -translate-x-1/2 -translate-y-1/2 rounded-full transition-[left] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
             style={{ left: `${(at * 100).toFixed(2)}%`, backgroundColor: tint.color }} />
         </div>
       )}
-      <p className={`${KICKER} absolute bottom-[calc(clamp(1rem,3vh,1.75rem)-0.4rem)] left-[var(--crate-gut)] text-[10px] opacity-60 max-[819px]:hidden`}>Scroll · Drag · ← →</p>
+      <p className={`${KICKER} absolute left-[var(--crate-gut)] text-[10px] opacity-60 max-[819px]:hidden ${L ? "bottom-[calc(var(--listen-shelf,260px)+0.25rem)]" : "bottom-[calc(clamp(1rem,3vh,1.75rem)-0.4rem)]"}`}>{L ? "Pick a spine · ← → · Space to play" : "Scroll · Drag · ← →"}</p>
     </div>
   );
 }

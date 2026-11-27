@@ -10,10 +10,11 @@ import styles from "@/components/digging/Digging.module.css";
 import closeGrid from "@/components/digging/closeGrid";
 import CrateView, { ViewToggle } from "@/components/albums/crate/CrateView";
 import AlbumList from "@/components/albums/AlbumList";
-import useViewSwitch from "@/components/albums/useViewSwitch";
+import useViewSwitch, { viewsFor } from "@/components/albums/useViewSwitch";
 import ShelfNote from "./ShelfNote";
 
-const VIEWS = ["grid", "crate", "list"];   // (2026-11-22 네 번째 보기 Shelf — 판을 책등처럼 꽂은 3D 선반 — 를 넣었다가 뺌. 사용자: 별로)
+// 보기: grid · crate · list · listen (useViewSwitch.viewsFor). Listen = 턴테이블 무대 + 책등 선반 (2026-11-27)
+//  (2026-11-22 네 번째 보기 Shelf — 판을 책등처럼 꽂은 3D 선반 — 를 넣었다가 뺌. 사용자: 별로)
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const byArtist = (a, b) => (a.artist_names || "").localeCompare(b.artist_names || "") || a.title.localeCompare(b.title);
@@ -43,7 +44,7 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
   const wanted = useRef(shown);
   const wrapRef = useRef(null);
   // 보기: 'grid' | 'crate' | 'list' — 지금 탭(Owned / Wishlist)·장르·검색의 판들로. 보기 사이는 커버가 날아가며 넘어감 · 돌아오면 보던 보기로
-  const { view: crateView, setView: setCrateView, arriving } = useViewSwitch(wrapRef);
+  const { view: crateView, flat, setView: setCrateView, arriving } = useViewSwitch(wrapRef);
   const [barRef, barRevealed] = useReveal({ ready });
 
   // ?tab=wishlist&genre=pop 로 바로 열기 (서버 렌더와 어긋나지 않게 마운트 후에 읽음)
@@ -134,15 +135,15 @@ export default function ShelfBrowser({ shelves, error, label, aside, basePath, r
             </select>
           </label>
         ) : null}
-        extra={items.length ? <ViewToggle view={crateView} onChange={setCrateView} views={VIEWS} className="mr-1" /> : null} />
+        extra={items.length ? <ViewToggle view={crateView} onChange={setCrateView} views={viewsFor(crateView)} className="mr-1" /> : null} />
 
-      <CrateView gridRef={wrapRef} view={crateView === "crate" ? "crate" : "grid"} onViewChange={setCrateView} title={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} />
+      <CrateView gridRef={wrapRef} view={crateView === "crate" || crateView === "listen" ? crateView : "grid"} flat={flat} onViewChange={setCrateView} title={SHELF_TABS.find((t) => t.kind === shown.tab)?.name ?? "Shelf"} />
       <div ref={wrapRef} aria-busy={switching} className={switching ? "pointer-events-none" : undefined}>
         {error ? (
           <p className={styles.empty} role="status">{errorText}</p>
         ) : !shelves ? (
           <p className={styles.status} role="status">Loading…</p>
-        ) : items.length && crateView === "list" ? (
+        ) : items.length && flat === "list" ? (
           <AlbumList key={`list:${key}`} role="tabpanel" albums={items} arriving={arriving} />
         ) : items.length ? (
           <AlbumGrid key={key} role="tabpanel" albums={items}

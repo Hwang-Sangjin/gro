@@ -20,7 +20,10 @@ import { useCrate } from "@/components/crate/CrateProvider";
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const EASE = "ease-[cubic-bezier(0.22,1,0.36,1)]";
 const VIEWS = ["grid", "crate"];
+const is3d = (v) => v === "crate" || v === "listen";
+const LAST_KEY = "grooves:listen:last";   // 마지막으로 무대에 올린 판 (Listening 에 다시 들어오면 그 판부터)
 const VIEW_ICON = {
+  listen: <><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="1.4" /></>,
   grid: <path d="M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z" />,
   crate: <path d="M2 5.5h12v8H2zM4.5 5.5v-3h7v3M6.5 2.5v3M9 2.5v3" />,
   list: <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />,
@@ -38,7 +41,7 @@ export function ViewToggle({ view, onChange, className = "", views = VIEWS }) {
         style={{ width: `calc((100% - 6px) / ${views.length})`, transform: `translateX(${at * 100}%)` }} />
       {views.map((v) => (
         <button key={v} type="button" aria-pressed={view === v} aria-label={`${v} view`} onClick={() => onChange(v)}
-          className={`relative z-[1] grid min-h-8 place-items-center rounded-full text-[11px] font-medium uppercase tracking-[0.2em] transition-colors duration-500 ${views.length > 2 ? "w-[4.1rem] max-md:w-10" : "w-[4.6rem]"} ${view === v ? "text-(--cream)" : "text-(--ink)"}`}>
+          className={`relative z-[1] grid min-h-8 place-items-center rounded-full text-[11px] font-medium uppercase tracking-[0.2em] transition-colors duration-500 ${views.length > 2 ? "w-[4.6rem] max-md:w-10" : "w-[4.6rem]"} ${view === v ? "text-(--cream)" : "text-(--ink)"}`}>
           {/* 보기가 셋 이상이면 좁은 화면에서는 글자 대신 그림 (네 칸이 한 줄에 안 들어감) */}
           <span className={views.length > 2 ? "max-md:hidden" : ""}>{v}</span>
           {views.length > 2 && <svg aria-hidden="true" viewBox="0 0 16 16" className="size-3.5 md:hidden" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">{VIEW_ICON[v]}</svg>}
@@ -55,6 +58,14 @@ function readCards(root) {
     title: a.dataset.albumTitle || "", artist: a.dataset.albumArtist || "", isNew: a.dataset.albumNew === "true",
     art: a.querySelector("[data-album-source]"),
   })).filter((c) => c.slug && c.art);
+  // List 보기 위에서 열 때: 줄([data-list-row])의 작은 커버가 날아가는 자리
+  if (!albums.length) {
+    return [...root.querySelectorAll("[data-list-row]")].map((a) => ({
+      slug: a.dataset.albumSlug, color: a.dataset.albumColor, image: a.dataset.albumImage || null,
+      title: a.dataset.albumTitle || "", artist: a.dataset.albumArtist || "", isNew: false,
+      art: a.querySelector("[data-list-cover]"),
+    })).filter((c) => c.slug && c.art);
+  }
   // 장르 칸막이(Digging, [data-crate-divider]): 크레이트 맨 앞에도 꽂음 — 크래프트 판 + 위로 솟은 다이모 탭 (crateDivider.js)
   const d = root.querySelector("[data-crate-divider]"), art = d?.querySelector("[data-divider-art]");
   if (!d || !art || !albums.length) return albums;
@@ -68,11 +79,12 @@ function readCards(root) {
 }
 
 /**
- * gridRef: 그리드 카드들을 감싼 요소 · view / onViewChange: 'grid' | 'crate' (페이지가 상태를 가짐)
+ * gridRef: 그리드 카드들을 감싼 요소 · view / onViewChange: 'grid' | 'crate' | 'listen' (페이지가 상태를 가짐. 'grid' = 3D 가 아닌 보기)
+ * flat: 3D 를 닫으면 돌아갈 보기의 이름 ('grid' | 'list') — 덮개 안의 전환 버튼에 그 이름으로 나옴
  * title: 크레이트 왼쪽 위 큰 글자 (예: DIGGING, OWNED)
  * total: 이 목록의 전체 판 수 (그리드가 아직 다 받지 못했어도 번호 옆에 전체 수를 보여 주려고). 없으면 지금 꽂힌 수
  */
-export default function CrateView({ gridRef, view, onViewChange, title, total = null }) {
+export default function CrateView({ gridRef, view, onViewChange, title, total = null, flat = "grid" }) {
   const hostRef = useRef(null);
   const engineRef = useRef(null);
   const sourceRef = useRef(null);
@@ -110,7 +122,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
   // ── 내 선반: 로그인했으면 한 번 받아 둠 (앨범 id → owned | wishlist)
   const [kinds, setKinds] = useState(null);
   useEffect(() => {
-    if (view !== "crate" || !user || kinds) return;
+    if (!is3d(view) || !user || kinds) return;
     let alive = true;
     fetchMyKinds().then((m) => { if (alive) setKinds(m); }).catch(() => {});
     return () => { alive = false; };
@@ -128,6 +140,8 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
   const openRef = useRef(null);
   useEffect(() => { transitionRef.current = transition; });
   const modeRef = useRef("grid");
+  const [mode3d, setMode3d] = useState("crate");   // 덮개가 지금 어느 3D 보기인지 (글자 층의 자리가 다름)
+  const autoRef = useRef(null), listenRef = useRef(null);
 
   const page = () => hostRef.current?.closest(".page");
   const lockPage = (on) => page()?.dispatchEvent(new Event(on ? "page:lock" : "page:unlock"));
@@ -139,14 +153,17 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
     engineRef.current = createCrateEngine({
       host: hostRef.current,
       // 번호 · 전체 수는 판만 셈 (칸막이는 빼고). 칸막이가 앞이면 번호 대신 판 수만
-      onFront: (i, c) => {
+      onFront: (i, c, picked) => {
         // 손으로 넘길 때만 소리 (그리드에서 날아와 꽂히는 동안은 조용히)
-        if (modeRef.current === "crate" && !engineRef.current?.busy) sfx?.current?.play("flip");
+        if (modeRef.current !== "grid" && !engineRef.current?.busy) sfx?.current?.play("flip");
+        if (modeRef.current === "listen" && !c.divider) { try { sessionStorage.setItem(LAST_KEY, c.slug); } catch {} }
+        if (picked) autoRef.current = c.slug;   // Listening 에서 책등을 눌러 올린 판은 바로 틂
         const lead = cardsRef.current[0]?.divider ? 1 : 0;
         setFront({ i: i - lead, n: cardsRef.current.length - lead, divider: !!c.divider, title: c.title, artist: c.artist, color: c.color, slug: c.slug, isNew: !!c.isNew });
       },
       onOpen: (i, rect) => openRef.current?.(i, rect),
       onPeel: () => sfx?.current?.play("flip"),   // 스티커가 떼어지는 소리
+      onToggle: () => listenRef.current?.(),      // Listening: 턴테이블을 누름
       onSettled: (m) => {
         if (m === "grid") { setShown(false); lockPage(false); }
       },
@@ -158,7 +175,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
   function openAlbum(i, rect) {
     const c = cardsRef.current[i];
     if (!c || c.divider) return;   // 칸막이는 열 앨범이 없음
-    try { sessionStorage.setItem(storeKey(), JSON.stringify({ view: "crate", slug: c.slug })); } catch {}
+    try { sessionStorage.setItem(storeKey(), JSON.stringify({ view: modeRef.current === "listen" ? "listen" : "crate", slug: c.slug })); } catch {}
     stopMusic();   // 상세 페이지에는 그 앨범의 플레이어가 따로 있음
     const src = sourceRef.current;
     Object.assign(src.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
@@ -176,24 +193,32 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       if (view === modeRef.current) return;
       const eng = await engine();
       if (!alive || !eng) return;
-      if (view === "crate") {
+      if (is3d(view) && modeRef.current !== "grid") {
+        // Crate ↔ Listening: 같은 판들이 자리만 바꿈 (소리는 그대로)
+        if (eng.busy) return;
+        if (view === "listen" ? eng.crateToListen() : eng.listenToCrate()) { modeRef.current = view; setMode3d(view); }
+      } else if (is3d(view)) {
         const cards = readCards(gridRef.current);
-        if (!cards.length) { onViewChange("grid"); return; }
+        if (!cards.length) { onViewChange(flat); return; }
         cardsRef.current = cards; loadDetails(cards);
         // 화면에 보이는 첫 판 (헤더 아래)
         const topLine = (hostRef.current.getBoundingClientRect().top || 0) + 80;
         const start = Math.max(0, cards.findIndex((c) => c.art.getBoundingClientRect().bottom > topLine));
-        modeRef.current = "crate";
+        modeRef.current = view; setMode3d(view);
         setShown(true); lockPage(true);
         eng.setFog(getComputedStyle(page() || document.body).backgroundColor);
-        eng.toCrate(cards, start);
+        if (view === "listen") {
+          let last = null;
+          try { last = sessionStorage.getItem(LAST_KEY); } catch {}
+          eng.toListen(cards, start, { slug: last });
+        } else eng.toCrate(cards, start);
       } else {
         if (eng.busy) return;
         modeRef.current = "grid";
         stopMusic();   // 플레이어 카드는 상자 안에 있음 → 상자를 떠나면 소리도 멈춤
         try { sessionStorage.removeItem(storeKey()); } catch {}
-        // 맨 앞 판의 칸이 화면 위쪽에 오도록 페이지를 옮긴 뒤 날려 보냄
-        const c = cardsRef.current[eng.front];
+        // 맨 앞 판(Listening 은 선반 왼쪽 끝 판)의 칸이 화면 위쪽에 오도록 페이지를 옮긴 뒤 날려 보냄
+        const c = cardsRef.current[eng.anchor];
         const pg = page();
         if (c?.art && pg) {
           const r = c.art.getBoundingClientRect(), pr = pg.getBoundingClientRect();
@@ -204,13 +229,13 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       }
     })();
     return () => { alive = false; };
-  }, [view, engine, gridRef, onViewChange, loadDetails, stopMusic]);
+  }, [view, flat, engine, gridRef, onViewChange, loadDetails, stopMusic]);
 
   // 앨범 상세에서 돌아오면: 떠날 때 크레이트였으면 그 판을 맨 앞에 두고 바로 크레이트로
   useEffect(() => {
     let saved = null;
     try { saved = JSON.parse(sessionStorage.getItem(storeKey()) || "null"); } catch {}
-    if (saved?.view !== "crate") return;
+    if (!is3d(saved?.view)) return;
     let done = false;
     const tryOpen = async () => {
       const cards = readCards(gridRef.current);
@@ -220,11 +245,12 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       const eng = await engine();
       if (!eng) return true;
       cardsRef.current = cards; loadDetails(cards);
-      modeRef.current = "crate";
+      modeRef.current = saved.view; setMode3d(saved.view);
       setShown(true); lockPage(true);
       eng.setFog(getComputedStyle(page() || document.body).backgroundColor);
-      eng.toCrate(cards, i, { instant: true });
-      onViewChange("crate");
+      if (saved.view === "listen") eng.toListen(cards, Math.max(0, i - 3), { instant: true, slug: saved.slug });
+      else eng.toCrate(cards, i, { instant: true });
+      onViewChange(saved.view);
       return true;
     };
     const mo = new MutationObserver(() => { tryOpen(); });
@@ -238,12 +264,12 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
   // 크레이트에 있는 동안 그리드에 판이 더 붙으면(다음 묶음) 크레이트 뒤에도 이어 꽂음
   //  예전: 크레이트는 들어올 때 그리드에 있던 판(첫 묶음 24장)만 담아서, 39장인데 "003 / 024" 로 나오고 25번째부터는 볼 수 없었음
   useEffect(() => {
-    if (view !== "crate" || !gridRef.current) return;
+    if (!is3d(view) || !gridRef.current) return;
     let raf = 0;
     const sync = () => {
       raf = 0;
       const eng = engineRef.current;
-      if (!eng || modeRef.current !== "crate") return;
+      if (!eng || modeRef.current === "grid") return;
       const cards = readCards(gridRef.current);
       if (cards.length <= cardsRef.current.length) return;
       if (eng.busy) { raf = requestAnimationFrame(sync); return; }   // 날아오는 중이면 끝난 뒤에
@@ -259,11 +285,11 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
 
   // Esc → 그리드
   useEffect(() => {
-    if (view !== "crate") return;
-    const esc = (e) => { if (e.key === "Escape") onViewChange("grid"); };
+    if (!is3d(view)) return;
+    const esc = (e) => { if (e.key === "Escape") onViewChange(flat); };
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
-  }, [view, onViewChange]);
+  }, [view, flat, onViewChange]);
 
   useEffect(() => () => { engineRef.current?.dispose(); engineRef.current = null; lockPage(false); }, []);
 
@@ -280,6 +306,20 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
     musicRef.current.set(playingRef.current, true);
     setNowSpinning({ slug: front.slug, title: front.title, artist: front.artist });
   };
+  useEffect(() => { listenRef.current = listen; });
+  // Listening: 턴테이블의 판 · 바늘은 "이 판을 지금 틀고 있음"을 따라감
+  useEffect(() => { engineRef.current?.setPlaying(listening); }, [listening]);
+  // Listening 에서 책등을 눌러 올린 판: 상세(재생목록)가 도착하면 바로 틂
+  useEffect(() => {
+    if (mode3d !== "listen" || !front || autoRef.current !== front.slug || info === undefined) return;
+    autoRef.current = null;
+    if (!info?.youtube_playlist_id || !musicHostRef.current) return;
+    musicRef.current ??= createRoomMusic(musicHostRef.current, setMusic);
+    playingRef.current = { slug: front.slug, title: front.title, artist: front.artist, playlist: info.youtube_playlist_id };
+    musicRef.current.set(playingRef.current, true);
+    setNowSpinning({ slug: front.slug, title: front.title, artist: front.artist });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode3d, front?.slug, info]);
   const togglePlay = () => {
     const m = musicRef.current, a = playingRef.current;
     if (!m || !a) return;
@@ -297,8 +337,8 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
 
   return (
     <>
-      <div ref={hostRef} data-no-select data-lenis-prevent data-crate-ignore tabIndex={view === "crate" ? 0 : -1}
-        aria-hidden={!shown} aria-label={shown ? `${title} crate. Scroll or use the arrow keys to dig; press Enter to open the front record.` : undefined}
+      <div ref={hostRef} data-no-select data-lenis-prevent data-crate-ignore tabIndex={is3d(view) ? 0 : -1} data-mode={mode3d}
+        aria-hidden={!shown} aria-label={!shown ? undefined : mode3d === "listen" ? `${title} listening shelf. Pick a record from the shelf with the arrow keys; press Space to play.` : `${title} crate. Scroll or use the arrow keys to dig; press Enter to open the front record.`}
         role={shown ? "region" : undefined}
         className={`fixed inset-0 z-[25] isolate touch-none outline-none ${shown ? "visible" : "invisible pointer-events-none"} ${view === "crate" ? "cursor-grab active:cursor-grabbing" : ""}`}
         style={{ "--crate-m": 1, "--crate-gut": "clamp(16px, 4vw, 56px)", "--crate-panel": "clamp(260px, 28vw, 380px)", "--crate-gap": "clamp(24px, 3vw, 56px)" }}>
@@ -308,12 +348,12 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
           <div className="absolute inset-0 bg-(--paper-surface,var(--bg)) bg-(image:--paper-texture-image) bg-repeat bg-blend-soft-light opacity-(--paper-texture-opacity) [background-size:var(--paper-texture-size)_var(--paper-texture-size)]" />
         </div>
         {/* 글자: 크레이트를 떠나자마자 빠지고, 돌아오면 판들이 거의 다 꽂힐 때 나타남 (CratePanel) */}
-        <CratePanel label={title} front={front} total={total} info={info} kind={kind} listening={listening}
-          toggle={<ViewToggle view={view} onChange={onViewChange} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />} sound={<SoundToggle />}
+        <CratePanel label={title} front={front} total={total} info={info} kind={kind} listening={listening} mode={mode3d}
+          toggle={<ViewToggle view={is3d(view) ? view : flat} onChange={onViewChange} views={[flat, "crate", "listen"]} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />} sound={<SoundToggle />}
           onOpen={() => engineRef.current?.openFront()} onListen={listen} onShelf={shelve} />
         {/* 듣기 카드 ("Now spinning"): Listen 을 누르면 오른쪽 아래에 뜸. 판을 넘겨도 남고, 상자를 떠나면 닫힘 (좁은 화면에서는 쓰지 않음) */}
         <div role="region" aria-label="Now spinning" inert={!music.active}
-          className={`absolute bottom-[clamp(3rem,8vh,4.5rem)] right-[var(--crate-gut)] z-10 w-[200px] cursor-auto overflow-hidden rounded-xl bg-[#15111a]/90 text-[#f4e7cd] shadow-[0_24px_48px_-20px_rgba(0,0,0,.7)] ring-1 ring-white/10 backdrop-blur-md transition-[opacity,translate] duration-500 ${EASE} motion-reduce:transition-none max-[819px]:hidden ${music.active ? "opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}>
+          className={`absolute right-[var(--crate-gut)] z-10 w-[200px] cursor-auto overflow-hidden rounded-xl bg-[#15111a]/90 text-[#f4e7cd] shadow-[0_24px_48px_-20px_rgba(0,0,0,.7)] ring-1 ring-white/10 backdrop-blur-md transition-[opacity,translate,bottom] duration-500 ${EASE} motion-reduce:transition-none ${mode3d === "listen" ? "bottom-[calc(var(--listen-shelf,260px)+1.25rem)]" : "bottom-[clamp(3rem,8vh,4.5rem)] max-[819px]:hidden"} ${music.active ? "opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}>
           <div ref={musicHostRef} className="size-[200px] bg-black [&_iframe]:block [&_iframe]:size-full" />
           <div className="flex items-center gap-2 px-3 py-2.5">
             <div className="min-w-0 flex-1">

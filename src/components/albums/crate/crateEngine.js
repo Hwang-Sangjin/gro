@@ -9,12 +9,16 @@ import { isPeeled, markPeeled } from '../peeled';
    카드 목록은 그리드 DOM에서 읽음: [{ slug, color, image, title, artist, art(커버 요소) }] */
 
 export const CRATE = {
-  SLOTS: 18,          // 동시에 그리는 판 수 (끝없이 넘길 때 이 수만 재사용)
+  SLOTS: 64,          // 만들어 두는 판 수 (Listening 선반은 화면 폭만큼 책등이 필요함)
+  VIS: 18,            // Crate 에서 동시에 그리는 판 수 (끝없이 넘길 때 이 수만 재사용)
+  LISTEN_DUR: 1.25,   // Crate ↔ Listening 전환 시간(초)
   DUR: 1.5,           // 전환 시간(초)
   WHEEL: 0.0045,      // 휠 1px 당 넘어가는 판 수
   DRAG: 0.008,        // 드래그 1px 당
 };
-const { SLOTS } = CRATE;
+const { SLOTS, VIS } = CRATE;
+// Listening 선반: 책등 두께(재킷 두께의 배) — 실제 두께(1%)로는 제목을 읽을 수 없어서 책처럼 두껍게
+const SPINE = { thick: 6.5, gapPx: 2 };
 const FOV = 32, CAM_Z = 10;
 const clampN = (lo, x, hi) => Math.min(hi, Math.max(lo, x));
 // 넓은 화면(820px 이상)의 자리 나눔 — CrateView 의 CSS 변수(--crate-gut · --crate-panel · --crate-gap)와 같은 식
@@ -27,16 +31,18 @@ export const crateLayout = (W) => {
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const easeIO = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-const KEYS = ['x', 'y', 'z', 'rx', 'ry', 'rz', 's', 'o', 'c'];
+const KEYS = ['x', 'y', 'z', 'rx', 'ry', 'rz', 's', 'o', 'c', 't'];   // t = 두께 배율 (Listening 선반에서만 1 이 아님)
 const lerpPose = (a, b, t, o) => { for (const k of KEYS) o[k] = a[k] + (b[k] - a[k]) * t; return o; };
 
 // onPeel(): 스티커를 떼어 냄 (소리용)
-export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) {
+// onToggle(): Listening 에서 턴테이블을 누름 (재생 · 멈춤)
+export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, onToggle }) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setClearColor(0x000000, 0);
+  renderer.autoClear = false;   // Listening 의 턴테이블을 같은 캔버스에 먼저 그림 → 프레임마다 직접 지움
   const canvas = renderer.domElement;
   canvas.className = 'absolute inset-0 block h-full w-full';
   host.prepend(canvas);
@@ -67,12 +73,13 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
   // 장르 칸막이(card.divider)일 때만 보이는 탭: 판 위로 솟은 크래프트 조각 + 다이모 라벨 (판의 자식 → 같이 움직임)
   const TAB = { w: 0.46, h: 0.12, x: -0.18 };
   const KRAFT = new THREE.Color('#c9a679'), KRAFT_EDGE = new THREE.Color('#a9865a');
-  const slots = Array.from({ length: SLOTS }, () => {
+  const makeSlot = () => {
     const edge = new THREE.MeshBasicMaterial({ transparent: true });
+    const spine = new THREE.MeshBasicMaterial({ transparent: true });   // 책등(-x 면): Listening 선반에서 제목이 보이는 면
     const front = new THREE.MeshBasicMaterial({ transparent: true });
     const back = new THREE.MeshBasicMaterial({ transparent: true, color: 0xd9ccb2 });
     const open = new THREE.MeshBasicMaterial({ transparent: true, map: openTex });
-    const mesh = new THREE.Mesh(geo, [open, edge, edge, edge, front, back]);
+    const mesh = new THREE.Mesh(geo, [open, spine, edge, edge, front, back]);
     const tabFront = new THREE.MeshBasicMaterial({ transparent: true });
     const tabEdge = new THREE.MeshBasicMaterial({ transparent: true, color: KRAFT_EDGE });
     const tabBack = new THREE.MeshBasicMaterial({ transparent: true, color: KRAFT });
@@ -85,8 +92,10 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     sticker.mesh.scale.setScalar(STICKER.size); sticker.mesh.position.set(STICKER.at, STICKER.at, 0.0126); sticker.mesh.rotation.z = STICKER.tilt;
     mesh.add(sticker.mesh);
     scene.add(mesh);
-    return { mesh, edge, front, back, tab, tabFront, tabEdge, tabBack, open, finish, sticker, peel: PEEL.rest, dir, fly: 0, d: 0, card: null, edgeBase: new THREE.Color() };
-  });
+    return { mesh, edge, spine, front, back, tab, tabFront, tabEdge, tabBack, open, finish, sticker, peel: PEEL.rest, dir, fly: 0, d: 0, lift: 0, card: null, edgeBase: new THREE.Color() };
+  };
+  const slots = Array.from({ length: SLOTS }, makeSlot);
+  const hero = makeSlot();   // Listening 무대의 재킷 (고른 판) — 선반의 그 판 대신 이 한 장이 무대와 선반 사이를 오감
 
   /* ---- 커버 텍스처: 불러오는 동안은 대표 색 ---- */
   const textures = new Map();
@@ -107,7 +116,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
       const nt = new THREE.Texture(img);
       nt.colorSpace = THREE.SRGBColorSpace; nt.anisotropy = aniso; nt.needsUpdate = true;
       textures.set(card.slug, nt);
-      for (const s of slots) if (s.front.map === t) { s.front.map = nt; s.front.needsUpdate = true; }
+      for (const s of [...slots, hero]) if (s.front.map === t) { s.front.map = nt; s.front.needsUpdate = true; }
       t.dispose();
     }, undefined, () => {});
     return t;
@@ -131,12 +140,40 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     return t;
   }
 
+  // 책등 그림 (Listening): 커버 대표색 바탕에 제목 · 아티스트를 아래에서 위로
+  const spines = new Map();
+  function spineTex(card) {
+    let t = spines.get(card.slug);
+    if (t) return t;
+    const c = document.createElement('canvas'); c.width = 72; c.height = 512;
+    const g = c.getContext('2d');
+    tone.set(card.color || '#bbcbda');
+    const light = 0.299 * tone.r + 0.587 * tone.g + 0.114 * tone.b > 0.36;   // 선형 값 기준
+    g.fillStyle = card.color || '#bbcbda'; g.fillRect(0, 0, 72, 512);
+    const sh = g.createLinearGradient(0, 0, 72, 0);
+    sh.addColorStop(0, 'rgba(0,0,0,.22)'); sh.addColorStop(0.3, 'rgba(0,0,0,0)'); sh.addColorStop(0.62, 'rgba(255,255,255,.1)'); sh.addColorStop(1, 'rgba(0,0,0,.18)');
+    g.fillStyle = sh; g.fillRect(0, 0, 72, 512);
+    g.save(); g.translate(36, 494); g.rotate(-Math.PI / 2);
+    g.fillStyle = light ? '#2a2228' : '#f4e7cd'; g.textBaseline = 'middle';
+    try { g.letterSpacing = '1.5px'; } catch {}
+    const fit = (text, max) => { let s = text; while (s.length > 2 && g.measureText(s).width > max) s = s.slice(0, -2); return s === text ? s : s.trim() + '…'; };
+    g.font = '700 24px "Hahmlet", Georgia, serif';
+    const title = fit((card.title || '').toUpperCase(), 476), tw = g.measureText(title).width;
+    g.fillText(title, 0, 1);
+    if (tw < 380 && card.artist) { g.globalAlpha = 0.72; g.font = '400 20px "Hahmlet", Georgia, serif'; g.fillText(fit(card.artist.toUpperCase(), 476 - tw - 22), tw + 22, 1); }
+    g.restore();
+    t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso;
+    spines.set(card.slug, t);
+    return t;
+  }
+
   let cards = [];
   const N = () => cards.length;
   const wrap = (i) => (N() ? ((i % N()) + N()) % N() : 0);
   function setSlot(slot, idx) {
     const card = cards[idx];
-    if (slot.card === card) return;
+    if (slot.card === card && slot.spined === useSpines) return;
+    slot.spined = useSpines;
     // 떼어져 날아가던 스티커는 판이 바뀌면 그대로 떼어진 것으로 · 잡고 있던 것은 놓음
     if (slot.fly > 0 && slot.card) markPeeled(slot.card.slug);
     if (peel?.slot === slot) peel = null;
@@ -146,6 +183,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     // 판마다 다른 비닐 주름 · 커버의 밝기 (어두운 커버에서는 빛 띠를 줄임)
     tone.set(card.color || '#bbcbda');
     fx.wrapFor(slot.finish, hashOf(card.slug || ''), 0.2126 * tone.r + 0.7152 * tone.g + 0.0722 * tone.b);
+    const sp = useSpines && !card.divider ? spineTex(card) : null;
+    if (slot.spine.map !== sp) { slot.spine.map = sp; slot.spine.needsUpdate = true; }
     if (card.divider) {
       const t = dividerTex(card);
       slot.front.map = t.face; slot.tabFront.map = t.tab;
@@ -166,7 +205,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     if (d < 0) {
       const k = Math.min(1, -d);
       o.x = fx - k * 0.2 * u; o.y = fy - k * 2.4 * u; o.z = k * 2.2 * u;
-      o.rx = -k * 1.25; o.ry = 0; o.rz = 0; o.s = 1; o.o = 1 - ss(0, 1, k); o.c = 1;
+      o.rx = -k * 1.25; o.ry = 0; o.rz = 0; o.s = 1; o.o = 1 - ss(0, 1, k); o.c = 1; o.t = 1;
       return o;
     }
     const near = ss(0, 1, d), far = Math.max(0, d - 1);
@@ -174,7 +213,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     o.y = fy + (0.08 * d + 0.012 * far * far) * u;
     o.z = (-0.9 * near - 0.62 * far) * u;
     o.rx = 0; o.ry = -1.12 * near - 0.02 * far; o.rz = 0.025 * far;
-    o.s = 1; o.o = 1 - ss(SLOTS - 5, SLOTS - 2, d); o.c = 1 - Math.min(0.42, 0.05 * d);
+    o.s = 1; o.o = 1 - ss(VIS - 5, VIS - 2, d); o.c = 1 - Math.min(0.42, 0.05 * d); o.t = 1;
     return o;
   }
   // 화면 사각형(그리드 칸) → z=0 평면 위 같은 크기·위치 (캔버스 기준)
@@ -183,19 +222,20 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     const visH = 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360), wpp = visH / hostRect.height;
     o.x = (r.left + r.width / 2 - (hostRect.left + hostRect.width / 2)) * wpp;
     o.y = -(r.top + r.height / 2 - (hostRect.top + hostRect.height / 2)) * wpp;
-    o.z = 0; o.rx = o.ry = o.rz = 0; o.s = (r.width * wpp) / CARD; o.o = 1; o.c = 1;
+    o.z = 0; o.rx = o.ry = o.rz = 0; o.s = (r.width * wpp) / CARD; o.o = 1; o.c = 1; o.t = 1;
     return o;
   }
   function applyPose(slot, p, fly) {
     const m = slot.mesh;
     m.position.set(p.x, p.y, p.z);
     m.rotation.set(p.rx, p.ry, p.rz);
-    m.scale.set(CARD * p.s, CARD * p.s, CARD * p.s);
-    for (const mat of [slot.front, slot.back, slot.edge, slot.open, slot.tabFront, slot.tabEdge, slot.tabBack]) mat.opacity = p.o;
+    m.scale.set(CARD * p.s, CARD * p.s, CARD * p.s * (p.t ?? 1));
+    for (const mat of [slot.front, slot.back, slot.edge, slot.spine, slot.open, slot.tabFront, slot.tabEdge, slot.tabBack]) mat.opacity = p.o;
     slot.open.color.setScalar(p.c);
     slot.front.color.setScalar(p.c);
     slot.tabFront.color.setScalar(p.c);
     slot.edge.color.copy(slot.edgeBase).multiplyScalar(p.c);
+    if (slot.spine.map) slot.spine.color.setScalar(p.c); else slot.spine.color.copy(slot.edge.color);
     m.visible = p.o > 0.003 && !!slot.card;
     slot.tab.visible = !!slot.card?.divider;
     m.renderOrder = Math.round(p.z * 100) + (fly ? 5000 : 0);
@@ -217,6 +257,10 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
 
   /* ---- 상태 ---- */
   let mode = 'grid', m = 1, anim = null, cardOff = 0, running = false;
+  // Listening: L = 0 Crate … 1 Listening · sel = 무대에 올라간 판 · selK = 그 재킷이 선반(0) ↔ 무대(1) · swap = 판을 바꾸는 중
+  let L = 0, animL = null, useSpines = false, sel = 0, selK = 1, swap = null, playing = false, hoverIdx = -1, picked = false;
+  let stage = null, stageLoading = false, LS = null;
+  hero.mesh.visible = false;
   let pos = 0, target = 0, lastInput = 0, drag = null, touch = null;
   // 마우스 자리 (-1~1, 부드럽게 따라감): 광택이 따라 움직이고, 맨 앞 판 위에 있으면 스티커가 더 말려 올라감
   const hover = { on: false, nx: 0, ny: 0, x: 0, y: 0 };
@@ -231,12 +275,13 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
   function showAllArt() { for (const el of hidden) el.style.visibility = ''; hidden.clear(); }
 
   /* ---- 입력 (크레이트일 때만) ---- */
-  const live = () => mode === 'crate' && !anim;
+  const live = () => mode === 'crate' && !anim && !animL;
+  const liveL = () => mode === 'listen' && !anim && !animL;
   const onWheel = (e) => {
     e.preventDefault(); e.stopPropagation();
-    if (!live()) return;
+    if (!live() && !liveL()) return;
     const d = (Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX) * (e.deltaMode === 1 ? 16 : 1);
-    target += d * CRATE.WHEEL; lastInput = performance.now();
+    target += d * (liveL() ? 0.7 / LS.pitchPx : CRATE.WHEEL); lastInput = performance.now();
   };
   // 화면 위치는 매번 새로 잼: 페이지 넘김 중(페이지가 기울고 작아진 상태)에 열려도 클릭 위치가 어긋나지 않게
   const syncRect = () => { hostRect = host.getBoundingClientRect(); };
@@ -260,7 +305,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     return raycaster.ray.intersectPlane(plane, v3) ? st.worldToLocal(v3) : null;
   }
   const onDown = (e) => {
-    if (!live() || e.button !== 0) return;
+    if (!(live() || liveL()) || e.button !== 0) return;
     syncRect();
     if (e.target instanceof Element && e.target.closest('button, a')) return;
     // 스티커를 잡았으면 판을 넘기는 대신 스티커를 뗌. 잡은 곳에서 가장 가까운 가장자리가 들림 (가운데를 잡으면 평소 들려 있는 쪽)
@@ -295,7 +340,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     if (!drag || e.pointerId !== drag.id) return;
     const dx = drag.x - e.clientX, dy = drag.y - e.clientY;
     if (Math.hypot(dx, dy) > 10) drag.moved = true;   // 클릭하며 손이 조금 움직여도 클릭으로
-    if (drag.moved) { target = drag.start + (drag.touch && Math.abs(dy) > Math.abs(dx) ? dy : dx) * CRATE.DRAG; lastInput = performance.now(); }
+    if (drag.moved) { target = drag.start + (liveL() ? dx / LS.pitchPx : (drag.touch && Math.abs(dy) > Math.abs(dx) ? dy : dx) * CRATE.DRAG); lastInput = performance.now(); }
   };
   const raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2();
   const onUp = (e) => {
@@ -312,7 +357,9 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     }
     if (!drag || e.pointerId !== drag.id) return;
     const was = drag; drag = null;
-    if (was.moved || !live()) return;
+    if (was.moved) return;
+    if (liveL()) { listenClick(e.clientX, e.clientY); return; }
+    if (!live()) return;
     syncRect();
     ndc.set(((e.clientX - hostRect.left) / hostRect.width) * 2 - 1, -((e.clientY - hostRect.top) / hostRect.height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
@@ -328,7 +375,30 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     const d = Math.round(j - 1 - frac);
     if (d > 0) { target = Math.round(pos) + d; lastInput = performance.now(); }
   };
+  // Listening: 무대의 재킷 = 앨범 열기 · 책등 = 그 판을 올림 · 턴테이블 = 재생 / 멈춤
+  const shelfMeshes = () => slots.filter((s) => s.mesh.visible).map((s) => s.mesh);
+  function listenClick(cx, cy) {
+    syncRect(); aim(cx, cy);
+    if (hero.mesh.visible && raycaster.intersectObject(hero.mesh, false).length) { onOpen?.(sel, rectOf(hero)); return; }
+    const hit = raycaster.intersectObjects(shelfMeshes(), false)[0];
+    if (hit) { select(cards.indexOf(slots.find((s) => s.mesh === hit.object)?.card)); return; }
+    const x = cx - hostRect.left, y = cy - hostRect.top, t = LS.tt;
+    if (x > t.left && x < t.left + t.width && y > t.top && y < t.top + t.height) onToggle?.();
+  }
+  function select(i) {
+    if (!liveL() || swap || i < 0 || i >= N() || i === sel || cards[i].divider) return;
+    swap = { to: i, t: 0, phase: 0 };
+    lastInput = performance.now();
+  }
+  const step = (dir) => { let i = sel + dir; while (cards[i]?.divider) i += dir; select(i); };
   const onKey = (e) => {
+    if (liveL() && !(e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable="true"]'))) {
+      if (['ArrowRight', 'ArrowDown'].includes(e.key)) { step(1); e.preventDefault(); }
+      else if (['ArrowLeft', 'ArrowUp'].includes(e.key)) { step(-1); e.preventDefault(); }
+      else if (e.key === 'Enter' && document.activeElement === host) onOpen?.(sel, rectOf(hero));
+      else if (e.key === ' ' && !(e.target instanceof Element && e.target.closest('button, a'))) { onToggle?.(); e.preventDefault(); }
+      return;
+    }
     if (!live() || (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable="true"]'))) return;
     if (['ArrowRight', 'ArrowDown', 'PageDown'].includes(e.key)) { target = Math.round(target) + 1; e.preventDefault(); }
     else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { target = Math.round(target) - 1; e.preventDefault(); }
@@ -342,16 +412,17 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
   host.addEventListener('pointerup', onUp);
   host.addEventListener('pointercancel', () => { drag = null; peel = null; });
   host.addEventListener('pointerleave', () => { hover.on = false; });
-  host.addEventListener('touchmove', (e) => { if (mode === 'crate' && e.cancelable) e.preventDefault(); }, { passive: false });
+  host.addEventListener('touchmove', (e) => { if (mode !== 'grid' && e.cancelable) e.preventDefault(); }, { passive: false });
   window.addEventListener('keydown', onKey);
 
   // 맨 앞 판의 화면 위치 (앨범 상세로 날아가는 커버 전환의 출발점)
   const corner = new THREE.Vector3();
   // 지금 정면에 선 판 (넘기는 도중이면 반 넘게 들어온 쪽)
   const frontSlot = () => slots[1 + Math.round(pos - Math.floor(pos))];
-  function frontRect() {
+  const frontRect = () => rectOf(frontSlot());
+  function rectOf(slot) {
     syncRect();
-    const slot = frontSlot(), h = 0.5;
+    const h = 0.5;
     slot.mesh.updateWorldMatrix(true, false);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const [x, y] of [[-h, -h], [h, -h], [h, h], [-h, h]]) {
@@ -384,13 +455,56 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
       cx = left + cardPx / 2; cy = top + (H - top - bottom) / 2;
     }
     CARD = cardPx * wpp; FX = (cx - W / 2) * wpp; FY = -(cy - H / 2) * wpp;
+    // Listening 자리 (화면 px 로 정한 뒤 z=0 평면의 크기로): 위 = 무대(재킷 + 턴테이블), 아래 = 책등 선반
+    {
+      const gut = clampN(16, W * 0.04, 56), lay = crateLayout(W);
+      const shelfPx = clampN(narrow ? 110 : 150, H * 0.22, 230), boardPx = clampN(16, H * 0.035, 32);
+      const pitchPx = shelfPx * 0.022 * SPINE.thick + SPINE.gapPx;
+      let top, left, right, bottom = H - boardPx - shelfPx * 1.14 - 14;
+      if (narrow) { top = Math.max(H * 0.17, 140); bottom = Math.min(bottom, top + Math.min(W * 0.6, H * 0.28)); left = gut; right = W - gut; }
+      else { top = Math.max(H * 0.14, 110) + 36; left = lay.left; right = W - gut - (W >= 1180 ? 224 : 0); }
+      const sw = right - left, sh = Math.max(60, bottom - top);
+      const jPx = Math.max(80, Math.min(sh * (narrow ? 0.86 : 0.7), sw * 0.38));
+      LS = {
+        sh: shelfPx * wpp, pitch: pitchPx * wpp, pitchPx, count: Math.max(1, Math.floor((W - 2 * gut) / pitchPx)),
+        x0: (gut - W / 2) * wpp, x1: (W - gut - W / 2) * wpp, y0: -(H / 2 - boardPx) * wpp,
+        jx: (left + jPx / 2 - W / 2) * wpp, jy: -((top + bottom) / 2 - H / 2) * wpp, js: jPx * wpp,
+        tt: { left: left + jPx * 0.9, top: top - (narrow ? 0 : 24), width: Math.max(40, sw - jPx * 0.9), height: sh + (narrow ? 0 : 36) },
+      };
+      host.style.setProperty('--listen-board', `${boardPx}px`);
+      host.style.setProperty('--listen-shelf', `${(shelfPx * 1.14 + boardPx).toFixed(0)}px`);
+      host.style.setProperty('--listen-stage-bottom', `${bottom.toFixed(0)}px`);
+    }
+  }
+  // 선반의 자리: d = 왼쪽 끝에서 몇 번째(소수) · raw = 판 번호(감지 않은 것 — 선반은 끝없이 돌지 않음)
+  function shelfPose(d, raw, slot, o) {
+    const hv = slot.card ? 0.93 + 0.07 * (((hashOf(slot.card.slug || '') >>> 5) % 8) / 7) : 1;   // 판마다 키가 조금씩 다름
+    const s = (LS.sh / CARD) * hv;
+    o.x = LS.x0 + (d + 0.5) * LS.pitch;
+    o.y = LS.y0 + (LS.sh * hv) / 2 + LS.sh * 0.07 * (slot.lift || 0);
+    o.z = -(CARD * s) / 2;   // 책등 면이 z=0 에 오게 (화면 px 크기 그대로)
+    o.rx = 0; o.ry = Math.PI / 2; o.rz = 0; o.s = s; o.t = SPINE.thick; o.c = 1;
+    o.o = raw < 0 || raw >= N() ? 0 : (1 - ss(0, 1, -d)) * (1 - ss(LS.x1 - LS.pitch * 0.5, LS.x1 + LS.pitch * 0.5, o.x));
+    return o;
+  }
+  function stagePose(o) {
+    o.x = LS.jx; o.y = LS.jy; o.z = 0.25; o.rx = -0.03; o.ry = 0.2; o.rz = -0.012; o.s = LS.js / CARD; o.o = 1; o.c = 1; o.t = 1;
+    return o;
+  }
+  function loadStage() {
+    if (stage || stageLoading) return;
+    stageLoading = true;
+    import('./listenStage').then((mod) => mod.createListenStage({ renderer })).then((s) => {
+      if (disposed) { s.dispose(); return; }
+      stage = s; stage.setAlbum(cards[sel]); run();
+    }).catch(() => { stageLoading = false; });
   }
   const ro = new ResizeObserver(resize);
   ro.observe(host);
   resize();
 
   /* ---- 루프 ---- */
-  const from = {}, to = {}, out = {}, toHide = [];
+  const from = {}, to = {}, out = {}, sp = {}, hc = {}, stp = {}, toHide = [];
   let prev = performance.now() / 1000, shownFront = -1, raf = 0;
   function frame() {
     raf = 0;
@@ -400,15 +514,33 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
       m = anim.from + (anim.to - anim.from) * k;
       if (k >= 1) {
         m = anim.to; anim = null;
-        if (mode === 'grid') showAllArt();
+        if (mode === 'grid') { showAllArt(); L = 0; swap = null; selK = 1; }
         onSettled?.(mode);
       }
     }
+    if (animL) {
+      const k = clamp01((now - animL.t0) / animL.dur);
+      L = animL.from + (animL.to - animL.from) * k;
+      if (k >= 1) { L = animL.to; animL = null; onSettled?.(mode); }
+    }
+    // 판 바꾸기: 무대의 재킷이 선반 제자리로 돌아가고(0) → 새 판이 선반에서 무대로 올라옴(1). 그동안 턴테이블의 판은 떠올라 라벨이 바뀜
+    let swapLift = 0;
+    if (swap) {
+      swap.t += dt;
+      if (swap.phase === 0) {
+        selK = 1 - easeIO(clamp01(swap.t / 0.42)); swapLift = clamp01(swap.t / 0.42);
+        if (swap.t >= 0.42) { sel = swap.to; swap.phase = 1; swap.t = 0; selK = 0; picked = true; shownFront = -1; stage?.setAlbum(cards[sel]); }
+      } else {
+        selK = easeIO(clamp01(swap.t / 0.8)); swapLift = 1 - clamp01(swap.t / 0.5);
+        if (swap.t >= 0.8) { selK = 1; swap = null; }
+      }
+    }
+    if (mode === 'listen' && LS) target = clampN(0, target, Math.max(0, N() - LS.count));
     if (!drag && !touch && performance.now() - lastInput > 140) target += (Math.round(target) - target) * (1 - Math.exp(-dt / 0.12));
     pos += (target - pos) * (1 - Math.exp(-dt / 0.14));
     if (Math.abs(target - pos) < 0.0005) pos = target;
-    const front = wrap(Math.round(pos));
-    if (front !== shownFront && N()) { shownFront = front; onFront?.(front, cards[front]); }
+    const front = L > 0.5 ? sel : wrap(Math.round(pos));
+    if (front !== shownFront && N()) { shownFront = front; onFront?.(front, cards[front], picked); picked = false; }
     // 마우스: 부드럽게 따라감 · 맨 앞 판 위에 있는지 (지난 프레임의 자리로 잼)
     const hk = 1 - Math.exp(-dt / 0.18);
     hover.x += ((hover.on ? hover.nx : 0) - hover.x) * hk; hover.y += ((hover.on ? hover.ny : 0) - hover.y) * hk;
@@ -431,22 +563,34 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     // 그리드 칸과 짝: cardOff(맨 앞과 짝인 칸)부터 화면 안에 보이는 칸들
     if (m > 0) syncRect();
     const base = Math.floor(pos), frac = pos - base;
+    const lim = L > 0 ? SLOTS : VIS;
     let K = 0;
     if (m > 0) {
-      for (let k = 0; k < SLOTS - 1 && cardOff + k < N(); k++) {
+      for (let k = 0; k < lim - 1 && cardOff + k < N(); k++) {
         const r = cards[cardOff + k].art?.getBoundingClientRect();
         if (!r || r.top > hostRect.top + hostRect.height) break;
         K++;
       }
     }
     const ST = Math.min(0.06, 0.45 / Math.max(1, K - 1)), SPAN = 1 - ST * Math.max(0, K - 1);
+    // Listening: 마우스가 가리키는 책등 (조금 솟음)
+    if (liveL() && hover.on && !drag && hover.cx != null) { aim(hover.cx, hover.cy); const hit = raycaster.intersectObjects(shelfMeshes(), false)[0]; hoverIdx = hit ? cards.indexOf(slots.find((s) => s.mesh === hit.object)?.card) : -1; }
+    else if (!liveL() || !hover.on) hoverIdx = -1;
+    const Le = easeIO(L), heroOn = L > 0 && !!cards[sel] && !cards[sel].divider;
     slots.forEach((slot, j) => {
-      const idx = wrap(base + j - 1);
+      if (j >= lim) { slot.mesh.visible = false; return; }   // Crate 만 쓸 때는 앞의 VIS 장만
+      const raw = base + j - 1, idx = wrap(raw);
       setSlot(slot, idx);
       slot.d = j - 1 - frac;
       cratePose(j - 1 - frac, from);
       // 판이 적으면 같은 판이 뒤에 또 보이지 않게 (끝없이 넘기는 건 그대로)
       if (j - 1 >= N()) from.o *= 1 - ss(N() - 1, N(), j - 1 - frac);
+      if (L > 0) {
+        slot.lift += ((idx === hoverIdx ? 1 : 0) - slot.lift) * (1 - Math.exp(-dt / 0.09));
+        lerpPose(from, shelfPose(slot.d, raw, slot, sp), Le, from);
+        // 고른 판은 무대의 재킷(hero)이 대신 그림 → 선반에는 빈자리
+        if (heroOn && idx === sel) { from.o = 0; slot.gridK = 0; applyPose(slot, from, false); return; }
+      }
       const k = j - 1;
       if (m > 0 && k >= 0 && k < K && cardOff + k === idx && cards[idx]?.art) {
         const e = easeIO(clamp01((m - k * ST) / SPAN));
@@ -463,12 +607,44 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
         applyPose(slot, from, false);
       }
     });
+    // 무대의 재킷: Crate 자리 ↔ (선반 자리 ↔ 무대) · 그리드로 오갈 때는 제 칸과 무대 사이를 날아감
+    if (heroOn) {
+      setSlot(hero, sel);
+      hero.d = 0; hero.lift = 0;
+      const dSel = sel - pos;
+      cratePose(dSel, hc);
+      lerpPose(shelfPose(dSel, sel, hero, sp), stagePose(stp), selK, sp);
+      lerpPose(hc, sp, Le, hc);
+      const art = m > 0 ? cards[sel].art : null, r = art?.getBoundingClientRect();
+      if (r && r.width > 0 && r.bottom > hostRect.top && r.top < hostRect.top + hostRect.height) {
+        const e = easeIO(clamp01(m));
+        lerpPose(hc, rectPose(r, to), e, out);
+        hero.gridK = e;
+        out.z += Math.sin(Math.PI * e) * 1.2;
+        if (m < 1) toHide.push(art);
+        applyPose(hero, out, e > 0 && e < 1);
+      } else {
+        hero.gridK = 0;
+        hc.o *= 1 - ss(0, 0.3, m);
+        applyPose(hero, hc, selK > 0 && selK < 1);
+      }
+    } else hero.mesh.visible = false;
+    renderer.setViewport(0, 0, W, H);
+    renderer.clear();
+    // 턴테이블 무대: 제 장면 · 제 카메라로 먼저 그리고, 그 위에 판들
+    const sk = Le * (1 - clamp01(m * 1.5));
+    if (stage && sk > 0.001 && LS) {
+      stage.render(LS.tt, H, sk, dt, { playing: playing && !swap, lift: swapLift, hover });
+      renderer.clearDepth();
+      renderer.setViewport(0, 0, W, H);
+    }
     renderer.render(scene, camera);
+    host.style.setProperty('--crate-l', L.toFixed(3));
     // 3D 판이 그 자리에 그려진 뒤에 그리드 커버를 숨김 (한 프레임도 비지 않게)
     for (const el of toHide) hideArt(el, true);
     toHide.length = 0;
     host.style.setProperty('--crate-m', m.toFixed(3));
-    if (mode === 'crate' || anim) raf = requestAnimationFrame(frame);
+    if (mode !== 'grid' || anim || animL) raf = requestAnimationFrame(frame);
     else running = false;
   }
   function run() { if (!running) { running = true; prev = performance.now() / 1000; raf = requestAnimationFrame(frame); } }
@@ -488,7 +664,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     },
     /** 크레이트 → 그리드. 부르기 전에 맨 앞 판의 칸이 화면에 보이게 스크롤해 둘 것 */
     toGrid() {
-      if (mode !== 'crate' || anim) return;
+      if (mode === 'grid' || anim || animL) return;
       target = pos = Math.round(pos);
       cardOff = wrap(pos);
       mode = 'grid';
@@ -500,16 +676,58 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
     /** 크레이트에 있는 동안 판이 더 들어옴 (다음 묶음을 받아 옴). list = 지금까지의 판 + 뒤에 붙은 새 판 (앞쪽 순서는 그대로여야 함)
      *  맨 앞 판은 그대로 두고 뒤에만 이어 붙임. 돌려 넘기던 자리(pos)는 새 장수 기준으로 다시 맞춤 */
     extend(list) {
-      if (mode !== 'crate' || anim || list.length <= N()) return false;
-      const r = Math.round(pos), f = wrap(r);
+      if (mode === 'grid' || anim || animL || list.length <= N()) return false;
+      const r = Math.round(pos), f = mode === 'listen' ? r : wrap(r);
       cards = list; pos += f - r; target += f - r; shownFront = -1;
       run();
       return true;
     },
     /** 맨 앞 판 열기 (정보 패널의 "Open record" 버튼 — 판을 누른 것과 같음) */
-    openFront() { if (live() && N()) onOpen?.(wrap(Math.round(pos)), frontRect()); },
-    get front() { return wrap(Math.round(pos)); },
-    get busy() { return !!anim; },
+    openFront() { if (liveL() && N()) onOpen?.(sel, rectOf(hero)); else if (live() && N()) onOpen?.(wrap(Math.round(pos)), frontRect()); },
+    /** 그리드 → Listening. start = 선반 왼쪽 끝이 될 카드 번호 · slug = 무대에 올릴 판 (없으면 start) */
+    toListen(list, start, { instant = false, slug = null } = {}) {
+      cards = list; showAllArt(); useSpines = true;
+      cardOff = Math.max(0, Math.min(start, N() - 1));
+      pos = target = cardOff; shownFront = -1;
+      const want = slug ? cards.findIndex((c) => c.slug === slug) : -1;
+      sel = want >= 0 ? want : cardOff;
+      if (cards[sel]?.divider) sel = Math.min(N() - 1, sel + 1);
+      selK = 1; swap = null; L = 1; animL = null;
+      slots.forEach((s) => { s.card = null; }); hero.card = null;
+      mode = 'listen';
+      resize(); loadStage(); stage?.setAlbum(cards[sel]);
+      if (instant || reduced) { m = 0; anim = null; onSettled?.('listen'); }
+      else anim = { from: 1, to: 0, t0: performance.now() / 1000, dur: CRATE.DUR };
+      run();
+    },
+    /** Crate → Listening: 맨 앞 판이 무대로, 뒤의 판들은 돌아서며 선반에 꽂힘 */
+    crateToListen() {
+      if (mode !== 'crate' || anim || animL) return false;
+      const r = Math.round(pos), f = wrap(r);
+      pos += f - r; target = f;
+      sel = cards[f]?.divider ? Math.min(N() - 1, f + 1) : f;
+      selK = 1; swap = null; useSpines = true; shownFront = -1;
+      mode = 'listen';
+      loadStage(); stage?.setAlbum(cards[sel]);
+      animL = { from: L, to: 1, t0: performance.now() / 1000, dur: reduced ? 0.01 : CRATE.LISTEN_DUR };
+      run();
+      return true;
+    },
+    /** Listening → Crate: 무대의 판이 상자 맨 앞으로 */
+    listenToCrate() {
+      if (mode !== 'listen' || anim || animL) return false;
+      target = sel; swap = null; selK = 1; shownFront = -1;
+      mode = 'crate';
+      animL = { from: L, to: 0, t0: performance.now() / 1000, dur: reduced ? 0.01 : CRATE.LISTEN_DUR };
+      run();
+      return true;
+    },
+    /** Listening: 판이 돌고 바늘이 내려가 있음 */
+    setPlaying(v) { playing = !!v; if (mode === 'listen') run(); },
+    get front() { return L > 0.5 ? sel : wrap(Math.round(pos)); },
+    /** 그리드로 돌아갈 때 화면에 보이게 해 둘 칸: Crate = 맨 앞 판 · Listening = 선반 왼쪽 끝 판 */
+    get anchor() { return wrap(Math.round(pos)); },
+    get busy() { return !!anim || !!animL; },
     setFog(hex) { scene.fog.color.set(hex); },
     dispose() {
       disposed = true;
@@ -519,8 +737,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel }) 
       host.removeEventListener('pointermove', onMove);
       host.removeEventListener('pointerup', onUp);
       window.removeEventListener('keydown', onKey);
-      textures.forEach((t) => t.dispose()); geo.dispose();
-      slots.forEach((s) => { s.edge.dispose(); s.front.dispose(); s.back.dispose(); s.tabEdge.dispose(); s.tabFront.dispose(); s.tabBack.dispose(); s.open.dispose(); s.finish.mesh.material.dispose(); s.sticker.mesh.material.dispose(); });
+      textures.forEach((t) => t.dispose()); spines.forEach((t) => t.dispose()); geo.dispose(); stage?.dispose();
+      [...slots, hero].forEach((s) => { s.spine.dispose(); s.edge.dispose(); s.front.dispose(); s.back.dispose(); s.tabEdge.dispose(); s.tabFront.dispose(); s.tabBack.dispose(); s.open.dispose(); s.finish.mesh.material.dispose(); s.sticker.mesh.material.dispose(); });
       fx.dispose(); openTex.dispose();
       renderer.dispose(); canvas.remove();
     },

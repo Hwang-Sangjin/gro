@@ -58,6 +58,7 @@ export default function AlbumList({ albums, className = "", arriving = false, ..
             <li key={a.id}>
               <Link href={`/album/${a.slug}`} onClick={(e) => open(e, a)} onPointerEnter={onRow(i)} onPointerMove={onRow(i)}
                 aria-label={`${a.title} — ${a.artist_names}`}
+                data-list-row data-album-slug={a.slug} data-album-title={a.title} data-album-artist={a.artist_names} data-album-color={a.cover_color || "#bbcbda"} data-album-image={src || undefined}
                 className={`group/row grid grid-cols-[2rem_2.75rem_minmax(0,1fr)_1.25rem] items-center gap-x-3 border-b border-(--ink)/18 py-2.5 transition-[opacity,translate] duration-500 ${arriving ? "" : "starting:translate-y-2"} starting:opacity-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink) md:grid-cols-[3rem_3rem_minmax(0,1.5fr)_minmax(0,1fr)_4.5rem_1.25rem] md:gap-x-5 md:py-3 motion-reduce:transition-none ${active >= 0 && active !== i ? "md:opacity-40" : ""}`}
                 style={{ transitionDelay: active >= 0 ? "0ms" : `${Math.min(i, 24) * 18}ms` }}>
                 <span className="text-[11px] font-medium tabular-nums tracking-[0.14em] text-(--ink)/60">{String(i + 1).padStart(3, "0")}</span>
