@@ -269,7 +269,12 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   // Listening: L = 0 Crate … 1 Listening · sel = 무대에 올라간 판 · selK = 그 재킷이 선반(0) ↔ 무대(1) · swap = 판을 바꾸는 중
   let L = 0, animL = null, useSpines = false, sel = 0, selK = 1, swap = null, playing = false, hoverIdx = -1, picked = false;
   let stage = null, stageLoading = false, LS = null, cardSpace = false, intro = 0, pending = null;   // pending = 판 · 톤암이 다 들어간 뒤에 시작할 전환 ('grid' | 'crate')
-  let api = null;   // intro = 무대의 톤암 · 판이 나온 정도 0…1
+  let api = null;
+  // 들어오는 움직임 (FLY 를 껐을 때, 2026-11-27 사용자 요청 — 그리드가 사라진 뒤 장면이 팍 나타나는 게 부자연스러웠음)
+  //  enter: Crate = 판들이 오른쪽 위(상자가 이어지는 쪽)에서 차례로 흘러 들어옴 · Listen = 책등들이 오른쪽에서 차례로 들어와 꽂힘
+  //  rise: Listen 에서 책등이 다 꽂힌 뒤, 그중 하나(무작위)가 뽑혀 무대로 올라감 → 그 뒤에 톤암 · 판 (intro)
+  let enter = null, rise = null;
+  const easeOut = (x) => 1 - (1 - x) ** 3;   // intro = 무대의 톤암 · 판이 나온 정도 0…1
   hero.mesh.visible = false;
   let pos = 0, target = 0, lastInput = 0, drag = null, touch = null;
   // 마우스 자리 (-1~1, 부드럽게 따라감): 광택이 따라 움직이고, 맨 앞 판 위에 있으면 스티커가 더 말려 올라감
@@ -286,7 +291,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
 
   /* ---- 입력 (크레이트일 때만) ---- */
   const live = () => mode === 'crate' && !anim && !animL;
-  const liveL = () => mode === 'listen' && !anim && !animL && !pending;
+  const liveL = () => mode === 'listen' && !anim && !animL && !pending && !enter && !rise;
   const onWheel = (e) => {
     e.preventDefault(); e.stopPropagation();
     if (!live() && !liveL()) return;
@@ -551,6 +556,15 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       }
       if (k >= 1) { L = animL.to; animL = null; onSettled?.(mode); }
     }
+    let en = 1;
+    if (enter) {
+      en = clamp01((now - enter.t0) / enter.dur);
+      if (en >= 1) { const kind = enter.kind; enter = null; if (kind === 'listen') rise = { t: 0 }; }
+    }
+    if (rise) { rise.t += dt; selK = easeIO(clamp01(rise.t / 0.85)); if (rise.t >= 0.85) { selK = 1; rise = null; } }
+    // 앞(왼쪽)의 판부터 차례로: frac = 그 판이 줄에서 얼마나 뒤에 있는지 0…1
+    const enterE = (frac) => (enter ? easeOut(clamp01(en * 1.6 - 0.6 * clamp01(frac))) : 1);
+    const shelfIn = (o, frac) => { const e = enterE(frac); o.x += (1 - e) * (LS.x1 - LS.x0 + LS.pitch * 6); o.o *= ss(0, 0.15, e); };
     // 판 바꾸기 (2026-11-27 사용자 요청): ① 판이 재킷 안으로 다 들어가 사라짐 → ② 재킷이 선반 제자리로 → 새 재킷이 선반에서 무대로 → ③ 새 판이 재킷에서 오른쪽으로 나옴
     //  (처음엔 재킷이 오가는 동안 판이 옆으로만 움직이며 라벨이 바뀌었음)
     let swapLift = 0, discHidden = false;
@@ -620,7 +634,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       const raw = base + j - 1, idx = wrap(raw);
       setSlot(slot, idx);
       slot.d = j - 1 - frac;
-      cratePose(j - 1 - frac, from);
+      cratePose(slot.d + (enter?.kind === 'crate' ? (1 - enterE(j / VIS)) * 12 : 0), from);   // 들어올 때: 상자 줄을 따라 오른쪽 위에서 제자리로
       // 판이 적으면 같은 판이 뒤에 또 보이지 않게 (끝없이 넘기는 건 그대로)
       if (j - 1 >= N()) from.o *= 1 - ss(N() - 1, N(), j - 1 - frac);
       if (L > 0) {
@@ -634,6 +648,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
           shelfPose(slot.d, raw, slot, from);
           const r = clamp01(((L - 0.45) / 0.55) * 1.6 - 0.6 * clamp01(slot.d / LS.count)), e = 1 - (1 - r) ** 3;
           from.o *= ss(0, 0.5, r); from.y -= (1 - e) * LS.sh * 0.5;
+          if (enter?.kind === 'listen') shelfIn(from, slot.d / LS.count);
         }
         // 고른 판은 무대의 재킷(hero)이 대신 그림 → 선반에는 빈자리
         if (heroOn && idx === sel) { from.o = 0; slot.gridK = 0; applyPose(slot, from, false); return; }
@@ -650,7 +665,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
         applyPose(slot, out, e > 0 && e < 1);
       } else {
         slot.gridK = 0;
-        from.o *= 1 - ss(0, 0.3, m);
+        if (!enter) from.o *= 1 - ss(0, 0.3, m);   // 들어오는 중에는 사라지는 그리드 위로 판들이 들어옴
         applyPose(slot, from, false);
       }
     });
@@ -672,7 +687,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
         applyPose(hero, out, e > 0 && e < 1);
       } else {
         hero.gridK = 0;
-        hc.o *= 1 - ss(0, 0.3, m);
+        if (enter?.kind === 'listen') shelfIn(hc, dSel / LS.count);
+        if (!enter) hc.o *= 1 - ss(0, 0.3, m);
         applyPose(hero, hc, selK > 0 && selK < 1);
       }
     } else hero.mesh.visible = false;
@@ -681,7 +697,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     // 판 + 톤암: 제 장면 · 제 카메라로 먼저 그리고, 그 위에 재킷 · 책등들 (판이 재킷 뒤에서 나옴)
     //  등장 순서 (2026-11-27 사용자 요청): 재킷이 무대에 다 온 뒤 → 톤암 → 판이 천천히 나옴. 떠날 때는 빠르게 들어감
     //  떠날 때 (같은 날 요청): 판이 먼저 재킷 안으로 들어가 사라지고 톤암이 빠진 뒤에야 재킷 · 책등이 움직이기 시작함 (pending)
-    if (stage && mode === 'listen' && !anim && !animL && !pending) intro = Math.min(1, intro + dt / CRATE.STAGE_IN);
+    if (stage && mode === 'listen' && !anim && !animL && !pending && !enter && !rise) intro = Math.min(1, intro + dt / CRATE.STAGE_IN);
     else intro = Math.max(0, intro - dt / CRATE.STAGE_OUT);
     if (pending && intro <= 0) { const p = pending; pending = null; if (p === 'grid') api.toGrid(); else api.listenToCrate(); }
     const sk = intro;
@@ -710,14 +726,19 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       slots.forEach((s) => { s.card = null; });
       mode = 'crate';
       resize();
+      enter = null; rise = null;
       if (instant || reduced) { m = 0; anim = null; onSettled?.('crate'); }
-      else anim = { from: 1, to: 0, t0: performance.now() / 1000, dur: CRATE.DUR };
+      else {
+        anim = { from: 1, to: 0, t0: performance.now() / 1000, dur: CRATE.DUR };
+        if (!CRATE.FLY) enter = { kind: 'crate', t0: anim.t0, dur: 1.15 };
+      }
       run();
     },
     /** 크레이트 → 그리드. 부르기 전에 맨 앞 판의 칸이 화면에 보이게 스크롤해 둘 것 */
     toGrid() {
       if (mode === 'grid' || anim || animL || pending) return;
-      if (mode === 'listen' && stage && intro > 0.001 && !reduced) { pending = 'grid'; swap = null; selK = 1; run(); return; }
+      enter = null; rise = null; selK = 1;
+      if (mode === 'listen' && stage && intro > 0.001 && !reduced) { pending = 'grid'; swap = null; run(); return; }
       target = pos = Math.round(pos);
       cardOff = wrap(pos);
       mode = 'grid';
@@ -748,9 +769,22 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       selK = 1; swap = null; L = 1; animL = null;
       slots.forEach((s) => { s.card = null; }); hero.card = null;
       mode = 'listen';
-      resize(); loadStage(); stage?.setAlbum(cards[sel]);
+      resize(); loadStage();
+      enter = null; rise = null;
       if (instant || reduced) { m = 0; anim = null; onSettled?.('listen'); }
-      else anim = { from: 1, to: 0, t0: performance.now() / 1000, dur: CRATE.DUR };
+      else {
+        anim = { from: 1, to: 0, t0: performance.now() / 1000, dur: CRATE.DUR };
+        if (!CRATE.FLY) {
+          // 책등들이 다 들어온 뒤 보이는 판 가운데 하나를 무작위로 뽑아 무대로 올림 (그동안은 선반에 같이 꽂혀 있음)
+          pos = target = clampN(0, cardOff, shelfMax());
+          const vis = Math.max(1, Math.min(N() - pos, Math.floor(LS.count - shelfLead())));
+          let pick = pos + Math.floor(Math.random() * vis);
+          if (cards[pick]?.divider) pick = Math.min(N() - 1, pick + 1);
+          sel = pick; selK = 0;
+          enter = { kind: 'listen', t0: anim.t0, dur: 1.3 };
+        }
+      }
+      stage?.setAlbum(cards[sel]);
       run();
     },
     /** Crate → Listening: 맨 앞 판이 무대로, 뒤의 판들은 돌아서며 선반에 꽂힘 */
