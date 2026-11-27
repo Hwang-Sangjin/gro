@@ -386,7 +386,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   const shelfMeshes = () => slots.filter((s) => s.mesh.visible).map((s) => s.mesh);
   function listenClick(cx, cy) {
     syncRect(); aim(cx, cy);
-    if (hero.mesh.visible && raycaster.intersectObject(hero.mesh, false).length) { onOpen?.(sel, rectOf(hero)); return; }
+    // 무대의 재킷은 눌러도 아무 일도 없음 (2026-11-27 사용자 요청: 앨범 상세는 옆의 Album page 버튼으로만)
+    if (hero.mesh.visible && raycaster.intersectObject(hero.mesh, false).length) return;
     const hit = raycaster.intersectObjects(shelfMeshes(), false)[0];
     if (hit) { select(cards.indexOf(slots.find((s) => s.mesh === hit.object)?.card)); return; }
     const x = cx - hostRect.left, y = cy - hostRect.top, t = LS.tt;
@@ -402,7 +403,6 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     if (liveL() && !(e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable="true"]'))) {
       if (['ArrowRight', 'ArrowDown'].includes(e.key)) { step(1); e.preventDefault(); }
       else if (['ArrowLeft', 'ArrowUp'].includes(e.key)) { step(-1); e.preventDefault(); }
-      else if (e.key === 'Enter' && document.activeElement === host) onOpen?.(sel, rectOf(hero));
       else if (e.key === ' ' && !(e.target instanceof Element && e.target.closest('button, a'))) { onToggle?.(); e.preventDefault(); }
       return;
     }
@@ -475,13 +475,15 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       const sw = right - left, sh = Math.max(60, bottom - top);
       // 재킷 오른쪽으로 판이 반쯤 나오고 그 오른쪽 위에 톤암 → 재킷 폭의 약 1.85배 자리
       const jPx = Math.max(80, Math.min(sh * (narrow ? 0.9 : 0.86), sw / 1.9));
+      // 재킷 + 판 + 톤암 한 덩어리(폭 ≈ 재킷의 1.85배)를 화면 가운데에 (2026-11-27: 왼쪽 패널에 붙어 있어 왼쪽으로 쏠려 보였음). 패널과 겹치면 패널 오른쪽에 붙임
+      const gx = Math.max(left, Math.min(W / 2 - (jPx * 1.85) / 2, right - jPx * 1.85));
       LS = {
         sh: shelfPx * wpp, pitch: pitchPx * wpp, pitchPx, count: Math.max(1, Math.floor((shelfRight - gut) / pitchPx)),
         x0: (gut - W / 2) * wpp, x1: (shelfRight - W / 2) * wpp, y0: -(H / 2 - boardPx) * wpp,
-        jx: (left + jPx / 2 - W / 2) * wpp, jy: -((top + bottom) / 2 - H / 2) * wpp, js: jPx * wpp,
+        jx: (gx + jPx / 2 - W / 2) * wpp, jy: -((top + bottom) / 2 - H / 2) * wpp, js: jPx * wpp,
         // 판: 재킷 가운데(cx0, 재킷 안)에서 오른쪽(cx1)으로 나옴 · d = 판 지름(px) · tt = 눌러서 재생 / 멈춤하는 구역 (판 + 톤암)
-        disc: { cx0: left + jPx * 0.5, cx1: left + jPx * 1.04, cy: (top + bottom) / 2, d: jPx * 0.94 },
-        tt: { left: left + jPx, top: (top + bottom) / 2 - jPx / 2, width: jPx * 0.9, height: jPx },
+        disc: { cx0: gx + jPx * 0.5, cx1: gx + jPx * 1.04, cy: (top + bottom) / 2, d: jPx * 0.94 },
+        tt: { left: gx + jPx, top: (top + bottom) / 2 - jPx / 2, width: jPx * 0.9, height: jPx },
       };
       host.style.setProperty('--listen-board', `${boardPx}px`);
       host.style.setProperty('--listen-shelf', `${(shelfPx * 1.14 + boardPx).toFixed(0)}px`);
