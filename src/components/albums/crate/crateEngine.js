@@ -11,10 +11,10 @@ import { isPeeled, markPeeled } from '../peeled';
 export const CRATE = {
   SLOTS: 128,         // 만들어 두는 판 수 (Listening 선반은 화면 폭만큼 책등이 필요함)
   VIS: 18,            // Crate 에서 동시에 그리는 판 수 (끝없이 넘길 때 이 수만 재사용)
-  LISTEN_DUR: 1.5,    // Crate ↔ Listening 전환 시간(초)
+  LISTEN_DUR: 2.0,    // Crate ↔ Listening 전환 시간(초)
   STAGE_IN: 2.1,      // Listening 에 들어온 뒤 톤암 → 판이 차례로 나오는 시간(초) · 나갈 때는 STAGE_OUT 초에 들어감
   STAGE_OUT: 0.6,
-  DUR: 0.7,           // 전환 시간(초) (FLY 를 켜면 1.5 가 알맞음)
+  DUR: 1.1,           // 전환 시간(초) (FLY 를 켜면 1.5 가 알맞음)
   // (최종: FLY 는 끔 · TUMBLE 은 켬 — 사용자가 날아가 꽂히는 움직임만 꺼 달라고 함) (2026-11-27 저녁에 둘 다 껐다가 같은 날 밤 되살림 — 사용자: "crate 에서 효과음만 제거, 효과는 그대로, 촤라락 이동하는 효과는 이전처럼". 효과음(CrateView SFX)과 페이지 넘김(CrateStage FLIP)은 꺼진 채)
   FLY: false,         // Grid ↔ Crate / Listen: 그리드 칸과 3D 자리 사이를 판이 차례로 날아감. false = 날지 않고 화면이 부드럽게 바뀜
   TUMBLE: true,       // Crate: 넘길 때 판이 앞으로 넘어가며 사라지는 움직임. false = 맨 앞 판이 바로 바뀜
@@ -115,23 +115,31 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   let disposed = false;
   const loader = new THREE.ImageLoader();
   loader.setCrossOrigin('anonymous');
-  function texOf(card) {
+  // (2026-11-27 밤) 버벅임: Grid → Crate / Listen 의 첫 프레임에 책등 그림(판 수만큼의 캔버스) · 칸막이 그림(1024px 캔버스 여러 장)을
+  //  한꺼번에 만들어 0.3~0.4초씩 멈췄음 → 한 프레임에 몇 장씩만 만들고(budget), 아직 없는 것은 색만 칠해 두었다가 다음 프레임에 채움
+  //  + Listen 선반에 꽂힌 판은 커버 그림이 안 보이므로 받지 않음 (lazy) · 무대(톤암 · 판)는 들어오는 움직임이 끝난 뒤에 만듦
+  const budget = { spine: 0, divider: 0 };
+  function texOf(card, lazy = false) {
     let t = textures.get(card.slug);
-    if (t) return t;
+    if (t) { if (!lazy && t.userData.todo) t.userData.todo(); return t; }
     const c = document.createElement('canvas'); c.width = c.height = 4;
     const g = c.getContext('2d'); g.fillStyle = card.color || '#bbcbda'; g.fillRect(0, 0, 4, 4);
     t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso;
     textures.set(card.slug, t);
     // 불러오면 새 텍스처로 바꿔 끼움 (크기가 다른 이미지를 같은 텍스처에 넣으면 GPU 메모리를 다시 잡지 못함)
-    if (card.image) loader.load(card.image, (img) => {
-      if (disposed || textures.get(card.slug) !== t) return;
-      const nt = new THREE.Texture(img);
-      nt.colorSpace = THREE.SRGBColorSpace; nt.anisotropy = aniso; nt.needsUpdate = true;
-      textures.set(card.slug, nt);
-      for (const s of [...slots, hero]) if (s.front.map === t) { s.front.map = nt; s.front.needsUpdate = true; }
-      t.dispose();
-    }, undefined, () => {});
+    const load = () => {
+      t.userData.todo = null;
+      loader.load(card.image, (img) => {
+        if (disposed || textures.get(card.slug) !== t) return;
+        const nt = new THREE.Texture(img);
+        nt.colorSpace = THREE.SRGBColorSpace; nt.anisotropy = aniso; nt.needsUpdate = true;
+        textures.set(card.slug, nt);
+        for (const s of [...slots, hero]) if (s.front.map === t) { s.front.map = nt; s.front.needsUpdate = true; }
+        t.dispose();
+      }, undefined, () => {});
+    };
+    if (card.image) { if (lazy) t.userData.todo = load; else load(); }
     return t;
   }
 
@@ -140,6 +148,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     const key = `divider:${card.head}|${card.count}|${card.tab}|${card.dot}`;
     let t = textures.get(key);
     if (t) return t;
+    if (budget.divider <= 0) return null;   // 이번 프레임 몫을 다 씀 → 다음 프레임에
+    budget.divider--;
     const make = () => ({ face: drawDividerFace(card), tab: drawDividerTab(card) });
     const d = make();
     const face = new THREE.CanvasTexture(d.face), tab = new THREE.CanvasTexture(d.tab);
@@ -159,6 +169,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     const thick = thickOf(card), key = `${card.slug}:${thick}`;
     let t = spines.get(key);
     if (t) return t;
+    if (budget.spine <= 0) return null;   // 이번 프레임 몫을 다 씀 → 다음 프레임에
+    budget.spine--;
     // 그림의 비율 = 책등의 비율 (폭 = 높이 × 0.022 × 두께 배율) → 글자가 찌그러지지 않음
     const CW = 52, CH = Math.round(CW / (0.022 * thick));
     const c = document.createElement('canvas'); c.width = CW; c.height = CH;
@@ -228,8 +240,10 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   const wrap = (i) => (N() ? ((i % N()) + N()) % N() : 0);
   function setSlot(slot, idx) {
     const card = cards[idx];
-    if (slot.card === card && slot.spined === useSpines) return;
-    slot.spined = useSpines;
+    // lazy: 선반에 꽂혀 있기만 한 판 (커버 그림이 안 보임) → 그림을 받지 않음. 상자로 가거나 무대에 오르면 그때 받음
+    const lazy = slot !== hero && L >= 1 && !animL && !(CRATE.FLY && m > 0);
+    if (slot.card === card && slot.spined === useSpines && !slot.todo && slot.lazy === lazy) return;
+    slot.spined = useSpines; slot.todo = false; slot.lazy = lazy;
     // 떼어져 날아가던 스티커는 판이 바뀌면 그대로 떼어진 것으로 · 잡고 있던 것은 놓음
     if (slot.fly > 0 && slot.card) markPeeled(slot.card.slug);
     if (peel?.slot === slot) peel = null;
@@ -240,15 +254,17 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     tone.set(card.color || '#bbcbda');
     fx.wrapFor(slot.finish, hashOf(card.slug || ''), 0.2126 * tone.r + 0.7152 * tone.g + 0.0722 * tone.b);
     const sp = useSpines && !card.divider ? spineTex(card) : null;
+    if (useSpines && !card.divider && !sp) slot.todo = true;   // 책등 그림이 아직 없음 → 다음 프레임에 다시
     if (slot.spine.map !== sp) { slot.spine.map = sp; slot.spine.needsUpdate = true; }
     if (card.divider) {
       const t = dividerTex(card);
-      slot.front.map = t.face; slot.tabFront.map = t.tab;
+      if (!t) slot.todo = true;   // 칸막이 그림이 아직 없음 → 다음 프레임에 다시
+      slot.front.map = t?.face ?? null; slot.tabFront.map = t?.tab ?? null;
       slot.front.needsUpdate = slot.tabFront.needsUpdate = true;
       slot.edgeBase.copy(KRAFT_EDGE); slot.back.color.copy(KRAFT);
       return;
     }
-    slot.front.map = texOf(card); slot.front.needsUpdate = true;
+    slot.front.map = texOf(card, lazy); slot.front.needsUpdate = true;
     slot.edgeBase.set(card.color || '#bbcbda').multiplyScalar(0.62);
     slot.back.color.set(0xd9ccb2);
   }
@@ -331,7 +347,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   // 들어오는 움직임 (FLY 를 껐을 때, 2026-11-27 사용자 요청 — 그리드가 사라진 뒤 장면이 팍 나타나는 게 부자연스러웠음)
   //  enter: Crate = 판들이 오른쪽 위(상자가 이어지는 쪽)에서 차례로 흘러 들어옴 · Listen = 책등들이 오른쪽에서 차례로 들어와 꽂힘
   //  rise: Listen 에서 책등이 다 꽂힌 뒤, 그중 하나(무작위)가 뽑혀 무대로 올라감 → 그 뒤에 톤암 · 판 (intro)
-  let enter = null, rise = null;
+  let enter = null, rise = null, stageGate = null;
   const easeOut = (x) => 1 - (1 - x) ** 3;   // intro = 무대의 톤암 · 판이 나온 정도 0…1
   hero.mesh.visible = false;
   let pos = 0, target = 0, lastInput = 0, drag = null, touch = null;
@@ -587,7 +603,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   function loadStage() {
     if (stage || stageLoading) return;
     stageLoading = true;
-    import('./listenStage').then((mod) => mod.createListenStage({ renderer })).then((s) => {
+    import('./listenStage').then((mod) => mod.createListenStage({ renderer, gate: () => new Promise((res) => { stageGate = res; }) })).then((s) => {
       if (disposed) { s.dispose(); return; }
       stage = s; stage.setAlbum(cards[sel]); run();
     }).catch(() => { stageLoading = false; });
@@ -602,9 +618,10 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   function frame() {
     raf = 0;
     const now = performance.now() / 1000, dt = Math.min(0.05, now - prev); prev = now;
+    budget.spine = 5; budget.divider = 1;
     if (anim) {
       const k = clamp01((now - anim.t0) / anim.dur);
-      m = anim.from + (anim.to - anim.from) * k;
+      m = anim.from + (anim.to - anim.from) * (CRATE.FLY ? k : easeIO(k));   // 날지 않을 때는 천천히 시작해 천천히 끝남
       if (k >= 1) {
         m = anim.to; anim = null;
         if (mode === 'grid') { showAllArt(); L = 0; swap = null; selK = 1; }
@@ -622,15 +639,17 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       }
       if (k >= 1) { L = animL.to; animL = null; onSettled?.(mode); }
     }
+    if (stageGate && !enter && !anim && !animL) { stageGate(); stageGate = null; }   // 무대 만들기(무거움)는 화면이 멈춰 있을 때
     let en = 1;
     if (enter) {
       en = clamp01((now - enter.t0) / enter.dur);
       if (en >= 1) { const kind = enter.kind; enter = null; if (kind === 'listen') rise = { t: 0 }; }
     }
-    if (rise) { rise.t += dt; selK = easeIO(clamp01(rise.t / 0.85)); if (rise.t >= 0.85) { selK = 1; rise = null; } }
+    if (rise) { rise.t += dt; selK = easeIO(clamp01(rise.t / 1.2)); if (rise.t >= 1.2) { selK = 1; rise = null; } }
     // 앞(왼쪽)의 판부터 차례로: frac = 그 판이 줄에서 얼마나 뒤에 있는지 0…1
-    const enterE = (frac) => (enter ? easeOut(clamp01(en * 1.6 - 0.6 * clamp01(frac))) : 1);
-    const shelfIn = (o, frac) => { const e = enterE(frac); o.x += (1 - e) * (LS.x1 - LS.x0 + LS.pitch * 6); o.o *= ss(0, 0.15, e); };
+    //  (2026-11-27 밤: 딱딱 끊기고 확확 바뀐다고 함 → 조금 늦게 시작해(그리드가 먼저 옅어짐) 천천히 출발 · 천천히 멈춤, 길게)
+    const enterE = (frac) => (enter ? easeIO(clamp01(en * 1.5 - 0.5 * clamp01(frac))) : 1);
+    const shelfIn = (o, frac) => { const e = enterE(frac); o.x += (1 - e) * (LS.x1 - LS.x0 + LS.pitch * 6); o.o *= ss(0, 0.45, e); };
     // 판 바꾸기 (2026-11-27 사용자 요청): ① 판이 재킷 안으로 다 들어가 사라짐 → ② 재킷이 선반 제자리로 → 새 재킷이 선반에서 무대로 → ③ 새 판이 재킷에서 오른쪽으로 나옴
     //  (처음엔 재킷이 오가는 동안 판이 옆으로만 움직이며 라벨이 바뀌었음)
     let swapLift = 0, discHidden = false;
@@ -700,7 +719,9 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       const raw = base + j - 1, idx = wrap(raw);
       setSlot(slot, idx);
       slot.d = j - 1 - frac;
-      cratePose(slot.d + (enter?.kind === 'crate' ? (1 - enterE(j / VIS)) * 12 : 0), from);   // 들어올 때: 상자 줄을 따라 오른쪽 위에서 제자리로
+      const ce = enter?.kind === 'crate' ? enterE(j / VIS) : 1;
+      cratePose(slot.d + (1 - ce) * 12, from);
+      if (ce < 1) from.o *= ss(0, 0.5, ce);   // 들어올 때: 상자 줄을 따라 오른쪽 위에서 제자리로
       // 판이 적으면 같은 판이 뒤에 또 보이지 않게 (끝없이 넘기는 건 그대로)
       if (j - 1 >= N()) from.o *= 1 - ss(N() - 1, N(), j - 1 - frac);
       if (L > 0) {
@@ -731,7 +752,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
         applyPose(slot, out, e > 0 && e < 1);
       } else {
         slot.gridK = 0;
-        if (!enter) from.o *= 1 - ss(0, 0.3, m);   // 들어오는 중에는 사라지는 그리드 위로 판들이 들어옴
+        if (!enter) from.o *= 1 - ss(0, 0.7, m);   // 들어오는 중에는 사라지는 그리드 위로 판들이 들어옴
         applyPose(slot, from, false);
       }
     });
@@ -754,7 +775,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       } else {
         hero.gridK = 0;
         if (enter?.kind === 'listen') shelfIn(hc, dSel / LS.count);
-        if (!enter) hc.o *= 1 - ss(0, 0.3, m);
+        if (!enter) hc.o *= 1 - ss(0, 0.7, m);
         applyPose(hero, hc, selK > 0 && selK < 1);
       }
     } else hero.mesh.visible = false;
@@ -796,7 +817,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       if (instant || reduced) { m = 0; anim = null; onSettled?.('crate'); }
       else {
         anim = { from: 1, to: 0, t0: performance.now() / 1000, dur: CRATE.DUR };
-        if (!CRATE.FLY) enter = { kind: 'crate', t0: anim.t0, dur: 1.15 };
+        if (!CRATE.FLY) enter = { kind: 'crate', t0: anim.t0 + 0.3, dur: 1.9 };
       }
       run();
     },
@@ -847,7 +868,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
           let pick = pos + Math.floor(Math.random() * vis);
           if (cards[pick]?.divider) pick = Math.min(N() - 1, pick + 1);
           sel = pick; selK = 0;
-          enter = { kind: 'listen', t0: anim.t0, dur: 1.3 };
+          enter = { kind: 'listen', t0: anim.t0 + 0.3, dur: 2.0 };
         }
       }
       stage?.setAlbum(cards[sel]);

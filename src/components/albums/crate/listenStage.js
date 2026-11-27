@@ -20,11 +20,12 @@ export const STAGE = {
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
-/** @param {{ renderer: THREE.WebGLRenderer }} o */
-export async function createListenStage({ renderer }) {
+/** @param {{ renderer: THREE.WebGLRenderer, gate?: () => Promise<void> }} o  gate: 모델을 받은 뒤, 장면을 만들기(무거움) 전에 기다릴 것 */
+export async function createListenStage({ renderer, gate }) {
   const draco = new DRACOLoader().setDecoderPath("/draco/");
   const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync(ROOM_URL);
   draco.dispose();
+  await gate?.();   // 들어오는 움직임이 끝날 때까지 기다림 (장면 만들기 · 셰이더 준비가 움직임을 끊지 않게)
   const pivot = gltf.scene.getObjectByName("pivot_turntable");
   if (!pivot) throw new Error("turntable not found");
 
@@ -63,6 +64,8 @@ export async function createListenStage({ renderer }) {
   shadow.rotation.x = -Math.PI / 2;
   scene.add(shadow);
 
+  // 셰이더를 미리 (가능하면 화면을 막지 않고) 준비 — 처음 그릴 때 멈칫하지 않게
+  try { camera.position.set(0, 2, 0.3); camera.lookAt(0, 0, 0); await renderer.compileAsync?.(scene, camera); } catch { /* 없어도 됨 */ }
   const _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _spin = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
   const ptr = { x: 0, y: 0 };
   let vel = 0, spin = 0, armK = 0, disposed = false;

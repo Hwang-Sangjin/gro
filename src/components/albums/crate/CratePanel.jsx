@@ -89,7 +89,7 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
 
       {/* 글자 칸막이로 바로 가기 (아티스트 A–Z 로 볼 때만) */}
       {marks.length > 1 && (
-        <div role="group" aria-label="Jump to a letter" className={`pointer-events-auto absolute left-1/2 flex min-h-9 -translate-x-1/2 items-center gap-1 rounded-full bg-(--bg)/85 px-1 backdrop-blur-sm ${L ? "top-[calc(var(--ct-header-h,106px)+0.6rem)] max-[819px]:top-[calc(var(--ct-header-h,106px)+3rem)]" : "bottom-[clamp(2.25rem,5.5vh,3.25rem)]"}`}>
+        <div role="group" aria-label="Jump to a letter" className={`pointer-events-auto absolute left-1/2 flex min-h-9 -translate-x-1/2 items-center gap-1 rounded-full bg-(--bg)/85 px-1 backdrop-blur-sm max-w-[calc(100%-2rem)] flex-wrap justify-center ${L ? "min-[1280px]:top-[calc(var(--ct-header-h,106px)+0.6rem)] max-[1279px]:bottom-[calc(var(--listen-shelf,260px)+0.1rem)]" : "bottom-[clamp(2.25rem,5.5vh,3.25rem)]"}`}>
           {marks.map((m) => (
             <button key={m.i} type="button" onClick={() => onJump?.(m.i)}
               className={`min-h-8 rounded-full px-3 ${KICKER} tracking-[0.12em] transition-colors duration-300 hover:bg-(--ink) hover:text-(--cream) ${front?.letter === m.label ? "bg-(--ink) text-(--cream)" : "opacity-75"}`}>
