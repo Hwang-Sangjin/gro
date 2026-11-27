@@ -8,6 +8,9 @@ import { useIntro } from '../intro/intro-context';
 import { cl, eOut, cleanPage, measurePage, prepareCrate, renderCrate, liftPose, LIFT_T, LIFT_MS, PUSH_Z } from './render';
 import { NAV, rank, labelFor, isAlbumCoverTransition } from './routes';
 
+// (2026-11-27 사용자 요청) 페이지가 상자 속 판처럼 넘어가는 전환을 뺌 — "촤라락 넘어가는 효과는 다 빼줘, 이상하다". 페이지는 바로 바뀜
+//  되살리려면 FLIP 을 true 로 (넘김 움직임 · 클릭 직후 들어 올리기 · 끌어서 넘기기 · 소리가 다시 켜짐)
+const FLIP=false;
 export default function CrateStage({children}) {
   const pathname=usePathname(), context=useContext(LayoutRouterContext), router=useRouter(), {done}=useIntro();
   const {bridge,sfx,setBusy}=useCrate();
@@ -25,7 +28,7 @@ export default function CrateStage({children}) {
   function clearWaiting(){clearTimeout(timeout.current);awaiting.current=null;dropPre();}
   // 클릭 즉시 예고: 다음 페이지가 올 때까지 지금 페이지를 살짝 들거나(앞으로) 물림(뒤로). 전환이 시작되면 그 자세에서 이어 감
   function lift(dir){
-    if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    if(!FLIP||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
     const key=current.current.key,el=nodes.current.get(key);if(!el)return;
     const p={el,key,dir,u:0,frame:0},start=performance.now();
     const step=now=>{p.u=cl((now-start)/LIFT_MS);
@@ -52,10 +55,10 @@ export default function CrateStage({children}) {
   }
   function animate(tv){
     const tr=T.current;if(!tr)return;cancelAnimationFrame(raf.current);
-    let start=null;const t0=tr.t,duration=tr.reduced?180:Math.max(260,1300*Math.abs(tv-t0));let hit=false;
+    let start=null;const t0=tr.t,duration=!FLIP?1:tr.reduced?180:Math.max(260,1300*Math.abs(tv-t0));let hit=false;
     const step=now=>{if(T.current!==tr)return;if(start===null)start=now;const u=cl((now-start)/duration);tr.t=t0+(tv-t0)*u;draw();
       const success=(tr.dir==='fwd')===(tv===1);
-      if(success&&!hit&&(tr.dir==='fwd'?tr.t>.86:tr.t<.12)){hit=true;sfx.current?.play('thup');land();}
+      if(success&&!hit&&(tr.dir==='fwd'?tr.t>.86:tr.t<.12)){hit=true;if(FLIP)sfx.current?.play('thup');land();}
       if(u<1)raf.current=requestAnimationFrame(step);else finish(success);
     };raf.current=requestAnimationFrame(step);
   }
@@ -112,7 +115,7 @@ export default function CrateStage({children}) {
       front:measurePage(dir==='fwd'?oldEl:newEl),back:measurePage(dir==='fwd'?newEl:oldEl),
       sleeves:sleeves.current.filter(Boolean),reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,
       manual};
-    lock(true);prepareCrate(T.current);draw();sfx.current?.play('slide');
+    lock(true);prepareCrate(T.current);draw();if(FLIP)sfx.current?.play('slide');
     if(!manual)animate(dir==='fwd'?1:0);else if(drag.current?.release!=null)animate(drag.current.release);
   },[entries]);
 
@@ -159,6 +162,7 @@ export default function CrateStage({children}) {
   },[bridge]);
 
   function down(e){
+    if(!FLIP)return;   // 끌어서 페이지 넘기기도 뺌
     if(!done||T.current||awaiting.current||document.documentElement.dataset.albumTransition==='true'||e.button!==0)return;
     const handle=e.target.closest('[data-crate-handle]');
     // [data-crate-ignore]: 자체 드래그·섹션 전환을 쓰는 영역(Home 스테이지)은 핸들로만 페이지를 넘김

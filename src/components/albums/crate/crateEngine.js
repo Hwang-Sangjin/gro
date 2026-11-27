@@ -14,7 +14,10 @@ export const CRATE = {
   LISTEN_DUR: 1.5,    // Crate ↔ Listening 전환 시간(초)
   STAGE_IN: 2.1,      // Listening 에 들어온 뒤 톤암 → 판이 차례로 나오는 시간(초) · 나갈 때는 STAGE_OUT 초에 들어감
   STAGE_OUT: 0.6,
-  DUR: 1.5,           // 전환 시간(초)
+  DUR: 0.7,           // 전환 시간(초) (판이 날아갈 때는 1.5 였음)
+  // (2026-11-27 사용자 요청: "촤라락 넘어가는 효과는 다 빼줘") 되살리려면 true 로, DUR 은 1.5 로
+  FLY: false,         // Grid ↔ Crate / Listen: 그리드 칸과 3D 자리 사이를 판이 차례로 날아감. false = 날지 않고 화면이 부드럽게 바뀜
+  TUMBLE: false,      // Crate: 넘길 때 판이 앞으로 넘어가며 사라지는 움직임. false = 맨 앞 판이 바로 바뀜
   WHEEL: 0.0045,      // 휠 1px 당 넘어가는 판 수
   DRAG: 0.008,        // 드래그 1px 당
 };
@@ -566,6 +569,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     if (mode === 'listen' && LS && !(animL && !animL.snapped)) target = clampN(0, target, Math.max(0, N() - LS.count));
     if (!drag && !touch && performance.now() - lastInput > 140) target += (Math.round(target) - target) * (1 - Math.exp(-dt / 0.12));
     pos += (target - pos) * (1 - Math.exp(-dt / 0.14));
+    if (!CRATE.TUMBLE && L === 0 && mode !== 'listen') pos = Math.round(target);   // Crate: 넘어가는 움직임 없이 바로 다음 판
     if (Math.abs(target - pos) < 0.0005) pos = target;
     const listenish = animL ? animL.to === 1 || !animL.snapped : L > 0.5;
     const front = listenish ? sel : wrap(Math.round(pos));
@@ -594,7 +598,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     const base = Math.floor(pos), frac = pos - base;
     const lim = L > 0 ? SLOTS : VIS;
     let K = 0;
-    if (m > 0) {
+    if (m > 0 && CRATE.FLY) {
       for (let k = 0; k < lim - 1 && cardOff + k < N(); k++) {
         const r = cards[cardOff + k].art?.getBoundingClientRect();
         if (!r || r.top > hostRect.top + hostRect.height) break;
@@ -653,7 +657,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       cratePose(0, hc);   // 상자에서는 맨 앞 판
       lerpPose(shelfPose(dSel, sel, hero, sp), stagePose(stp), selK, sp);
       lerpPose(hc, sp, Le, hc);
-      const art = m > 0 ? cards[sel].art : null, r = art?.getBoundingClientRect();
+      const art = m > 0 && CRATE.FLY ? cards[sel].art : null, r = art?.getBoundingClientRect();
       if (r && r.width > 0 && r.bottom > hostRect.top && r.top < hostRect.top + hostRect.height) {
         const e = easeIO(clamp01(m));
         lerpPose(hc, rectPose(r, to), e, out);

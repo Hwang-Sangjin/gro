@@ -21,6 +21,7 @@ const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif]";
 const EASE = "ease-[cubic-bezier(0.22,1,0.36,1)]";
 const VIEWS = ["grid", "crate"];
 const is3d = (v) => v === "crate" || v === "listen";
+const SFX = false;   // 판 넘기는 효과음 (2026-11-27 뺌)
 const LAST_KEY = "grooves:listen:last";   // 마지막으로 무대에 올린 판 (Listening 에 다시 들어오면 그 판부터)
 const VIEW_ICON = {
   listen: <><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="1.4" /></>,
@@ -158,14 +159,15 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
       // 번호 · 전체 수는 판만 셈 (칸막이는 빼고). 칸막이가 앞이면 번호 대신 판 수만
       onFront: (i, c, picked) => {
         // 손으로 넘길 때만 소리 (그리드에서 날아와 꽂히는 동안은 조용히)
-        if (modeRef.current !== "grid" && !engineRef.current?.busy) sfx?.current?.play("flip");
+        //  (2026-11-27 사용자 요청으로 효과음을 뺌 — SFX 를 true 로 하면 다시 남. 소리 버튼도 같이 숨김)
+        if (SFX && modeRef.current !== "grid" && !engineRef.current?.busy) sfx?.current?.play("flip");
         if (modeRef.current === "listen" && !c.divider) { try { sessionStorage.setItem(LAST_KEY, c.slug); } catch {} }
         if (picked) autoRef.current = c.slug;   // Listening 에서 책등을 눌러 올린 판은 바로 틂
         const lead = cardsRef.current[0]?.divider ? 1 : 0;
         setFront({ i: i - lead, n: cardsRef.current.length - lead, divider: !!c.divider, title: c.title, artist: c.artist, color: c.color, slug: c.slug, isNew: !!c.isNew });
       },
       onOpen: (i, rect) => openRef.current?.(i, rect),
-      onPeel: () => sfx?.current?.play("flip"),   // 스티커가 떼어지는 소리
+      onPeel: () => { if (SFX) sfx?.current?.play("flip"); },   // 스티커가 떼어지는 소리
       onToggle: () => listenRef.current?.(),      // Listening: 턴테이블을 누름
       onSettled: (m) => {
         if (m === "grid") { setShown(false); lockPage(false); }
@@ -354,7 +356,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
         </div>
         {/* 글자: 크레이트를 떠나자마자 빠지고, 돌아오면 판들이 거의 다 꽂힐 때 나타남 (CratePanel) */}
         <CratePanel label={title} front={front} total={total} info={info} kind={kind} listening={listening} mode={mode3d}
-          toggle={<ViewToggle view={is3d(view) ? view : flat} onChange={onViewChange} views={[flat, "crate", "listen"]} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />} sound={<SoundToggle />}
+          toggle={<ViewToggle view={is3d(view) ? view : flat} onChange={onViewChange} views={[flat, "crate", "listen"]} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />} sound={SFX ? <SoundToggle /> : null}
           onOpen={() => engineRef.current?.openFront()} onListen={listen} onShelf={shelve} />
         {/* 듣기 카드 ("Now spinning"): Listen 을 누르면 오른쪽 아래에 뜸. 판을 넘겨도 남고, 상자를 떠나면 닫힘 (좁은 화면에서는 쓰지 않음) */}
         <div role="region" aria-label="Now spinning" inert={!music.active}
