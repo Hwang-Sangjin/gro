@@ -8,9 +8,9 @@ import { useIntro } from '../intro/intro-context';
 import { cl, eOut, cleanPage, measurePage, prepareCrate, renderCrate, liftPose, LIFT_T, LIFT_MS, PUSH_Z } from './render';
 import { NAV, rank, labelFor, isAlbumCoverTransition } from './routes';
 
-// (2026-11-27 사용자 요청) 페이지가 상자 속 판처럼 넘어가는 전환을 뺌 — "촤라락 넘어가는 효과는 다 빼줘, 이상하다". 페이지는 바로 바뀜
-//  되살리려면 FLIP 을 true 로 (넘김 움직임 · 클릭 직후 들어 올리기 · 끌어서 넘기기 · 소리가 다시 켜짐)
-const FLIP=false;
+// 페이지가 상자 속 판처럼 넘어가는 전환 (FLIP) 과 그 소리 (SFX)
+//  (2026-11-27: 사용자 요청으로 둘 다 껐다가, 같은 날 밤 넘김 전환만 되살림 — 싫었던 것은 소리. 소리는 꺼진 채)
+const FLIP=true,SFX=false;
 export default function CrateStage({children}) {
   const pathname=usePathname(), context=useContext(LayoutRouterContext), router=useRouter(), {done}=useIntro();
   const {bridge,sfx,setBusy}=useCrate();
@@ -58,7 +58,7 @@ export default function CrateStage({children}) {
     let start=null;const t0=tr.t,duration=!FLIP?1:tr.reduced?180:Math.max(260,1300*Math.abs(tv-t0));let hit=false;
     const step=now=>{if(T.current!==tr)return;if(start===null)start=now;const u=cl((now-start)/duration);tr.t=t0+(tv-t0)*u;draw();
       const success=(tr.dir==='fwd')===(tv===1);
-      if(success&&!hit&&(tr.dir==='fwd'?tr.t>.86:tr.t<.12)){hit=true;if(FLIP)sfx.current?.play('thup');land();}
+      if(success&&!hit&&(tr.dir==='fwd'?tr.t>.86:tr.t<.12)){hit=true;if(SFX)sfx.current?.play('thup');land();}
       if(u<1)raf.current=requestAnimationFrame(step);else finish(success);
     };raf.current=requestAnimationFrame(step);
   }
@@ -115,7 +115,7 @@ export default function CrateStage({children}) {
       front:measurePage(dir==='fwd'?oldEl:newEl),back:measurePage(dir==='fwd'?newEl:oldEl),
       sleeves:sleeves.current.filter(Boolean),reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,
       manual};
-    lock(true);prepareCrate(T.current);draw();if(FLIP)sfx.current?.play('slide');
+    lock(true);prepareCrate(T.current);draw();if(SFX)sfx.current?.play('slide');
     if(!manual)animate(dir==='fwd'?1:0);else if(drag.current?.release!=null)animate(drag.current.release);
   },[entries]);
 
