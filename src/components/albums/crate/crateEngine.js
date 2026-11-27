@@ -18,7 +18,7 @@ export const CRATE = {
 };
 const { SLOTS, VIS } = CRATE;
 // Listening 선반: 책등 두께(재킷 두께의 배) — 실제 두께(1%)로는 제목을 읽을 수 없어서 책처럼 두껍게
-const SPINE = { thick: 4.4, gapPx: 2 };   // (2026-11-27 6.5 → 4.4: 너무 두껍다고 함)
+const SPINE = { thick: 4.4, gapPx: 2, depth: 0.1 };   // depth = 선반에서의 깊이(재킷 폭의 배) — 얕게 해서 정면에서 본 듯 평평하게 (2026-11-27: 원근 때문에 윗면 · 옆면이 부채처럼 벌어져 보였음)   // (2026-11-27 6.5 → 4.4: 너무 두껍다고 함)
 const FOV = 32, CAM_Z = 10;
 const clampN = (lo, x, hi) => Math.min(hi, Math.max(lo, x));
 // 넓은 화면(820px 이상)의 자리 나눔 — CrateView 의 CSS 변수(--crate-gut · --crate-panel · --crate-gap)와 같은 식
@@ -31,7 +31,7 @@ export const crateLayout = (W) => {
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const easeIO = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-const KEYS = ['x', 'y', 'z', 'rx', 'ry', 'rz', 's', 'o', 'c', 't'];   // t = 두께 배율 (Listening 선반에서만 1 이 아님)
+const KEYS = ['x', 'y', 'z', 'rx', 'ry', 'rz', 's', 'o', 'c', 't', 'w'];   // t = 두께 배율 (Listening 선반에서만 1 이 아님)
 const lerpPose = (a, b, t, o) => { for (const k of KEYS) o[k] = a[k] + (b[k] - a[k]) * t; return o; };
 
 // onPeel(): 스티커를 떼어 냄 (소리용)
@@ -209,7 +209,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     if (d < 0) {
       const k = Math.min(1, -d);
       o.x = fx - k * 0.2 * u; o.y = fy - k * 2.4 * u; o.z = k * 2.2 * u;
-      o.rx = -k * 1.25; o.ry = 0; o.rz = 0; o.s = 1; o.o = 1 - ss(0, 1, k); o.c = 1; o.t = 1;
+      o.rx = -k * 1.25; o.ry = 0; o.rz = 0; o.s = 1; o.o = 1 - ss(0, 1, k); o.c = 1; o.t = 1; o.w = 1;
       return o;
     }
     const near = ss(0, 1, d), far = Math.max(0, d - 1);
@@ -217,7 +217,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     o.y = fy + (0.08 * d + 0.012 * far * far) * u;
     o.z = (-0.9 * near - 0.62 * far) * u;
     o.rx = 0; o.ry = -1.12 * near - 0.02 * far; o.rz = 0.025 * far;
-    o.s = 1; o.o = 1 - ss(VIS - 5, VIS - 2, d); o.c = 1 - Math.min(0.42, 0.05 * d); o.t = 1;
+    o.s = 1; o.o = 1 - ss(VIS - 5, VIS - 2, d); o.c = 1 - Math.min(0.42, 0.05 * d); o.t = 1; o.w = 1;
     return o;
   }
   // 화면 사각형(그리드 칸) → z=0 평면 위 같은 크기·위치 (캔버스 기준)
@@ -226,14 +226,14 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     const visH = 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360), wpp = visH / hostRect.height;
     o.x = (r.left + r.width / 2 - (hostRect.left + hostRect.width / 2)) * wpp;
     o.y = -(r.top + r.height / 2 - (hostRect.top + hostRect.height / 2)) * wpp;
-    o.z = 0; o.rx = o.ry = o.rz = 0; o.s = (r.width * wpp) / CARD; o.o = 1; o.c = 1; o.t = 1;
+    o.z = 0; o.rx = o.ry = o.rz = 0; o.s = (r.width * wpp) / CARD; o.o = 1; o.c = 1; o.t = 1; o.w = 1;
     return o;
   }
   function applyPose(slot, p, fly) {
     const m = slot.mesh;
     m.position.set(p.x, p.y, p.z);
     m.rotation.set(p.rx, p.ry, p.rz);
-    m.scale.set(CARD * p.s, CARD * p.s, CARD * p.s * (p.t ?? 1));
+    m.scale.set(CARD * p.s * (p.w ?? 1), CARD * p.s, CARD * p.s * (p.t ?? 1));
     for (const mat of [slot.front, slot.back, slot.edge, slot.spine, slot.open, slot.tabFront, slot.tabEdge, slot.tabBack]) mat.opacity = p.o;
     slot.open.color.setScalar(p.c);
     slot.front.color.setScalar(p.c);
@@ -491,13 +491,13 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     const s = (LS.sh / CARD) * hv;
     o.x = LS.x0 + Math.max(0, LS.count - N()) * LS.pitch / 2 + (d + 0.5) * LS.pitch;   // 판이 적으면 가운데로
     o.y = LS.y0 + (LS.sh * hv) / 2 + LS.sh * 0.07 * (slot.lift || 0);
-    o.z = -(CARD * s) / 2;   // 책등 면이 z=0 에 오게 (화면 px 크기 그대로)
-    o.rx = 0; o.ry = Math.PI / 2; o.rz = 0; o.s = s; o.t = SPINE.thick; o.c = 1;
+    o.z = -(CARD * s * SPINE.depth) / 2;   // 책등 면이 z=0 에 오게 (화면 px 크기 그대로)
+    o.rx = 0; o.ry = Math.PI / 2; o.rz = 0; o.s = s; o.t = SPINE.thick; o.w = SPINE.depth; o.c = 1;
     o.o = raw < 0 || raw >= N() ? 0 : (1 - ss(0, 1, -d)) * (1 - ss(LS.x1 - LS.pitch * 0.5, LS.x1 + LS.pitch * 0.5, o.x));
     return o;
   }
   function stagePose(o) {
-    o.x = LS.jx; o.y = LS.jy; o.z = 0.05; o.rx = 0; o.ry = 0.05; o.rz = 0; o.s = LS.js / CARD; o.o = 1; o.c = 1; o.t = 1;
+    o.x = LS.jx; o.y = LS.jy; o.z = 0.05; o.rx = 0; o.ry = 0.05; o.rz = 0; o.s = LS.js / CARD; o.o = 1; o.c = 1; o.t = 1; o.w = 1;
     return o;
   }
   function loadStage() {
