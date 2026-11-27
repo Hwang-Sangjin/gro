@@ -27,6 +27,7 @@ const { SLOTS, VIS } = CRATE;
 //  thick = 보통 판 · thick2 = 2LP · 게이트폴드 · 박스 (더 두꺼움) · divider = 칸막이 (얇은 판지 한 장, 글자는 위로 솟은 탭에)
 //  (2026-11-27: 처음 6.5 → 4.4 → 사용자 "더 얇게, 2LP · 게이트폴드만 좀 더 두껍게" → 3.0 / 4.4. 칸막이도 얇게 + 탭)
 //  depth = 선반에서의 깊이(재킷 폭의 배) — 얕게 해서 정면에서 본 듯 평평하게
+const LISTEN_PANEL = 168;   // 좁은 화면 Listen: 무대와 선반 사이 글자 묶음의 높이(px)
 const SPINE = { thick: 3.0, thick2: 4.4, divider: 0.9, gapPx: 2, depth: 0.1, tabH: 0.085 };
 const FOV = 32, CAM_Z = 10;
 const clampN = (lo, x, hi) => Math.min(hi, Math.max(lo, x));
@@ -548,16 +549,17 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     // Listening 자리 (화면 px 로 정한 뒤 z=0 평면의 크기로): 위 = 무대(재킷 + 턴테이블), 아래 = 책등 선반
     {
       const gut = clampN(16, W * 0.04, 56), lay = crateLayout(W);
-      const shelfPx = clampN(narrow ? 110 : 150, H * 0.22, 230), boardPx = clampN(16, H * 0.035, 32);
+      const shelfPx = narrow ? clampN(96, H * 0.18, 150) : clampN(150, H * 0.22, 230), boardPx = clampN(16, H * 0.035, 32);
       const pitchPx = shelfPx * 0.022 * SPINE.thick + SPINE.gapPx;
       let top, left, right, bottom = H - boardPx - shelfPx * 1.2 - 14;
-      if (narrow) { top = Math.max(H * 0.17, 140); bottom = Math.min(bottom, top + Math.min(W * 0.6, H * 0.28)); left = gut; right = W - gut; }
+      // 좁은 화면 (2026-11-27 다시 잡음 — 글자가 선반 위에 겹쳤음): 위에서부터 무대 → 글자 묶음(LISTEN_PANEL px, CratePanel 의 좁은 화면 묶음) → 선반
+      if (narrow) { top = Math.max(H * 0.14, 118); bottom = Math.max(top + 110, bottom - LISTEN_PANEL); left = gut; right = W - gut; }
       else { top = Math.max(H * 0.14, 110) + 36; left = lay.left; right = W - gut; }
       // Now spinning 카드는 선반 오른쪽 끝에 놓임 → 그만큼 선반을 줄임 (2026-11-27: 무대 오른쪽을 비워 두었더니 창이 좁을 때 재킷 · 판이 너무 작았음)
-      const shelfRight = W - gut - (cardSpace && !narrow ? 216 : 0);
+      const shelfRight = W - gut - (cardSpace ? 216 : 0);
       const sw = right - left, sh = Math.max(60, bottom - top);
       // 재킷 오른쪽으로 판이 반쯤 나오고 그 오른쪽 위에 톤암 → 재킷 폭의 약 1.85배 자리
-      const jPx = Math.max(80, Math.min(sh * (narrow ? 0.9 : 0.86), sw / 1.9));
+      const jPx = Math.max(80, Math.min(sh * (narrow ? 0.95 : 0.86), sw / 1.9));
       // 재킷 + 판 + 톤암 한 덩어리(폭 ≈ 재킷의 1.85배)를 화면 가운데에 (2026-11-27: 왼쪽 패널에 붙어 있어 왼쪽으로 쏠려 보였음). 패널과 겹치면 패널 오른쪽에 붙임
       const gx = Math.max(left, Math.min(W / 2 - (jPx * 1.85) / 2, right - jPx * 1.85));
       LS = {

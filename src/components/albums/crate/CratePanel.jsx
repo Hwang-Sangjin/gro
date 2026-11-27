@@ -42,7 +42,7 @@ function facts(info) {
  * info: 맨 앞 판의 상세 (없으면 아직 받는 중) · kind: 내 선반에서의 자리 ("owned" | "wishlist" | null)
  * listening: 이 판을 지금 틀고 있음 · onOpen · onListen · onShelf(kind) · sound: 소리 켜기 버튼 (어디의 상자인지 옆)
  */
-export default function CratePanel({ label, toggle, sound = null, front, total, info, kind, listening, onOpen, onListen, onShelf, mode = "crate", marks = [], onJump, spinning = false }) {
+export default function CratePanel({ label, toggle, sound = null, front, total, info, kind, listening, onOpen, onListen, onShelf, mode = "crate", marks = [], onJump, spinning = false, cardUp = false }) {
   const L = mode === "listen";   // Listening: 아래에 책등 선반이 있어 패널을 짧게 · 좁은 화면에서도 듣기 버튼
   const n = front ? Math.max(front.n, total ?? 0) : 0;
   const rows = front && !front.divider ? facts(info) : [];
@@ -60,11 +60,11 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
             <Icon name={listening ? "pause" : "play"} />{listening ? "Pause" : "Listen"}
           </button>
         )}
-        <button type="button" onClick={onOpen} className={`${PILL} ${canListen ? "border-(--ink)/45 hover:border-(--ink) max-[819px]:border-(--ink) max-[819px]:bg-(--ink) max-[819px]:text-(--cream)" : "border-(--ink) bg-(--ink) text-(--cream) hover:opacity-85"}`}>
+        <button type="button" onClick={onOpen} className={`${PILL} ${L && cardUp ? "max-[819px]:hidden" : ""} ${canListen ? "border-(--ink)/45 hover:border-(--ink) max-[819px]:border-(--ink) max-[819px]:bg-(--ink) max-[819px]:text-(--cream)" : "border-(--ink) bg-(--ink) text-(--cream) hover:opacity-85"}`}>
           {L ? "Album page" : "Open record"} <span aria-hidden="true">→</span>
         </button>
       </div>
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1" role="group" aria-label="Add to my shelves">
+      <div className={`mt-3 flex flex-wrap gap-x-5 gap-y-1 ${L ? "max-[819px]:hidden" : ""}`} role="group" aria-label="Add to my shelves">
         {[["owned", "I own this", "In your collection", "disc"], ["wishlist", "Wishlist", "On your wishlist", "heart"]].map(([k, off, on, icon]) => (
           <button key={k} type="button" aria-pressed={kind === k} disabled={!info} onClick={() => onShelf(k)}
             className={`pointer-events-auto inline-flex min-h-9 items-center gap-1.5 ${KICKER} transition-opacity duration-300 hover:opacity-100 disabled:opacity-30 ${kind === k ? "opacity-100" : "opacity-65"}`}>
@@ -129,18 +129,19 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
 
       {/* 좁은 화면: 판 바로 아래 한 덩어리 (판의 자리 · 크기는 crateEngine resize 의 좁은 화면 식과 같음) */}
       {front && (
-        <div key={`m:${front.slug}`} className={`absolute inset-x-[var(--crate-gut)] min-[820px]:hidden ${L ? "top-[calc(var(--listen-stage-bottom,50dvh)+0.75rem)]" : "top-[calc(max(19dvh,150px)+min(70vw,34dvh)+1.5rem)]"}`}>
+        <div key={`m:${front.slug}`} className={`absolute inset-x-[var(--crate-gut)] min-[820px]:hidden ${L ? "top-[calc(var(--listen-stage-bottom,50dvh)+0.5rem)]" : "top-[calc(max(19dvh,150px)+min(70vw,34dvh)+1.5rem)]"}`}>
           <p className="flex items-center gap-3">
             <span className={`${KICKER} tabular-nums opacity-70`}>{front.letter ? "Section" : front.divider ? "Start" : pad3(front.i + 1)} / {pad3(n)}</span>
             {front.isNew && <span className="rounded-full bg-[#d9603b] px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.14em] text-[#fff7ea]">New in</span>}
           </p>
-          <h2 className={`${SERIF} mt-1.5 line-clamp-2 text-[clamp(1.6rem,7vw,2.4rem)] font-black leading-[1.04] tracking-[-0.015em] [word-break:keep-all] animate-[crate-title_.7s_cubic-bezier(.22,1,.36,1)_both]`} style={tint}>{front.title}</h2>
-          <p className="mt-1.5 truncate text-[15px]">{front.artist}</p>
+          {/* Listen: 무대와 선반 사이에 들어가야 해서 한 줄 제목 · 작은 글자 (묶음 높이 = crateEngine LISTEN_PANEL) */}
+          <h2 className={`${SERIF} ${L ? "mt-1 truncate text-[clamp(1.3rem,5.4vw,1.8rem)] leading-[1.15]" : "mt-1.5 line-clamp-2 text-[clamp(1.6rem,7vw,2.4rem)] leading-[1.04]"} font-black tracking-[-0.015em] [word-break:keep-all] animate-[crate-title_.7s_cubic-bezier(.22,1,.36,1)_both]`} style={tint}>{front.title}</h2>
+          <p className={`truncate ${L ? "mt-0.5 text-[13px]" : "mt-1.5 text-[15px]"}`}>{front.artist}</p>
           {front.divider
             ? <p className={`${KICKER} mt-4 opacity-70`}>Swipe to start digging</p>
             : <>
-              {rows.length > 0 && <p className="mt-1.5 truncate text-[12px] tabular-nums opacity-70 transition-opacity duration-500 starting:opacity-0">{rows.map(([, v]) => v).slice(0, 3).join(" · ")}</p>}
-              <div className="mt-4">{actions}</div>
+              {rows.length > 0 && !L && <p className="mt-1.5 truncate text-[12px] tabular-nums opacity-70 transition-opacity duration-500 starting:opacity-0">{rows.map(([, v]) => v).slice(0, 3).join(" · ")}</p>}
+              <div className={L ? "mt-2.5" : "mt-4"}>{actions}</div>
             </>}
         </div>
       )}

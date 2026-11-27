@@ -456,12 +456,12 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
           <div className="absolute inset-0 bg-(--paper-surface,var(--bg)) bg-(image:--paper-texture-image) bg-repeat bg-blend-soft-light opacity-(--paper-texture-opacity) [background-size:var(--paper-texture-size)_var(--paper-texture-size)]" />
         </div>
         {/* 글자: 크레이트를 떠나자마자 빠지고, 돌아오면 판들이 거의 다 꽂힐 때 나타남 (CratePanel) */}
-        <CratePanel spinning={spinning} marks={marks} onJump={(i) => engineRef.current?.goTo(i)} label={title} front={front} total={total} info={info} kind={kind} listening={listening} mode={mode3d}
+        <CratePanel spinning={spinning} cardUp={music.active} marks={marks} onJump={(i) => engineRef.current?.goTo(i)} label={title} front={front} total={total} info={info} kind={kind} listening={listening} mode={mode3d}
           toggle={<ViewToggle view={is3d(view) ? view : flat} onChange={onViewChange} views={[flat, "crate", "listen"]} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />} sound={SFX ? <SoundToggle /> : null}
           onOpen={() => engineRef.current?.openFront()} onListen={listen} onShelf={shelve} />
         {/* 듣기 카드 ("Now spinning"): Listen 을 누르면 오른쪽 아래에 뜸. 판을 넘겨도 남고, 상자를 떠나면 닫힘 (좁은 화면에서는 쓰지 않음) */}
         <div role="region" aria-label="Now spinning" inert={!music.active}
-          className={`absolute right-[var(--crate-gut)] z-10 w-[200px] cursor-auto overflow-hidden rounded-xl bg-[#15111a]/90 text-[#f4e7cd] shadow-[0_24px_48px_-20px_rgba(0,0,0,.7)] ring-1 ring-white/10 backdrop-blur-md transition-[opacity,translate,bottom] duration-500 ${EASE} motion-reduce:transition-none ${mode3d === "listen" ? "bottom-[calc(var(--listen-board,24px)+8px)] max-[819px]:bottom-[calc(var(--listen-shelf,260px)+1rem)]" : "bottom-[clamp(3rem,8vh,4.5rem)] max-[819px]:hidden"} ${music.active ? "opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}>
+          className={`absolute right-[var(--crate-gut)] z-10 w-[200px] cursor-auto overflow-hidden rounded-xl bg-[#15111a]/90 text-[#f4e7cd] shadow-[0_24px_48px_-20px_rgba(0,0,0,.7)] ring-1 ring-white/10 backdrop-blur-md transition-[opacity,translate,bottom] duration-500 ${EASE} motion-reduce:transition-none ${mode3d === "listen" ? "bottom-[calc(var(--listen-board,24px)+8px)]" : "bottom-[clamp(3rem,8vh,4.5rem)] max-[819px]:hidden"} ${music.active ? "opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}>
           <div ref={musicHostRef} className="size-[200px] bg-black [&_iframe]:block [&_iframe]:size-full" />
           <div className="flex items-center gap-2 px-3 py-2.5">
             <div className="min-w-0 flex-1">
