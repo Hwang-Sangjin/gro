@@ -481,7 +481,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       // 재킷 + 판 + 톤암 한 덩어리(폭 ≈ 재킷의 1.85배)를 화면 가운데에 (2026-11-27: 왼쪽 패널에 붙어 있어 왼쪽으로 쏠려 보였음). 패널과 겹치면 패널 오른쪽에 붙임
       const gx = Math.max(left, Math.min(W / 2 - (jPx * 1.85) / 2, right - jPx * 1.85));
       LS = {
-        sh: shelfPx * wpp, pitch: pitchPx * wpp, pitchPx, count: Math.max(1, Math.floor((shelfRight - gut) / pitchPx)),
+        sh: shelfPx * wpp, pitch: pitchPx * wpp, pitchPx, count: Math.max(1, Math.floor((shelfRight - gut) / pitchPx)), countFull: Math.max(1, Math.floor((W - 2 * gut) / pitchPx)),
         x0: (gut - W / 2) * wpp, x1: (shelfRight - W / 2) * wpp, y0: -(H / 2 - boardPx) * wpp,
         jx: (gx + jPx / 2 - W / 2) * wpp, jy: -((top + bottom) / 2 - H / 2) * wpp, js: jPx * wpp,
         // 판: 재킷 가운데(cx0, 재킷 안)에서 오른쪽(cx1)으로 나옴 · d = 판 지름(px) · tt = 눌러서 재생 / 멈춤하는 구역 (판 + 톤암)
@@ -497,13 +497,18 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   function shelfPose(d, raw, slot, o) {
     const hv = slot.card ? 0.93 + 0.07 * (((hashOf(slot.card.slug || '') >>> 5) % 8) / 7) : 1;   // 판마다 키가 조금씩 다름
     const s = (LS.sh / CARD) * hv;
-    o.x = LS.x0 + Math.max(0, LS.count - N()) * LS.pitch / 2 + (d + 0.5) * LS.pitch;   // 판이 적으면 가운데로
+    o.x = LS.x0 + shelfLead() * LS.pitch + (d + 0.5) * LS.pitch;
     o.y = LS.y0 + (LS.sh * hv) / 2 + LS.sh * 0.07 * (slot.lift || 0);
     o.z = -(CARD * s * SPINE.depth) / 2;   // 책등 면이 z=0 에 오게 (화면 px 크기 그대로)
     o.rx = 0; o.ry = Math.PI / 2; o.rz = 0; o.s = s; o.t = SPINE.thick; o.w = SPINE.depth; o.c = 1;
     o.o = raw < 0 || raw >= N() ? 0 : (1 - ss(0, 1, -d)) * (1 - ss(LS.x1 - LS.pitch * 0.5, LS.x1 + LS.pitch * 0.5, o.x));
     return o;
   }
+  // 판이 적으면 선반을 화면 가운데로: 왼쪽에 비워 두는 칸 수. 화면 전체 폭 기준 — Now spinning 카드가 떠도 선반이 옆으로 밀리지 않게
+  //  (2026-11-27: 카드 자리만큼 줄어든 폭으로 가운데를 잡아서, 카드가 뜨면 책등들이 왼쪽으로 밀렸음)
+  const shelfLead = () => Math.max(0, LS.countFull - N()) / 2;
+  // 선반을 넘길 수 있는 끝: 카드에 가려지는 책등이 있으면 그만큼만 넘어감
+  const shelfMax = () => Math.max(0, Math.ceil(N() - (LS.count - shelfLead())));
   function stagePose(o) {
     o.x = LS.jx; o.y = LS.jy; o.z = 0.05; o.rx = 0; o.ry = 0.05; o.rz = 0; o.s = LS.js / CARD; o.o = 1; o.c = 1; o.t = 1; o.w = 1;
     return o;
@@ -542,7 +547,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       //  (처음엔 모든 판이 상자 자리에서 선반 자리로 한꺼번에 돌며 날아가고 선반까지 주르륵 밀려서 정신없었음 — 사용자)
       if (!animL.snapped && (animL.to === 1 ? L >= 0.45 : L <= 0.45)) {
         animL.snapped = true;
-        pos = target = animL.to === 1 ? clampN(0, Math.round(sel - LS.count / 2), Math.max(0, N() - LS.count)) : sel;
+        pos = target = animL.to === 1 ? clampN(0, Math.round(sel - LS.count / 2), shelfMax()) : sel;
       }
       if (k >= 1) { L = animL.to; animL = null; onSettled?.(mode); }
     }
@@ -566,7 +571,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
         if (swap.t >= T[3]) swap = null;
       }
     }
-    if (mode === 'listen' && LS && !(animL && !animL.snapped)) target = clampN(0, target, Math.max(0, N() - LS.count));
+    if (mode === 'listen' && LS && !(animL && !animL.snapped)) target = clampN(0, target, shelfMax());
     if (!drag && !touch && performance.now() - lastInput > 140) target += (Math.round(target) - target) * (1 - Math.exp(-dt / 0.12));
     pos += (target - pos) * (1 - Math.exp(-dt / 0.14));
     if (!CRATE.TUMBLE && L === 0 && mode !== 'listen') pos = Math.round(target);   // Crate: 넘어가는 움직임 없이 바로 다음 판
