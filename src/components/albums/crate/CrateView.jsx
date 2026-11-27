@@ -150,6 +150,9 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
     if (engineRef.current) return engineRef.current;
     const { createCrateEngine } = await import("./crateEngine");
     if (!hostRef.current) return null;
+    // 불러오는 사이에 다른 호출이 먼저 만들었으면 그것을 씀 (2026-11-27: 처음 여는 동안 보기를 한 번 더 바꾸면 엔진이 두 개 만들어져
+    //  캔버스 두 장이 겹쳐 그려졌음 — 선반이 어긋난 채 두 줄로 보임)
+    if (engineRef.current) return engineRef.current;
     engineRef.current = createCrateEngine({
       host: hostRef.current,
       // 번호 · 전체 수는 판만 셈 (칸막이는 빼고). 칸막이가 앞이면 번호 대신 판 수만
