@@ -12,11 +12,11 @@ export function rank(path) {
   if (path.startsWith('/album/')) return 1.5;
   if (path.startsWith('/news/')) return 3.5;
   if (path.startsWith('/collection/')) return 2.5;   // 공개 컬렉션
-  if (path.startsWith('/lab/')) return 2.8;          // Lab (Brick, Map, Spin) — Collection 과 News 사이
+  if (path.startsWith('/lab/')) return 2.8;          // Lab (Brick, Map) — Collection 과 News 사이
   const i = extra.indexOf(path);
   return i < 0 ? 20 : 4 + i;
 }
-export const labelFor = path => NAV.find(p => p.href === path)?.label || (path.startsWith('/album/') ? 'Album' : path.startsWith('/news/') ? 'Story' : path.startsWith('/collection/') ? 'Collection' : path === '/lab/brick' ? 'Brick' : path === '/lab/map' ? 'Map' : path === '/lab/spin' ? 'Spin' : path.split('/').filter(Boolean).at(-1) || 'Home');
+export const labelFor = path => NAV.find(p => p.href === path)?.label || (path.startsWith('/album/') ? 'Album' : path.startsWith('/news/') ? 'Story' : path.startsWith('/collection/') ? 'Collection' : path === '/lab/brick' ? 'Brick' : path === '/lab/map' ? 'Map' : path.split('/').filter(Boolean).at(-1) || 'Home');
 
 // Route policy must not depend on an animation flag surviving route commits.
 export function normalizedPath(path) {
@@ -38,8 +38,6 @@ export const MENU = [
   { label: 'Lab', href: '/lab/map', children: [
     { href: '/lab/map', label: 'Map', desc: '레코드숍과 LP바를 지도에서', preview: 'map' },
     { href: '/lab/brick', label: 'Brick', desc: '앨범 커버를 브릭 모자이크로', preview: 'brick' },
-    // Spin(/lab/spin)은 2026-11-23 사용자 요청으로 헤더에서만 뺌 — 페이지는 그대로 있고 주소로 들어갈 수 있음
-    //  { href: '/lab/spin', label: 'Spin', desc: '도는 판 위에서 움직이는 그림', preview: 'spin' },
   ] },
   { href: '/news', label: 'News' },
 ];

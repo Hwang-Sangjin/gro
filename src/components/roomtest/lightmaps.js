@@ -114,6 +114,7 @@ export async function applyLightmaps(root, renderer = null) {
   if (!man) return 0;
   const loader = new THREE.TextureLoader();
   //  전부 KTX2 (2026-11-11 사용자 비교: 켜짐 4K 세 장도 JPEG 와 차이를 못 느낌). ?ktx2=0 이면 전부 JPEG (비교용)
+  //  (2026-11-27 정리: JPEG 파일 38장 · 15MB 는 저장소에서 지움 — 방문자는 받지 않던 비교용. ?ktx2=0 으로 다시 비교하려면 굽는 쪽의 make_jpg.mjs 로 만들어 이 폴더에 넣을 것)
   const ktxMode = new URLSearchParams(location.search).get("ktx2");
   const ktx = renderer && ktxMode !== "0" ? getKtx2Loader(renderer) : null;
   const load = (file, ktxFile) => (ktx && ktxFile ? ktx : loader).loadAsync(BAKE_URL + (ktx && ktxFile ? ktxFile : file) + (man.version ? "?v=" + man.version : "")).then((t) => {

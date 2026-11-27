@@ -57,7 +57,6 @@ export default function MenuPreview({kind,data,signedIn}){
     :<Stack items={data?.shelf?.items}/>;
   if(kind==='brick')return <LabThumb src="/images/lab/brick-thumb.webp"/>;
   if(kind==='map')return <LabThumb src="/images/lab/map-thumb.webp"/>;
-  if(kind==='spin')return <LabThumb src="/images/lab/spin-thumb.webp"/>;
   return null;
 }
 
