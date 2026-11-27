@@ -9,7 +9,7 @@ import { isPeeled, markPeeled } from '../peeled';
    카드 목록은 그리드 DOM에서 읽음: [{ slug, color, image, title, artist, art(커버 요소) }] */
 
 export const CRATE = {
-  SLOTS: 64,          // 만들어 두는 판 수 (Listening 선반은 화면 폭만큼 책등이 필요함)
+  SLOTS: 128,         // 만들어 두는 판 수 (Listening 선반은 화면 폭만큼 책등이 필요함)
   VIS: 18,            // Crate 에서 동시에 그리는 판 수 (끝없이 넘길 때 이 수만 재사용)
   LISTEN_DUR: 1.5,    // Crate ↔ Listening 전환 시간(초)
   STAGE_IN: 2.1,      // Listening 에 들어온 뒤 톤암 → 판이 차례로 나오는 시간(초) · 나갈 때는 STAGE_OUT 초에 들어감
@@ -23,7 +23,11 @@ export const CRATE = {
 };
 const { SLOTS, VIS } = CRATE;
 // Listening 선반: 책등 두께(재킷 두께의 배) — 실제 두께(1%)로는 제목을 읽을 수 없어서 책처럼 두껍게
-const SPINE = { thick: 4.4, gapPx: 2, depth: 0.1 };   // depth = 선반에서의 깊이(재킷 폭의 배) — 얕게 해서 정면에서 본 듯 평평하게 (2026-11-27: 원근 때문에 윗면 · 옆면이 부채처럼 벌어져 보였음)   // (2026-11-27 6.5 → 4.4: 너무 두껍다고 함)
+// Listening 선반의 책등 두께 (재킷 실제 두께의 배 — 실제 두께 1% 로는 제목을 읽을 수 없어서 조금 두껍게)
+//  thick = 보통 판 · thick2 = 2LP · 게이트폴드 · 박스 (더 두꺼움) · divider = 칸막이 (얇은 판지 한 장, 글자는 위로 솟은 탭에)
+//  (2026-11-27: 처음 6.5 → 4.4 → 사용자 "더 얇게, 2LP · 게이트폴드만 좀 더 두껍게" → 3.0 / 4.4. 칸막이도 얇게 + 탭)
+//  depth = 선반에서의 깊이(재킷 폭의 배) — 얕게 해서 정면에서 본 듯 평평하게
+const SPINE = { thick: 3.0, thick2: 4.4, divider: 0.9, gapPx: 2, depth: 0.1, tabH: 0.085 };
 const FOV = 32, CAM_Z = 10;
 const clampN = (lo, x, hi) => Math.min(hi, Math.max(lo, x));
 // 넓은 화면(820px 이상)의 자리 나눔 — CrateView 의 CSS 변수(--crate-gut · --crate-panel · --crate-gap)와 같은 식
@@ -78,6 +82,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   // 장르 칸막이(card.divider)일 때만 보이는 탭: 판 위로 솟은 크래프트 조각 + 다이모 라벨 (판의 자식 → 같이 움직임)
   const TAB = { w: 0.46, h: 0.12, x: -0.18 };
   const KRAFT = new THREE.Color('#c9a679'), KRAFT_EDGE = new THREE.Color('#a9865a');
+  const tabGeo = new THREE.PlaneGeometry(1, 1);
   const makeSlot = () => {
     const edge = new THREE.MeshBasicMaterial({ transparent: true });
     const spine = new THREE.MeshBasicMaterial({ transparent: true });   // 책등(-x 면): Listening 선반에서 제목이 보이는 면
@@ -97,7 +102,10 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     sticker.mesh.scale.setScalar(STICKER.size); sticker.mesh.position.set(STICKER.at, STICKER.at, 0.0126); sticker.mesh.rotation.z = STICKER.tilt;
     mesh.add(sticker.mesh);
     scene.add(mesh);
-    return { mesh, edge, spine, front, back, tab, tabFront, tabEdge, tabBack, open, finish, sticker, peel: PEEL.rest, dir, fly: 0, d: 0, lift: 0, card: null, edgeBase: new THREE.Color() };
+    // 선반에 꽂힌 칸막이의 탭: 책등 위로 솟아 카메라를 보는 납작한 판 (판은 옆으로 돌아서 있으므로 반대로 돌려 둠)
+    const ltab = new THREE.Mesh(tabGeo, new THREE.MeshBasicMaterial({ transparent: true }));
+    ltab.rotation.y = -Math.PI / 2; ltab.visible = false; mesh.add(ltab);
+    return { mesh, ltab, edge, spine, front, back, tab, tabFront, tabEdge, tabBack, open, finish, sticker, peel: PEEL.rest, dir, fly: 0, d: 0, lift: 0, card: null, edgeBase: new THREE.Color() };
   };
   const slots = Array.from({ length: SLOTS }, makeSlot);
   const hero = makeSlot();   // Listening 무대의 재킷 (고른 판) — 선반의 그 판 대신 이 한 장이 무대와 선반 사이를 오감
@@ -148,10 +156,11 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   // 책등 그림 (Listening): 커버 대표색 바탕에 제목 · 아티스트를 아래에서 위로
   const spines = new Map();
   function spineTex(card) {
-    let t = spines.get(card.slug);
+    const thick = thickOf(card), key = `${card.slug}:${thick}`;
+    let t = spines.get(key);
     if (t) return t;
     // 그림의 비율 = 책등의 비율 (폭 = 높이 × 0.022 × 두께 배율) → 글자가 찌그러지지 않음
-    const CW = 52, CH = Math.round(CW / (0.022 * SPINE.thick));
+    const CW = 52, CH = Math.round(CW / (0.022 * thick));
     const c = document.createElement('canvas'); c.width = CW; c.height = CH;
     const g = c.getContext('2d');
     tone.set(card.color || '#bbcbda');
@@ -166,38 +175,53 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     g.fillStyle = light ? '#2a2228' : '#f4e7cd'; g.textBaseline = 'middle';
     try { g.letterSpacing = '1.5px'; } catch {}
     const fit = (text, max) => { let s = text; while (s.length > 2 && g.measureText(s).width > max) s = s.slice(0, -2); return s === text ? s : s.trim() + '…'; };
-    g.font = '700 27px "Hahmlet", Georgia, serif';
+    g.font = '700 33px "Hahmlet", Georgia, serif';
     const title = fit((card.title || '').toUpperCase(), LEN), tw = g.measureText(title).width;
     g.fillText(title, 0, -1);
-    if (tw < LEN - 110 && card.artist) { g.globalAlpha = 0.72; g.font = '400 22px "Hahmlet", Georgia, serif'; g.fillText(fit(card.artist.toUpperCase(), LEN - tw - 24), tw + 24, -1); }
-    g.restore();
-    t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso;
-    spines.set(card.slug, t);
-    return t;
-  }
-
-  // 글자 칸막이의 책등 (Listen 선반): 크래프트 판지 + 맨 위에 다이모 라벨. 판들보다 조금 높이 솟아 라벨이 보임
-  function letterSpine(card) {
-    const key = `__letter:${card.tab}`;
-    let t = spines.get(key);
-    if (t) return t;
-    const CW = 52, CH = Math.round(CW / (0.022 * SPINE.thick));
-    const c = document.createElement('canvas'); c.width = CW; c.height = CH;
-    const g = c.getContext('2d');
-    g.fillStyle = '#c9a679'; g.fillRect(0, 0, CW, CH);
-    const sh = g.createLinearGradient(0, 0, CW, 0);
-    sh.addColorStop(0, 'rgba(80,52,25,.3)'); sh.addColorStop(0.35, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(80,52,25,.22)');
-    g.fillStyle = sh; g.fillRect(0, 0, CW, CH);
-    g.font = '800 26px "Arial Narrow", system-ui, sans-serif';
-    const tw = g.measureText(card.tab).width + 22;
-    g.fillStyle = '#17120f'; g.fillRect(8, 10, CW - 16, tw);
-    g.save(); g.translate(CW / 2, 10 + 11); g.rotate(Math.PI / 2);
-    g.fillStyle = '#f6f1e6'; g.textBaseline = 'middle'; g.fillText(card.tab, 0, -1);
+    if (tw < LEN - 110 && card.artist) { g.globalAlpha = 0.72; g.font = '400 26px "Hahmlet", Georgia, serif'; g.fillText(fit(card.artist.toUpperCase(), LEN - tw - 24), tw + 24, -1); }
     g.restore();
     t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso;
     spines.set(key, t);
     return t;
   }
+
+  // 칸막이의 탭 (Listen 선반): 크래프트 판지 조각에 글자 — 왼쪽은 곧고 오른쪽 위는 비스듬히 깎임 (실제 record divider 의 탭)
+  function tabTex(card) {
+    const key = `__tab:${card.tab}`;
+    let t = spines.get(key);
+    if (t) return t;
+    const H = 96, m = document.createElement('canvas').getContext('2d');
+    m.font = '800 46px "Arial Narrow", "Roboto Condensed", system-ui, sans-serif';
+    const label = String(card.tab || '').toUpperCase(), W = Math.ceil(m.measureText(label).width + 84);
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    g.beginPath(); g.moveTo(0, H); g.lineTo(0, 10); g.quadraticCurveTo(0, 0, 10, 0); g.lineTo(W - 44, 0); g.lineTo(W, H); g.closePath();
+    g.fillStyle = '#d3b489'; g.fill();
+    g.save(); g.clip();
+    const sh = g.createLinearGradient(0, 0, 0, H); sh.addColorStop(0, 'rgba(255,240,210,.35)'); sh.addColorStop(1, 'rgba(80,52,25,.18)');
+    g.fillStyle = sh; g.fillRect(0, 0, W, H);
+    g.restore();
+    g.font = m.font; g.fillStyle = '#2a2228'; g.textBaseline = 'middle'; g.fillText(label, 22, H / 2 + 3);
+    t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso; t.userData.aspect = W / H;
+    spines.set(key, t);
+    return t;
+  }
+  // 책등 두께: 판마다 다름 (보통 판 · 2LP / 게이트폴드 · 칸막이) → 선반의 자리는 앞의 판들 두께를 더한 값 (cum, 보통 판 한 칸 = 1)
+  let thick2 = new Set(), cum = [0];
+  const thickOf = (card) => (!card ? SPINE.thick : card.divider ? SPINE.divider : thick2.has(card.slug) ? SPINE.thick2 : SPINE.thick);
+  function recum() {
+    cum = [0];
+    if (!LS) return;
+    for (let i = 0; i < cards.length; i++) cum.push(cum[i] + (LS.shelfPx * 0.022 * thickOf(cards[i]) + SPINE.gapPx) / LS.pitchPx);
+  }
+  // p 번째(소수) 판의 왼쪽 끝 자리. 범위 밖은 보통 판 폭으로 이어 감
+  const cumAt = (p) => {
+    const n = cards.length;
+    if (p <= 0) return p;
+    if (p >= n) return cum[n] + (p - n);
+    const i = Math.floor(p);
+    return cum[i] + (p - i) * (cum[i + 1] - cum[i]);
+  };
 
   let cards = [];
   const N = () => cards.length;
@@ -215,7 +239,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     // 판마다 다른 비닐 주름 · 커버의 밝기 (어두운 커버에서는 빛 띠를 줄임)
     tone.set(card.color || '#bbcbda');
     fx.wrapFor(slot.finish, hashOf(card.slug || ''), 0.2126 * tone.r + 0.7152 * tone.g + 0.0722 * tone.b);
-    const sp = !useSpines ? null : card.divider ? (card.letter ? letterSpine(card) : null) : spineTex(card);
+    const sp = useSpines && !card.divider ? spineTex(card) : null;
     if (slot.spine.map !== sp) { slot.spine.map = sp; slot.spine.needsUpdate = true; }
     if (card.divider) {
       const t = dividerTex(card);
@@ -269,12 +293,22 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     slot.edge.color.copy(slot.edgeBase).multiplyScalar(p.c);
     if (slot.spine.map) slot.spine.color.setScalar(p.c); else slot.spine.color.copy(slot.edge.color);
     m.visible = p.o > 0.003 && !!slot.card;
-    slot.tab.visible = !!slot.card?.divider && (p.w ?? 1) > 0.5;   // 선반에 꽂혔을 때(얕은 깊이)는 탭 대신 책등의 라벨
+    const shelved = (p.w ?? 1) < 0.5;   // 선반에 꽂힌 자세 (얕은 깊이)
+    slot.tab.visible = !!slot.card?.divider && !shelved;
+    const lt = slot.ltab, showTab = shelved && useSpines && !!slot.card?.divider && !!slot.card.tab;
+    lt.visible = showTab;
+    if (showTab) {
+      const tex = tabTex(slot.card), t = p.t ?? 1, wT = SPINE.tabH * tex.userData.aspect / t;
+      if (lt.material.map !== tex) { lt.material.map = tex; lt.material.needsUpdate = true; }
+      lt.scale.set(wT, SPINE.tabH, 1);
+      lt.position.set(-0.52, 0.5 + SPINE.tabH / 2 - 0.004, wT / 2 - 0.011);
+      lt.material.opacity = p.o; lt.renderOrder = Math.round(p.z * 100) + 6;
+    }
     m.renderOrder = Math.round(p.z * 100) + (fly ? 5000 : 0);
     // 디테일: 칸막이(판지)에는 없음. 광택은 맨 앞 판에서 가장 세고, 판이 앞으로 넘어오는 동안 띠가 쓸고 지나감 (+ 마우스를 따라 조금)
     const plain = !!slot.card && !slot.card.divider, near = Math.abs(slot.d);
     const f = slot.finish, st = slot.sticker;
-    f.mesh.visible = plain; f.mesh.renderOrder = m.renderOrder + 1;
+    f.mesh.visible = plain && !shelved; f.mesh.renderOrder = m.renderOrder + 1;
     // (2026-11-23) 그리드 카드에는 비닐 · 마감이 없음 → 카드 자리에 가까울수록 옅게 (Grid ↔ Crate 전환에서 비닐이 툭 생기거나 사라지지 않게)
     //  + 주름 지도가 늦게 준비되면 그때부터 서서히
     f.u.uOpacity.value = p.o * (1 - (slot.gridK || 0)); f.u.uWrap.value = fx.wrapReady(f); f.u.uGloss.value = 1 - ss(0.3, 1.8, near);
@@ -509,13 +543,14 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       // 재킷 + 판 + 톤암 한 덩어리(폭 ≈ 재킷의 1.85배)를 화면 가운데에 (2026-11-27: 왼쪽 패널에 붙어 있어 왼쪽으로 쏠려 보였음). 패널과 겹치면 패널 오른쪽에 붙임
       const gx = Math.max(left, Math.min(W / 2 - (jPx * 1.85) / 2, right - jPx * 1.85));
       LS = {
-        sh: shelfPx * wpp, pitch: pitchPx * wpp, pitchPx, count: Math.max(1, Math.floor((shelfRight - gut) / pitchPx)), countFull: Math.max(1, Math.floor((W - 2 * gut) / pitchPx)),
+        sh: shelfPx * wpp, pitch: pitchPx * wpp, pitchPx, shelfPx, count: Math.max(1, Math.floor((shelfRight - gut) / pitchPx)), countFull: Math.max(1, Math.floor((W - 2 * gut) / pitchPx)),
         x0: (gut - W / 2) * wpp, x1: (shelfRight - W / 2) * wpp, y0: -(H / 2 - boardPx) * wpp,
         jx: (gx + jPx / 2 - W / 2) * wpp, jy: -((top + bottom) / 2 - H / 2) * wpp, js: jPx * wpp,
         // 판: 재킷 가운데(cx0, 재킷 안)에서 오른쪽(cx1)으로 나옴 · d = 판 지름(px) · tt = 눌러서 재생 / 멈춤하는 구역 (판 + 톤암)
         disc: { cx0: gx + jPx * 0.5, cx1: gx + jPx * 1.04, cy: (top + bottom) / 2, d: jPx * 0.94 },
         tt: { left: gx + jPx, top: (top + bottom) / 2 - jPx / 2, width: jPx * 0.9, height: jPx },
       };
+      recum();
       host.style.setProperty('--listen-board', `${boardPx}px`);
       host.style.setProperty('--listen-shelf', `${(shelfPx * 1.14 + boardPx).toFixed(0)}px`);
       host.style.setProperty('--listen-stage-bottom', `${bottom.toFixed(0)}px`);
@@ -523,20 +558,27 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   }
   // 선반의 자리: d = 왼쪽 끝에서 몇 번째(소수) · raw = 판 번호(감지 않은 것 — 선반은 끝없이 돌지 않음)
   function shelfPose(d, raw, slot, o) {
-    const hv = !slot.card ? 1 : slot.card.letter ? 1.14 : 0.93 + 0.07 * (((hashOf(slot.card.slug || '') >>> 5) % 8) / 7);   // 판마다 키가 조금씩 다름 · 글자 칸막이는 위로 솟음
-    const s = (LS.sh / CARD) * hv;
-    o.x = LS.x0 + shelfLead() * LS.pitch + (d + 0.5) * LS.pitch;
+    const card = slot.card;
+    const hv = !card ? 1 : card.divider ? 1 : 0.93 + 0.07 * (((hashOf(card.slug || '') >>> 5) % 8) / 7);   // 판마다 키가 조금씩 다름 · 칸막이는 가장 큰 판 높이 (그 위로 탭)
+    const s = (LS.sh / CARD) * hv, thick = thickOf(card);
+    const xu = cumAt(raw) - cumAt(pos), wu = (LS.shelfPx * 0.022 * thick + SPINE.gapPx) / LS.pitchPx;   // 선반 왼쪽 끝에서의 자리 · 이 판의 폭 (보통 판 한 칸 = 1)
+    o.x = LS.x0 + (shelfLead() + xu + wu / 2) * LS.pitch;
     o.y = LS.y0 + (LS.sh * hv) / 2 + LS.sh * 0.07 * (slot.lift || 0);
     o.z = -(CARD * s * SPINE.depth) / 2;   // 책등 면이 z=0 에 오게 (화면 px 크기 그대로)
-    o.rx = 0; o.ry = Math.PI / 2; o.rz = 0; o.s = s; o.t = SPINE.thick; o.w = SPINE.depth; o.c = 1;
-    o.o = raw < 0 || raw >= N() ? 0 : (1 - ss(0, 1, -d)) * (1 - ss(LS.x1 - LS.pitch * 0.5, LS.x1 + LS.pitch * 0.5, o.x));
+    o.rx = 0; o.ry = Math.PI / 2; o.rz = 0; o.s = s; o.t = thick; o.w = SPINE.depth; o.c = 1;
+    o.o = raw < 0 || raw >= N() ? 0 : (1 - ss(0, 1, -xu)) * (1 - ss(LS.x1 - LS.pitch * 0.5, LS.x1 + LS.pitch * 0.5, o.x));
     return o;
   }
   // 판이 적으면 선반을 화면 가운데로: 왼쪽에 비워 두는 칸 수. 화면 전체 폭 기준 — Now spinning 카드가 떠도 선반이 옆으로 밀리지 않게
   //  (2026-11-27: 카드 자리만큼 줄어든 폭으로 가운데를 잡아서, 카드가 뜨면 책등들이 왼쪽으로 밀렸음)
-  const shelfLead = () => Math.max(0, LS.countFull - N()) / 2;
+  const shelfLead = () => Math.max(0, LS.countFull - (cum[N()] ?? N())) / 2;
   // 선반을 넘길 수 있는 끝: 카드에 가려지는 책등이 있으면 그만큼만 넘어감
-  const shelfMax = () => Math.max(0, Math.ceil(N() - (LS.count - shelfLead())));
+  const shelfMax = () => {
+    const rest = (cum[N()] ?? N()) - (LS.count - shelfLead());   // 화면에 다 못 들어가는 폭
+    if (rest <= 0) return 0;
+    let i = 0; while (i < N() && cum[i] < rest) i++;
+    return i;
+  };
   function stagePose(o) {
     o.x = LS.jx; o.y = LS.jy; o.z = 0.05; o.rx = 0; o.ry = 0.05; o.rz = 0; o.s = LS.js / CARD; o.o = 1; o.c = 1; o.t = 1; o.w = 1;
     return o;
@@ -743,7 +785,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   api = {
     /** 그리드 → 크레이트. start = 맨 앞이 될 카드 번호 (그 칸부터 화면의 판들이 날아옴) */
     toCrate(list, start, { instant = false } = {}) {
-      cards = list; showAllArt();
+      cards = list; recum(); showAllArt();
       cardOff = Math.max(0, Math.min(start, N() - 1));
       pos = target = cardOff; shownFront = -1;
       slots.forEach((s) => { s.card = null; });
@@ -775,7 +817,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     extend(list) {
       if (mode === 'grid' || anim || animL || list.length <= N()) return false;
       const r = Math.round(pos), f = mode === 'listen' ? r : wrap(r);
-      cards = list; pos += f - r; target += f - r; shownFront = -1;
+      cards = list; recum(); pos += f - r; target += f - r; shownFront = -1;
       run();
       return true;
     },
@@ -783,7 +825,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     openFront() { if (liveL() && N()) onOpen?.(sel, rectOf(hero)); else if (live() && N()) onOpen?.(wrap(Math.round(pos)), frontRect()); },
     /** 그리드 → Listening. start = 선반 왼쪽 끝이 될 카드 번호 · slug = 무대에 올릴 판 (없으면 start) */
     toListen(list, start, { instant = false, slug = null } = {}) {
-      cards = list; showAllArt(); useSpines = true;
+      cards = list; recum(); showAllArt(); useSpines = true;
       cardOff = Math.max(0, Math.min(start, N() - 1));
       pos = target = cardOff; shownFront = -1;
       const want = slug ? cards.findIndex((c) => c.slug === slug) : -1;
@@ -838,6 +880,14 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       if (i < 0 || i >= N()) return;
       if (live()) { const r = Math.round(pos); target = r + (i - wrap(r)); lastInput = performance.now(); }
       else if (liveL()) { target = clampN(0, i, shelfMax()); lastInput = performance.now(); }
+    },
+    /** 두꺼운 판들 (2LP · 게이트폴드 · 박스) 의 slug — Listen 선반에서 책등이 더 두꺼움 */
+    setThick(slugs) {
+      const next = new Set(slugs);
+      if (next.size === thick2.size && [...next].every((x) => thick2.has(x))) return;
+      thick2 = next; recum();
+      slots.forEach((sl) => { sl.spined = null; }); hero.spined = null;   // 책등 그림을 두께에 맞춰 다시
+      if (mode !== 'grid') run();
     },
     /** Listening: 판이 돌고 바늘이 내려가 있음 */
     setPlaying(v) { playing = !!v; if (mode === 'listen') run(); },

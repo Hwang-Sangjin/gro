@@ -133,9 +133,15 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
   // ── 정보 패널: 상자에 꽂힌 판들의 상세를 한 번에 받아 둠 (판을 넘길 때마다 묻지 않게)
   const details = useRef(new Map());                // slug → 상세 (못 받았으면 null)
   const [, bump] = useState(0);
+  // 2LP · 게이트폴드 · 박스는 Listen 선반에서 책등이 더 두꺼움 (포맷은 상세에서 옴)
+  const syncThick = () => {
+    const thick = [];
+    for (const [slug, d] of details.current) if (d && /(\b[2-9]\s*x?\s*LP\b|gatefold|box|게이트)/i.test(`${d.format || ""}`)) thick.push(slug);
+    engineRef.current?.setThick(thick);
+  };
   const loadDetails = useCallback(async (cards) => {
     const want = cards.filter((c) => !c.divider && !details.current.has(c.slug)).map((c) => c.slug);
-    if (!want.length) return;
+    if (!want.length) { syncThick(); return; }
     for (const slug of want) details.current.set(slug, undefined);   // 받는 중 (같은 판을 두 번 묻지 않게)
     try {
       for (let i = 0; i < want.length; i += 60) {
@@ -144,6 +150,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
         for (const row of data ?? []) details.current.set(row.slug, row);
       }
     } catch { for (const slug of want) if (details.current.get(slug) === undefined) details.current.delete(slug); }
+    syncThick();
     bump((n) => n + 1);
   }, []);
 
