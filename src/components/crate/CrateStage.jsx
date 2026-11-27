@@ -9,8 +9,8 @@ import { cl, eOut, cleanPage, measurePage, prepareCrate, renderCrate, liftPose, 
 import { NAV, rank, labelFor, isAlbumCoverTransition } from './routes';
 
 // 페이지가 상자 속 판처럼 넘어가는 전환 (FLIP) 과 그 소리 (SFX)
-//  (2026-11-27 사용자 요청으로 둘 다 끔. 넘김 전환은 한 번 되살렸다가 "꺼진 채로 둔 게 좋아 보여" 라고 해서 다시 끔 → 페이지는 바로 바뀜)
-const FLIP=false,SFX=false;
+//  (2026-11-27 둘 다 껐다가 → 넘김만 되살림 → 다시 끔 → 2026-11-28 "page transition 이 사라졌어, 이전처럼" → 넘김 전환은 켬. 소리는 꺼진 채)
+const FLIP=true,SFX=false;
 export default function CrateStage({children}) {
   const pathname=usePathname(), context=useContext(LayoutRouterContext), router=useRouter(), {done}=useIntro();
   const {bridge,sfx,setBusy}=useCrate();
