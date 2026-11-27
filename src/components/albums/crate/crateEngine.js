@@ -348,6 +348,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   //  enter: Crate = 판들이 오른쪽 위(상자가 이어지는 쪽)에서 차례로 흘러 들어옴 · Listen = 책등들이 오른쪽에서 차례로 들어와 꽂힘
   //  rise: Listen 에서 책등이 다 꽂힌 뒤, 그중 하나(무작위)가 뽑혀 무대로 올라감 → 그 뒤에 톤암 · 판 (intro)
   let enter = null, rise = null, stageGate = null;
+  const hint = { over: -1, ready: -1 };
   const easeOut = (x) => 1 - (1 - x) ** 3;   // intro = 무대의 톤암 · 판이 나온 정도 0…1
   hero.mesh.visible = false;
   let pos = 0, target = 0, lastInput = 0, drag = null, touch = null;
@@ -571,6 +572,9 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       host.style.setProperty('--listen-board', `${boardPx}px`);
       host.style.setProperty('--listen-shelf', `${(shelfPx * 1.2 + boardPx).toFixed(0)}px`);
       host.style.setProperty('--listen-stage-bottom', `${bottom.toFixed(0)}px`);
+      // 판에서 재킷 밖으로 나와 보이는 쪽의 가운데 ("Click to play" 안내가 놓일 자리)
+      host.style.setProperty('--disc-x', `${(gx + jPx * 1.04 + jPx * 0.94 * 0.22).toFixed(0)}px`);
+      host.style.setProperty('--disc-y', `${((top + bottom) / 2).toFixed(0)}px`);
     }
   }
   // 선반의 자리: d = 왼쪽 끝에서 몇 번째(소수) · raw = 판 번호(감지 않은 것 — 선반은 끝없이 돌지 않음)
@@ -796,6 +800,12 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     }
     renderer.render(scene, camera);
     host.style.setProperty('--crate-l', L.toFixed(3));
+    // 판 위에 마우스가 있음 · 무대가 다 나옴 → 안내 글자(CratePanel)와 커서
+    const tt = LS?.tt, hx = (hover.cx ?? -1) - hostRect.left, hy = (hover.cy ?? -1) - hostRect.top;
+    const over = liveL() && intro >= 1 && hover.on && !!tt && hx > tt.left && hx < tt.left + tt.width && hy > tt.top && hy < tt.top + tt.height ? 1 : 0;
+    const ready = mode === 'listen' && intro >= 1 && !swap ? 1 : 0;
+    if (over !== hint.over) { hint.over = over; host.style.setProperty('--disc-hover', String(over)); canvas.style.cursor = over ? 'pointer' : ''; }
+    if (ready !== hint.ready) { hint.ready = ready; host.style.setProperty('--stage-ready', String(ready)); }
     // 3D 판이 그 자리에 그려진 뒤에 그리드 커버를 숨김 (한 프레임도 비지 않게)
     for (const el of toHide) hideArt(el, true);
     toHide.length = 0;

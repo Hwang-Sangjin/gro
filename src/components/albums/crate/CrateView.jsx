@@ -196,7 +196,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
   // ── 듣기: Home 의 "Now spinning" 카드와 같은 작은 플레이어 (YouTube 약관상 플레이어는 보여야 함 → 카드 안에)
   const musicHostRef = useRef(null), musicRef = useRef(null), playingRef = useRef(null);
   const [music, setMusic] = useState({ album: null, active: false, playing: false, buffering: false, blocked: false, error: false });
-  const stopMusic = useCallback(() => { musicRef.current?.stop(); playingRef.current = null; setNowSpinning(null); }, []);
+  const stopMusic = useCallback(() => { wantRef.current = false; musicRef.current?.stop(); playingRef.current = null; setNowSpinning(null); }, []);
   useEffect(() => () => { musicRef.current?.dispose(); musicRef.current = null; if (playingRef.current) setNowSpinning(null); }, []);
   // 엔진은 한 번 만들고 계속 씀 → 전환 함수는 늘 최신 것을 ref 로 읽음
   // (앨범 상세에서 돌아오는 페이지 넘김 중에 엔진이 만들어지면 그때의 '전환 중' 상태가 굳어 클릭이 막히던 문제)
@@ -390,14 +390,26 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
   const listen = () => {
     if (!front || !info?.youtube_playlist_id || !musicHostRef.current) return;
     musicRef.current ??= createRoomMusic(musicHostRef.current, setMusic);
-    if (playingRef.current?.slug === front.slug) { musicRef.current.set(playingRef.current, !music.playing); return; }
+    if (playingRef.current?.slug === front.slug) { wantRef.current = !music.playing; musicRef.current.set(playingRef.current, !music.playing); return; }
     playingRef.current = { slug: front.slug, title: front.title, artist: front.artist, playlist: info.youtube_playlist_id };
+    wantRef.current = true;
     musicRef.current.set(playingRef.current, true);
     setNowSpinning({ slug: front.slug, title: front.title, artist: front.artist });
   };
   useEffect(() => { listenRef.current = listen; });
   // Listening: 턴테이블의 판 · 바늘은 "이 판을 지금 틀고 있음"을 따라감
-  useEffect(() => { engineRef.current?.setPlaying(listening); }, [listening]);
+  //  바늘은 "멈췄을 때"와 "판을 바꿀 때"만 들림 (2026-11-27 사용자 요청). 다음 곡으로 넘어가거나 YouTube 에서 구간을 옮기면
+  //  잠깐 '재생 중이 아님'이 되는데 (끝남 → 불러오는 중 → 재생), 그때마다 바늘이 들렸다 내려왔음 → 1.6초 넘게 이어질 때만 멈춘 것으로 봄
+  //  우리 버튼 · 판을 눌러 멈춘 것(wantRef = false)은 바로 반영
+  const [spin, setSpin] = useState(false);
+  const wantRef = useRef(false);
+  useEffect(() => {
+    if (listening) { setSpin(true); return; }
+    if (!wantRef.current) { setSpin(false); return; }
+    const t = setTimeout(() => setSpin(false), 1600);
+    return () => clearTimeout(t);
+  }, [listening, front?.slug]);
+  useEffect(() => { engineRef.current?.setPlaying(spin && playingRef.current?.slug === front?.slug); }, [spin, front?.slug]);
   // Listening: Now spinning 카드는 선반 오른쪽 끝에 놓임 → 그만큼 선반을 비움
   useEffect(() => { engineRef.current?.setCardSpace(music.active); }, [music.active]);
   // Listening 에서 책등을 눌러 올린 판: 상세(재생목록)가 도착하면 바로 틂
@@ -405,6 +417,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
     if (mode3d !== "listen" || !front || autoRef.current !== front.slug || info === undefined) return;
     autoRef.current = null;
     if (!info?.youtube_playlist_id || !musicHostRef.current) return;
+    wantRef.current = true;
     musicRef.current ??= createRoomMusic(musicHostRef.current, setMusic);
     playingRef.current = { slug: front.slug, title: front.title, artist: front.artist, playlist: info.youtube_playlist_id };
     musicRef.current.set(playingRef.current, true);
@@ -414,6 +427,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
   const togglePlay = () => {
     const m = musicRef.current, a = playingRef.current;
     if (!m || !a) return;
+    wantRef.current = music.blocked ? true : !music.playing;
     if (music.blocked) m.resume(); else m.set(a, !music.playing);
   };
   // 선반에 담기 · 빼기 (상세 페이지의 버튼과 같은 규칙: 한 판은 한 칸에만, 로그인 전이면 로그인으로)
@@ -439,7 +453,7 @@ export default function CrateView({ gridRef, view, onViewChange, title, total = 
           <div className="absolute inset-0 bg-(--paper-surface,var(--bg)) bg-(image:--paper-texture-image) bg-repeat bg-blend-soft-light opacity-(--paper-texture-opacity) [background-size:var(--paper-texture-size)_var(--paper-texture-size)]" />
         </div>
         {/* 글자: 크레이트를 떠나자마자 빠지고, 돌아오면 판들이 거의 다 꽂힐 때 나타남 (CratePanel) */}
-        <CratePanel marks={marks} onJump={(i) => engineRef.current?.goTo(i)} label={title} front={front} total={total} info={info} kind={kind} listening={listening} mode={mode3d}
+        <CratePanel spinning={spin && playingRef.current?.slug === front?.slug} marks={marks} onJump={(i) => engineRef.current?.goTo(i)} label={title} front={front} total={total} info={info} kind={kind} listening={listening} mode={mode3d}
           toggle={<ViewToggle view={is3d(view) ? view : flat} onChange={onViewChange} views={[flat, "crate", "listen"]} className="bg-(--bg) shadow-[0_1px_8px_rgb(0_0_0/0.12)]" />} sound={SFX ? <SoundToggle /> : null}
           onOpen={() => engineRef.current?.openFront()} onListen={listen} onShelf={shelve} />
         {/* 듣기 카드 ("Now spinning"): Listen 을 누르면 오른쪽 아래에 뜸. 판을 넘겨도 남고, 상자를 떠나면 닫힘 (좁은 화면에서는 쓰지 않음) */}

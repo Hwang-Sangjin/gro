@@ -42,7 +42,7 @@ function facts(info) {
  * info: 맨 앞 판의 상세 (없으면 아직 받는 중) · kind: 내 선반에서의 자리 ("owned" | "wishlist" | null)
  * listening: 이 판을 지금 틀고 있음 · onOpen · onListen · onShelf(kind) · sound: 소리 켜기 버튼 (어디의 상자인지 옆)
  */
-export default function CratePanel({ label, toggle, sound = null, front, total, info, kind, listening, onOpen, onListen, onShelf, mode = "crate", marks = [], onJump }) {
+export default function CratePanel({ label, toggle, sound = null, front, total, info, kind, listening, onOpen, onListen, onShelf, mode = "crate", marks = [], onJump, spinning = false }) {
   const L = mode === "listen";   // Listening: 아래에 책등 선반이 있어 패널을 짧게 · 좁은 화면에서도 듣기 버튼
   const n = front ? Math.max(front.n, total ?? 0) : 0;
   const rows = front && !front.divider ? facts(info) : [];
@@ -89,7 +89,7 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
 
       {/* 글자 칸막이로 바로 가기 (아티스트 A–Z 로 볼 때만) */}
       {marks.length > 1 && (
-        <div role="group" aria-label="Jump to a letter" className={`pointer-events-auto absolute left-1/2 flex min-h-9 -translate-x-1/2 items-center gap-1 rounded-full bg-(--bg)/85 px-1 backdrop-blur-sm max-w-[calc(100%-2rem)] flex-wrap justify-center ${L ? "min-[1280px]:top-[calc(var(--ct-header-h,106px)+0.6rem)] max-[1279px]:bottom-[calc(var(--listen-shelf,260px)+0.1rem)]" : "bottom-[clamp(2.25rem,5.5vh,3.25rem)]"}`}>
+        <div role="group" aria-label="Jump to a letter" className={`pointer-events-auto absolute left-1/2 flex min-h-9 -translate-x-1/2 items-center gap-1 rounded-full bg-(--bg)/85 px-1 backdrop-blur-sm max-w-[calc(100%-2rem)] flex-wrap justify-center ${L ? "top-[calc(var(--ct-header-h,106px)+0.6rem)] max-[1279px]:hidden" : "bottom-[clamp(2.25rem,5.5vh,3.25rem)]"}`}>
           {marks.map((m) => (
             <button key={m.i} type="button" onClick={() => onJump?.(m.i)}
               className={`min-h-8 rounded-full px-3 ${KICKER} tracking-[0.12em] transition-colors duration-300 hover:bg-(--ink) hover:text-(--cream) ${front?.letter === m.label ? "bg-(--ink) text-(--cream)" : "opacity-75"}`}>
@@ -146,6 +146,16 @@ export default function CratePanel({ label, toggle, sound = null, front, total, 
       )}
 
       {/* 아래: 상자 안에서 지금 어디쯤인지 (넓은 화면은 판 아래에, 좁은 화면은 화면 폭 전체) */}
+      {/* Listening: 판을 누르면 재생된다는 안내 (2026-11-27 사용자 요청 — 판을 눌러야 하는지 모를 수 있음)
+          멈춰 있을 땐 늘 옅게 보이고 마우스를 올리면 또렷해짐 · 재생 중에는 마우스를 올렸을 때만 "Click to pause"
+          자리 · 나타남은 엔진이 넣는 값 (--disc-x · --disc-y · --stage-ready · --disc-hover) */}
+      {L && front && !front.divider && canListen && (
+        <p aria-hidden="true"
+          className={`absolute left-(--disc-x) top-(--disc-y) -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-(--ink)/85 px-4 py-2 ${KICKER} text-[10px] text-(--cream) shadow-[0_8px_18px_-10px_rgb(0_0_0/0.6)] backdrop-blur-sm transition-[opacity,scale] duration-500 max-[819px]:hidden`}
+          style={{ opacity: `calc(var(--stage-ready, 0) * (${spinning ? "0" : "0.6"} + ${spinning ? "1" : "0.4"} * var(--disc-hover, 0)))`, scale: "calc(0.94 + 0.06 * var(--disc-hover, 0))" }}>
+          {spinning ? "Click to pause" : "▶ Click to play"}
+        </p>
+      )}
       {/* Listening: 선반 받침 (책등들이 서 있는 줄) */}
       {L && <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[var(--listen-board,24px)] border-t-[6px] border-(--ink) bg-(--bg)" />}
       {front && n > 1 && !L && (
