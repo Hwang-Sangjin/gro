@@ -719,7 +719,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       const raw = base + j - 1, idx = wrap(raw);
       setSlot(slot, idx);
       slot.d = j - 1 - frac;
-      const ce = enter?.kind === 'crate' ? enterE(j / VIS) : 1;
+      // (j = 0 은 맨 앞 판보다 앞 = 이미 넘긴 판 자리 — 들어올 때 같이 흘러오면 맨 앞에 판 한 장이 섰다가 넘어가 사라졌음 → 뺌)
+      const ce = enter?.kind === 'crate' && j > 0 ? enterE(j / VIS) : 1;
       cratePose(slot.d + (1 - ce) * 12, from);
       if (ce < 1) from.o *= ss(0, 0.5, ce);   // 들어올 때: 상자 줄을 따라 오른쪽 위에서 제자리로
       // 판이 적으면 같은 판이 뒤에 또 보이지 않게 (끝없이 넘기는 건 그대로)
