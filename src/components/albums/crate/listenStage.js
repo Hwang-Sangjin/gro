@@ -78,7 +78,7 @@ export async function createListenStage({ renderer }) {
     render(at, W, H, k, dt, { playing, lift = 0, hideDisc = false, hover }) {
       if (disposed || k <= 0.001) return;
       const out = ease(ss(0.3, 1, k)) * (1 - ease(Math.min(1, lift)));    // 판이 나온 정도 (0 = 재킷 안에 다 들어감) — 톤암이 나온 뒤 천천히
-      record.group.visible = shadow.visible = !hideDisc;                   // 재킷이 선반을 오가는 동안은 재킷 안에 든 것 → 그리지 않음
+      record.group.visible = shadow.visible = !hideDisc && out > 0.002;   // 다 들어가 있을 때도 그리지 않음 (재킷이 자리에 없을 수 있음)                   // 재킷이 선반을 오가는 동안은 재킷 안에 든 것 → 그리지 않음
       const armIn = ss(0, 0.3, k);                                          // 톤암이 나타난 정도 (먼저)
       // 움직임
       vel += ((playing ? (STAGE.rpm * Math.PI * 2) / 60 : 0) - vel) * (1 - Math.exp(-dt * 1.2));

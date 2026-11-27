@@ -13,7 +13,7 @@ export const CRATE = {
   VIS: 18,            // Crate 에서 동시에 그리는 판 수 (끝없이 넘길 때 이 수만 재사용)
   LISTEN_DUR: 1.5,    // Crate ↔ Listening 전환 시간(초)
   STAGE_IN: 2.1,      // Listening 에 들어온 뒤 톤암 → 판이 차례로 나오는 시간(초) · 나갈 때는 STAGE_OUT 초에 들어감
-  STAGE_OUT: 0.35,
+  STAGE_OUT: 0.6,
   DUR: 1.5,           // 전환 시간(초)
   WHEEL: 0.0045,      // 휠 1px 당 넘어가는 판 수
   DRAG: 0.008,        // 드래그 1px 당
@@ -265,7 +265,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   let mode = 'grid', m = 1, anim = null, cardOff = 0, running = false;
   // Listening: L = 0 Crate … 1 Listening · sel = 무대에 올라간 판 · selK = 그 재킷이 선반(0) ↔ 무대(1) · swap = 판을 바꾸는 중
   let L = 0, animL = null, useSpines = false, sel = 0, selK = 1, swap = null, playing = false, hoverIdx = -1, picked = false;
-  let stage = null, stageLoading = false, LS = null, cardSpace = false, intro = 0;   // intro = 무대의 톤암 · 판이 나온 정도 0…1
+  let stage = null, stageLoading = false, LS = null, cardSpace = false, intro = 0, pending = null;   // pending = 판 · 톤암이 다 들어간 뒤에 시작할 전환 ('grid' | 'crate')
+  let api = null;   // intro = 무대의 톤암 · 판이 나온 정도 0…1
   hero.mesh.visible = false;
   let pos = 0, target = 0, lastInput = 0, drag = null, touch = null;
   // 마우스 자리 (-1~1, 부드럽게 따라감): 광택이 따라 움직이고, 맨 앞 판 위에 있으면 스티커가 더 말려 올라감
@@ -282,7 +283,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
 
   /* ---- 입력 (크레이트일 때만) ---- */
   const live = () => mode === 'crate' && !anim && !animL;
-  const liveL = () => mode === 'listen' && !anim && !animL;
+  const liveL = () => mode === 'listen' && !anim && !animL && !pending;
   const onWheel = (e) => {
     e.preventDefault(); e.stopPropagation();
     if (!live() && !liveL()) return;
@@ -668,8 +669,10 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     renderer.clear();
     // 판 + 톤암: 제 장면 · 제 카메라로 먼저 그리고, 그 위에 재킷 · 책등들 (판이 재킷 뒤에서 나옴)
     //  등장 순서 (2026-11-27 사용자 요청): 재킷이 무대에 다 온 뒤 → 톤암 → 판이 천천히 나옴. 떠날 때는 빠르게 들어감
-    if (stage && mode === 'listen' && !anim && !animL) intro = Math.min(1, intro + dt / CRATE.STAGE_IN);
+    //  떠날 때 (같은 날 요청): 판이 먼저 재킷 안으로 들어가 사라지고 톤암이 빠진 뒤에야 재킷 · 책등이 움직이기 시작함 (pending)
+    if (stage && mode === 'listen' && !anim && !animL && !pending) intro = Math.min(1, intro + dt / CRATE.STAGE_IN);
     else intro = Math.max(0, intro - dt / CRATE.STAGE_OUT);
+    if (pending && intro <= 0) { const p = pending; pending = null; if (p === 'grid') api.toGrid(); else api.listenToCrate(); }
     const sk = intro;
     if (stage && sk > 0.001 && LS) {
       stage.render(LS.disc, W, H, sk, dt, { playing: playing && !swap, lift: swapLift, hideDisc: discHidden, hover });
@@ -687,7 +690,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   }
   function run() { if (!running) { running = true; prev = performance.now() / 1000; raf = requestAnimationFrame(frame); } }
 
-  return {
+  api = {
     /** 그리드 → 크레이트. start = 맨 앞이 될 카드 번호 (그 칸부터 화면의 판들이 날아옴) */
     toCrate(list, start, { instant = false } = {}) {
       cards = list; showAllArt();
@@ -702,7 +705,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     },
     /** 크레이트 → 그리드. 부르기 전에 맨 앞 판의 칸이 화면에 보이게 스크롤해 둘 것 */
     toGrid() {
-      if (mode === 'grid' || anim || animL) return;
+      if (mode === 'grid' || anim || animL || pending) return;
+      if (mode === 'listen' && stage && intro > 0.001 && !reduced) { pending = 'grid'; swap = null; selK = 1; run(); return; }
       target = pos = Math.round(pos);
       cardOff = wrap(pos);
       mode = 'grid';
@@ -753,7 +757,8 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     },
     /** Listening → Crate: 무대의 판이 상자 맨 앞으로 */
     listenToCrate() {
-      if (mode !== 'listen' || anim || animL) return false;
+      if (mode !== 'listen' || anim || animL || pending) return false;
+      if (stage && intro > 0.001 && !reduced) { pending = 'crate'; swap = null; selK = 1; run(); return true; }
       swap = null; selK = 1; shownFront = -1;
       mode = 'crate';
       animL = { from: L, to: 0, t0: performance.now() / 1000, dur: reduced ? 0.01 : CRATE.LISTEN_DUR };
@@ -767,7 +772,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     get front() { return L > 0.5 ? sel : wrap(Math.round(pos)); },
     /** 그리드로 돌아갈 때 화면에 보이게 해 둘 칸: Crate = 맨 앞 판 · Listening = 선반 왼쪽 끝 판 */
     get anchor() { return wrap(Math.round(pos)); },
-    get busy() { return !!anim || !!animL; },
+    get busy() { return !!anim || !!animL || !!pending; },
     setFog(hex) { scene.fog.color.set(hex); },
     dispose() {
       disposed = true;
@@ -783,4 +788,5 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       renderer.dispose(); canvas.remove();
     },
   };
+  return api;
 }
