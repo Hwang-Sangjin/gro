@@ -14,10 +14,10 @@ export const CRATE = {
   LISTEN_DUR: 1.5,    // Crate ↔ Listening 전환 시간(초)
   STAGE_IN: 2.1,      // Listening 에 들어온 뒤 톤암 → 판이 차례로 나오는 시간(초) · 나갈 때는 STAGE_OUT 초에 들어감
   STAGE_OUT: 0.6,
-  DUR: 0.7,           // 전환 시간(초) (판이 날아갈 때는 1.5 였음)
-  // (2026-11-27 사용자 요청: "촤라락 넘어가는 효과는 다 빼줘") 되살리려면 true 로, DUR 은 1.5 로
-  FLY: false,         // Grid ↔ Crate / Listen: 그리드 칸과 3D 자리 사이를 판이 차례로 날아감. false = 날지 않고 화면이 부드럽게 바뀜
-  TUMBLE: false,      // Crate: 넘길 때 판이 앞으로 넘어가며 사라지는 움직임. false = 맨 앞 판이 바로 바뀜
+  DUR: 1.5,           // 전환 시간(초) (FLY 를 끄면 0.7 쯤이 알맞음)
+  // (2026-11-27 저녁에 둘 다 껐다가 같은 날 밤 되살림 — 사용자: "crate 에서 효과음만 제거, 효과는 그대로, 촤라락 이동하는 효과는 이전처럼". 효과음(CrateView SFX)과 페이지 넘김(CrateStage FLIP)은 꺼진 채)
+  FLY: true,          // Grid ↔ Crate / Listen: 그리드 칸과 3D 자리 사이를 판이 차례로 날아감. false = 날지 않고 화면이 부드럽게 바뀜
+  TUMBLE: true,       // Crate: 넘길 때 판이 앞으로 넘어가며 사라지는 움직임. false = 맨 앞 판이 바로 바뀜
   WHEEL: 0.0045,      // 휠 1px 당 넘어가는 판 수
   DRAG: 0.008,        // 드래그 1px 당
 };
