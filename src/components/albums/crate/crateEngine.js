@@ -11,7 +11,9 @@ import { isPeeled, markPeeled } from '../peeled';
 export const CRATE = {
   SLOTS: 64,          // 만들어 두는 판 수 (Listening 선반은 화면 폭만큼 책등이 필요함)
   VIS: 18,            // Crate 에서 동시에 그리는 판 수 (끝없이 넘길 때 이 수만 재사용)
-  LISTEN_DUR: 1.25,   // Crate ↔ Listening 전환 시간(초)
+  LISTEN_DUR: 1.5,    // Crate ↔ Listening 전환 시간(초)
+  STAGE_IN: 2.1,      // Listening 에 들어온 뒤 톤암 → 판이 차례로 나오는 시간(초) · 나갈 때는 STAGE_OUT 초에 들어감
+  STAGE_OUT: 0.35,
   DUR: 1.5,           // 전환 시간(초)
   WHEEL: 0.0045,      // 휠 1px 당 넘어가는 판 수
   DRAG: 0.008,        // 드래그 1px 당
@@ -263,7 +265,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
   let mode = 'grid', m = 1, anim = null, cardOff = 0, running = false;
   // Listening: L = 0 Crate … 1 Listening · sel = 무대에 올라간 판 · selK = 그 재킷이 선반(0) ↔ 무대(1) · swap = 판을 바꾸는 중
   let L = 0, animL = null, useSpines = false, sel = 0, selK = 1, swap = null, playing = false, hoverIdx = -1, picked = false;
-  let stage = null, stageLoading = false, LS = null, cardSpace = false;
+  let stage = null, stageLoading = false, LS = null, cardSpace = false, intro = 0;   // intro = 무대의 톤암 · 판이 나온 정도 0…1
   hero.mesh.visible = false;
   let pos = 0, target = 0, lastInput = 0, drag = null, touch = null;
   // 마우스 자리 (-1~1, 부드럽게 따라감): 광택이 따라 움직이고, 맨 앞 판 위에 있으면 스티커가 더 말려 올라감
@@ -530,6 +532,12 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     if (animL) {
       const k = clamp01((now - animL.t0) / animL.dur);
       L = animL.from + (animL.to - animL.from) * k;
+      // Crate ↔ Listening (2026-11-27 다시 만듦): 한쪽 판들이 가라앉아 사라진 뒤 다른 쪽이 나타남. 그 사이(아무것도 안 보일 때)에 넘김 자리를 맞춤
+      //  (처음엔 모든 판이 상자 자리에서 선반 자리로 한꺼번에 돌며 날아가고 선반까지 주르륵 밀려서 정신없었음 — 사용자)
+      if (!animL.snapped && (animL.to === 1 ? L >= 0.45 : L <= 0.45)) {
+        animL.snapped = true;
+        pos = target = animL.to === 1 ? clampN(0, Math.round(sel - LS.count / 2), Math.max(0, N() - LS.count)) : sel;
+      }
       if (k >= 1) { L = animL.to; animL = null; onSettled?.(mode); }
     }
     // 판 바꾸기 (2026-11-27 사용자 요청): ① 판이 재킷 안으로 다 들어가 사라짐 → ② 재킷이 선반 제자리로 → 새 재킷이 선반에서 무대로 → ③ 새 판이 재킷에서 오른쪽으로 나옴
@@ -552,11 +560,12 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
         if (swap.t >= T[3]) swap = null;
       }
     }
-    if (mode === 'listen' && LS) target = clampN(0, target, Math.max(0, N() - LS.count));
+    if (mode === 'listen' && LS && !(animL && !animL.snapped)) target = clampN(0, target, Math.max(0, N() - LS.count));
     if (!drag && !touch && performance.now() - lastInput > 140) target += (Math.round(target) - target) * (1 - Math.exp(-dt / 0.12));
     pos += (target - pos) * (1 - Math.exp(-dt / 0.14));
     if (Math.abs(target - pos) < 0.0005) pos = target;
-    const front = L > 0.5 ? sel : wrap(Math.round(pos));
+    const listenish = animL ? animL.to === 1 || !animL.snapped : L > 0.5;
+    const front = listenish ? sel : wrap(Math.round(pos));
     if (front !== shownFront && N()) { shownFront = front; onFront?.(front, cards[front], picked); picked = false; }
     // 마우스: 부드럽게 따라감 · 맨 앞 판 위에 있는지 (지난 프레임의 자리로 잼)
     const hk = 1 - Math.exp(-dt / 0.18);
@@ -604,7 +613,16 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       if (j - 1 >= N()) from.o *= 1 - ss(N() - 1, N(), j - 1 - frac);
       if (L > 0) {
         slot.lift += ((idx === hoverIdx ? 1 : 0) - slot.lift) * (1 - Math.exp(-dt / 0.09));
-        lerpPose(from, shelfPose(slot.d, raw, slot, sp), Le, from);
+        if (L < 0.45) {
+          // 상자의 판들: 조금 가라앉으며 사라짐
+          const k = ss(0, 0.4, L);
+          from.o *= 1 - k; from.y -= k * 0.3 * (CARD / 3.2);
+        } else {
+          // 선반의 책등들: 왼쪽부터 차례로 아래에서 올라옴
+          shelfPose(slot.d, raw, slot, from);
+          const r = clamp01(((L - 0.45) / 0.55) * 1.6 - 0.6 * clamp01(slot.d / LS.count)), e = 1 - (1 - r) ** 3;
+          from.o *= ss(0, 0.5, r); from.y -= (1 - e) * LS.sh * 0.5;
+        }
         // 고른 판은 무대의 재킷(hero)이 대신 그림 → 선반에는 빈자리
         if (heroOn && idx === sel) { from.o = 0; slot.gridK = 0; applyPose(slot, from, false); return; }
       }
@@ -629,7 +647,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
       setSlot(hero, sel);
       hero.d = 0; hero.lift = 0;
       const dSel = sel - pos;
-      cratePose(dSel, hc);
+      cratePose(0, hc);   // 상자에서는 맨 앞 판
       lerpPose(shelfPose(dSel, sel, hero, sp), stagePose(stp), selK, sp);
       lerpPose(hc, sp, Le, hc);
       const art = m > 0 ? cards[sel].art : null, r = art?.getBoundingClientRect();
@@ -649,7 +667,10 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     renderer.setViewport(0, 0, W, H);
     renderer.clear();
     // 판 + 톤암: 제 장면 · 제 카메라로 먼저 그리고, 그 위에 재킷 · 책등들 (판이 재킷 뒤에서 나옴)
-    const sk = Le * (1 - clamp01(m * 1.5));
+    //  등장 순서 (2026-11-27 사용자 요청): 재킷이 무대에 다 온 뒤 → 톤암 → 판이 천천히 나옴. 떠날 때는 빠르게 들어감
+    if (stage && mode === 'listen' && !anim && !animL) intro = Math.min(1, intro + dt / CRATE.STAGE_IN);
+    else intro = Math.max(0, intro - dt / CRATE.STAGE_OUT);
+    const sk = intro;
     if (stage && sk > 0.001 && LS) {
       stage.render(LS.disc, W, H, sk, dt, { playing: playing && !swap, lift: swapLift, hideDisc: discHidden, hover });
       renderer.clearDepth();
@@ -733,7 +754,7 @@ export function createCrateEngine({ host, onFront, onOpen, onSettled, onPeel, on
     /** Listening → Crate: 무대의 판이 상자 맨 앞으로 */
     listenToCrate() {
       if (mode !== 'listen' || anim || animL) return false;
-      target = sel; swap = null; selK = 1; shownFront = -1;
+      swap = null; selK = 1; shownFront = -1;
       mode = 'crate';
       animL = { from: L, to: 0, t0: performance.now() / 1000, dur: reduced ? 0.01 : CRATE.LISTEN_DUR };
       run();
