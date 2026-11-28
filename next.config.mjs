@@ -16,8 +16,23 @@ const assetHeaders = process.env.NODE_ENV !== 'production' ? [] : [
   { source: '/models/:path*', has: [{ type: 'query', key: 'v' }], headers: [{ key: 'Cache-Control', value: VERSIONED }] },
 ];
 
+// 보안 헤더 (모든 페이지 · 파일)
+//  - 다른 사이트가 우리 페이지를 iframe 에 숨겨 넣고 클릭을 유도하지 못하게 (클릭재킹)
+//  - 파일 종류를 브라우저가 멋대로 추측하지 않게 (nosniff)
+//  - 다른 사이트로 나갈 때 주소 전체 대신 도메인만 알려 줌 (YouTube 재생에 필요한 만큼은 남음)
+//  - 쓰지 않는 카메라 · 마이크 · 위치 · 결제 기능은 꺼 둠 (YouTube 의 자동재생 · 전체화면은 그대로)
+//  전체 CSP(스크립트 출처 제한)는 넣지 않음: YouTube · Supabase · MapLibre 워커 · wasm 을 다 열어 줘야 해서 따로 시험한 뒤에
+const securityHeaders = [
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()' },
+];
+
 export default {
   turbopack: { root: fileURLToPath(new URL('.', import.meta.url)) },
   agentRules: false,
-  async headers() { return assetHeaders; },
+  poweredByHeader: false,
+  async headers() { return [{ source: '/:path*', headers: securityHeaders }, ...assetHeaders]; },
 };
