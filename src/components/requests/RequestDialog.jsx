@@ -11,6 +11,7 @@ import useAuthUser from "@/lib/useAuthUser";
 import { submitRequest, fetchMyRequests, STATUS_LABEL } from "@/lib/requests";
 import { GENRES } from "@/lib/genres";
 import { parseTracks, TRACK_PLACEHOLDER, FORMATS } from "@/lib/tracks";
+import { HTTP_URL_PATTERN } from "@/lib/safeUrl";
 
 const SERIF = "font-['Grooves_Display','Hahmlet',Georgia,serif] font-black tracking-[-0.008em]";
 const field = "w-full rounded-xl border border-(--ink)/20 bg-transparent px-3.5 py-2.5 text-[14px] outline-none transition-colors placeholder:text-(--ink)/35 focus:border-(--ink)";
@@ -131,7 +132,7 @@ const RequestDialog = forwardRef(function RequestDialog(_, ref) {
             </div>
             <div>
               <label htmlFor="rq-link" className={labelCls}>Link <span className="normal-case tracking-normal opacity-70">(Discogs, Spotify, YouTube…)</span></label>
-              <input id="rq-link" type="url" className={field} value={form.link} onChange={set("link")} maxLength={500} placeholder="https://" />
+              <input id="rq-link" type="url" className={field} value={form.link} onChange={set("link")} maxLength={500} placeholder="https://" pattern={HTTP_URL_PATTERN} title="A web link starting with https://" />
             </div>
             <div>
               <label htmlFor="rq-note" className={labelCls}>Note</label>

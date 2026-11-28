@@ -9,6 +9,10 @@ import { field, btnPrimary, btnGhost } from "./ui";
 import { requestCoverUrl } from "@/lib/requests";
 import { GENRES } from "@/lib/genres";
 import { parseTracks } from "@/lib/tracks";
+import { safeHttpUrl } from "@/lib/safeUrl";
+
+// 요청한 사람이 적은 YouTube 칸 → 열어 볼 주소 (http(s) 주소면 그대로, 아니면 재생목록 ID 로 보고 YouTube 주소를 만듦)
+const youtubeHref = (v) => safeHttpUrl(v) ?? `https://www.youtube.com/playlist?list=${encodeURIComponent(v)}`;
 
 const GENRE_NAME = Object.fromEntries(GENRES.map((g) => [g.slug, g.name]));
 
@@ -68,13 +72,16 @@ export default function RequestTable({ requests: initial }) {
                   <p className="text-[14px] text-(--ink)/65">— {r.artist}</p>
                 </div>
                 <p className="mt-1 text-[12px] text-(--ink)/50">{who}{r.profiles?.email && r.profiles?.display_name ? ` · ${r.profiles.email}` : ""} · {when(r.created_at)}</p>
-                {r.link && <a href={r.link} target="_blank" rel="noreferrer noopener" className="mt-2 inline-block max-w-full truncate text-[13px] underline underline-offset-4">{r.link}</a>}
+                {/* 웹 주소가 아니면(javascript: 등) 링크로 만들지 않고 글자로만 보임 */}
+                {r.link && (safeHttpUrl(r.link)
+                  ? <a href={safeHttpUrl(r.link)} target="_blank" rel="noreferrer noopener" className="mt-2 inline-block max-w-full truncate text-[13px] underline underline-offset-4">{r.link}</a>
+                  : <span className="mt-2 inline-block max-w-full truncate text-[13px] text-(--ink)/55">{r.link} (not a web link)</span>)}
                 {r.note && <p className="mt-2 max-w-2xl whitespace-pre-line text-[13px] leading-6 text-(--ink)/75">{r.note}</p>}
                 {(meta.length > 0 || r.genres?.length > 0 || r.youtube_playlist) && (
                   <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[12px]">
                     {r.genres?.map((g) => <span key={g} className="rounded-full border border-(--ink)/20 px-2 py-0.5">{GENRE_NAME[g] ?? g}</span>)}
                     {meta.length > 0 && <span className="text-(--ink)/60">{meta.join(" · ")}</span>}
-                    {r.youtube_playlist && <a href={r.youtube_playlist.startsWith("http") ? r.youtube_playlist : `https://www.youtube.com/playlist?list=${r.youtube_playlist}`} target="_blank" rel="noreferrer noopener" className="underline underline-offset-4">YouTube ↗︎</a>}
+                    {r.youtube_playlist && <a href={youtubeHref(r.youtube_playlist)} target="_blank" rel="noreferrer noopener" className="underline underline-offset-4">YouTube ↗︎</a>}
                   </div>
                 )}
                 {trackRows.length > 0 && (

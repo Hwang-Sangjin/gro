@@ -5,6 +5,7 @@
 
 import { adminGuard, serviceClient } from "@/lib/admin/auth";
 import { slugify, cleanInstagram } from "@/lib/places";
+import { safeHttpUrl } from "@/lib/safeUrl";
 
 export const runtime = "nodejs";
 const KINDS = ["shop", "bar", "listening", "event"];
@@ -23,6 +24,12 @@ export async function POST(req: Request) {
     if (!name) return Response.json({ error: "Name is required." }, { status: 400 });
     if (!slug) return Response.json({ error: "Slug is required." }, { status: 400 });
     if (!KINDS.includes(p.kind)) return Response.json({ error: "Pick a kind." }, { status: 400 });
+    // 웹사이트 · 지도 링크는 http(s) 주소만 (장소 카드에서 그대로 링크가 됨)
+    for (const [key, label] of [["website", "Website"], ["map_url", "Map link"]] as const) {
+      if (text(p[key]) && !safeHttpUrl(text(p[key]))) {
+        return Response.json({ error: `${label} needs to start with https://` }, { status: 400 });
+      }
+    }
     const also = Array.isArray(p.also) ? [...new Set(p.also.filter((k: unknown) => typeof k === "string" && KINDS.includes(k) && k !== p.kind))] : [];
     const isEvent = p.kind === "event" || also.includes("event");
     // 위치는 숨김(draft)일 때만 비워둘 수 있음 — 지도에 보이려면 핀이 꼭 있어야 함

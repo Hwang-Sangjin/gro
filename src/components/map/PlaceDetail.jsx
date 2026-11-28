@@ -7,6 +7,7 @@ import Link from "next/link";
 import { GENRES } from "@/lib/genres";
 import { STORIES } from "@/content/news";
 import { kindOf, kindsOf, hasKind, parseHours, isOnNow, naverSearch } from "@/lib/places";
+import { safeHttpUrl } from "@/lib/safeUrl";
 import { SERIF, Reveal } from "@/components/lab/LabUI";
 import StoryCover from "@/content/news/Covers";
 import { Disc } from "./PlaceList";
@@ -91,9 +92,9 @@ export default function PlaceDetail({ place, open = {}, onClose, code = null }) 
       )}
 
       <Reveal i={8} className="mt-5 grid grid-cols-2 gap-2 border-t-[3px] border-(--ink) pt-4">
-        <a href={place.map_url || naverSearch(place)} target="_blank" rel="noreferrer" className={`${pill} col-span-2 bg-(--ink) text-(--cream) hover:bg-(--accent)`}>Naver Map ↗︎</a>
+        <a href={safeHttpUrl(place.map_url) || naverSearch(place)} target="_blank" rel="noreferrer" className={`${pill} col-span-2 bg-(--ink) text-(--cream) hover:bg-(--accent)`}>Naver Map ↗︎</a>
         {place.instagram && <a href={`https://www.instagram.com/${place.instagram}/`} target="_blank" rel="noreferrer" className={`${pillBase} col-span-2 border border-(--ink)/25 text-[13px] hover:border-(--ink)`}>@{place.instagram}</a>}
-        {place.website && <a href={place.website} target="_blank" rel="noreferrer" className={`${pill} col-span-2 border border-(--ink)/25 hover:border-(--ink)`}>Website ↗︎</a>}
+        {safeHttpUrl(place.website) && <a href={safeHttpUrl(place.website)} target="_blank" rel="noreferrer" className={`${pill} col-span-2 border border-(--ink)/25 hover:border-(--ink)`}>Website ↗︎</a>}
       </Reveal>
 
       {story && (

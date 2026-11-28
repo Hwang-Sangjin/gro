@@ -1,6 +1,7 @@
 "use client";
 // 앨범 등록 요청 — album_requests 테이블 (RLS: 본인 요청만 쓰고 읽음)
 import { authClient } from "@/lib/useAuthUser";
+import { safeHttpUrl } from "@/lib/safeUrl";
 
 export const STATUS_LABEL = { pending: "In the queue", added: "Added", declined: "Not this time" };
 
@@ -12,6 +13,11 @@ export const requestCoverUrl = (path) =>
 export async function submitRequest(input) {
   const db = authClient();
   const clean = (v) => (v == null ? null : String(v).trim() || null);
+  // 링크는 http(s) 주소만. YouTube 칸은 주소 또는 재생목록 ID(글자·숫자·_·-)
+  const link = clean(input.link);
+  if (link && !safeHttpUrl(link)) throw new Error("The link needs to start with https://");
+  const youtube = clean(input.youtube);
+  if (youtube && !safeHttpUrl(youtube) && !/^[A-Za-z0-9_-]+$/.test(youtube)) throw new Error("Paste a YouTube link (https://…) or a playlist ID.");
   let cover_path = null;
   if (input.cover) {
     // 커버: request-covers/<내 id>/<시각>.<확장자> (본인 폴더만 올릴 수 있음)
@@ -26,11 +32,11 @@ export async function submitRequest(input) {
   }
   const year = Number(input.releaseYear) || (input.releaseDate ? Number(String(input.releaseDate).slice(0, 4)) : null);
   const { error } = await db.from("album_requests").insert({
-    title: clean(input.title), artist: clean(input.artist), link: clean(input.link), note: clean(input.note),
+    title: clean(input.title), artist: clean(input.artist), link, note: clean(input.note),
     genres: input.genres?.length ? input.genres : null,
     release_date: clean(input.releaseDate), release_year: year || null,
     format: clean(input.format), label: clean(input.label), catalog_no: clean(input.catalogNo),
-    youtube_playlist: clean(input.youtube), tracks: clean(input.tracks), cover_path,
+    youtube_playlist: youtube, tracks: clean(input.tracks), cover_path,
   });
   if (error) {
     // 23505 = 같은 앨범을 이미 대기 중으로 요청함
